@@ -2,8 +2,8 @@
   <div class="home-page">
 
     <!-- 顶部用户栏 -->
-    <div class="user-bar">
-      <span class="username">{{ userInfo?.username || '未登录' }}</span>
+    <div class="top-bar">
+      <span class="welcome">欢迎，{{ user.displayName }}</span>
       <button class="logout-btn" @click="logout">退出</button>
     </div>
 
@@ -29,7 +29,6 @@
 </template>
 
 <script>
-import {storeToRefs} from 'pinia'
 import {useUserStore} from '../store/user'
 import {useRouter} from 'vue-router'
 
@@ -37,10 +36,10 @@ export default {
   setup() {
     const router = useRouter()
     const userStore = useUserStore()
-    const {userInfo} = storeToRefs(userStore)
-
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
     const logout = () => {
-      userStore.logout()
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
       router.push('/login')
     }
 
@@ -55,7 +54,7 @@ export default {
       alert(`功能【${tool.name}】后续扩展`)
     }
 
-    return {tools, userInfo, logout, openTool}
+    return {user, logout, tools, openTool}
   }
 }
 </script>
@@ -68,21 +67,31 @@ export default {
 }
 
 /* 顶部右上角用户栏 */
-.user-bar {
-  position: absolute;
-  top: 16px;
-  right: 16px;
+
+
+.top-bar {
+  width: 100%;
+  padding: 12px 20px;
   display: flex;
+  justify-content: flex-end;
   align-items: center;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.35);
-  padding: 8px 14px;
-  border-radius: 12px;
-  backdrop-filter: blur(8px);
+  gap: 16px;
+  color: #fff;
+  font-size: 16px;
 }
 
-.username {
-  font-size: 14px;
+.welcome {
+  font-weight: 500;
+}
+
+.logout-btn {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
 }
 
 .logout-btn {

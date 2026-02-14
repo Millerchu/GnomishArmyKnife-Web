@@ -24,20 +24,41 @@
 <script>
 import {reactive} from 'vue'
 import {useRouter} from 'vue-router'
+import {loginApi} from '@/api/auth'
 
 export default {
   setup() {
     const router = useRouter()
-    const form = reactive({username: '', password: ''})
 
-    const handleLogin = () => {
-      router.push('/home')
+    const form = reactive({
+      username: '',
+      password: ''
+    })
+
+    const handleLogin = async () => {
+      try {
+        const res = await loginApi(form)
+
+        // 假设后端返回 token 和 user 信息
+        const {token, user} = res.data
+
+        // 保存 token 和用户信息
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(user))
+
+        // 跳转首页
+        router.push('/home')
+      } catch (err) {
+        console.error(err)
+        alert('登录失败，请检查用户名或密码')
+      }
     }
 
     return {form, handleLogin}
   }
 }
 </script>
+
 
 <style scoped>
 .login-page {

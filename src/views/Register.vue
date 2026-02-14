@@ -12,6 +12,13 @@
         />
 
         <input
+            v-model="form.displayName"
+            class="input"
+            placeholder="昵称（显示名称）"
+            required
+        />
+
+        <input
             v-model="form.password"
             class="input"
             type="password"
@@ -33,6 +40,7 @@
 <script>
 import {reactive} from 'vue'
 import {useRouter} from 'vue-router'
+import {registerApi} from '@/api/auth'
 
 export default {
   setup() {
@@ -40,12 +48,20 @@ export default {
 
     const form = reactive({
       username: '',
-      password: ''
+      password: '',
+      displayName: ''
     })
 
-    const handleRegister = () => {
-      alert('注册成功')
-      router.push('/login')
+    const handleRegister = async () => {
+      try {
+        await registerApi(form)
+
+        alert('注册成功，请登录')
+        router.push('/login')
+      } catch (err) {
+        console.error(err)
+        alert('注册失败，请检查输入')
+      }
     }
 
     return {form, handleRegister}
