@@ -8,7 +8,7 @@
     </div>
 
     <!-- 系统名称 -->
-    <h1 class="home-title">果冻的侏儒军刀</h1>
+    <h1 class="home-title">侏儒军刀</h1>
 
     <!-- 工具图标网格 -->
     <div class="grid">

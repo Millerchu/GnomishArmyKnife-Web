@@ -2,7 +2,7 @@
   <div class="login-page">
 
     <!-- 系统名称（独立显示） -->
-    <h1 class="system-name">果冻的侏儒军刀</h1>
+    <h1 class="system-name">侏儒军刀</h1>
 
     <div class="glass-box">
       <h2 class="title">登录</h2>
