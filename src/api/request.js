@@ -1,21 +1,18 @@
-const BASE_URL = 'http://localhost:8080' // 后端预留
+import axios from 'axios'
 
-export async function request(url, options = {}) {
-    const res = await fetch(BASE_URL + url, {
-        headers: {
-            'Content-Type': 'application/json',
-            ...(options.headers || {})
-        },
-        ...options
-    })
+const request = axios.create({
+  baseURL: '/api',
+  timeout: 8000,
+  withCredentials: true
+})
 
-    if (!res.ok) throw new Error('网络错误：' + res.status)
+request.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
 
-    return res.json()
-}
-
-export const post = (url, data) =>
-    request(url, {
-        method: 'POST',
-        body: JSON.stringify(data)
-    })
+export default request

@@ -29,13 +29,11 @@
 </template>
 
 <script>
-import {useUserStore} from '../store/user'
 import {useRouter} from 'vue-router'
 
 export default {
   setup() {
     const router = useRouter()
-    const userStore = useUserStore()
     const user = JSON.parse(localStorage.getItem('user') || '{}')
     const logout = () => {
       localStorage.removeItem('token')
@@ -51,6 +49,10 @@ export default {
     ]
 
     const openTool = (tool) => {
+      if (tool.name === '工作日志') {
+        router.push('/work-log')
+        return
+      }
       alert(`功能【${tool.name}】后续扩展`)
     }
 
