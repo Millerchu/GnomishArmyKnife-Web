@@ -1,18 +1,17 @@
-import axios from 'axios'
+import request from '@/api/request'
 
-const request = axios.create({
-    baseURL: '/api',
-    timeout: 5000
-})
+export function getCaptchaApi() {
+  return request.get('/auth/captcha')
+}
 
-// 登录
+export function getPasswordPublicKeyApi() {
+  return request.get('/auth/password-public-key')
+}
+
 export function loginApi(data) {
-    return request.post('/auth/login', data)
+  return request.post('/auth/login', data)
 }
 
-// 注册
 export function registerApi(data) {
-    return request.post('/auth/register', data)
+  return request.post('/auth/register', data)
 }
-
-export default request
