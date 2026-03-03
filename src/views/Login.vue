@@ -110,14 +110,28 @@ export default {
         return '网络异常，请检查网络后重试'
       }
 
-      const rawMessage = (
-        error.response?.data?.message ||
-        error.response?.data?.msg ||
-        error.response?.data?.error ||
+      const data = error.response?.data || {}
+      const code = (data.code || data.errorCode || '').toString().toUpperCase()
+      const message = (
+        data.message ||
+        data.msg ||
+        data.error ||
         ''
-      )
-        .toString()
-        .toLowerCase()
+      ).toString()
+
+      if (code) {
+        if (code.includes('CAPTCHA')) {
+          return '验证码错误或已过期'
+        }
+        if (code.includes('PASSWORD') || code.includes('CREDENTIAL')) {
+          return '用户名或密码错误'
+        }
+        if (code.includes('DECRYPT')) {
+          return '密码解密失败'
+        }
+      }
+
+      const rawMessage = message.toLowerCase()
 
       if (rawMessage.includes('captcha') || rawMessage.includes('验证码')) {
         return '验证码错误或已过期'
@@ -135,6 +149,10 @@ export default {
 
       if (rawMessage.includes('decrypt') || rawMessage.includes('解密')) {
         return '密码解密失败'
+      }
+
+      if (message) {
+        return message
       }
 
       return '登录失败，请稍后重试'
