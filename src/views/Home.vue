@@ -40,20 +40,34 @@
       </div>
 
       <section class="main-panel">
-        <h1 class="home-title">侏儒军刀</h1>
+        <div class="panel-head">
+          <div>
+            <h1 class="home-title">侏儒军刀</h1>
+            <p class="home-subtitle">当前固定展示全部应用，后续由权限管理统一维护，并支持按使用频率排序。</p>
+          </div>
+          <span class="app-count">应用总数 {{ tools.length }}</span>
+        </div>
 
         <div class="grid">
-          <div
+          <button
             v-for="tool in tools"
-            :key="tool.name"
+            :key="tool.key"
             class="tool-item"
+            type="button"
             @click="openTool(tool)"
           >
-            <div class="icon-box">
-              <img :src="tool.icon" class="icon" :alt="tool.name"/>
+            <div class="tool-top">
+              <div class="icon-box" :style="tool.iconStyle">
+                <span class="icon-text">{{ tool.iconText }}</span>
+              </div>
+              <span class="tool-state">{{ tool.statusText }}</span>
             </div>
-            <p class="tool-name">{{ tool.name }}</p>
-          </div>
+
+            <div class="tool-content">
+              <p class="tool-name">{{ tool.name }}</p>
+              <p class="tool-meta">{{ tool.featureCode }}</p>
+            </div>
+          </button>
         </div>
       </section>
     </main>
@@ -163,12 +177,73 @@ import {updatePasswordApi, updateProfileApi} from '@/api/user'
 import {encryptPasswordByPublicKey} from '@/utils/rsaEncrypt'
 
 const WEEK_LABELS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+const APP_COLOR_PALETTE = [
+  ['#0f766e', '#2563eb'],
+  ['#7c3aed', '#ec4899'],
+  ['#b45309', '#f97316'],
+  ['#047857', '#22c55e'],
+  ['#1d4ed8', '#38bdf8'],
+  ['#be123c', '#f43f5e'],
+  ['#4338ca', '#8b5cf6'],
+  ['#0f766e', '#14b8a6'],
+  ['#9a3412', '#fb7185'],
+  ['#1f2937', '#4b5563'],
+  ['#854d0e', '#eab308']
+]
+const APP_DEFINITIONS = [
+  {key: 'calculator', name: '计算器', featureCode: 'APP_CALCULATOR', usageCount: 0},
+  {key: 'work-log', name: '工作日志', featureCode: 'APP_WORK_LOG', route: '/work-log', usageCount: 0},
+  {key: 'password-vault', name: '密码备忘录', featureCode: 'APP_PASSWORD_MEMO', usageCount: 0},
+  {key: 'todo-list', name: '待办列表', featureCode: 'APP_TODO_LIST', usageCount: 0},
+  {key: 'fuel-stats', name: '油耗统计', featureCode: 'APP_FUEL_STATS', usageCount: 0},
+  {key: 'wow-character', name: 'WoW角色统计', featureCode: 'APP_WOW_CHARACTER', usageCount: 0},
+  {key: 'personal-bills', name: '个人账单', featureCode: 'APP_PERSONAL_BILLS', usageCount: 0},
+  {key: 'annual-budget', name: '年度预算', featureCode: 'APP_ANNUAL_BUDGET', usageCount: 0},
+  {key: 'knowledge-base', name: '个人经验库', featureCode: 'APP_KNOWLEDGE_BASE', usageCount: 0},
+  {key: 'software-repo', name: '软件仓库', featureCode: 'APP_SOFTWARE_REPO', usageCount: 0},
+  {key: 'health-record', name: '个人健康记录', featureCode: 'APP_HEALTH_RECORD', usageCount: 0}
+]
 
 function formatDateText(date) {
   const year = date.getFullYear()
   const month = `${date.getMonth() + 1}`.padStart(2, '0')
   const day = `${date.getDate()}`.padStart(2, '0')
   return `${year}年${month}月${day}日 ${WEEK_LABELS[date.getDay()]}`
+}
+
+function hashText(text) {
+  return Array.from(text).reduce((total, char) => total + char.charCodeAt(0), 0)
+}
+
+function hexToRgba(hex, alpha) {
+  const value = hex.replace('#', '')
+  const normalized = value.length === 3
+    ? value.split('').map((item) => item + item).join('')
+    : value
+  const red = parseInt(normalized.slice(0, 2), 16)
+  const green = parseInt(normalized.slice(2, 4), 16)
+  const blue = parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
+function buildToolIconText(name) {
+  const normalized = name.replace(/\s+/g, '')
+  const chars = Array.from(normalized)
+  return chars.slice(0, 2).join('')
+}
+
+function buildToolEntry(item, index) {
+  const palette = APP_COLOR_PALETTE[hashText(item.name) % APP_COLOR_PALETTE.length]
+  return {
+    ...item,
+    order: index + 1,
+    iconText: buildToolIconText(item.name),
+    iconStyle: {
+      background: `linear-gradient(135deg, ${palette[0]}, ${palette[1]})`,
+      boxShadow: `0 12px 24px ${hexToRgba(palette[0], 0.35)}`
+    },
+    statusText: item.route ? '已接入' : '待接入'
+  }
 }
 
 function extractErrorMessage(error, fallback) {
@@ -209,12 +284,11 @@ export default {
       {key: 'log', name: '系统日志', shortName: '志'}
     ]
 
-    const tools = [
-      {name: '计算器', icon: '/src/assets/icons/calc.png'},
-      {name: '工作日志', icon: '/src/assets/icons/log.png'},
-      {name: '密码备忘录', icon: '/src/assets/icons/password.png'},
-      {name: '待办事项', icon: '/src/assets/icons/todo.png'}
-    ]
+    const tools = computed(() => (
+      APP_DEFINITIONS
+        .map((item, index) => buildToolEntry(item, index))
+        .sort((prev, next) => next.usageCount - prev.usageCount || prev.order - next.order)
+    ))
 
     const syncProfileForm = () => {
       profileForm.username = user.value?.username || ''
@@ -262,11 +336,11 @@ export default {
     }
 
     const openTool = (tool) => {
-      if (tool.name === '工作日志') {
-        router.push('/work-log')
+      if (tool.route) {
+        router.push(tool.route)
         return
       }
-      alert(`功能【${tool.name}】后续扩展`)
+      alert(`应用【${tool.name}】已登记，后续在权限管理中维护权限和接入能力`)
     }
 
     const openUserDialog = (tab = 'profile') => {
@@ -575,7 +649,7 @@ export default {
 
 .main-panel {
   flex: 1;
-  padding: 18px 20px 22px;
+  padding: 20px 22px 22px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -583,46 +657,118 @@ export default {
   backdrop-filter: blur(18px);
 }
 
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
 .home-title {
-  text-align: center;
   font-size: 26px;
-  margin: 8px 0 20px;
+  margin: 0;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.home-subtitle {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.app-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 22px;
-  padding: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .tool-item {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 14px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  gap: 14px;
   cursor: pointer;
+  color: #fff;
+  text-align: left;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.tool-item:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.28);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+}
+
+.tool-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .icon-box {
-  width: 70px;
-  height: 70px;
+  width: 64px;
+  height: 64px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.icon {
-  width: 40px;
-  height: 40px;
+.icon-text {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.tool-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.84);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.tool-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .tool-name {
-  margin-top: 8px;
-  font-size: 14px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tool-meta {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .dialog-mask {
@@ -777,6 +923,11 @@ export default {
   .main-area {
     width: 100%;
     padding-left: 72px;
+  }
+
+  .panel-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .grid {
