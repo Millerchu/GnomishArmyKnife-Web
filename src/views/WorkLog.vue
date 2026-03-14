@@ -82,7 +82,7 @@
         </select>
       </div>
 
-      <div v-if="yearLogs.length" class="table-wrap">
+      <div v-if="yearLogs.length" class="table-wrap desktop-year-table">
         <table class="log-table">
           <thead>
           <tr>
@@ -117,6 +117,29 @@
           </tbody>
         </table>
       </div>
+      <div v-if="yearLogs.length" class="mobile-year-list">
+        <article
+          v-for="item in yearLogs"
+          :key="item.id"
+          class="mobile-log-card"
+          :class="{selectedMobileCard: selectedLog && selectedLog.id === item.id}"
+          @click="selectLog(item)"
+          @dblclick="openEditDialog(item)"
+        >
+          <div class="mobile-log-head">
+            <strong class="mobile-log-date">{{ item.logDate }}</strong>
+            <span class="mobile-log-tag">{{ formatTypeCodes(item.typeCodes) }}</span>
+          </div>
+          <div class="mobile-log-grid">
+            <p><span>地点</span><strong>{{ item.location || '-' }}</strong></p>
+            <p><span>项目</span><strong>{{ item.projectCode || '-' }}</strong></p>
+            <p><span>禅道编号</span><strong>{{ item.zentaoNo || '-' }}</strong></p>
+            <p><span>人天 / 加班</span><strong>{{ item.personDay ?? '-' }} / {{ item.overtimeHours ?? 0 }}</strong></p>
+            <p class="mobile-log-wide"><span>工作内容</span><strong>{{ item.workItem || '-' }}</strong></p>
+            <p class="mobile-log-wide"><span>备注</span><strong>{{ item.remark || '-' }}</strong></p>
+          </div>
+        </article>
+      </div>
       <div v-else class="empty-text">{{ yearFilter }} 年暂无日志</div>
     </div>
 
@@ -124,7 +147,10 @@
       <div class="dialog">
         <h3>{{ dialogMode === 'create' ? '新增工作日志' : '修改工作日志' }}</h3>
         <form class="dialog-form" @submit.prevent="submitDialog">
-          <input v-model="form.logDate" type="date" required placeholder="日期（logDate）"/>
+          <label class="form-field">
+            <span>日期</span>
+            <input v-model="form.logDate" type="date" required placeholder="日期（logDate）"/>
+          </label>
 
           <div class="type-group">
             <span class="type-title">日志类型（typeCodes）</span>
@@ -134,13 +160,36 @@
             </label>
           </div>
 
-          <input v-model="form.location" required placeholder="地点（location）"/>
-          <input v-model="form.projectCode" required placeholder="所属项目（projectCode）"/>
-          <textarea v-model="form.workItem" rows="3" required placeholder="工作内容（workItem）"/>
-          <input v-model="form.zentaoNo" placeholder="禅道编号（zentaoNo）"/>
-          <input v-model.number="form.personDay" type="number" step="0.1" min="0" required placeholder="人天（personDay）"/>
-          <input v-model.number="form.overtimeHours" type="number" step="0.5" min="0" placeholder="加班时长（overtimeHours）"/>
-          <textarea v-model="form.remark" rows="2" placeholder="备注（remark）"/>
+          <label class="form-field">
+            <span>地点</span>
+            <input v-model="form.location" required placeholder="地点（location）"/>
+          </label>
+          <label class="form-field">
+            <span>所属项目</span>
+            <input v-model="form.projectCode" required placeholder="所属项目（projectCode）"/>
+          </label>
+          <label class="form-field">
+            <span>工作内容</span>
+            <textarea v-model="form.workItem" rows="3" required placeholder="工作内容（workItem）"/>
+          </label>
+          <label class="form-field">
+            <span>禅道编号</span>
+            <input v-model="form.zentaoNo" placeholder="禅道编号（zentaoNo）"/>
+          </label>
+          <div class="form-inline-grid">
+            <label class="form-field">
+              <span>人天</span>
+              <input v-model.number="form.personDay" type="number" step="0.1" min="0" required placeholder="人天（personDay）"/>
+            </label>
+            <label class="form-field">
+              <span>加班时长</span>
+              <input v-model.number="form.overtimeHours" type="number" step="0.5" min="0" placeholder="加班时长（overtimeHours）"/>
+            </label>
+          </div>
+          <label class="form-field">
+            <span>备注</span>
+            <textarea v-model="form.remark" rows="2" placeholder="备注（remark）"/>
+          </label>
 
           <div class="dialog-actions">
             <button type="button" class="ghost-btn" @click="closeDialog">取消</button>
@@ -634,6 +683,7 @@ export default {
   min-height: 100vh;
   color: #fff;
   padding: 20px;
+  overflow: auto;
 }
 
 .top-bar {
@@ -789,6 +839,75 @@ export default {
   overflow-x: auto;
 }
 
+.mobile-year-list {
+  display: none;
+}
+
+.mobile-log-card {
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.selectedMobileCard {
+  border-color: rgba(32, 178, 170, 0.8);
+  box-shadow: 0 0 0 1px rgba(32, 178, 170, 0.5) inset;
+}
+
+.mobile-log-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mobile-log-date {
+  font-size: 15px;
+}
+
+.mobile-log-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #d6fbf8;
+  background: rgba(32, 178, 170, 0.22);
+}
+
+.mobile-log-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-log-grid p {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-log-grid span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.mobile-log-grid strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  word-break: break-word;
+}
+
+.mobile-log-wide {
+  grid-column: 1 / -1;
+}
+
 .log-table {
   width: 100%;
   border-collapse: collapse;
@@ -824,6 +943,8 @@ export default {
 .dialog {
   width: 100%;
   max-width: 560px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
   border-radius: 12px;
   background: #0b1720;
   padding: 16px;
@@ -839,12 +960,30 @@ export default {
   gap: 10px;
 }
 
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
 .dialog-form input,
 .dialog-form textarea {
   border: none;
   border-radius: 8px;
   padding: 10px;
   font-size: 14px;
+}
+
+.dialog-form input,
+.dialog-form textarea {
+  width: 100%;
+}
+
+.form-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .type-group {
@@ -860,7 +999,11 @@ export default {
 }
 
 .type-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-right: 12px;
+  margin-bottom: 6px;
   font-size: 13px;
 }
 
@@ -872,12 +1015,85 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .work-log-page {
+    padding: 14px 12px;
+  }
+
+  .top-bar,
+  .year-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .calendar-grid {
     grid-template-columns: repeat(2, minmax(140px, 1fr));
   }
 
   .actions {
     width: 100%;
+  }
+
+  .actions .action-btn,
+  .actions .ghost-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .year-select {
+    width: 100%;
+  }
+
+  .detail-list {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog {
+    padding: 14px 12px;
+  }
+
+  .dialog-actions .ghost-btn,
+  .dialog-actions .action-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+}
+
+@media (max-width: 640px) {
+  .calendar-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .day-card {
+    min-height: auto;
+  }
+
+  .desktop-year-table {
+    display: none;
+  }
+
+  .mobile-year-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .form-inline-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    margin-top: 16px;
+  }
+
+  .actions .action-btn,
+  .actions .ghost-btn,
+  .dialog-actions .ghost-btn,
+  .dialog-actions .action-btn {
+    flex-basis: 100%;
+  }
+
+  .mobile-log-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

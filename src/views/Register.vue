@@ -163,6 +163,7 @@ export default {
 <style scoped>
 .login-page {
   width: 100%;
+  min-height: 100vh;
   height: 100%;
   display: flex;
   justify-content: center;
@@ -253,9 +254,19 @@ export default {
 }
 
 @media (max-width: 480px) {
+  .login-page {
+    align-items: flex-start;
+    padding: 18px 12px;
+  }
+
   .glass-box {
     max-width: none;
     padding: 16px 14px;
+    max-height: none;
+  }
+
+  .btn {
+    width: 100%;
   }
 }
 </style>

@@ -138,8 +138,55 @@ export default {
     let cameraInstance = null
     let lastPalm = null
     let lastPinchDistance = null
+    let isDisposed = false
 
-    const enterHome = () => {
+    const cleanupCamera = async () => {
+      lastPalm = null
+      lastPinchDistance = null
+
+      if (cameraInstance && typeof cameraInstance.stop === 'function') {
+        try {
+          await cameraInstance.stop()
+        } catch (error) {
+          console.warn('停止摄像头实例失败', error)
+        }
+      }
+
+      const videoElement = videoRef.value
+      const stream = videoElement?.srcObject
+      if (stream && typeof stream.getTracks === 'function') {
+        stream.getTracks().forEach((track) => {
+          try {
+            track.stop()
+          } catch (error) {
+            console.warn('停止媒体轨道失败', error)
+          }
+        })
+      }
+
+      if (videoElement) {
+        try {
+          videoElement.pause()
+        } catch (error) {
+          console.warn('暂停摄像头预览失败', error)
+        }
+        videoElement.srcObject = null
+      }
+
+      if (handsInstance && typeof handsInstance.close === 'function') {
+        try {
+          await handsInstance.close()
+        } catch (error) {
+          console.warn('关闭手势实例失败', error)
+        }
+      }
+
+      cameraInstance = null
+      handsInstance = null
+    }
+
+    const enterHome = async () => {
+      await cleanupCamera()
       router.push('/home')
     }
 
@@ -275,6 +322,9 @@ export default {
 
       try {
         await Promise.all([loadScript(HANDS_SCRIPT), loadScript(CAMERA_SCRIPT)])
+        if (isDisposed) {
+          return
+        }
 
         if (!window.Hands || !window.Camera) {
           gestureStatus.value = '手势组件不可用，可使用鼠标操作'
@@ -291,12 +341,16 @@ export default {
           minDetectionConfidence: 0.6,
           minTrackingConfidence: 0.55
         })
+        if (isDisposed) {
+          await cleanupCamera()
+          return
+        }
 
         handsInstance.onResults(onHandsResults)
 
         cameraInstance = new window.Camera(videoRef.value, {
           onFrame: async () => {
-            if (handsInstance) {
+            if (!isDisposed && handsInstance) {
               await handsInstance.send({image: videoRef.value})
             }
           },
@@ -304,15 +358,27 @@ export default {
           height: 480
         })
 
+        if (isDisposed) {
+          await cleanupCamera()
+          return
+        }
+
         await cameraInstance.start()
+        if (isDisposed) {
+          await cleanupCamera()
+          return
+        }
         gestureStatus.value = '摄像头已开启：移动手掌可旋转，捏合可缩放'
       } catch (error) {
         console.error(error)
-        gestureStatus.value = '摄像头或手势识别启动失败，可使用鼠标操作'
+        if (!isDisposed) {
+          gestureStatus.value = '摄像头或手势识别启动失败，可使用鼠标操作'
+        }
       }
     }
 
     onMounted(() => {
+      isDisposed = false
       stars = Array.from({length: STAR_COUNT}, () => createHeartStar())
       ctx = canvasRef.value?.getContext('2d')
       resizeCanvas()
@@ -323,22 +389,15 @@ export default {
       initGestureControl()
     })
 
-    onBeforeUnmount(() => {
+    onBeforeUnmount(async () => {
+      isDisposed = true
       if (animationFrame) {
         cancelAnimationFrame(animationFrame)
       }
       window.removeEventListener('resize', resizeCanvas)
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
-
-      if (cameraInstance && typeof cameraInstance.stop === 'function') {
-        cameraInstance.stop()
-      }
-
-      const stream = videoRef.value?.srcObject
-      if (stream && typeof stream.getTracks === 'function') {
-        stream.getTracks().forEach((track) => track.stop())
-      }
+      await cleanupCamera()
     })
 
     return {
@@ -358,6 +417,7 @@ export default {
 .star-page {
   position: relative;
   width: 100%;
+  min-height: 100vh;
   height: 100%;
   overflow: hidden;
   background: #000;
@@ -381,7 +441,7 @@ export default {
   top: 18px;
   left: 18px;
   z-index: 5;
-  max-width: 360px;
+  max-width: min(360px, calc(100vw - 36px));
   border-radius: 12px;
   padding: 12px 14px;
   background: rgba(6, 6, 10, 0.48);
@@ -411,11 +471,15 @@ export default {
   border: none;
   border-radius: 8px;
   height: 34px;
-  min-width: 96px;
+  width: 100%;
   padding: 0 12px;
   color: #fff;
   cursor: pointer;
   background: rgba(70, 148, 255, 0.75);
+}
+
+.enter-btn:hover {
+  background: rgba(70, 148, 255, 0.9);
 }
 
 .camera-preview {
@@ -438,6 +502,7 @@ export default {
     right: 12px;
     top: 12px;
     max-width: none;
+    padding: 12px;
   }
 
   .camera-preview {
@@ -445,6 +510,32 @@ export default {
     height: 100px;
     right: 12px;
     bottom: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .overlay-panel {
+    border-radius: 14px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .desc {
+    font-size: 12px;
+  }
+
+  .status {
+    line-height: 1.5;
+  }
+
+  .camera-preview {
+    width: 96px;
+    height: 72px;
+    right: 10px;
+    bottom: 10px;
+    opacity: 0.62;
   }
 }
 </style>

@@ -4,7 +4,20 @@
       <div class="menu-head">
         <span v-if="!menuCollapsed" class="menu-title">系统菜单</span>
         <button class="collapse-btn" @click="toggleMenu">
-          {{ menuCollapsed ? '>' : '<' }}
+          <svg
+            v-if="isMobileViewport && menuCollapsed"
+            class="settings-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.22 1.13-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
+              fill="currentColor"
+            />
+          </svg>
+          <template v-else>
+            {{ menuCollapsed ? '>' : '<' }}
+          </template>
         </button>
       </div>
 
@@ -257,6 +270,7 @@ export default {
     const user = ref(JSON.parse(localStorage.getItem('user') || '{}'))
     const menuCollapsed = ref(true)
     const currentTime = ref(new Date())
+    const isMobileViewport = ref(window.innerWidth <= 640)
 
     const showUserDialog = ref(false)
     const activeDialogTab = ref('profile')
@@ -274,6 +288,10 @@ export default {
     })
 
     let timer = null
+
+    const syncViewport = () => {
+      isMobileViewport.value = window.innerWidth <= 640
+    }
 
     const currentDateText = computed(() => formatDateText(currentTime.value))
 
@@ -444,16 +462,19 @@ export default {
       timer = setInterval(() => {
         currentTime.value = new Date()
       }, 60 * 1000)
+      window.addEventListener('resize', syncViewport)
     })
 
     onBeforeUnmount(() => {
       if (timer) {
         clearInterval(timer)
       }
+      window.removeEventListener('resize', syncViewport)
     })
 
     return {
       user,
+      isMobileViewport,
       menuCollapsed,
       currentDateText,
       systemMenus,
@@ -480,9 +501,11 @@ export default {
 
 <style scoped>
 .home-page {
+  min-height: 100vh;
   height: 100%;
   display: flex;
   color: #fff;
+  overflow: hidden;
 }
 
 .side-menu {
@@ -522,6 +545,12 @@ export default {
   cursor: pointer;
   color: #fff;
   background: rgba(255, 255, 255, 0.2);
+}
+
+.settings-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .menu-list {
@@ -571,6 +600,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow: auto;
 }
 
 .top-bar {
@@ -696,6 +726,7 @@ export default {
 }
 
 .tool-item {
+  appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.16);
   padding: 14px;
   border-radius: 16px;
@@ -785,6 +816,8 @@ export default {
 .user-dialog {
   width: 100%;
   max-width: 440px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
   border-radius: 14px;
   padding: 16px 16px 14px;
   color: #fff;
@@ -872,6 +905,7 @@ export default {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+  flex-wrap: wrap;
 }
 
 .ghost-btn,
@@ -897,12 +931,21 @@ export default {
     padding: 14px;
   }
 
+  .top-bar {
+    align-items: stretch;
+  }
+
+  .star-back-btn {
+    width: 100%;
+  }
+
   .top-right-wrap {
-    justify-content: flex-start;
+    width: 100%;
+    justify-content: space-between;
   }
 
   .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
   }
 }
@@ -913,16 +956,43 @@ export default {
   }
 
   .side-menu {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    z-index: 8;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    bottom: auto;
+    z-index: 12;
+    width: 60px;
+    padding: 10px 8px;
+    border-radius: 14px;
+  }
+
+  .side-menu.collapsed {
+    width: 60px;
+  }
+
+  .side-menu:not(.collapsed) {
+    width: 188px;
+  }
+
+  .side-menu.collapsed .menu-list {
+    display: none;
+  }
+
+  .side-menu.collapsed .menu-head {
+    justify-content: center;
+  }
+
+  .side-menu.collapsed .collapse-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(74, 162, 255, 0.92), rgba(67, 201, 163, 0.92));
+    box-shadow: 0 10px 24px rgba(30, 102, 196, 0.32);
   }
 
   .main-area {
     width: 100%;
-    padding-left: 72px;
+    padding: 70px 12px 12px;
   }
 
   .panel-head {
@@ -931,7 +1001,69 @@ export default {
   }
 
   .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .tool-item {
+    min-height: 150px;
+    padding: 12px;
+  }
+
+  .tool-top {
+    align-items: center;
+  }
+
+  .icon-box {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+  }
+
+  .icon-text {
+    font-size: 18px;
+  }
+
+  .top-right-wrap,
+  .filter-actions,
+  .dialog-actions {
+    width: 100%;
+  }
+
+  .current-date,
+  .logout-btn,
+  .user-name-btn {
+    width: auto;
+  }
+
+  .user-dialog {
+    padding: 14px 12px 12px;
+  }
+
+  .dialog-actions .ghost-btn,
+  .dialog-actions .action-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+}
+
+@media (max-width: 420px) {
+  .grid {
     grid-template-columns: 1fr;
+  }
+
+  .top-right-wrap {
+    gap: 10px;
+  }
+
+  .welcome-wrap {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .current-date,
+  .logout-btn {
+    width: 100%;
+    text-align: center;
   }
 }
 </style>

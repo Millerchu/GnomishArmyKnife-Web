@@ -53,7 +53,7 @@
         </div>
       </div>
 
-      <div class="table-wrap">
+      <div class="table-wrap desktop-table-wrap">
         <table class="dict-table">
           <thead>
           <tr>
@@ -105,6 +105,45 @@
         </table>
       </div>
 
+      <div class="mobile-dict-list">
+        <div v-if="loading" class="mobile-empty">加载中...</div>
+        <div v-else-if="!dictionaries.length" class="mobile-empty">暂无字典数据</div>
+        <article
+          v-for="item in dictionaries"
+          v-else
+          :key="item.id"
+          class="mobile-dict-card"
+          :class="{activeMobileCard: selectedDictionaryId === item.id}"
+          @click="selectDictionary(item)"
+        >
+          <div class="mobile-card-head">
+            <div class="mobile-card-title-wrap">
+              <strong class="mobile-card-title">{{ item.dictName }}</strong>
+              <span class="mobile-card-code">{{ item.dictCode }}</span>
+            </div>
+            <span class="status-tag" :class="item.status === 'ENABLED' ? 'on' : 'off'">
+              {{ item.status === 'ENABLED' ? '启用' : '禁用' }}
+            </span>
+          </div>
+
+          <div class="mobile-card-grid">
+            <p><span>创建人</span><strong>{{ item.creatorName || '-' }}</strong></p>
+            <p><span>引用应用</span><strong>{{ formatApps(item.referenceApps) }}</strong></p>
+            <p><span>字典项数</span><strong>{{ item.itemCount }}</strong></p>
+            <p><span>创建时间</span><strong>{{ item.createTime || '-' }}</strong></p>
+          </div>
+
+          <div class="mobile-card-actions">
+            <button class="mini-btn" :disabled="submitting" @click.stop="selectDictionary(item)">维护字典项</button>
+            <button class="mini-btn" :disabled="submitting" @click.stop="openEditDictionaryDialog(item)">编辑</button>
+            <button class="mini-btn" :disabled="submitting" @click.stop="toggleDictionaryStatus(item)">
+              {{ item.status === 'ENABLED' ? '禁用' : '启用' }}
+            </button>
+            <button class="mini-btn danger" :disabled="submitting" @click.stop="removeDictionary(item)">删除</button>
+          </div>
+        </article>
+      </div>
+
       <div class="pager">
         <div class="pager-left">
           <span>第 {{ pagination.pageNo }} / {{ pageCount }} 页</span>
@@ -144,7 +183,7 @@
         </div>
       </div>
 
-      <div v-if="selectedDictionary" class="table-wrap">
+      <div v-if="selectedDictionary" class="table-wrap desktop-item-table-wrap">
         <table class="dict-table">
           <thead>
           <tr>
@@ -187,6 +226,37 @@
           </tr>
           </tbody>
         </table>
+      </div>
+
+      <div v-if="selectedDictionary" class="mobile-item-list">
+        <div v-if="itemsLoading" class="mobile-empty">加载中...</div>
+        <div v-else-if="!dictionaryItems.length" class="mobile-empty">该字典暂无字典项</div>
+        <article v-for="item in dictionaryItems" v-else :key="item.id" class="mobile-dict-card">
+          <div class="mobile-card-head">
+            <div class="mobile-card-title-wrap">
+              <strong class="mobile-card-title">{{ item.itemLabel }}</strong>
+              <span class="mobile-card-code">{{ item.itemCode }}</span>
+            </div>
+            <span class="status-tag" :class="item.status === 'ENABLED' ? 'on' : 'off'">
+              {{ item.status === 'ENABLED' ? '启用' : '禁用' }}
+            </span>
+          </div>
+
+          <div class="mobile-card-grid">
+            <p><span>实际值</span><strong>{{ item.itemValue }}</strong></p>
+            <p><span>排序</span><strong>{{ item.sort }}</strong></p>
+            <p><span>默认项</span><strong>{{ item.isDefault ? '是' : '否' }}</strong></p>
+            <p><span>说明</span><strong>{{ item.description || '-' }}</strong></p>
+          </div>
+
+          <div class="mobile-card-actions">
+            <button class="mini-btn" :disabled="submitting" @click="openEditItemDialog(item)">编辑</button>
+            <button class="mini-btn" :disabled="submitting" @click="toggleItemStatus(item)">
+              {{ item.status === 'ENABLED' ? '禁用' : '启用' }}
+            </button>
+            <button class="mini-btn danger" :disabled="submitting" @click="removeItem(item)">删除</button>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -1282,6 +1352,87 @@ export default {
   overflow-x: auto;
 }
 
+.mobile-dict-list,
+.mobile-item-list {
+  display: none;
+}
+
+.mobile-dict-card {
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.activeMobileCard {
+  border-color: rgba(82, 171, 255, 0.42);
+  background: rgba(82, 171, 255, 0.14);
+}
+
+.mobile-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mobile-card-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mobile-card-title {
+  font-size: 15px;
+  word-break: break-word;
+}
+
+.mobile-card-code {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.66);
+  word-break: break-all;
+}
+
+.mobile-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-card-grid p {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-card-grid span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.mobile-card-grid strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  word-break: break-word;
+}
+
+.mobile-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.mobile-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+}
+
 .dict-table {
   width: 100%;
   min-width: 1080px;
@@ -1453,13 +1604,86 @@ export default {
   }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 760px) {
   .dict-page {
     padding: 12px;
   }
 
+  .page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .filter-actions,
+  .toolbar,
+  .pager,
+  .items-head {
+    align-items: stretch;
+  }
+
+  .filter-actions,
+  .toolbar-left,
+  .toolbar-right,
+  .pager-left,
+  .pager-right,
+  .items-head {
+    width: 100%;
+  }
+
+  .filter-actions .action-btn,
+  .filter-actions .ghost-btn,
+  .toolbar-left .action-btn,
+  .toolbar-left .ghost-btn,
+  .pager-right .ghost-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .desktop-table-wrap,
+  .desktop-item-table-wrap {
+    display: none;
+  }
+
+  .mobile-dict-list,
+  .mobile-item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dialog {
+    max-width: none;
+    padding: 12px;
+  }
+
+  .dialog-actions .ghost-btn,
+  .dialog-actions .action-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-card-actions .mini-btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    margin-right: 0;
+  }
+
+  .filter-actions .action-btn,
+  .filter-actions .ghost-btn,
+  .toolbar-left .action-btn,
+  .toolbar-left .ghost-btn,
+  .pager-right .ghost-btn,
+  .dialog-actions .ghost-btn,
+  .dialog-actions .action-btn {
+    flex-basis: 100%;
   }
 }
 </style>

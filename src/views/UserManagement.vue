@@ -75,7 +75,7 @@
         </div>
       </div>
 
-      <div class="table-wrap">
+      <div class="table-wrap desktop-table-wrap">
         <table class="user-table">
           <thead>
           <tr>
@@ -137,6 +137,45 @@
           </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="mobile-user-list">
+        <div v-if="loading" class="mobile-empty">加载中...</div>
+        <div v-else-if="!users.length" class="mobile-empty">暂无用户数据</div>
+        <article v-for="item in users" v-else :key="item.id" class="mobile-user-card">
+          <div class="mobile-card-head">
+            <label class="mobile-check">
+              <input
+                type="checkbox"
+                :checked="selectedIds.includes(item.id)"
+                :disabled="submitting"
+                @change="toggleOne(item.id, $event.target.checked)"
+              />
+              <span class="mobile-main-title">{{ item.username }}</span>
+            </label>
+            <span class="status-tag" :class="item.status === 'ENABLED' ? 'on' : 'off'">
+              {{ item.status === 'ENABLED' ? '启用' : '禁用' }}
+            </span>
+          </div>
+
+          <div class="mobile-card-grid">
+            <p><span>昵称</span><strong>{{ item.displayName || '-' }}</strong></p>
+            <p><span>角色</span><strong>{{ formatRoleText(item.roleCode) }}</strong></p>
+            <p><span>手机号</span><strong>{{ item.phone || '-' }}</strong></p>
+            <p><span>邮箱</span><strong>{{ item.email || '-' }}</strong></p>
+            <p><span>最近登录</span><strong>{{ item.lastLoginTime || '-' }}</strong></p>
+            <p><span>创建时间</span><strong>{{ item.createTime || '-' }}</strong></p>
+          </div>
+
+          <div class="mobile-card-actions">
+            <button class="mini-btn" :disabled="submitting" @click="openEditDialog(item)">编辑</button>
+            <button class="mini-btn" :disabled="submitting" @click="toggleStatus(item)">
+              {{ item.status === 'ENABLED' ? '禁用' : '启用' }}
+            </button>
+            <button class="mini-btn" :disabled="submitting" @click="openResetPasswordDialog(item)">重置密码</button>
+            <button class="mini-btn danger" :disabled="submitting" @click="removeUser(item)">删除</button>
+          </div>
+        </article>
       </div>
 
       <div class="pager">
@@ -1162,6 +1201,76 @@ export default {
   overflow-x: auto;
 }
 
+.mobile-user-list {
+  display: none;
+}
+
+.mobile-user-card {
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mobile-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mobile-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mobile-main-title {
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.mobile-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-card-grid p {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-card-grid span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.mobile-card-grid strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  word-break: break-word;
+}
+
+.mobile-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.mobile-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+}
+
 .user-table {
   width: 100%;
   min-width: 1080px;
@@ -1365,11 +1474,78 @@ export default {
   }
 
   .page-head {
-    align-items: center;
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar,
+  .pager,
+  .filter-actions {
+    align-items: stretch;
+  }
+
+  .filter-actions,
+  .toolbar-left,
+  .toolbar-right,
+  .pager-left,
+  .pager-right {
+    width: 100%;
+  }
+
+  .filter-actions .action-btn,
+  .filter-actions .ghost-btn,
+  .toolbar-left .action-btn,
+  .toolbar-left .ghost-btn,
+  .toolbar-left .danger-btn,
+  .pager-right .ghost-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .dialog {
+    max-width: none;
+    padding: 12px;
+  }
+
+  .dialog-actions .ghost-btn,
+  .dialog-actions .action-btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .desktop-table-wrap {
+    display: none;
+  }
+
+  .mobile-user-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-card-actions .mini-btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    margin-right: 0;
+  }
+
+  .filter-actions .action-btn,
+  .filter-actions .ghost-btn,
+  .toolbar-left .action-btn,
+  .toolbar-left .ghost-btn,
+  .toolbar-left .danger-btn,
+  .pager-right .ghost-btn,
+  .dialog-actions .ghost-btn,
+  .dialog-actions .action-btn {
+    flex-basis: 100%;
   }
 }
 </style>
