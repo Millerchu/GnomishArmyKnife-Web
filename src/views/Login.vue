@@ -203,7 +203,7 @@ export default {
         localStorage.setItem('token', token || '')
         localStorage.setItem('user', JSON.stringify(user || {}))
 
-        router.push('/home')
+        router.push('/star-interactive')
       } catch (error) {
         console.error(error)
         errorMessage.value = getLoginErrorMessage(error)

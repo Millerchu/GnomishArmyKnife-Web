@@ -4,11 +4,13 @@ import Register from '../views/Register.vue'
 import Home from '../views/Home.vue'
 import WorkLog from '../views/WorkLog.vue'
 import UserManagement from '../views/UserManagement.vue'
+import StarInteractive from '../views/StarInteractive.vue'
 
 const routes = [
     {path: '/', redirect: '/login'}, // 打开直接进入登录页
     {path: '/login', component: Login},
     {path: '/register', component: Register},
+    {path: '/star-interactive', component: StarInteractive},
     {path: '/home', component: Home},
     {path: '/work-log', component: WorkLog},
     {path: '/system/users', component: UserManagement}

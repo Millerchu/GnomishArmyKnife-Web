@@ -24,15 +24,19 @@
 
     <main class="main-area">
       <div class="top-bar">
-        <div class="welcome-wrap">
-          <span class="welcome-label">欢迎，</span>
-          <button class="user-name-btn" @click="openUserDialog()">
-            {{ user.displayName || user.username || '用户' }}
-          </button>
-        </div>
+        <button class="star-back-btn" @click="goToStarInteractive">返回星空互动图</button>
 
-        <span class="current-date">{{ currentDateText }}</span>
-        <button class="logout-btn" @click="logout">退出</button>
+        <div class="top-right-wrap">
+          <div class="welcome-wrap">
+            <span class="welcome-label">欢迎，</span>
+            <button class="user-name-btn" @click="openUserDialog()">
+              {{ user.displayName || user.username || '用户' }}
+            </button>
+          </div>
+
+          <span class="current-date">{{ currentDateText }}</span>
+          <button class="logout-btn" @click="logout">退出</button>
+        </div>
       </div>
 
       <section class="main-panel">
@@ -176,7 +180,7 @@ export default {
   setup() {
     const router = useRouter()
     const user = ref(JSON.parse(localStorage.getItem('user') || '{}'))
-    const menuCollapsed = ref(false)
+    const menuCollapsed = ref(true)
     const currentTime = ref(new Date())
 
     const showUserDialog = ref(false)
@@ -235,6 +239,10 @@ export default {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       router.push('/login')
+    }
+
+    const goToStarInteractive = () => {
+      router.push('/star-interactive')
     }
 
     const toggleMenu = () => {
@@ -378,6 +386,7 @@ export default {
       profileForm,
       passwordForm,
       logout,
+      goToStarInteractive,
       toggleMenu,
       onSystemMenuClick,
       openTool,
@@ -489,12 +498,35 @@ export default {
 .top-bar {
   width: 100%;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
   color: #fff;
   font-size: 14px;
+}
+
+.top-right-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.star-back-btn {
+  border: none;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  background: rgba(82, 164, 255, 0.6);
+}
+
+.star-back-btn:hover {
+  background: rgba(82, 164, 255, 0.78);
 }
 
 .welcome-wrap {
@@ -713,6 +745,10 @@ export default {
 @media (max-width: 900px) {
   .main-area {
     padding: 14px;
+  }
+
+  .top-right-wrap {
+    justify-content: flex-start;
   }
 
   .grid {
