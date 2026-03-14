@@ -5,6 +5,7 @@ import Home from '../views/Home.vue'
 import WorkLog from '../views/WorkLog.vue'
 import UserManagement from '../views/UserManagement.vue'
 import StarInteractive from '../views/StarInteractive.vue'
+import DataDictionary from '../views/DataDictionary.vue'
 
 const routes = [
     {path: '/', redirect: '/login'}, // 打开直接进入登录页
@@ -13,7 +14,8 @@ const routes = [
     {path: '/star-interactive', component: StarInteractive},
     {path: '/home', component: Home},
     {path: '/work-log', component: WorkLog},
-    {path: '/system/users', component: UserManagement}
+    {path: '/system/users', component: UserManagement},
+    {path: '/system/dictionaries', component: DataDictionary}
 ]
 
 export default createRouter({

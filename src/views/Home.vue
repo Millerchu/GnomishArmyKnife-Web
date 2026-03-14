@@ -254,6 +254,10 @@ export default {
         router.push('/system/users')
         return
       }
+      if (menu.key === 'dict') {
+        router.push('/system/dictionaries')
+        return
+      }
       alert(`菜单【${menu.name}】待接入具体功能`)
     }
 
