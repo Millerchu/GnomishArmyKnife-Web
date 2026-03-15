@@ -66,7 +66,17 @@
             v-for="tool in tools"
             :key="tool.key"
             class="tool-item"
+            :class="{
+              dragging: draggingToolKey === tool.key,
+              'drag-over': dragOverToolKey === tool.key && draggingToolKey !== tool.key
+            }"
             type="button"
+            draggable="true"
+            @dragstart="handleToolDragStart(tool, $event)"
+            @dragenter.prevent="handleToolDragEnter(tool)"
+            @dragover.prevent
+            @drop.prevent="handleToolDrop(tool)"
+            @dragend="handleToolDragEnd"
             @click="openTool(tool)"
           >
             <div class="tool-top">
@@ -201,6 +211,8 @@ const APP_COLOR_PALETTE = [
   ['#1f2937', '#4b5563'],
   ['#854d0e', '#eab308']
 ]
+const TOOL_USAGE_STORAGE_KEY = 'home_tool_usage_map'
+const TOOL_CUSTOM_ORDER_STORAGE_KEY = 'home_tool_custom_order'
 const APP_DEFINITIONS = [
   {key: 'calculator', name: '计算器', featureCode: 'APP_CALCULATOR', route: '/calculator', usageCount: 0},
   {key: 'work-log', name: '工作日志', featureCode: 'APP_WORK_LOG', route: '/work-log', usageCount: 0},
@@ -209,9 +221,9 @@ const APP_DEFINITIONS = [
   {key: 'fuel-stats', name: '油耗统计', featureCode: 'APP_FUEL_STATS', route: '/fuel-stats', usageCount: 0},
   {key: 'wow-character', name: 'WoW角色统计', featureCode: 'APP_WOW_CHARACTER', route: '/wow-character-stats', usageCount: 0},
   {key: 'personal-bills', name: '个人账单', featureCode: 'APP_PERSONAL_BILLS', route: '/personal-bills', usageCount: 0},
-  {key: 'knowledge-base', name: '个人经验库', featureCode: 'APP_KNOWLEDGE_BASE', usageCount: 0},
+  {key: 'knowledge-base', name: '经验库', featureCode: 'APP_KNOWLEDGE_BASE', usageCount: 0},
   {key: 'software-repo', name: '软件仓库', featureCode: 'APP_SOFTWARE_REPO', usageCount: 0},
-  {key: 'health-record', name: '个人健康记录', featureCode: 'APP_HEALTH_RECORD', usageCount: 0}
+  {key: 'health-record', name: '健康', featureCode: 'APP_HEALTH_RECORD', usageCount: 0}
 ]
 
 function formatDateText(date) {
@@ -260,6 +272,35 @@ function extractErrorMessage(error, fallback) {
   return data.message || data.msg || fallback
 }
 
+function readUsageMap() {
+  try {
+    const raw = localStorage.getItem(TOOL_USAGE_STORAGE_KEY)
+    const parsed = JSON.parse(raw || '{}')
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch (error) {
+    return {}
+  }
+}
+
+function persistUsageMap(map) {
+  localStorage.setItem(TOOL_USAGE_STORAGE_KEY, JSON.stringify(map))
+}
+
+function readCustomOrder() {
+  try {
+    const raw = localStorage.getItem(TOOL_CUSTOM_ORDER_STORAGE_KEY)
+    const parsed = JSON.parse(raw || '[]')
+    const validKeys = new Set(APP_DEFINITIONS.map((item) => item.key))
+    return Array.isArray(parsed) ? parsed.filter((item) => validKeys.has(item)) : []
+  } catch (error) {
+    return []
+  }
+}
+
+function persistCustomOrder(order) {
+  localStorage.setItem(TOOL_CUSTOM_ORDER_STORAGE_KEY, JSON.stringify(order))
+}
+
 export default {
   setup() {
     const router = useRouter()
@@ -271,6 +312,11 @@ export default {
     const showUserDialog = ref(false)
     const activeDialogTab = ref('profile')
     const dialogLoading = ref(false)
+    const toolUsageMap = ref(readUsageMap())
+    const customToolOrder = ref(readCustomOrder())
+    const draggingToolKey = ref('')
+    const dragOverToolKey = ref('')
+    const suppressNextToolOpen = ref(false)
 
     const profileForm = reactive({
       username: '',
@@ -298,11 +344,31 @@ export default {
       {key: 'log', name: '系统日志', shortName: '志'}
     ]
 
-    const tools = computed(() => (
-      APP_DEFINITIONS
-        .map((item, index) => buildToolEntry(item, index))
-        .sort((prev, next) => next.usageCount - prev.usageCount || prev.order - next.order)
-    ))
+    const tools = computed(() => {
+      const nextTools = APP_DEFINITIONS.map((item, index) => buildToolEntry({
+        ...item,
+        usageCount: Number(toolUsageMap.value[item.key] ?? item.usageCount ?? 0)
+      }, index))
+
+      if (!customToolOrder.value.length) {
+        return nextTools.sort((prev, next) => next.usageCount - prev.usageCount || prev.order - next.order)
+      }
+
+      const orderMap = new Map(customToolOrder.value.map((item, index) => [item, index]))
+      return nextTools.sort((prev, next) => {
+        const prevOrder = orderMap.has(prev.key) ? orderMap.get(prev.key) : Number.MAX_SAFE_INTEGER
+        const nextOrder = orderMap.has(next.key) ? orderMap.get(next.key) : Number.MAX_SAFE_INTEGER
+        return prevOrder - nextOrder || next.usageCount - prev.usageCount || prev.order - next.order
+      })
+    })
+
+    const incrementToolUsage = (toolKey) => {
+      toolUsageMap.value = {
+        ...toolUsageMap.value,
+        [toolKey]: Number(toolUsageMap.value[toolKey] || 0) + 1
+      }
+      persistUsageMap(toolUsageMap.value)
+    }
 
     const syncProfileForm = () => {
       profileForm.username = user.value?.username || ''
@@ -351,11 +417,62 @@ export default {
     }
 
     const openTool = (tool) => {
+      if (suppressNextToolOpen.value) {
+        suppressNextToolOpen.value = false
+        return
+      }
+      incrementToolUsage(tool.key)
       if (tool.route) {
         router.push(tool.route)
         return
       }
       alert(`应用【${tool.name}】已登记，后续在权限管理中维护权限和接入能力`)
+    }
+
+    const handleToolDragStart = (tool, event) => {
+      draggingToolKey.value = tool.key
+      dragOverToolKey.value = tool.key
+      if (event?.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move'
+        event.dataTransfer.setData('text/plain', tool.key)
+      }
+    }
+
+    const handleToolDragEnter = (tool) => {
+      if (!draggingToolKey.value || draggingToolKey.value === tool.key) {
+        return
+      }
+      dragOverToolKey.value = tool.key
+    }
+
+    const handleToolDrop = (tool) => {
+      const fromKey = draggingToolKey.value
+      const toKey = tool.key
+      if (!fromKey || fromKey === toKey) {
+        handleToolDragEnd()
+        return
+      }
+
+      const currentOrder = tools.value.map((item) => item.key)
+      const fromIndex = currentOrder.indexOf(fromKey)
+      const toIndex = currentOrder.indexOf(toKey)
+      if (fromIndex === -1 || toIndex === -1) {
+        handleToolDragEnd()
+        return
+      }
+
+      const nextOrder = [...currentOrder]
+      nextOrder.splice(fromIndex, 1)
+      nextOrder.splice(toIndex, 0, fromKey)
+      customToolOrder.value = nextOrder
+      persistCustomOrder(nextOrder)
+      suppressNextToolOpen.value = true
+      handleToolDragEnd()
+    }
+
+    const handleToolDragEnd = () => {
+      draggingToolKey.value = ''
+      dragOverToolKey.value = ''
     }
 
     const openUserDialog = (tab = 'profile') => {
@@ -476,6 +593,8 @@ export default {
       currentDateText,
       systemMenus,
       tools,
+      draggingToolKey,
+      dragOverToolKey,
       showUserDialog,
       activeDialogTab,
       dialogLoading,
@@ -486,6 +605,10 @@ export default {
       toggleMenu,
       onSystemMenuClick,
       openTool,
+      handleToolDragStart,
+      handleToolDragEnter,
+      handleToolDrop,
+      handleToolDragEnd,
       openUserDialog,
       closeUserDialog,
       switchDialogTab,
@@ -744,6 +867,18 @@ export default {
   border-color: rgba(255, 255, 255, 0.28);
   background:
     linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+}
+
+.tool-item.dragging {
+  opacity: 0.6;
+  transform: scale(0.98);
+}
+
+.tool-item.drag-over {
+  border-color: rgba(96, 204, 255, 0.72);
+  box-shadow: 0 0 0 2px rgba(96, 204, 255, 0.26);
+  background:
+    linear-gradient(160deg, rgba(96, 204, 255, 0.18), rgba(255, 255, 255, 0.08));
 }
 
 .tool-top {
