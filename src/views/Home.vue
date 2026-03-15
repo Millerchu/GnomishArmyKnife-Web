@@ -208,8 +208,7 @@ const APP_DEFINITIONS = [
   {key: 'todo-list', name: '待办列表', featureCode: 'APP_TODO_LIST', route: '/todo-list', usageCount: 0},
   {key: 'fuel-stats', name: '油耗统计', featureCode: 'APP_FUEL_STATS', route: '/fuel-stats', usageCount: 0},
   {key: 'wow-character', name: 'WoW角色统计', featureCode: 'APP_WOW_CHARACTER', route: '/wow-character-stats', usageCount: 0},
-  {key: 'personal-bills', name: '个人账单', featureCode: 'APP_PERSONAL_BILLS', usageCount: 0},
-  {key: 'annual-budget', name: '年度预算', featureCode: 'APP_ANNUAL_BUDGET', usageCount: 0},
+  {key: 'personal-bills', name: '个人账单', featureCode: 'APP_PERSONAL_BILLS', route: '/personal-bills', usageCount: 0},
   {key: 'knowledge-base', name: '个人经验库', featureCode: 'APP_KNOWLEDGE_BASE', usageCount: 0},
   {key: 'software-repo', name: '软件仓库', featureCode: 'APP_SOFTWARE_REPO', usageCount: 0},
   {key: 'health-record', name: '个人健康记录', featureCode: 'APP_HEALTH_RECORD', usageCount: 0}

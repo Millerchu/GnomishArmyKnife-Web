@@ -15,3 +15,314 @@ body {
 body {
     background: #000;
 }
+
+@media (max-width: 720px) {
+    .page-nav {
+        margin-bottom: 8px !important;
+    }
+
+    .back-home-btn {
+        min-height: 36px !important;
+        padding: 0 12px 0 10px !important;
+        gap: 8px !important;
+        font-size: 13px !important;
+    }
+
+    .back-home-icon {
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 13px !important;
+    }
+
+    .hero-panel,
+    .filter-panel,
+    .list-panel,
+    .insight-panel,
+    .budget-panel,
+    .spotlight-panel,
+    .price-panel,
+    .report-panel,
+    .dialog,
+    .user-dialog,
+    .summary-card,
+    .budget-card,
+    .mobile-card,
+    .mobile-record-card,
+    .mobile-task-card,
+    .task-card,
+    .report-card,
+    .price-card {
+        padding: 12px !important;
+        border-radius: 14px !important;
+    }
+
+    .page-title,
+    .home-title {
+        font-size: 22px !important;
+        line-height: 1.1 !important;
+    }
+
+    .panel-title,
+    .dialog-title,
+    .insight-title {
+        font-size: 16px !important;
+        line-height: 1.2 !important;
+    }
+
+    .page-subtitle,
+    .panel-tip,
+    .home-subtitle,
+    .mobile-card-subtitle,
+    .mobile-record-subtitle {
+        margin-top: 4px !important;
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .hero-tags,
+    .toolbar-left,
+    .toolbar-right,
+    .row-actions,
+    .mobile-card-actions,
+    .task-badges,
+    .card-meta,
+    .budget-card-actions {
+        gap: 6px !important;
+    }
+
+    .hero-tag,
+    .type-chip,
+    .budget-status,
+    .faction-chip,
+    .spec-chip,
+    .consumption-chip,
+    .meta-chip,
+    .list-tag,
+    .importance-tag,
+    .status-tag {
+        min-height: 22px !important;
+        padding: 0 8px !important;
+        font-size: 11px !important;
+    }
+
+    .summary-card strong,
+    .card-stat strong,
+    .budget-card-head strong,
+    .price-card strong {
+        font-size: 18px !important;
+    }
+
+    .toolbar,
+    .panel-head,
+    .pager,
+    .insight-head,
+    .budget-card-head {
+        gap: 8px !important;
+    }
+
+    .field span,
+    .form-field span,
+    .mobile-card-grid span,
+    .mobile-record-grid span,
+    .mobile-task-grid span,
+    .summary-card span,
+    .distribution-row span,
+    .stats-row span,
+    .budget-meta span,
+    .card-stat span,
+    .card-meta span,
+    .cell-muted {
+        font-size: 11px !important;
+    }
+
+    .summary-grid,
+    .budget-overview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    .mobile-card-grid,
+    .mobile-record-grid,
+    .mobile-task-grid,
+    .price-grid,
+    .line-chart-labels {
+        gap: 8px !important;
+    }
+
+    .mobile-card-grid,
+    .mobile-record-grid,
+    .mobile-task-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .mobile-card-grid p,
+    .mobile-record-grid p,
+    .mobile-task-grid p,
+    .stats-row,
+    .recent-item,
+    .distribution-row,
+    .budget-card {
+        padding: 10px !important;
+    }
+
+    .action-btn,
+    .ghost-btn {
+        min-height: 34px !important;
+        padding: 0 12px !important;
+        font-size: 13px !important;
+    }
+
+    .mini-btn,
+    .icon-btn {
+        min-height: 28px !important;
+        padding: 0 8px !important;
+        font-size: 12px !important;
+    }
+
+    .input,
+    .pager-select {
+        min-height: 36px !important;
+        height: 36px !important;
+        padding-top: 7px !important;
+        padding-bottom: 7px !important;
+        font-size: 13px !important;
+    }
+
+    .textarea {
+        min-height: 78px !important;
+    }
+
+    .empty-state {
+        min-height: 140px !important;
+    }
+
+    .dialog-mask {
+        padding: 10px !important;
+    }
+
+    .dialog,
+    .user-dialog {
+        max-height: calc(100vh - 20px) !important;
+        padding: 16px !important;
+    }
+
+    .character-card-inner {
+        padding: 16px !important;
+        gap: 14px !important;
+    }
+
+    .character-name {
+        font-size: 28px !important;
+    }
+
+    .avatar-badge {
+        width: 60px !important;
+        height: 60px !important;
+        font-size: 18px !important;
+    }
+
+    .card-stat {
+        padding: 10px 12px !important;
+    }
+
+    .line-chart-svg {
+        height: 150px !important;
+    }
+}
+
+@media (max-width: 560px) {
+    .hero-panel,
+    .filter-panel,
+    .list-panel,
+    .insight-panel,
+    .budget-panel,
+    .spotlight-panel,
+    .price-panel,
+    .report-panel,
+    .dialog,
+    .user-dialog,
+    .summary-card,
+    .budget-card,
+    .mobile-card,
+    .mobile-record-card,
+    .mobile-task-card,
+    .task-card,
+    .report-card,
+    .price-card {
+        padding: 10px !important;
+        border-radius: 12px !important;
+    }
+
+    .page-title,
+    .home-title {
+        font-size: 20px !important;
+    }
+
+    .page-subtitle,
+    .panel-tip,
+    .home-subtitle {
+        -webkit-line-clamp: 1;
+    }
+
+    .main-area {
+        padding: 66px 10px 10px !important;
+    }
+
+    .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .tool-item {
+        min-height: 116px !important;
+        padding: 10px !important;
+    }
+
+    .icon-box {
+        width: 48px !important;
+        height: 48px !important;
+        border-radius: 12px !important;
+    }
+
+    .tool-name {
+        font-size: 13px !important;
+    }
+
+    .app-count,
+    .current-date,
+    .logout-btn,
+    .user-name-btn,
+    .star-back-btn {
+        font-size: 12px !important;
+    }
+
+    .line-chart-labels,
+    .price-grid,
+    .summary-grid,
+    .budget-overview-grid,
+    .mobile-card-grid,
+    .mobile-record-grid,
+    .mobile-task-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 400px) {
+    .mobile-card-grid,
+    .mobile-record-grid,
+    .mobile-task-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .line-chart-labels {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .tool-item {
+        min-height: 108px !important;
+    }
+}
