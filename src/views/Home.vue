@@ -128,7 +128,15 @@
           </label>
           <label class="form-item">
             <span>昵称</span>
-            <input v-model.trim="profileForm.displayName" required maxlength="32"/>
+            <input v-model.trim="profileForm.displayName" maxlength="32"/>
+          </label>
+          <label class="form-item">
+            <span>手机号</span>
+            <input v-model.trim="profileForm.phone" maxlength="20"/>
+          </label>
+          <label class="form-item">
+            <span>邮箱</span>
+            <input v-model.trim="profileForm.email" type="email" maxlength="64"/>
           </label>
 
           <div class="dialog-actions">
@@ -320,7 +328,9 @@ export default {
 
     const profileForm = reactive({
       username: '',
-      displayName: ''
+      displayName: '',
+      phone: '',
+      email: ''
     })
 
     const passwordForm = reactive({
@@ -373,6 +383,8 @@ export default {
     const syncProfileForm = () => {
       profileForm.username = user.value?.username || ''
       profileForm.displayName = user.value?.displayName || ''
+      profileForm.phone = user.value?.phone || ''
+      profileForm.email = user.value?.email || ''
     }
 
     const resetPasswordForm = () => {
@@ -497,17 +509,18 @@ export default {
     }
 
     const submitProfile = async () => {
-      if (!profileForm.displayName) {
-        alert('昵称不能为空')
-        return
-      }
-
       dialogLoading.value = true
       try {
         await updateProfileApi({
-          displayName: profileForm.displayName
+          displayName: profileForm.displayName,
+          phone: profileForm.phone,
+          email: profileForm.email
         })
-        persistUser({displayName: profileForm.displayName})
+        persistUser({
+          displayName: profileForm.displayName,
+          phone: profileForm.phone,
+          email: profileForm.email
+        })
         alert('个人信息已更新')
         showUserDialog.value = false
       } catch (error) {
