@@ -1,11 +1,21 @@
 <template>
   <div class="dict-page">
-    <div class="page-head">
+    <div class="page-nav">
+      <button type="button" class="back-home-btn" @click="goBackHome">
+        <span class="back-home-icon">←</span>
+        <span>返回桌面</span>
+      </button>
+    </div>
+
+    <div class="hero-panel">
       <div>
         <h1 class="page-title">数据字典</h1>
         <p class="page-subtitle">系统管理 / 数据字典，可为工作日志、用户管理等模块维护预设选项</p>
       </div>
-      <button class="ghost-btn" @click="goBackHome">返回桌面</button>
+      <div class="hero-tags">
+        <span class="hero-tag">共 {{ pagination.total }} 条</span>
+        <span v-if="usingMockData" class="hero-tag">本地演示数据</span>
+      </div>
     </div>
 
     <section class="panel filter-panel">
@@ -1222,12 +1232,58 @@ export default {
   overflow: auto;
 }
 
-.page-head {
+.page-nav {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.back-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 16px 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(12, 32, 52, 0.58);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.back-home-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(16, 40, 64, 0.76);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.back-home-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.hero-panel {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
 }
 
 .page-title {
@@ -1239,6 +1295,20 @@ export default {
   margin: 6px 0 0;
   color: rgba(255, 255, 255, 0.78);
   font-size: 13px;
+}
+
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hero-tag {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(91, 180, 255, 0.18);
+  color: #d7f0ff;
 }
 
 .panel {
@@ -1609,7 +1679,7 @@ export default {
     padding: 12px;
   }
 
-  .page-head {
+  .hero-panel {
     flex-direction: column;
     align-items: stretch;
   }

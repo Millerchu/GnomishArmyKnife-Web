@@ -73,12 +73,10 @@
               <div class="icon-box" :style="tool.iconStyle">
                 <span class="icon-text">{{ tool.iconText }}</span>
               </div>
-              <span class="tool-state">{{ tool.statusText }}</span>
             </div>
 
             <div class="tool-content">
               <p class="tool-name">{{ tool.name }}</p>
-              <p class="tool-meta">{{ tool.featureCode }}</p>
             </div>
           </button>
         </div>
@@ -254,8 +252,7 @@ function buildToolEntry(item, index) {
     iconStyle: {
       background: `linear-gradient(135deg, ${palette[0]}, ${palette[1]})`,
       boxShadow: `0 12px 24px ${hexToRgba(palette[0], 0.35)}`
-    },
-    statusText: item.route ? '已接入' : '待接入'
+    }
   }
 }
 
@@ -773,34 +770,16 @@ export default {
   color: #fff;
 }
 
-.tool-state {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.84);
-  background: rgba(255, 255, 255, 0.12);
-}
-
 .tool-content {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
 }
 
 .tool-name {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-}
-
-.tool-meta {
-  margin: 0;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.68);
 }
 
 .dialog-mask {

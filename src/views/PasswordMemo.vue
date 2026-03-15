@@ -1,11 +1,10 @@
 <template>
   <div class="password-memo-page">
-    <div class="top-bar">
-      <button class="ghost-btn" @click="goBack">返回桌面</button>
-      <div class="actions">
-        <button class="action-btn" :disabled="loading" @click="loadMemos">刷新</button>
-        <button class="action-btn" @click="openCreateDialog">新增账号</button>
-      </div>
+    <div class="page-nav">
+      <button type="button" class="back-home-btn" @click="goBack">
+        <span class="back-home-icon">←</span>
+        <span>返回桌面</span>
+      </button>
     </div>
 
     <div class="hero-panel">
@@ -772,6 +771,46 @@ export default {
   color: #fff;
 }
 
+.page-nav {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.back-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 16px 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(12, 32, 52, 0.58);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.back-home-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(16, 40, 64, 0.76);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.back-home-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .top-bar,
 .actions,
 .hero-panel,
@@ -818,6 +857,10 @@ export default {
 .detail-head,
 .password-box {
   justify-content: space-between;
+}
+
+.top-bar {
+  justify-content: flex-end;
 }
 
 .top-bar,

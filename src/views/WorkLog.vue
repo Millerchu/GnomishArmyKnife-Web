@@ -1,7 +1,24 @@
 <template>
   <div class="work-log-page">
+    <div class="page-nav">
+      <button type="button" class="back-home-btn" @click="goBack">
+        <span class="back-home-icon">←</span>
+        <span>返回桌面</span>
+      </button>
+    </div>
+
+    <div class="hero-panel">
+      <div>
+        <h1 class="page-title">工作日志</h1>
+        <p class="page-subtitle">按周查看与维护工作日志，支持年度列表与移动端卡片交互。</p>
+      </div>
+      <div class="hero-tags">
+        <span class="hero-tag">当前周 {{ weekDays[0]?.date }} - {{ weekDays[6]?.date }}</span>
+        <span class="hero-tag">{{ showYearList ? '已展开年度列表' : '周视图' }}</span>
+      </div>
+    </div>
+
     <div class="top-bar">
-      <button class="ghost-btn" @click="goBack">返回桌面</button>
       <div class="actions">
         <button class="action-btn" :disabled="loading" @click="changeWeek(-1)">上一周</button>
         <button class="action-btn" :disabled="loading" @click="changeWeek(1)">下一周</button>
@@ -12,12 +29,6 @@
           {{ showYearList ? '收起更多' : '更多' }}
         </button>
       </div>
-    </div>
-
-    <h1 class="page-title">工作日志</h1>
-
-    <div class="week-title">
-      当前周：{{ weekDays[0].date }} 至 {{ weekDays[6].date }}（周一为每周第一天）
     </div>
 
     <div class="calendar-grid">
@@ -686,11 +697,86 @@ export default {
   overflow: auto;
 }
 
-.top-bar {
+.page-nav {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.back-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 16px 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(12, 32, 52, 0.58);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.back-home-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(16, 40, 64, 0.76);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.back-home-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.hero-panel {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
+}
+
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hero-tag {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(91, 180, 255, 0.18);
+  color: #d7f0ff;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
 }
 
 .actions {
@@ -700,14 +786,14 @@ export default {
 }
 
 .page-title {
-  margin: 20px 0 10px;
+  margin: 0;
   font-size: 26px;
 }
 
-.week-title {
-  margin-bottom: 14px;
-  color: #c7ecea;
-  font-size: 14px;
+.page-subtitle {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
 }
 
 .action-btn,
@@ -1019,6 +1105,7 @@ export default {
     padding: 14px 12px;
   }
 
+  .hero-panel,
   .top-bar,
   .year-head {
     flex-direction: column;
