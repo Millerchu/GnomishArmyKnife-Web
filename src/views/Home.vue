@@ -207,7 +207,7 @@ const APP_DEFINITIONS = [
   {key: 'password-vault', name: '密码备忘录', featureCode: 'APP_PASSWORD_MEMO', route: '/password-memo', usageCount: 0},
   {key: 'todo-list', name: '待办列表', featureCode: 'APP_TODO_LIST', route: '/todo-list', usageCount: 0},
   {key: 'fuel-stats', name: '油耗统计', featureCode: 'APP_FUEL_STATS', route: '/fuel-stats', usageCount: 0},
-  {key: 'wow-character', name: 'WoW角色统计', featureCode: 'APP_WOW_CHARACTER', usageCount: 0},
+  {key: 'wow-character', name: 'WoW角色统计', featureCode: 'APP_WOW_CHARACTER', route: '/wow-character-stats', usageCount: 0},
   {key: 'personal-bills', name: '个人账单', featureCode: 'APP_PERSONAL_BILLS', usageCount: 0},
   {key: 'annual-budget', name: '年度预算', featureCode: 'APP_ANNUAL_BUDGET', usageCount: 0},
   {key: 'knowledge-base', name: '个人经验库', featureCode: 'APP_KNOWLEDGE_BASE', usageCount: 0},
