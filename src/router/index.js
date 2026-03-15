@@ -12,6 +12,7 @@ import TodoList from '../views/TodoList.vue'
 import FuelStats from '../views/FuelStats.vue'
 import WowCharacterStats from '../views/WowCharacterStats.vue'
 import PersonalBills from '../views/PersonalBills.vue'
+import SoftwareRepo from '../views/SoftwareRepo.vue'
 
 const routes = [
     {path: '/', redirect: '/login'}, // 打开直接进入登录页
@@ -25,6 +26,7 @@ const routes = [
     {path: '/fuel-stats', component: FuelStats},
     {path: '/wow-character-stats', component: WowCharacterStats},
     {path: '/personal-bills', component: PersonalBills},
+    {path: '/software-repo', component: SoftwareRepo},
     {path: '/work-log', component: WorkLog},
     {path: '/system/users', component: UserManagement},
     {path: '/system/dictionaries', component: DataDictionary}
