@@ -535,6 +535,14 @@ function endsWithOperator(expression) {
   return /[+\-*/^(]$/.test(expression)
 }
 
+function shouldInsertMultiplyBeforeDigit(expression) {
+  const trimmed = expression.trim()
+  if (!trimmed) {
+    return false
+  }
+  return /[\)πe%!]$/.test(trimmed) || trimmed.endsWith('Ans')
+}
+
 function getCurrentNumberSegment(expression) {
   const match = expression.match(/(\d+\.?\d*|\.\d*)$/)
   return match ? match[0] : ''
@@ -551,6 +559,7 @@ export default {
     const previewText = ref('准备计算')
     const historyRecords = ref([])
     const usingLocalHistory = ref(false)
+    const shouldResetOnNextValueInput = ref(false)
 
     const calculatorButtons = CALCULATOR_BUTTON_ROWS.flat()
 
@@ -623,13 +632,18 @@ export default {
     }
 
     const appendFragment = (fragment, fragmentType = 'value') => {
-      const current = expression.value
-      const shouldInsertMultiply = (
-        ['digit', 'constant', 'function', 'open'].includes(fragmentType)
-        && endsWithValue(current)
-      )
+      const resetForNewInput = shouldResetOnNextValueInput.value
+        && ['digit', 'constant', 'function', 'open'].includes(fragmentType)
+      const current = resetForNewInput ? '' : expression.value
+      const shouldInsertMultiply = fragmentType === 'digit'
+        ? shouldInsertMultiplyBeforeDigit(current)
+        : (
+          ['constant', 'function', 'open'].includes(fragmentType)
+          && endsWithValue(current)
+        )
 
       expression.value = `${current}${shouldInsertMultiply ? '*' : ''}${fragment}`
+      shouldResetOnNextValueInput.value = false
     }
 
     const insertOperator = (operator) => {
@@ -639,12 +653,19 @@ export default {
       }
       if (current && /[+\-*/^]$/.test(current)) {
         expression.value = `${current.slice(0, -1)}${operator}`
+        shouldResetOnNextValueInput.value = false
         return
       }
       expression.value = `${current}${operator}`
+      shouldResetOnNextValueInput.value = false
     }
 
     const insertDot = () => {
+      if (shouldResetOnNextValueInput.value) {
+        expression.value = '0.'
+        shouldResetOnNextValueInput.value = false
+        return
+      }
       const segment = getCurrentNumberSegment(expression.value)
       if (segment.includes('.')) {
         return
@@ -662,6 +683,7 @@ export default {
       }
       const updated = expression.value.replace(/(Ans|[A-Za-z]+|\d+\.?\d*|\.\d*|[πe])$/, '')
       expression.value = updated || ''
+      shouldResetOnNextValueInput.value = false
     }
 
     const backspace = () => {
@@ -669,6 +691,7 @@ export default {
         return
       }
       expression.value = expression.value.slice(0, -1)
+      shouldResetOnNextValueInput.value = false
     }
 
     const toggleSign = () => {
@@ -679,16 +702,19 @@ export default {
       expression.value = expression.value.startsWith('-')
         ? expression.value.slice(1)
         : `-${expression.value}`
+      shouldResetOnNextValueInput.value = false
     }
 
     const wrapCurrentExpression = (mode) => {
       const current = expression.value || `${formatResult(lastAnswer.value)}`
       if (mode === 'square') {
         expression.value = `(${current})^2`
+        shouldResetOnNextValueInput.value = false
         return
       }
       if (mode === 'reciprocal') {
         expression.value = `1/(${current})`
+        shouldResetOnNextValueInput.value = false
       }
     }
 
@@ -709,6 +735,7 @@ export default {
         lastAnswer.value = result
         expression.value = resultText
         previewText.value = `= ${resultText}`
+        shouldResetOnNextValueInput.value = true
       } catch (error) {
         previewText.value = error?.message || '表达式格式有误'
       }
@@ -742,6 +769,7 @@ export default {
       if (button.type === 'postfix') {
         if (endsWithValue(expression.value) || lastChar(expression.value) === ')') {
           expression.value = `${expression.value}${button.value}`
+          shouldResetOnNextValueInput.value = false
         }
         return
       }
@@ -768,6 +796,7 @@ export default {
       if (button.type === 'clearAll') {
         expression.value = ''
         previewText.value = '准备计算'
+        shouldResetOnNextValueInput.value = false
         return
       }
       if (button.type === 'evaluate') {
@@ -781,6 +810,7 @@ export default {
       if (!Number.isNaN(numericResult)) {
         lastAnswer.value = numericResult
       }
+      shouldResetOnNextValueInput.value = false
     }
 
     const removeHistory = async (item) => {
