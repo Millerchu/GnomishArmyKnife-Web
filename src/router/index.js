@@ -8,6 +8,8 @@ import StarInteractive from '../views/StarInteractive.vue'
 import DataDictionary from '../views/DataDictionary.vue'
 import Calculator from '../views/Calculator.vue'
 import PasswordMemo from '../views/PasswordMemo.vue'
+import TodoList from '../views/TodoList.vue'
+import FuelStats from '../views/FuelStats.vue'
 
 const routes = [
     {path: '/', redirect: '/login'}, // 打开直接进入登录页
@@ -17,6 +19,8 @@ const routes = [
     {path: '/home', component: Home},
     {path: '/calculator', component: Calculator},
     {path: '/password-memo', component: PasswordMemo},
+    {path: '/todo-list', component: TodoList},
+    {path: '/fuel-stats', component: FuelStats},
     {path: '/work-log', component: WorkLog},
     {path: '/system/users', component: UserManagement},
     {path: '/system/dictionaries', component: DataDictionary}
