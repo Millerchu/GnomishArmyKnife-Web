@@ -1183,8 +1183,10 @@ export default {
 <style scoped>
 .fuel-page {
   min-height: 100vh;
+  height: 100%;
   padding: 18px 22px 26px;
   color: #fff;
+  overflow: auto;
 }
 
 .page-nav {

@@ -692,6 +692,7 @@ export default {
 <style scoped>
 .work-log-page {
   min-height: 100vh;
+  height: 100%;
   color: #fff;
   padding: 20px;
   overflow: auto;

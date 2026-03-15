@@ -767,8 +767,10 @@ export default {
 <style scoped>
 .password-memo-page {
   min-height: 100vh;
+  height: 100%;
   padding: 18px 22px 26px;
   color: #fff;
+  overflow: auto;
 }
 
 .page-nav {

@@ -124,6 +124,26 @@ body {
         gap: 8px !important;
     }
 
+    .top-bar,
+    .actions,
+    .view-switch,
+    .display-head,
+    .display-actions,
+    .task-actions,
+    .mobile-task-head,
+    .year-head,
+    .history-head,
+    .detail-head {
+        gap: 8px !important;
+    }
+
+    .actions,
+    .view-switch,
+    .display-actions,
+    .task-actions {
+        flex-wrap: wrap !important;
+    }
+
     .field span,
     .form-field span,
     .mobile-card-grid span,
@@ -183,6 +203,16 @@ body {
         font-size: 12px !important;
     }
 
+    .view-btn,
+    .mode-btn,
+    .tab-btn,
+    .task-check-btn,
+    .history-delete {
+        min-height: 30px !important;
+        padding: 0 10px !important;
+        font-size: 12px !important;
+    }
+
     .input,
     .pager-select {
         min-height: 36px !important;
@@ -213,6 +243,38 @@ body {
     .character-card-inner {
         padding: 16px !important;
         gap: 14px !important;
+    }
+
+    .calendar-grid,
+    .history-list,
+    .detail-list {
+        gap: 8px !important;
+    }
+
+    .day-card,
+    .detail-item,
+    .history-item,
+    .upcoming-item {
+        padding: 10px !important;
+    }
+
+    .task-title,
+    .mobile-task-title,
+    .history-title {
+        font-size: 14px !important;
+    }
+
+    .history-expression,
+    .history-result,
+    .history-time,
+    .summary-line,
+    .summary-extra,
+    .empty-text,
+    .task-note,
+    .keyboard-tip,
+    .cache-tip {
+        font-size: 11px !important;
+        line-height: 1.4 !important;
     }
 
     .character-name {
@@ -270,6 +332,15 @@ body {
 
     .main-area {
         padding: 66px 10px 10px !important;
+    }
+
+    .actions .action-btn,
+    .actions .ghost-btn,
+    .display-actions .ghost-btn,
+    .view-switch .view-btn,
+    .task-actions .mini-btn,
+    .task-actions .icon-btn {
+        flex: 1 1 calc(50% - 4px) !important;
     }
 
     .grid {
