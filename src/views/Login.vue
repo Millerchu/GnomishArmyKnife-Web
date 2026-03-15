@@ -202,6 +202,7 @@ export default {
         const { token, user } = res.data || {}
         localStorage.setItem('token', token || '')
         localStorage.setItem('user', JSON.stringify(user || {}))
+        sessionStorage.setItem('currentUserPlainPassword', form.password)
 
         router.push('/star-interactive')
       } catch (error) {

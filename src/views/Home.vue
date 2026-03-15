@@ -206,7 +206,7 @@ const APP_COLOR_PALETTE = [
 const APP_DEFINITIONS = [
   {key: 'calculator', name: '计算器', featureCode: 'APP_CALCULATOR', route: '/calculator', usageCount: 0},
   {key: 'work-log', name: '工作日志', featureCode: 'APP_WORK_LOG', route: '/work-log', usageCount: 0},
-  {key: 'password-vault', name: '密码备忘录', featureCode: 'APP_PASSWORD_MEMO', usageCount: 0},
+  {key: 'password-vault', name: '密码备忘录', featureCode: 'APP_PASSWORD_MEMO', route: '/password-memo', usageCount: 0},
   {key: 'todo-list', name: '待办列表', featureCode: 'APP_TODO_LIST', usageCount: 0},
   {key: 'fuel-stats', name: '油耗统计', featureCode: 'APP_FUEL_STATS', usageCount: 0},
   {key: 'wow-character', name: 'WoW角色统计', featureCode: 'APP_WOW_CHARACTER', usageCount: 0},
@@ -330,6 +330,7 @@ export default {
     const logout = () => {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      sessionStorage.removeItem('currentUserPlainPassword')
       router.push('/login')
     }
 
