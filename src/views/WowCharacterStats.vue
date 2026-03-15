@@ -10,7 +10,7 @@
     <div class="hero-panel">
       <div>
         <h1 class="page-title">WoW角色统计</h1>
-        <p class="page-subtitle">记录魔兽世界正式服角色信息，优先展示装等最高的 2 个常用角色，并按职业色呈现角色数据。</p>
+        <p class="page-subtitle">记录魔兽世界正式服角色信息，优先展示装等最高的 3 个常用角色，并按职业色呈现角色数据。</p>
       </div>
       <div class="hero-tags">
         <span class="hero-tag">{{ usingLocalData ? '本地演示数据' : '已接真实接口' }}</span>
@@ -23,7 +23,7 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">主角色名片</h2>
-          <p class="panel-tip">按装等排序展示最常用的 2 个主角色，卡面信息参考 Battle.net 风格并融入阵营水印。</p>
+          <p class="panel-tip">按装等排序展示最常用的 3 个主角色，卡面信息参考 Battle.net 风格并融入阵营水印。</p>
         </div>
       </div>
 
@@ -76,7 +76,7 @@
         </article>
 
         <article
-          v-for="placeholder in Math.max(0, 2 - featuredCharacters.length)"
+          v-for="placeholder in Math.max(0, 3 - featuredCharacters.length)"
           :key="`placeholder-${placeholder}`"
           class="character-card empty-card"
         >
@@ -839,7 +839,7 @@ function buildOverview(list = []) {
   const averageItemLevel = totalCharacters
     ? Math.round(list.reduce((sum, item) => sum + Number(item.itemLevel || 0), 0) / totalCharacters)
     : 0
-  const featuredCharacters = sortCharacters(list).slice(0, 2)
+  const featuredCharacters = sortCharacters(list).slice(0, 3)
 
   const factionStats = FACTION_OPTIONS.map((item) => {
     const count = list.filter((character) => character.faction === item.value).length
@@ -1494,7 +1494,7 @@ export default {
 
 .spotlight-grid {
   margin-top: 14px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .character-card {
@@ -1948,9 +1948,14 @@ export default {
   color: rgba(255, 255, 255, 0.68);
 }
 
-@media (max-width: 1180px) {
-  .content-layout,
+@media (max-width: 1360px) {
   .spotlight-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1180px) {
+  .content-layout {
     grid-template-columns: 1fr;
   }
 }
