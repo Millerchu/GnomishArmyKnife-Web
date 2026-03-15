@@ -413,6 +413,7 @@ import {
   updatePersonalBill
 } from '@/api/personalBills'
 
+// 账单和预算都提供本地兜底，便于在后端未联通前完整预览联动效果。
 const LOCAL_BILL_KEY = 'personal_bills_records'
 const LOCAL_BUDGET_KEY = 'personal_budget_records'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
@@ -439,6 +440,7 @@ const DEFAULT_BUDGETS = [
   {id: 'budget-5', year: 2026, categoryName: '数码', annualLimit: 12000, alertThreshold: 0.7, note: '大件设备也放这里'}
 ]
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -461,6 +463,7 @@ function formatDateTime(date = new Date()) {
   return `${year}-${month}-${day} ${hour}:${minute}`
 }
 
+// 流水字段先归一，后续月筛选、分页和统计都只基于这一层结构。
 function normalizeBill(item = {}) {
   return {
     id: item.id ?? item.billId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -476,6 +479,7 @@ function normalizeBill(item = {}) {
   }
 }
 
+// 预算字段单独归一，方便与账单记录做年度联动统计。
 function normalizeBudget(item = {}) {
   return {
     id: item.id ?? item.budgetId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -543,6 +547,7 @@ function buildBudgetStatus(usageRate = 0, alertThreshold = 0.8) {
   return {statusClass: 'safe', statusText: '预算健康'}
 }
 
+// 饼图/分布卡片的数据都从当月支出分类汇总出来。
 function buildCategoryDistribution(records = []) {
   const expenseRecords = records.filter((item) => item.billType === 'EXPENSE')
   const total = expenseRecords.reduce((sum, item) => sum + Number(item.amount || 0), 0)
@@ -561,6 +566,7 @@ function buildCategoryDistribution(records = []) {
     .sort((prev, next) => next.amount - prev.amount)
 }
 
+// 顶部收支概览、最近账单和预算执行率统一在这里计算，保持口径一致。
 function buildSummary(allBills = [], filteredBills = [], budgets = [], selectedMonth = getDefaultMonth()) {
   const selectedYear = Number(selectedMonth.slice(0, 4))
   const currentMonthBills = filteredBills.filter((item) => `${item.billDate || ''}`.startsWith(selectedMonth))
@@ -624,6 +630,7 @@ export default {
   setup() {
     const router = useRouter()
 
+    // 页面同时管理账单流水和年度预算，两套弹窗共享同一份数据源。
     const loading = ref(false)
     const submitting = ref(false)
     const budgetSubmitting = ref(false)

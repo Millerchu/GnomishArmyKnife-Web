@@ -40,6 +40,7 @@ function randomInRange(min, max) {
   return Math.random() * (max - min) + min
 }
 
+// 手势能力依赖外部脚本，这里做一次性加载并缓存到页面级。
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[data-external-script="${src}"]`)
@@ -66,6 +67,7 @@ function loadScript(src) {
   })
 }
 
+// 星点整体按爱心曲线采样，再叠加轻微随机扰动，让轮廓更自然。
 function createHeartStar() {
   const t = randomInRange(0, Math.PI * 2)
   const fillFactor = Math.sqrt(Math.random())
@@ -140,6 +142,7 @@ export default {
     let lastPinchDistance = null
     let isDisposed = false
 
+    // 路由离开、双击进入主页或初始化中断时都走同一套摄像头清理逻辑。
     const cleanupCamera = async () => {
       lastPalm = null
       lastPinchDistance = null
@@ -314,6 +317,7 @@ export default {
       lastPinchDistance = pinchDistance
     }
 
+    // 手势初始化是异步流程，中途如果页面已经销毁，需要随时中断并回收摄像头。
     const initGestureControl = async () => {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         gestureStatus.value = '当前浏览器不支持摄像头手势识别，可使用鼠标操作'
@@ -377,6 +381,7 @@ export default {
       }
     }
 
+    // 页面挂载时同时启动星图渲染和手势识别，两者共享同一个销毁时机。
     onMounted(() => {
       isDisposed = false
       stars = Array.from({length: STAR_COUNT}, () => createHeartStar())

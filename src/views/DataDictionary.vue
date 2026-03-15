@@ -426,6 +426,7 @@ import {
   updateDataDictionaryStatus
 } from '@/api/dataDictionary'
 
+// 主列表演示数据，保证字典页和字典项维护页都能独立预览。
 const MOCK_DICTIONARIES = [
   {
     id: 1,
@@ -462,6 +463,7 @@ const MOCK_DICTIONARIES = [
   }
 ]
 
+// 字典项按字典主键分组，模拟后端主从结构返回。
 const MOCK_DICTIONARY_ITEMS = {
   1: [
     {id: 101, itemCode: 'backend', itemLabel: '后端项目', itemValue: 'BACKEND', sort: 1, status: 'ENABLED', isDefault: true, description: '默认项目类型'},
@@ -486,6 +488,7 @@ function extractErrorMessage(error, fallback) {
   return data.message || data.msg || fallback
 }
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -494,6 +497,7 @@ function unwrapData(res) {
   return payload
 }
 
+// 主列表和字典项列表都复用这套分页解析，降低联调时的适配成本。
 function parseListPayload(payload) {
   if (Array.isArray(payload)) {
     return {
@@ -555,6 +559,7 @@ function normalizeReferenceApps(value) {
   return []
 }
 
+// 字典主表字段做统一归一，模板里不直接感知后端字段差异。
 function normalizeDictionary(item) {
   const source = item || {}
   return {
@@ -570,6 +575,7 @@ function normalizeDictionary(item) {
   }
 }
 
+// 字典项的默认值、状态和排序字段在这里统一处理。
 function normalizeDictionaryItem(item) {
   const source = item || {}
   return {
@@ -609,6 +615,7 @@ export default {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
     const creatorName = currentUser.displayName || currentUser.username || '当前用户'
 
+    // 页面是“字典主列表 + 下方字典项维护”的联动结构，状态集中在 setup 顶部维护。
     const loading = ref(false)
     const itemsLoading = ref(false)
     const submitting = ref(false)

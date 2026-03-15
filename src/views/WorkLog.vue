@@ -227,6 +227,7 @@ import {
 
 const WEEK_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
+// 页面既有周视图也有按天详情，日期工具统一放在这里复用。
 function formatDate(date) {
   const year = date.getFullYear()
   const month = `${date.getMonth() + 1}`.padStart(2, '0')
@@ -247,6 +248,7 @@ function getWeekMonday(date) {
   return current
 }
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -255,6 +257,7 @@ function unwrapData(res) {
   return payload
 }
 
+// 把后端日志字段整理成页面固定结构，减少周视图和详情视图的分支判断。
 function normalizeLog(item) {
   return {
     id: item?.id,
@@ -305,6 +308,7 @@ export default {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
     const currentUserId = currentUser.id || currentUser.userId || currentUser.userid || ''
 
+    // 页面状态分成周面板、年度列表和新增编辑弹窗三块。
     const loading = ref(false)
     const submitting = ref(false)
     const weekOffset = ref(0)

@@ -390,6 +390,7 @@ import {
   updateFuelRecord
 } from '@/api/fuelStats'
 
+// 油耗记录默认支持本地演示，并额外提供最新油价与报表的静态兜底数据。
 const LOCAL_RECORD_KEY = 'fuel_stats_records'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 const FUEL_TYPE_OPTIONS = [
@@ -494,6 +495,7 @@ const DEFAULT_LATEST_PRICES = {
   }
 }
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -516,6 +518,7 @@ function getCurrentMonthKey() {
   return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}`
 }
 
+// 统一加油记录字段，并把优惠后实付金额和优惠金额一并算好供页面复用。
 function normalizeRecord(item = {}) {
   const fuelVolume = Number(item.fuelVolume ?? item.volume ?? 0)
   const totalAmount = Number(item.totalAmount ?? item.amount ?? 0)
@@ -564,6 +567,7 @@ function persistLocalRecords(list) {
   localStorage.setItem(LOCAL_RECORD_KEY, JSON.stringify(list))
 }
 
+// 里程差和百公里油耗依赖同车上一条记录，这里集中补全派生指标。
 function calculateDerivedRecords(records = []) {
   const ascending = [...records]
     .map((item) => normalizeRecord(item))
@@ -594,6 +598,7 @@ function calculateDerivedRecords(records = []) {
   ))
 }
 
+// 概览卡片、车辆统计和图表公用同一套聚合结果，保证金额口径始终按优惠后实付计算。
 function buildSummary(records = []) {
   const totalAmount = records.reduce((sum, item) => sum + Number(item.discountedAmount || item.totalAmount || 0), 0)
   const totalDiscountAmount = records.reduce((sum, item) => sum + Number(item.discountAmount || 0), 0)
@@ -692,6 +697,7 @@ export default {
   setup() {
     const router = useRouter()
 
+    // 页面状态分成记录列表、洞察面板、图表报表和弹窗表单四块。
     const loading = ref(false)
     const submitting = ref(false)
     const usingLocalData = ref(false)

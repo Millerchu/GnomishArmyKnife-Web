@@ -406,6 +406,7 @@ import {
   updateSoftwareVersion
 } from '@/api/softwareRepo'
 
+// 软件仓库默认走本地数据，便于先验证上传、版本管理和本地下载优先策略。
 const LOCAL_SOFTWARE_KEY = 'software_repo_packages'
 const PAGE_SIZE_OPTIONS = [6, 10, 16]
 const PLATFORM_OPTIONS = [
@@ -473,6 +474,7 @@ const DEFAULT_PACKAGES = [
   }
 ]
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -481,6 +483,7 @@ function unwrapData(res) {
   return payload
 }
 
+// 版本信息单独归一，便于软件主档和版本明细分别维护。
 function buildVersionEntry(item = {}) {
   return {
     id: item.id ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -498,6 +501,7 @@ function buildVersionEntry(item = {}) {
   }
 }
 
+// 软件主档字段统一后，列表、概览和版本弹窗都走这一份结构。
 function normalizePackage(item = {}) {
   return {
     id: item.id ?? item.packageId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -539,6 +543,7 @@ function persistLocalPackages(list) {
   localStorage.setItem(LOCAL_SOFTWARE_KEY, JSON.stringify(list))
 }
 
+// 版本先按推荐标记，再按发布日期排序，保证用户优先看到可下载安装的主版本。
 function sortVersions(list = []) {
   return [...list].sort((prev, next) => Number(next.isRecommended) - Number(prev.isRecommended) || `${next.releaseDate}-${next.versionName}`.localeCompare(`${prev.releaseDate}-${prev.versionName}`))
 }
@@ -547,6 +552,7 @@ function sortPackages(list = []) {
   return [...list].sort((prev, next) => `${prev.softwareName}`.localeCompare(`${next.softwareName}`))
 }
 
+// 概览区展示的软件数、版本数、推荐版本和最近更新都在这里汇总。
 function buildSummary(packages = []) {
   const versionList = packages.flatMap((item) => item.versions.map((version) => ({
     ...version,
@@ -580,6 +586,7 @@ export default {
   setup() {
     const router = useRouter()
 
+    // 页面状态包含仓库列表、概览统计、软件弹窗、版本弹窗和上传临时文件引用。
     const loading = ref(false)
     const submitting = ref(false)
     const usingLocalData = ref(false)

@@ -85,9 +85,11 @@ import {
   saveCalculatorHistory
 } from '@/api/calculator'
 
+// 历史记录默认走本地缓存兜底，后端联通后优先切到服务端接口。
 const LOCAL_HISTORY_KEY = 'calculator_history'
 const MAX_HISTORY_COUNT = 20
 
+// 按键布局集中定义，模板只负责渲染，后续调整键位时不需要改交互逻辑。
 const CALCULATOR_BUTTON_ROWS = [
   [
     {key: 'mode', label: 'DEG/RAD', type: 'toggleMode', className: 'control'},
@@ -147,6 +149,7 @@ const CALCULATOR_BUTTON_ROWS = [
   ]
 ]
 
+// 兼容接口直接返回 data 和 { data } 两种常见响应结构。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -155,6 +158,7 @@ function unwrapData(res) {
   return payload
 }
 
+// 表达式先拆成 token，再交给自定义解析器求值，避免直接使用 eval。
 function tokenizeExpression(expression) {
   const tokens = []
   let index = 0

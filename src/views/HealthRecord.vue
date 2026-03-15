@@ -375,6 +375,7 @@ import {
 } from '@/api/healthRecord'
 
 const HEALTH_RECORD_FETCH_SIZE = 200
+// 健康页同时维护指标记录、体检报告和概览自定义结果，三类数据各自独立持久化。
 const LOCAL_RECORD_KEY = 'health_record_entries'
 const LOCAL_REPORT_KEY = 'health_report_entries'
 const OVERVIEW_METRIC_STORAGE_KEY = 'health_overview_metric_keys'
@@ -410,6 +411,7 @@ const DEFAULT_REPORTS = [
     reportUrl: 'http://127.0.0.1:9000/health-reports/2026-health-checkup.pdf'
   }
 ]
+// 概览卡片、历史记录和指标选择器都共享这一份指标定义。
 const METRIC_DEFINITIONS = [
   {key: 'heightCm', label: '身高', unit: 'cm', decimals: 0, accentClass: 'accent-pink', color: '#ff5f8f'},
   {key: 'weightKg', label: '体重', unit: 'kg', decimals: 1, accentClass: 'accent-rose', color: '#ff4778'},
@@ -427,6 +429,7 @@ const METRIC_DEFINITIONS = [
   {key: 'aspartateAminotransferase', label: '谷草转氨酶', unit: 'U/L', decimals: 0, accentClass: 'accent-gold', color: '#f59e0b'},
   {key: 'gammaGlutamylTransferase', label: 'γ-GT', unit: 'U/L', decimals: 0, accentClass: 'accent-teal', color: '#06b6d4'}
 ]
+// 趋势图展示的是可对比的单值指标，复合指标如血压会拆成收缩压/舒张压。
 const TREND_METRIC_OPTIONS = [
   {key: 'weightKg', label: '体重', unit: 'kg', color: '#ff4778', decimals: 1},
   {key: 'bodyFatRate', label: '体脂率', unit: '%', color: '#22d3ee', decimals: 1},
@@ -440,6 +443,7 @@ const TREND_METRIC_OPTIONS = [
   {key: 'aspartateAminotransferase', label: '谷草转氨酶', unit: 'U/L', color: '#f59e0b', decimals: 0},
   {key: 'gammaGlutamylTransferase', label: 'γ-GT', unit: 'U/L', color: '#06b6d4', decimals: 0}
 ]
+// 新增记录弹窗会按当前指标只显示必要字段，这里定义指标到表单字段的映射关系。
 const RECORD_FIELD_CONFIGS = {
   heightCm: {key: 'heightCm', label: '身高(cm)', type: 'number', min: '0', step: '0.1', placeholder: ''},
   weightKg: {key: 'weightKg', label: '体重(kg)', type: 'number', min: '0', step: '0.1', placeholder: ''},
@@ -493,6 +497,7 @@ const METRIC_TREND_MAP = {
 }
 const DEFAULT_OVERVIEW_METRIC_KEYS = METRIC_DEFINITIONS.map((item) => item.key)
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -568,6 +573,7 @@ function getMetricDisplayConfig(metricKey) {
     || {key: metricKey, unit: '', decimals: 0}
 }
 
+// 以下状态判定只用于前端可视化提示，不替代医学诊断结论。
 function buildPressureStatus(record = {}) {
   const systolic = toNumber(record.systolicPressure)
   const diastolic = toNumber(record.diastolicPressure)
@@ -771,6 +777,7 @@ function sortReportsDesc(list = []) {
   return [...list].sort((prev, next) => `${next.examDate}-${next.id}`.localeCompare(`${prev.examDate}-${prev.id}`))
 }
 
+// 概览支持用户自定义展示指标，并在版本升级时自动补上新增指标。
 function loadOverviewMetricKeys() {
   try {
     const raw = localStorage.getItem(OVERVIEW_METRIC_STORAGE_KEY)
@@ -848,6 +855,7 @@ function persistLocalReports(list) {
   localStorage.setItem(LOCAL_REPORT_KEY, JSON.stringify(list))
 }
 
+// 所有指标取值先统一走这里，复合指标和计算指标都能复用同一套展示逻辑。
 function extractMetricValue(record, metricKey) {
   if (!record) {
     return null
@@ -929,6 +937,7 @@ function buildMetricStatus(metricKey, record, value) {
   }
 }
 
+// 概览卡片只关心最近一次记录，因此在这里统一拼装图标、值和日期。
 function buildMetricCard(records, metricKey) {
   const definition = getMetricDefinition(metricKey)
   const iconText = buildMetricIconText(definition.label)
@@ -1003,6 +1012,7 @@ function buildMetricTrendInfo(metricKey, currentValue, previousValue) {
   }
 }
 
+// 历史列表统一输出“指标值 + 记录日期 + 与上次趋势”，页面只负责渲染。
 function buildMetricHistoryItems(records, metricKey) {
   const filteredRecords = sortRecordsDesc(records)
     .filter((item) => extractMetricValue(item, metricKey) !== null)
@@ -1103,6 +1113,7 @@ export default {
   setup() {
     const router = useRouter()
 
+    // 页面同时维护概览、趋势、历史记录和体检报告四块区域，状态集中在 setup 顶部统一管理。
     const loading = ref(false)
     const submitting = ref(false)
     const usingLocalData = ref(false)
@@ -1127,6 +1138,7 @@ export default {
     const trendData = reactive({})
     const tempReportUrls = []
 
+    // 趋势图数据按指标 key 分桶缓存，切换指标时只需要切换引用。
     TREND_METRIC_OPTIONS.forEach((item) => {
       trendData[item.key] = []
     })
@@ -1181,6 +1193,7 @@ export default {
       return rows
     })
     const metricHistoryItems = computed(() => buildMetricHistoryItems(allRecords.value, activeMetricKey.value))
+    // 移动端图表只截取最近几条记录，避免在窄屏上显示过于拥挤。
     const chartSeries = computed(() => {
       const list = trendData[selectedTrendMetric.value] || []
       return isMobileViewport.value ? list.slice(-6) : list

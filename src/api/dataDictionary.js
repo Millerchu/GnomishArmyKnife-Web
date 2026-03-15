@@ -1,5 +1,6 @@
 import request from '@/api/request'
 
+// 数据字典模块同时维护字典主表和字典项明细。
 export function listDataDictionaries(params) {
   return request.get('/system/dictionaries', {params})
 }
@@ -20,6 +21,7 @@ export function updateDataDictionaryStatus(id, data) {
   return request.patch(`/system/dictionaries/${id}/status`, data)
 }
 
+// 字典项接口全部挂在具体字典下，便于后端按主从关系组织路由。
 export function listDataDictionaryItems(dictionaryId, params) {
   return request.get(`/system/dictionaries/${dictionaryId}/items`, {params})
 }

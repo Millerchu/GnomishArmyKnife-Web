@@ -1,5 +1,6 @@
 import request from '@/api/request'
 
+// 软件仓库模块：软件主档、版本明细、概览统计和文件上传都从这里调用。
 export function listSoftwarePackages(params) {
   return request.get('/software-packages', {params})
 }
@@ -20,6 +21,7 @@ export function createSoftwareVersion(packageId, data) {
   return request.post(`/software-packages/${packageId}/versions`, data)
 }
 
+// 安装包文件先上传到文件服务，业务记录里只保存文件元信息和下载地址。
 export function uploadSoftwarePackageFile(file) {
   const formData = new FormData()
   formData.append('file', file)

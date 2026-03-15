@@ -339,6 +339,7 @@ import {
   updateSystemUserStatus
 } from '@/api/systemUser'
 
+// 演示数据用于后端未联通时预览完整用户管理流程。
 const MOCK_USER_LIST = [
   {
     id: 1,
@@ -491,6 +492,7 @@ function extractErrorMessage(error, fallback) {
   return data.message || data.msg || fallback
 }
 
+// 兼容不同接口响应包装，页面内部统一只处理真正的数据体。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -499,6 +501,7 @@ function unwrapData(res) {
   return payload
 }
 
+// 用户字段兼容多套命名，统一后模板和弹窗都走同一份结构。
 function normalizeUser(item) {
   const source = item || {}
   const roleCode = source.roleCode || source.role || source.userRole || source.roleName || 'USER'
@@ -525,6 +528,7 @@ function normalizeUser(item) {
   }
 }
 
+// 兼容常见分页返回格式，避免后端切换实现时改页面逻辑。
 function parseListPayload(payload) {
   if (Array.isArray(payload)) {
     return {
@@ -588,6 +592,7 @@ export default {
   setup() {
     const router = useRouter()
 
+    // 页面状态覆盖列表、筛选、批量选择和两个弹窗流程。
     const loading = ref(false)
     const submitting = ref(false)
     const usingMockData = ref(false)

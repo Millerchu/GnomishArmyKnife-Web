@@ -373,6 +373,7 @@ import {
   updateTodoTaskStatus
 } from '@/api/todoList'
 
+// 待办支持本地模式运行，后端未联通时仍能完整演示列表和详情交互。
 const LOCAL_TASK_KEY = 'todo_list_records'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 const LIST_OPTIONS = [
@@ -484,6 +485,7 @@ const DEFAULT_TASKS = [
   }
 ]
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -531,6 +533,7 @@ function normalizeReminderInput(value) {
   return `${value}`.replace(' ', 'T').slice(0, 16)
 }
 
+// 任务归一后统一保留子任务、提醒和视图字段，模板层不再区分来源。
 function normalizeTask(item = {}) {
   const steps = Array.isArray(item.steps)
     ? item.steps.map((step) => buildStep(step))
@@ -577,6 +580,7 @@ function countDoneSteps(steps = []) {
   return steps.filter((item) => item.done).length
 }
 
+// 排序规则优先保证未完成、重要和临期任务更靠前，接近主流待办应用的阅读顺序。
 function sortTasks(list) {
   return [...list].sort((prev, next) => {
     if (prev.status === 'COMPLETED' && next.status !== 'COMPLETED') {
@@ -601,6 +605,7 @@ function sortTasks(list) {
   })
 }
 
+// 概览区、智能视图和右侧分布面板都从这里集中计算，避免各处重复遍历任务。
 function buildSummary(tasks = []) {
   const today = getTodayText()
   return {
@@ -649,6 +654,7 @@ export default {
   setup() {
     const router = useRouter()
 
+    // 页面主要维护三类状态：任务列表、概览统计和新增编辑弹窗。
     const loading = ref(false)
     const submitting = ref(false)
     const usingLocalData = ref(false)

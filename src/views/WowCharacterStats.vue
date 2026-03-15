@@ -435,12 +435,14 @@ import {
   updateWowCharacter
 } from '@/api/wowCharacter'
 
+// 角色数据默认走本地缓存兜底，方便先看名片和职业配色效果。
 const LOCAL_CHARACTER_KEY = 'wow_character_records'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 const FACTION_OPTIONS = [
   {value: 'ALLIANCE', label: '联盟'},
   {value: 'HORDE', label: '部落'}
 ]
+// 职业颜色参考正式服职业色，用于主角色名片和列表标签统一展示。
 const CLASS_OPTIONS = [
   {value: '死亡骑士', label: '死亡骑士', color: '#C41F3B', textColor: '#ffffff'},
   {value: '恶魔猎手', label: '恶魔猎手', color: '#A330C9', textColor: '#ffffff'},
@@ -748,6 +750,7 @@ const DEFAULT_CHARACTERS = [
   }
 ]
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -756,6 +759,7 @@ function unwrapData(res) {
   return payload
 }
 
+// 名片、标签和统计卡的视觉颜色都从职业色派生，避免样式层硬编码多份颜色。
 function classColorToRgba(hex, alpha) {
   const value = hex.replace('#', '')
   const red = parseInt(value.slice(0, 2), 16)
@@ -782,6 +786,7 @@ function formatDateTime(date = new Date()) {
   return `${year}-${month}-${day} ${hour}:${minute}`
 }
 
+// 统一角色字段命名，后续不管是本地数据还是战网同步数据都走这一层适配。
 function normalizeCharacter(item = {}) {
   return {
     id: item.id ?? item.characterId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -831,6 +836,7 @@ function sortCharacters(list = []) {
   ))
 }
 
+// 主角色名片、阵营统计、职业分布和服务器排行都在这里集中计算。
 function buildOverview(list = []) {
   const totalCharacters = list.length
   const totalRealms = new Set(list.map((item) => item.realmName).filter(Boolean)).size
@@ -904,6 +910,7 @@ export default {
   setup() {
     const router = useRouter()
 
+    // 页面状态覆盖顶部概览、角色列表和新增编辑弹窗。
     const loading = ref(false)
     const submitting = ref(false)
     const usingLocalData = ref(false)

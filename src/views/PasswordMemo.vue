@@ -252,10 +252,12 @@ import {
   verifyPasswordMemoAccess
 } from '@/api/passwordMemo'
 
+// 账号数据和当前登录口令都保留了本地兜底，方便离线演示解锁流程。
 const LOCAL_MEMO_KEY = 'password_memo_records'
 const CURRENT_USER_PASSWORD_KEY = 'currentUserPlainPassword'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 
+// 演示数据用于后端未联通时预览列表、详情和口令校验交互。
 const DEFAULT_MEMOS = [
   {
     id: 'memo-1',
@@ -295,6 +297,7 @@ const DEFAULT_MEMOS = [
   }
 ]
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -312,6 +315,7 @@ function formatDateTime(date = new Date()) {
   return `${year}-${month}-${day} ${hour}:${minute}`
 }
 
+// 把站点账号字段归一后再进页面状态，避免模板层兼容多套字段名。
 function normalizeMemo(item = {}) {
   const rawPassword = item.password || item.secret || ''
   return {
@@ -354,6 +358,7 @@ function buildAccountText(item) {
   return [item.username, item.registeredPhone, item.registeredEmail].filter(Boolean).join(' / ') || '-'
 }
 
+// 详情弹窗默认只展示首尾字符，完整密码必须重新校验后才允许显示。
 function maskPassword(value) {
   const source = `${value || ''}`
   if (!source) {
@@ -382,6 +387,7 @@ export default {
   setup() {
     const router = useRouter()
 
+    // 页面状态拆成列表、编辑弹窗和详情解锁三组，便于关闭详情后彻底重置敏感数据。
     const loading = ref(false)
     const submitting = ref(false)
     const verifyingPassword = ref(false)

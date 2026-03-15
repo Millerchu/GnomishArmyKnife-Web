@@ -221,6 +221,7 @@ const APP_COLOR_PALETTE = [
 ]
 const TOOL_USAGE_STORAGE_KEY = 'home_tool_usage_map'
 const TOOL_CUSTOM_ORDER_STORAGE_KEY = 'home_tool_custom_order'
+// 桌面应用先在前端固定定义，后续再由权限系统接管显示与可用性。
 const APP_DEFINITIONS = [
   {key: 'calculator', name: '计算器', featureCode: 'APP_CALCULATOR', route: '/calculator', usageCount: 0},
   {key: 'work-log', name: '工作日志', featureCode: 'APP_WORK_LOG', route: '/work-log', usageCount: 0},
@@ -280,6 +281,7 @@ function extractErrorMessage(error, fallback) {
   return data.message || data.msg || fallback
 }
 
+// 使用频率和自定义顺序都走本地持久化，保证桌面排序在刷新后仍然生效。
 function readUsageMap() {
   try {
     const raw = localStorage.getItem(TOOL_USAGE_STORAGE_KEY)
@@ -326,6 +328,7 @@ export default {
     const dragOverToolKey = ref('')
     const suppressNextToolOpen = ref(false)
 
+    // 顶部个人中心的资料与密码修改共用一个弹框，按 tab 切换表单。
     const profileForm = reactive({
       username: '',
       displayName: '',
@@ -354,6 +357,7 @@ export default {
       {key: 'log', name: '系统日志', shortName: '志'}
     ]
 
+    // 默认按使用频率排序；一旦用户拖拽过桌面，就优先采用自定义顺序。
     const tools = computed(() => {
       const nextTools = APP_DEFINITIONS.map((item, index) => buildToolEntry({
         ...item,
@@ -441,6 +445,7 @@ export default {
       alert(`应用【${tool.name}】已登记，后续在权限管理中维护权限和接入能力`)
     }
 
+    // 拖拽排序只调整展示顺序，不直接修改使用频率，避免两个规则互相污染。
     const handleToolDragStart = (tool, event) => {
       draggingToolKey.value = tool.key
       dragOverToolKey.value = tool.key

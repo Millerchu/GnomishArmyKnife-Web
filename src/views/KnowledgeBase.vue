@@ -273,6 +273,7 @@ import {
   updateKnowledgeEntry
 } from '@/api/knowledgeBase'
 
+// 经验库默认支持本地演示，顶部 Banner 也能在无后端时随机展示。
 const LOCAL_ENTRY_KEY = 'knowledge_base_entries'
 const HIGHLIGHT_SIZE = 3
 const PAGE_SIZE_OPTIONS = [6, 10, 16]
@@ -365,6 +366,7 @@ const DEFAULT_ENTRIES = [
   }
 ]
 
+// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -395,6 +397,7 @@ function normalizeTags(value) {
     .filter(Boolean)
 }
 
+// 统一经验条目的字段结构，保证列表、详情和 Banner 读取同一份数据。
 function normalizeEntry(item = {}) {
   return {
     id: item.id ?? item.entryId ?? `knowledge-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -431,6 +434,7 @@ function persistLocalEntries(list) {
   localStorage.setItem(LOCAL_ENTRY_KEY, JSON.stringify(list))
 }
 
+// Banner 采用轻量随机抽样，避免每次都固定展示最新几条经验。
 function chooseRandomEntries(list, size) {
   const source = Array.isArray(list) ? [...list] : []
   if (source.length <= size) {
@@ -463,6 +467,7 @@ export default {
   setup() {
     const router = useRouter()
 
+    // 页面状态分成 Banner 推荐、经验列表和详情/编辑弹窗三组。
     const loading = ref(false)
     const submitting = ref(false)
     const usingLocalData = ref(false)
@@ -544,6 +549,7 @@ export default {
       return rawList.map((item) => normalizeEntry(item))
     }
 
+    // Banner 接口允许和列表接口独立返回，页面在这里统一做回退处理。
     const applyHighlightPayload = (payload, fallbackList = []) => {
       const rawList = Array.isArray(payload)
         ? payload
