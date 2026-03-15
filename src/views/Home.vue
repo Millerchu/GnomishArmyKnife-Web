@@ -223,7 +223,7 @@ const APP_DEFINITIONS = [
   {key: 'personal-bills', name: '个人账单', featureCode: 'APP_PERSONAL_BILLS', route: '/personal-bills', usageCount: 0},
   {key: 'knowledge-base', name: '经验库', featureCode: 'APP_KNOWLEDGE_BASE', usageCount: 0},
   {key: 'software-repo', name: '软件仓库', featureCode: 'APP_SOFTWARE_REPO', route: '/software-repo', usageCount: 0},
-  {key: 'health-record', name: '健康', featureCode: 'APP_HEALTH_RECORD', usageCount: 0}
+  {key: 'health-record', name: '健康', featureCode: 'APP_HEALTH_RECORD', route: '/health', usageCount: 0}
 ]
 
 function formatDateText(date) {
