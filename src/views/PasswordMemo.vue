@@ -13,7 +13,7 @@
         <p class="page-subtitle">集中记录网站、社区和 App 账号信息，查看密码前需要再次输入当前用户密码校验。</p>
       </div>
       <div class="hero-tags">
-        <span class="hero-tag">{{ usingLocalData ? '本地演示数据' : '已接真实接口' }}</span>
+        <span class="hero-tag">已接真实接口</span>
         <span class="hero-tag">总计 {{ total }} 条</span>
       </div>
     </div>
@@ -51,7 +51,6 @@
         </div>
         <div class="toolbar-right">
           <span>共 {{ total }} 条</span>
-          <span v-if="usingLocalData" class="mock-tip">当前为演示数据（后端未联通）</span>
         </div>
       </div>
 
@@ -252,50 +251,7 @@ import {
   verifyPasswordMemoAccess
 } from '@/api/passwordMemo'
 
-// 账号数据和当前登录口令都保留了本地兜底，方便离线演示解锁流程。
-const LOCAL_MEMO_KEY = 'password_memo_records'
-const CURRENT_USER_PASSWORD_KEY = 'currentUserPlainPassword'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
-
-// 演示数据用于后端未联通时预览列表、详情和口令校验交互。
-const DEFAULT_MEMOS = [
-  {
-    id: 'memo-1',
-    siteName: 'GitHub',
-    siteUrl: 'https://github.com',
-    username: 'gnome-dev',
-    password: 'Gh!2026Safe',
-    registeredPhone: '13800001234',
-    registeredEmail: 'gnome.dev@example.com',
-    remark: '代码托管主账号',
-    createdAt: '2026-03-01 19:20',
-    updatedAt: '2026-03-10 21:05'
-  },
-  {
-    id: 'memo-2',
-    siteName: '哔哩哔哩',
-    siteUrl: 'https://www.bilibili.com',
-    username: 'gnome-life',
-    password: 'BiLi@9988',
-    registeredPhone: '13900005678',
-    registeredEmail: 'gnome.life@example.com',
-    remark: '视频社区账号',
-    createdAt: '2026-02-18 12:10',
-    updatedAt: '2026-03-08 09:42'
-  },
-  {
-    id: 'memo-3',
-    siteName: '网易云音乐',
-    siteUrl: 'https://music.163.com',
-    username: 'music_gnome',
-    password: 'Mu!sic2468',
-    registeredPhone: '13700004321',
-    registeredEmail: 'music.gnome@example.com',
-    remark: '音乐订阅账号',
-    createdAt: '2026-01-12 08:30',
-    updatedAt: '2026-03-06 18:15'
-  }
-]
 
 // 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
@@ -306,52 +262,21 @@ function unwrapData(res) {
   return payload
 }
 
-function formatDateTime(date = new Date()) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  const hour = `${date.getHours()}`.padStart(2, '0')
-  const minute = `${date.getMinutes()}`.padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}`
-}
-
 // 把站点账号字段归一后再进页面状态，避免模板层兼容多套字段名。
 function normalizeMemo(item = {}) {
-  const rawPassword = item.password || item.secret || ''
   return {
-    id: item.id ?? item.memoId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: item.id ?? item.memoId ?? null,
     siteName: item.siteName || item.websiteName || '',
     siteUrl: item.siteUrl || item.websiteUrl || item.url || '',
     username: item.username || item.accountName || '',
-    password: rawPassword,
-    maskedPassword: item.maskedPassword || maskPassword(rawPassword),
+    password: item.password || item.secret || '',
+    maskedPassword: item.maskedPassword || '******',
     registeredPhone: item.registeredPhone || item.phone || '',
     registeredEmail: item.registeredEmail || item.email || '',
     remark: item.remark || '',
     createdAt: item.createdAt || item.createTime || '',
     updatedAt: item.updatedAt || item.updateTime || item.createdAt || item.createTime || ''
   }
-}
-
-function loadLocalMemos() {
-  try {
-    const raw = localStorage.getItem(LOCAL_MEMO_KEY)
-    if (!raw) {
-      localStorage.setItem(LOCAL_MEMO_KEY, JSON.stringify(DEFAULT_MEMOS))
-      return DEFAULT_MEMOS.map((item) => normalizeMemo(item))
-    }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return DEFAULT_MEMOS.map((item) => normalizeMemo(item))
-    }
-    return parsed.map((item) => normalizeMemo(item))
-  } catch (error) {
-    return DEFAULT_MEMOS.map((item) => normalizeMemo(item))
-  }
-}
-
-function persistLocalMemos(list) {
-  localStorage.setItem(LOCAL_MEMO_KEY, JSON.stringify(list))
 }
 
 function buildAccountText(item) {
@@ -391,9 +316,7 @@ export default {
     const loading = ref(false)
     const submitting = ref(false)
     const verifyingPassword = ref(false)
-    const usingLocalData = ref(false)
     const total = ref(0)
-    const allLocalRecords = ref([])
     const pagedRecords = ref([])
 
     const showEditDialog = ref(false)
@@ -443,36 +366,6 @@ export default {
       fillForm({})
     }
 
-    const applyLocalFilterAndPaging = () => {
-      const keyword = query.keyword.trim().toLowerCase()
-      const filtered = allLocalRecords.value.filter((item) => {
-        if (!keyword) {
-          return true
-        }
-        return [
-          item.siteName,
-          item.siteUrl,
-          item.username,
-          item.registeredPhone,
-          item.registeredEmail,
-          item.remark
-        ]
-          .filter(Boolean)
-          .some((field) => field.toLowerCase().includes(keyword))
-      })
-      total.value = filtered.length
-      const safePageNo = Math.min(query.pageNo, Math.max(1, Math.ceil(filtered.length / query.pageSize) || 1))
-      query.pageNo = safePageNo
-      const startIndex = (safePageNo - 1) * query.pageSize
-      pagedRecords.value = filtered.slice(startIndex, startIndex + query.pageSize)
-    }
-
-    const syncLocalRecords = (records) => {
-      allLocalRecords.value = [...records].sort((prev, next) => `${next.updatedAt}`.localeCompare(`${prev.updatedAt}`))
-      persistLocalMemos(allLocalRecords.value)
-      applyLocalFilterAndPaging()
-    }
-
     const loadMemos = async () => {
       loading.value = true
       try {
@@ -487,11 +380,10 @@ export default {
           : (payload?.list || payload?.records || payload?.rows || [])
         pagedRecords.value = rawList.map((item) => normalizeMemo(item))
         total.value = Number(payload?.total ?? payload?.count ?? rawList.length ?? 0)
-        usingLocalData.value = false
       } catch (error) {
-        allLocalRecords.value = loadLocalMemos()
-        usingLocalData.value = true
-        applyLocalFilterAndPaging()
+        pagedRecords.value = []
+        total.value = 0
+        alert(extractErrorMessage(error, '加载密码备忘录列表失败'))
       } finally {
         loading.value = false
       }
@@ -533,8 +425,21 @@ export default {
     const openEditDialog = (item) => {
       editMode.value = 'edit'
       editingId.value = item.id
-      fillForm(item)
+      resetForm()
       showEditDialog.value = true
+      submitting.value = true
+      getPasswordMemoDetail(item.id)
+        .then((res) => {
+          fillForm(normalizeMemo(unwrapData(res) || item))
+        })
+        .catch((error) => {
+          console.error(error)
+          fillForm(item)
+          alert(extractErrorMessage(error, '加载账号详情失败，请重新打开编辑弹窗'))
+        })
+        .finally(() => {
+          submitting.value = false
+        })
     }
 
     const closeEditDialog = () => {
@@ -586,36 +491,9 @@ export default {
         showEditDialog.value = false
         resetForm()
         await loadMemos()
+        alert(editMode.value === 'create' ? '账号备忘录新增成功' : '账号备忘录更新成功')
       } catch (error) {
-        const now = formatDateTime()
-        const currentList = loadLocalMemos()
-        if (editMode.value === 'create') {
-          currentList.unshift(normalizeMemo({
-            ...payload,
-            id: `memo-${Date.now()}`,
-            createdAt: now,
-            updatedAt: now
-          }))
-        } else {
-          const nextList = currentList.map((item) => (
-            item.id === editingId.value
-              ? normalizeMemo({
-                ...item,
-                ...payload,
-                updatedAt: now
-              })
-              : item
-          ))
-          syncLocalRecords(nextList)
-          usingLocalData.value = true
-          showEditDialog.value = false
-          resetForm()
-          return
-        }
-        syncLocalRecords(currentList)
-        usingLocalData.value = true
-        showEditDialog.value = false
-        resetForm()
+        alert(extractErrorMessage(error, editMode.value === 'create' ? '新增失败，请稍后重试' : '更新失败，请稍后重试'))
       } finally {
         submitting.value = false
       }
@@ -628,10 +506,9 @@ export default {
       try {
         await deletePasswordMemo(item.id)
         await loadMemos()
+        alert('删除成功')
       } catch (error) {
-        const nextList = loadLocalMemos().filter((record) => record.id !== item.id)
-        syncLocalRecords(nextList)
-        usingLocalData.value = true
+        alert(extractErrorMessage(error, '删除失败，请稍后重试'))
       }
     }
 
@@ -658,9 +535,8 @@ export default {
         const res = await getPasswordMemoDetail(item.id)
         activeDetail.value = normalizeMemo(unwrapData(res) || item)
       } catch (error) {
-        const fallback = loadLocalMemos().find((record) => record.id === item.id) || item
-        activeDetail.value = normalizeMemo(fallback)
-        usingLocalData.value = true
+        showDetailDialog.value = false
+        alert(extractErrorMessage(error, '加载账号详情失败'))
       } finally {
         detailLoading.value = false
       }
@@ -688,21 +564,7 @@ export default {
         }
         revealedPassword.value = fullPassword
       } catch (error) {
-        const sessionPassword = sessionStorage.getItem(CURRENT_USER_PASSWORD_KEY) || ''
-        if (!sessionPassword) {
-          detailErrorMessage.value = '当前会话未保留登录密码，请重新登录后再试'
-        } else if (verifyForm.loginPassword !== sessionPassword) {
-          detailErrorMessage.value = '当前用户密码错误'
-        } else {
-          const localMemo = loadLocalMemos().find((record) => record.id === activeDetail.value.id)
-          const fallbackPassword = localMemo?.password || activeDetail.value.password
-          if (!fallbackPassword) {
-            detailErrorMessage.value = '当前记录未返回密码，请联调后端查看'
-          } else {
-            revealedPassword.value = fallbackPassword
-            usingLocalData.value = true
-          }
-        }
+        detailErrorMessage.value = extractErrorMessage(error, '密码校验失败，请稍后重试')
       } finally {
         verifyingPassword.value = false
       }
@@ -732,7 +594,6 @@ export default {
       loading,
       submitting,
       verifyingPassword,
-      usingLocalData,
       total,
       pagedRecords,
       query,
@@ -949,13 +810,6 @@ export default {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.mock-tip {
-  padding: 4px 8px;
-  border-radius: 8px;
-  color: #ffecb3;
-  background: rgba(255, 184, 0, 0.2);
 }
 
 .input {
