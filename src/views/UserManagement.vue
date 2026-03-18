@@ -14,7 +14,6 @@
       </div>
       <div class="hero-tags">
         <span class="hero-tag">共 {{ pagination.total }} 条</span>
-        <span v-if="usingMockData" class="hero-tag">本地演示数据</span>
       </div>
     </div>
 
@@ -81,7 +80,6 @@
         </div>
         <div class="toolbar-right">
           <span>共 {{ pagination.total }} 条</span>
-          <span v-if="usingMockData" class="mock-tip">当前为演示数据（后端未联通）</span>
         </div>
       </div>
 
@@ -339,154 +337,6 @@ import {
   updateSystemUserStatus
 } from '@/api/systemUser'
 
-// 演示数据用于后端未联通时预览完整用户管理流程。
-const MOCK_USER_LIST = [
-  {
-    id: 1,
-    username: 'admin',
-    displayName: '系统管理员',
-    phone: '13800138000',
-    email: 'admin@example.com',
-    roleCode: 'ADMIN',
-    status: 'ENABLED',
-    lastLoginTime: '2026-03-13 21:02:18',
-    createTime: '2024-01-03 09:12:00',
-    remark: '平台默认管理员'
-  },
-  {
-    id: 2,
-    username: 'zhangsan',
-    displayName: '张三',
-    phone: '13900139001',
-    email: 'zhangsan@example.com',
-    roleCode: 'DEV',
-    status: 'ENABLED',
-    lastLoginTime: '2026-03-12 18:20:56',
-    createTime: '2025-02-11 12:35:00',
-    remark: ''
-  },
-  {
-    id: 3,
-    username: 'lisi',
-    displayName: '李四',
-    phone: '13900139002',
-    email: 'lisi@example.com',
-    roleCode: 'USER',
-    status: 'DISABLED',
-    lastLoginTime: '2026-03-01 10:01:44',
-    createTime: '2025-04-18 14:22:00',
-    remark: '离职账号待归档'
-  },
-  {
-    id: 4,
-    username: 'wangwu',
-    displayName: '王五',
-    phone: '13900139003',
-    email: 'wangwu@example.com',
-    roleCode: 'USER',
-    status: 'ENABLED',
-    lastLoginTime: '2026-03-10 09:33:00',
-    createTime: '2025-06-03 09:45:00',
-    remark: ''
-  },
-  {
-    id: 5,
-    username: 'zhaoliu',
-    displayName: '赵六',
-    phone: '13900139004',
-    email: 'zhaoliu@example.com',
-    roleCode: 'DEV',
-    status: 'ENABLED',
-    lastLoginTime: '2026-03-13 08:12:11',
-    createTime: '2025-07-07 08:50:00',
-    remark: ''
-  },
-  {
-    id: 6,
-    username: 'sunqi',
-    displayName: '孙七',
-    phone: '13900139005',
-    email: 'sunqi@example.com',
-    roleCode: 'USER',
-    status: 'DISABLED',
-    lastLoginTime: '2026-02-26 16:48:16',
-    createTime: '2025-08-25 16:20:00',
-    remark: '长期未登录'
-  },
-  {
-    id: 7,
-    username: 'zhouba',
-    displayName: '周八',
-    phone: '13900139006',
-    email: 'zhouba@example.com',
-    roleCode: 'USER',
-    status: 'ENABLED',
-    lastLoginTime: '2026-03-11 11:12:09',
-    createTime: '2025-10-05 11:12:00',
-    remark: ''
-  },
-  {
-    id: 8,
-    username: 'wujiu',
-    displayName: '吴九',
-    phone: '13900139007',
-    email: 'wujiu@example.com',
-    roleCode: 'USER',
-    status: 'ENABLED',
-    lastLoginTime: '2026-03-08 14:26:43',
-    createTime: '2025-11-02 13:05:00',
-    remark: ''
-  },
-  {
-    id: 9,
-    username: 'zhengshi',
-    displayName: '郑十',
-    phone: '13900139008',
-    email: 'zhengshi@example.com',
-    roleCode: 'DEV',
-    status: 'ENABLED',
-    lastLoginTime: '2026-03-07 09:44:22',
-    createTime: '2025-11-20 08:20:00',
-    remark: ''
-  },
-  {
-    id: 10,
-    username: 'qianyi',
-    displayName: '钱一',
-    phone: '13900139009',
-    email: 'qianyi@example.com',
-    roleCode: 'USER',
-    status: 'ENABLED',
-    lastLoginTime: '2026-03-09 15:45:01',
-    createTime: '2025-12-09 15:00:00',
-    remark: ''
-  },
-  {
-    id: 11,
-    username: 'suner',
-    displayName: '孙二',
-    phone: '13900139010',
-    email: 'suner@example.com',
-    roleCode: 'USER',
-    status: 'ENABLED',
-    lastLoginTime: '2026-03-03 12:06:17',
-    createTime: '2026-01-08 11:30:00',
-    remark: ''
-  },
-  {
-    id: 12,
-    username: 'zhou3',
-    displayName: '周三',
-    phone: '13900139011',
-    email: 'zhou3@example.com',
-    roleCode: 'USER',
-    status: 'DISABLED',
-    lastLoginTime: '2026-02-17 19:08:00',
-    createTime: '2026-02-11 10:00:00',
-    remark: '冻结测试账号'
-  }
-]
-
 function extractErrorMessage(error, fallback) {
   const data = error?.response?.data || {}
   return data.message || data.msg || fallback
@@ -566,17 +416,6 @@ function parseListPayload(payload) {
   }
 }
 
-function formatCurrentTime() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = `${now.getMonth() + 1}`.padStart(2, '0')
-  const day = `${now.getDate()}`.padStart(2, '0')
-  const hour = `${now.getHours()}`.padStart(2, '0')
-  const minute = `${now.getMinutes()}`.padStart(2, '0')
-  const second = `${now.getSeconds()}`.padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}:${second}`
-}
-
 function generatePassword(length = 12) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$'
   let result = ''
@@ -595,12 +434,9 @@ export default {
     // 页面状态覆盖列表、筛选、批量选择和两个弹窗流程。
     const loading = ref(false)
     const submitting = ref(false)
-    const usingMockData = ref(false)
-    const mockAlertShown = ref(false)
 
     const users = ref([])
     const selectedIds = ref([])
-    const mockUsers = ref(MOCK_USER_LIST.map((item) => ({...item})))
 
     const filters = reactive({
       keyword: '',
@@ -648,43 +484,6 @@ export default {
       return users.value.every((item) => selectedIds.value.includes(item.id))
     })
 
-    const filterMockUsers = () => {
-      const keyword = filters.keyword.trim().toLowerCase()
-      const filtered = mockUsers.value.filter((item) => {
-        if (filters.status && item.status !== filters.status) {
-          return false
-        }
-        if (filters.roleCode && item.roleCode !== filters.roleCode) {
-          return false
-        }
-        if (!keyword) {
-          return true
-        }
-        const text = [
-          item.username,
-          item.displayName,
-          item.phone,
-          item.email
-        ].join('|').toLowerCase()
-        return text.includes(keyword)
-      })
-
-      pagination.total = filtered.length
-      const maxPage = Math.max(Math.ceil(filtered.length / pagination.pageSize), 1)
-      if (pagination.pageNo > maxPage) {
-        pagination.pageNo = maxPage
-      }
-      const start = (pagination.pageNo - 1) * pagination.pageSize
-      const end = start + pagination.pageSize
-      users.value = filtered.slice(start, end).map((item) => ({...item}))
-    }
-
-    const applyMockList = () => {
-      usingMockData.value = true
-      filterMockUsers()
-      selectedIds.value = []
-    }
-
     const fetchUsers = async () => {
       loading.value = true
       try {
@@ -710,14 +509,12 @@ export default {
         users.value = list.map((item) => normalizeUser(item)).filter((item) => item.id !== undefined && item.id !== null)
         pagination.total = total
         selectedIds.value = []
-        usingMockData.value = false
       } catch (error) {
         console.error(error)
-        applyMockList()
-        if (!mockAlertShown.value) {
-          mockAlertShown.value = true
-          alert('用户管理接口未联通，已回退为演示数据模式')
-        }
+        users.value = []
+        pagination.total = 0
+        selectedIds.value = []
+        alert(extractErrorMessage(error, '加载用户列表失败，请检查后端接口'))
       } finally {
         loading.value = false
       }
@@ -845,17 +642,6 @@ export default {
       resetForm.newPassword = generatePassword(12)
     }
 
-    const updateMockUser = (id, patch) => {
-      const index = mockUsers.value.findIndex((item) => item.id === id)
-      if (index < 0) {
-        return
-      }
-      mockUsers.value[index] = {
-        ...mockUsers.value[index],
-        ...patch
-      }
-    }
-
     const submitEditDialog = async () => {
       if (!editForm.username) {
         alert('用户名不能为空')
@@ -882,25 +668,7 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          if (editMode.value === 'create') {
-            const maxId = mockUsers.value.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0)
-            mockUsers.value.unshift({
-              id: maxId + 1,
-              username: payload.username,
-              displayName: payload.displayName,
-              phone: payload.phone,
-              email: payload.email,
-              roleCode: payload.roleCode,
-              status: payload.status,
-              lastLoginTime: '',
-              createTime: formatCurrentTime(),
-              remark: payload.remark
-            })
-          } else {
-            updateMockUser(editForm.id, payload)
-          }
-        } else if (editMode.value === 'create') {
+        if (editMode.value === 'create') {
           await createSystemUser(payload)
         } else {
           await updateSystemUser(editForm.id, payload)
@@ -922,14 +690,10 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          updateMockUser(item.id, {status: nextStatus})
-        } else {
-          await updateSystemUserStatus(item.id, {
-            status: nextStatus,
-            enabled: nextStatus === 'ENABLED'
-          })
-        }
+        await updateSystemUserStatus(item.id, {
+          status: nextStatus,
+          enabled: nextStatus === 'ENABLED'
+        })
         await fetchUsers()
       } catch (error) {
         console.error(error)
@@ -947,14 +711,12 @@ export default {
 
       submitting.value = true
       try {
-        if (!usingMockData.value) {
-          await resetSystemUserPassword(resetForm.userId, {
-            newPassword: resetForm.newPassword,
-            forceChange: resetForm.forceChange
-          })
-        }
+        await resetSystemUserPassword(resetForm.userId, {
+          newPassword: resetForm.newPassword,
+          forceChange: resetForm.forceChange
+        })
         showResetDialog.value = false
-        alert(usingMockData.value ? `演示模式：密码已重置为 ${resetForm.newPassword}` : '密码重置成功')
+        alert('密码重置成功')
       } catch (error) {
         console.error(error)
         alert(extractErrorMessage(error, '重置密码失败'))
@@ -971,11 +733,7 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          mockUsers.value = mockUsers.value.filter((user) => user.id !== item.id)
-        } else {
-          await deleteSystemUser(item.id)
-        }
+        await deleteSystemUser(item.id)
         await fetchUsers()
         alert('删除成功')
       } catch (error) {
@@ -1000,18 +758,12 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          selectedIds.value.forEach((id) => {
-            updateMockUser(id, {status: targetStatus})
-          })
-        } else {
-          await Promise.all(
-            selectedIds.value.map((id) => updateSystemUserStatus(id, {
-              status: targetStatus,
-              enabled: targetStatus === 'ENABLED'
-            }))
-          )
-        }
+        await Promise.all(
+          selectedIds.value.map((id) => updateSystemUserStatus(id, {
+            status: targetStatus,
+            enabled: targetStatus === 'ENABLED'
+          }))
+        )
         await fetchUsers()
         alert(`批量${actionText}成功`)
       } catch (error) {
@@ -1034,12 +786,7 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          const selectedSet = new Set(selectedIds.value)
-          mockUsers.value = mockUsers.value.filter((item) => !selectedSet.has(item.id))
-        } else {
-          await Promise.all(selectedIds.value.map((id) => deleteSystemUser(id)))
-        }
+        await Promise.all(selectedIds.value.map((id) => deleteSystemUser(id)))
         await fetchUsers()
         alert('批量删除成功')
       } catch (error) {
@@ -1057,7 +804,6 @@ export default {
     return {
       loading,
       submitting,
-      usingMockData,
       users,
       selectedIds,
       filters,
@@ -1262,13 +1008,6 @@ export default {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.mock-tip {
-  padding: 4px 8px;
-  border-radius: 8px;
-  color: #ffecb3;
-  background: rgba(255, 184, 0, 0.2);
 }
 
 .table-wrap {

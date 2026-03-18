@@ -201,8 +201,8 @@
 <script>
 import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
-import {getPasswordPublicKeyApi} from '@/api/auth'
-import {updatePasswordApi, updateProfileApi} from '@/api/user'
+import {changePasswordApi, getPasswordPublicKeyApi} from '@/api/auth'
+import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
 import {encryptPasswordByPublicKey} from '@/utils/rsaEncrypt'
 
 const WEEK_LABELS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
@@ -234,6 +234,25 @@ const APP_DEFINITIONS = [
   {key: 'software-repo', name: '软件仓库', featureCode: 'APP_SOFTWARE_REPO', route: '/software-repo', usageCount: 0},
   {key: 'health-record', name: '健康', featureCode: 'APP_HEALTH_RECORD', route: '/health', usageCount: 0}
 ]
+
+function unwrapData(res) {
+  const payload = res?.data
+  if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+    return payload.data
+  }
+  return payload
+}
+
+function normalizeCurrentUser(source = {}) {
+  return {
+    ...source,
+    id: source.id ?? source.userId ?? source.uid ?? null,
+    username: source.username || source.userName || '',
+    displayName: source.displayName || source.nickname || source.nickName || source.name || '',
+    phone: source.phone || source.mobile || source.mobilePhone || source.telephone || '',
+    email: source.email || source.emailAddress || source.mail || ''
+  }
+}
 
 function formatDateText(date) {
   const year = date.getFullYear()
@@ -314,7 +333,7 @@ function persistCustomOrder(order) {
 export default {
   setup() {
     const router = useRouter()
-    const user = ref(JSON.parse(localStorage.getItem('user') || '{}'))
+    const user = ref(normalizeCurrentUser(JSON.parse(localStorage.getItem('user') || '{}')))
     const menuCollapsed = ref(true)
     const currentTime = ref(new Date())
     const isMobileViewport = ref(window.innerWidth <= 640)
@@ -385,10 +404,11 @@ export default {
     }
 
     const syncProfileForm = () => {
-      profileForm.username = user.value?.username || ''
-      profileForm.displayName = user.value?.displayName || ''
-      profileForm.phone = user.value?.phone || ''
-      profileForm.email = user.value?.email || ''
+      const currentUser = normalizeCurrentUser(user.value || {})
+      profileForm.username = currentUser.username || ''
+      profileForm.displayName = currentUser.displayName || ''
+      profileForm.phone = currentUser.phone || ''
+      profileForm.email = currentUser.email || ''
     }
 
     const resetPasswordForm = () => {
@@ -398,11 +418,39 @@ export default {
     }
 
     const persistUser = (nextUserPatch) => {
-      user.value = {
+      user.value = normalizeCurrentUser({
         ...(user.value || {}),
         ...nextUserPatch
-      }
+      })
       localStorage.setItem('user', JSON.stringify(user.value))
+    }
+
+    const loadCurrentUserProfile = async () => {
+      const currentUser = normalizeCurrentUser(user.value || {})
+      if (!currentUser.username && !currentUser.id) {
+        return
+      }
+
+      const res = await listSystemUsers({
+        pageNo: 1,
+        pageSize: 100,
+        keyword: currentUser.username || ''
+      })
+      const payload = unwrapData(res) || {}
+      const rawList = payload.list || payload.records || payload.rows || payload.items || []
+      const list = Array.isArray(rawList) ? rawList.map((item) => normalizeCurrentUser(item)) : []
+      const profile = list.find((item) => {
+        if (currentUser.id !== null && currentUser.id !== undefined) {
+          return `${item.id}` === `${currentUser.id}`
+        }
+        return item.username === currentUser.username
+      }) || {}
+
+      if (!profile.username && !profile.displayName && !profile.phone && !profile.email) {
+        return
+      }
+      persistUser(profile)
+      syncProfileForm()
     }
 
     const logout = () => {
@@ -492,11 +540,23 @@ export default {
       dragOverToolKey.value = ''
     }
 
-    const openUserDialog = (tab = 'profile') => {
+    const openUserDialog = async (tab = 'profile') => {
       activeDialogTab.value = tab
       syncProfileForm()
       resetPasswordForm()
       showUserDialog.value = true
+      if (tab !== 'profile') {
+        return
+      }
+
+      dialogLoading.value = true
+      try {
+        await loadCurrentUserProfile()
+      } catch (error) {
+        console.warn('加载当前用户资料失败，继续使用本地缓存数据', error)
+      } finally {
+        dialogLoading.value = false
+      }
     }
 
     const closeUserDialog = () => {
@@ -516,15 +576,31 @@ export default {
     const submitProfile = async () => {
       dialogLoading.value = true
       try {
-        await updateProfileApi({
+        const currentUser = normalizeCurrentUser(user.value || {})
+        if (currentUser.id === null || currentUser.id === undefined) {
+          throw new Error('当前用户ID缺失，无法更新个人信息')
+        }
+
+        const payload = {
+          username: profileForm.username,
           displayName: profileForm.displayName,
           phone: profileForm.phone,
-          email: profileForm.email
-        })
+          email: profileForm.email,
+          roleCode: currentUser.roleCode || 'USER',
+          status: currentUser.status || 'ENABLED',
+          enabled: typeof currentUser.enabled === 'boolean'
+            ? currentUser.enabled
+            : (currentUser.status || 'ENABLED') === 'ENABLED',
+          remark: currentUser.remark || ''
+        }
+
+        const res = await updateSystemUser(currentUser.id, payload)
+        const savedUser = normalizeCurrentUser(unwrapData(res) || {})
         persistUser({
-          displayName: profileForm.displayName,
-          phone: profileForm.phone,
-          email: profileForm.email
+          ...savedUser,
+          displayName: savedUser.displayName || profileForm.displayName,
+          phone: savedUser.phone || profileForm.phone,
+          email: savedUser.email || profileForm.email
         })
         alert('个人信息已更新')
         showUserDialog.value = false
@@ -559,23 +635,23 @@ export default {
 
       dialogLoading.value = true
       try {
-        let oldEncryptedPassword = ''
-        let newEncryptedPassword = ''
+        const currentUser = normalizeCurrentUser(user.value || {})
+        const username = currentUser.username || profileForm.username
 
-        try {
-          const keyRes = await getPasswordPublicKeyApi()
-          const publicKey = keyRes?.data?.publicKey || ''
-          if (publicKey) {
-            oldEncryptedPassword = encryptPasswordByPublicKey(passwordForm.oldPassword, publicKey)
-            newEncryptedPassword = encryptPasswordByPublicKey(passwordForm.newPassword, publicKey)
-          }
-        } catch (error) {
-          console.warn('加载公钥失败，回退为明文提交流程')
+        const keyRes = await getPasswordPublicKeyApi()
+        const publicKey = (unwrapData(keyRes) || {}).publicKey || ''
+        if (!publicKey) {
+          throw new Error('公钥未就绪，请稍后重试')
+        }
+        const oldEncryptedPassword = encryptPasswordByPublicKey(passwordForm.oldPassword, publicKey)
+        const newEncryptedPassword = encryptPasswordByPublicKey(passwordForm.newPassword, publicKey)
+
+        if (!username) {
+          throw new Error('当前用户名缺失，无法修改密码')
         }
 
-        await updatePasswordApi({
-          oldPassword: passwordForm.oldPassword,
-          newPassword: passwordForm.newPassword,
+        await changePasswordApi({
+          username,
           oldEncryptedPassword,
           newEncryptedPassword
         })

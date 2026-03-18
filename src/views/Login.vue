@@ -66,6 +66,14 @@ import {
 } from '@/api/auth'
 import { encryptPasswordByPublicKey } from '@/utils/rsaEncrypt'
 
+function unwrapData(res) {
+  const payload = res?.data
+  if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+    return payload.data
+  }
+  return payload
+}
+
 export default {
   setup() {
     const router = useRouter()
@@ -84,12 +92,14 @@ export default {
 
     const refreshCaptcha = async () => {
       const res = await getCaptchaApi()
-      captchaText.value = res?.data?.captcha || ''
+      const payload = unwrapData(res) || {}
+      captchaText.value = payload.captcha || ''
     }
 
     const loadPublicKey = async () => {
       const res = await getPasswordPublicKeyApi()
-      publicKey.value = res?.data?.publicKey || ''
+      const payload = unwrapData(res) || {}
+      publicKey.value = payload.publicKey || ''
     }
 
     const initLoginDependencies = async () => {
@@ -199,7 +209,7 @@ export default {
           captcha: form.captcha
         })
 
-        const { token, user } = res.data || {}
+        const { token, user } = unwrapData(res) || {}
         localStorage.setItem('token', token || '')
         localStorage.setItem('user', JSON.stringify(user || {}))
         sessionStorage.setItem('currentUserPlainPassword', form.password)

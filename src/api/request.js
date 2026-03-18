@@ -1,8 +1,10 @@
 import axios from 'axios'
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
+
 // 全局请求实例统一处理基础路径、超时和登录态透传。
 const request = axios.create({
-  baseURL: '/api',
+  baseURL: apiBaseUrl,
   timeout: 8000,
   withCredentials: true
 })

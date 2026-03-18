@@ -22,10 +22,9 @@
 
 <script>
 import {onBeforeUnmount, onMounted, ref} from 'vue'
-import {useRouter} from 'vue-router'
+import {onBeforeRouteLeave, useRouter} from 'vue-router'
 
 const HANDS_SCRIPT = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js'
-const CAMERA_SCRIPT = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js'
 
 const STAR_COUNT = 1200
 const HEART_SCALE = 34
@@ -137,35 +136,39 @@ export default {
     let lastPointerY = 0
 
     let handsInstance = null
-    let cameraInstance = null
+    let mediaStream = null
+    let gestureFrame = 0
     let lastPalm = null
     let lastPinchDistance = null
     let isDisposed = false
+    let leavingPage = false
+
+    const stopMediaStream = (stream) => {
+      if (!stream || typeof stream.getTracks !== 'function') {
+        return
+      }
+      stream.getTracks().forEach((track) => {
+        try {
+          track.enabled = false
+          track.stop()
+        } catch (error) {
+          console.warn('停止媒体轨道失败', error)
+        }
+      })
+    }
 
     // 路由离开、双击进入主页或初始化中断时都走同一套摄像头清理逻辑。
     const cleanupCamera = async () => {
       lastPalm = null
       lastPinchDistance = null
-
-      if (cameraInstance && typeof cameraInstance.stop === 'function') {
-        try {
-          await cameraInstance.stop()
-        } catch (error) {
-          console.warn('停止摄像头实例失败', error)
-        }
+      if (gestureFrame) {
+        cancelAnimationFrame(gestureFrame)
+        gestureFrame = 0
       }
 
       const videoElement = videoRef.value
-      const stream = videoElement?.srcObject
-      if (stream && typeof stream.getTracks === 'function') {
-        stream.getTracks().forEach((track) => {
-          try {
-            track.stop()
-          } catch (error) {
-            console.warn('停止媒体轨道失败', error)
-          }
-        })
-      }
+      stopMediaStream(videoElement?.srcObject)
+      stopMediaStream(mediaStream)
 
       if (videoElement) {
         try {
@@ -184,11 +187,17 @@ export default {
         }
       }
 
-      cameraInstance = null
       handsInstance = null
+      mediaStream = null
     }
 
     const enterHome = async () => {
+      if (leavingPage) {
+        return
+      }
+      leavingPage = true
+      isDisposed = true
+      gestureStatus.value = '正在关闭摄像头并进入主页...'
       await cleanupCamera()
       router.push('/home')
     }
@@ -325,12 +334,12 @@ export default {
       }
 
       try {
-        await Promise.all([loadScript(HANDS_SCRIPT), loadScript(CAMERA_SCRIPT)])
+        await loadScript(HANDS_SCRIPT)
         if (isDisposed) {
           return
         }
 
-        if (!window.Hands || !window.Camera) {
+        if (!window.Hands) {
           gestureStatus.value = '手势组件不可用，可使用鼠标操作'
           return
         }
@@ -351,15 +360,13 @@ export default {
         }
 
         handsInstance.onResults(onHandsResults)
-
-        cameraInstance = new window.Camera(videoRef.value, {
-          onFrame: async () => {
-            if (!isDisposed && handsInstance) {
-              await handsInstance.send({image: videoRef.value})
-            }
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: {ideal: 640},
+            height: {ideal: 480},
+            facingMode: 'user'
           },
-          width: 640,
-          height: 480
+          audio: false
         })
 
         if (isDisposed) {
@@ -367,11 +374,34 @@ export default {
           return
         }
 
-        await cameraInstance.start()
-        if (isDisposed) {
+        const videoElement = videoRef.value
+        if (!videoElement) {
           await cleanupCamera()
           return
         }
+
+        videoElement.srcObject = mediaStream
+        await videoElement.play()
+
+        const runGestureFrame = async () => {
+          if (isDisposed || !handsInstance || !videoRef.value) {
+            return
+          }
+
+          if (videoRef.value.readyState >= 2) {
+            try {
+              await handsInstance.send({image: videoRef.value})
+            } catch (error) {
+              console.warn('手势识别帧处理失败', error)
+            }
+          }
+
+          if (!isDisposed) {
+            gestureFrame = requestAnimationFrame(runGestureFrame)
+          }
+        }
+
+        gestureFrame = requestAnimationFrame(runGestureFrame)
         gestureStatus.value = '摄像头已开启：移动手掌可旋转，捏合可缩放'
       } catch (error) {
         console.error(error)
@@ -384,6 +414,7 @@ export default {
     // 页面挂载时同时启动星图渲染和手势识别，两者共享同一个销毁时机。
     onMounted(() => {
       isDisposed = false
+      leavingPage = false
       stars = Array.from({length: STAR_COUNT}, () => createHeartStar())
       ctx = canvasRef.value?.getContext('2d')
       resizeCanvas()
@@ -392,6 +423,13 @@ export default {
       window.addEventListener('pointerup', onPointerUp)
       window.addEventListener('pointercancel', onPointerUp)
       initGestureControl()
+    })
+
+    onBeforeRouteLeave(async (_to, _from, next) => {
+      isDisposed = true
+      leavingPage = true
+      await cleanupCamera()
+      next()
     })
 
     onBeforeUnmount(async () => {
