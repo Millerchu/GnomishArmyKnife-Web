@@ -40,7 +40,7 @@
    - 返回分页列表：{ list: WowCharacterListVO[], total: number }
 2) POST /wow-characters
    - 入参：
-     characterName, className, specName, raceName, realmName, faction, level, itemLevel, mythicBestLevel, mythicScore, professionPrimary, professionSecondary, note
+     characterName, className, specName, raceName, realmName, faction, level, itemLevel, mythicBestLevel, mythicDungeonName, mythicScore, professionPrimary, professionSecondary, note
 3) PUT /wow-characters/{id}
    - 入参同新增
 4) DELETE /wow-characters/{id}
@@ -72,6 +72,7 @@
 - level
 - itemLevel
 - mythicBestLevel (nullable)
+- mythicDungeonName (nullable)
 - mythicScore (nullable)
 - professionPrimary (nullable)
 - professionSecondary (nullable)
@@ -86,9 +87,12 @@
 - raceName 必填，长度不超过 24
 - realmName 必填，长度不超过 32
 - faction 只允许：ALLIANCE / HORDE
-- level 必填，范围建议 1-80
+- level 必填，范围建议 1-90
 - itemLevel 必填，且 >= 0
-- mythicBestLevel、mythicScore 可为空；为空时按 0 处理
+- mythicBestLevel、mythicDungeonName、mythicScore 可为空；为空时按 0 / null 处理
+- mythicBestLevel 和 mythicDungeonName 需要成对出现：如果填写钥石层数，就必须同时填写副本名；如果填写副本名，也必须同时填写钥石层数
+- mythicDungeonName 只允许以下 8 个值：
+  魔导师平台、迈萨拉洞窟、节点希纳斯、风行者之塔、艾杰斯亚学院、萨隆矿坑、执政团之座、通天峰
 - 当前登录用户只能访问自己的角色数据
 - 列表排序建议：itemLevel DESC, mythicScore DESC, characterName ASC
 - overview.featuredCharacters 返回装等最高的 2 个角色；装等相同时按 mythicScore DESC
@@ -107,6 +111,7 @@ WowCharacterListVO:
 - level
 - itemLevel
 - mythicBestLevel
+- mythicDungeonName
 - mythicScore
 - professionPrimary
 - professionSecondary
@@ -124,6 +129,7 @@ WowCharacterSimpleVO:
 - level
 - itemLevel
 - mythicBestLevel
+- mythicDungeonName
 - mythicScore
 - professionPrimary
 - professionSecondary
@@ -209,12 +215,13 @@ WowCharacterOverviewVO:
 
 要求：
 1) 入参字段：
-   characterName, className, specName, raceName, realmName, faction, level, itemLevel, mythicBestLevel, mythicScore, professionPrimary, professionSecondary, note
+   characterName, className, specName, raceName, realmName, faction, level, itemLevel, mythicBestLevel, mythicDungeonName, mythicScore, professionPrimary, professionSecondary, note
 2) className 必须限制为正式服 13 职业之一
 3) faction 只允许 ALLIANCE / HORDE
-4) level 范围建议 1-80，itemLevel >= 0
-5) 返回统一结构：{ code, message, data }
-6) 提供 DTO 校验、Controller、Service、单元测试
+4) level 范围建议 1-90，itemLevel >= 0
+5) mythicBestLevel 和 mythicDungeonName 需要成对校验；副本名仅允许 8 个固定值
+6) 返回统一结构：{ code, message, data }
+7) 提供 DTO 校验、Controller、Service、单元测试
 ```
 
 ## 4. 联调约定
@@ -224,5 +231,47 @@ WowCharacterOverviewVO:
 - 前端主页应用入口名称固定为 `WoW角色统计`
 - 前端会优先展示装等最高的 2 个主角色名片
 - 前端列表支持 `keyword / faction / className` 组合筛选
+- 前端当前对“大秘境钥石”的展示与录入为“`+层数 副本名`”形式，例如 `+12 通天峰`
 - 前端后备演示数据包含正式服 13 职业色，请不要随意改动 `className` 中文值
 - 如果后端返回结构不是 `data.list/data.total`，或 overview 字段名不一致，请同步调整前端解析逻辑
+
+## 5. 后端增量修改 Prompt
+
+```text
+请修改现有 WoW角色统计模块，不要新建重复接口，直接在当前 /wow-characters 模块上调整。
+
+【要改的内容】
+1) 角色等级上限从 80 调整为 90
+   - SaveWowCharacterRequest 中 level 校验改为 1-90
+   - 数据库字段无需改类型，只需放宽校验
+   - 相关单元测试一并更新
+
+2) 大秘境钥石改为“层数 + 副本名”组合
+   - 保留原字段 mythicBestLevel(Integer)
+   - 新增字段 mythicDungeonName(String, nullable)
+   - DTO / Entity / VO / Mapper(Repository) / Service / SQL 全链路补齐该字段
+
+3) mythicDungeonName 只允许以下 8 个值：
+   魔导师平台、迈萨拉洞窟、节点希纳斯、风行者之塔、艾杰斯亚学院、萨隆矿坑、执政团之座、通天峰
+
+4) 入参校验规则
+   - mythicBestLevel > 0 时，mythicDungeonName 必填
+   - mythicDungeonName 非空时，mythicBestLevel 必须 > 0
+   - mythicBestLevel 允许 0，表示未记录钥石
+
+5) 返回字段
+   - GET /wow-characters 列表接口返回 mythicBestLevel + mythicDungeonName
+   - GET /wow-characters/overview 的 featuredCharacters 也返回 mythicBestLevel + mythicDungeonName
+
+6) 兼容要求
+   - 老数据可能只有 mythicBestLevel，没有 mythicDungeonName，查询时允许返回 null
+   - 不要改动现有接口路径
+   - 统一返回结构仍然是 { code, message, data }
+
+【输出要求】
+- 给出需要修改的 DTO / Entity / VO / Service / Controller / SQL
+- 提供 alter table SQL，例如：
+  alter table wow_character add column mythic_dungeon_name varchar(32) null comment '大秘境副本名';
+- 提供更新后的单元测试
+- 提供 2-3 条 curl 示例
+```

@@ -10,11 +10,11 @@
     <div class="hero-panel">
       <div>
         <h1 class="page-title">WoW角色统计</h1>
-        <p class="page-subtitle">记录魔兽世界正式服角色信息，优先展示装等最高的 3 个常用角色，并按职业色呈现角色数据。</p>
+        <p class="page-subtitle">记录魔兽世界正式服角色信息，优先展示装等最高的 2 个常用角色，并按职业色呈现角色数据。</p>
       </div>
       <div class="hero-tags">
-        <span class="hero-tag">{{ usingLocalData ? '本地演示数据' : '已接真实接口' }}</span>
-        <span class="hero-tag">角色总数 {{ total }}</span>
+        <span class="hero-tag">已接真实接口</span>
+        <span class="hero-tag">角色总数 {{ overview.totalCharacters }}</span>
         <span class="hero-tag">最高装等 {{ overview.highestItemLevel || 0 }}</span>
       </div>
     </div>
@@ -23,7 +23,7 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">主角色名片</h2>
-          <p class="panel-tip">按装等排序展示最常用的 3 个主角色，卡面信息参考 Battle.net 风格并融入阵营水印。</p>
+          <p class="panel-tip">按装等排序展示最常用的 2 个主角色，卡面信息参考 Battle.net 风格并融入阵营水印。</p>
         </div>
       </div>
 
@@ -62,8 +62,8 @@
                 <strong>{{ item.mythicScore || 0 }}</strong>
               </div>
               <div class="card-stat">
-                <span>最高钥石</span>
-                <strong>{{ formatMythicLevel(item.mythicBestLevel) }}</strong>
+                <span>钥石副本</span>
+                <strong>{{ formatMythicDungeonText(item) }}</strong>
               </div>
             </div>
 
@@ -76,7 +76,7 @@
         </article>
 
         <article
-          v-for="placeholder in Math.max(0, 3 - featuredCharacters.length)"
+          v-for="placeholder in Math.max(0, 2 - featuredCharacters.length)"
           :key="`placeholder-${placeholder}`"
           class="character-card empty-card"
         >
@@ -140,7 +140,6 @@
           </div>
           <div class="toolbar-right">
             <span>共 {{ total }} 条</span>
-            <span v-if="usingLocalData" class="mock-tip">当前为演示数据（后端未联通）</span>
           </div>
         </div>
 
@@ -158,7 +157,7 @@
                 <th>阵营</th>
                 <th>等级</th>
                 <th>装等</th>
-                <th>大秘境钥石</th>
+                <th>大秘境副本</th>
                 <th>大秘境评分</th>
                 <th>专业</th>
                 <th>操作</th>
@@ -190,7 +189,7 @@
                 </td>
                 <td>{{ item.level || 0 }}</td>
                 <td>{{ item.itemLevel || 0 }}</td>
-                <td>{{ formatMythicLevel(item.mythicBestLevel) }}</td>
+                <td>{{ formatMythicDungeonText(item) }}</td>
                 <td>{{ item.mythicScore || 0 }}</td>
                 <td>{{ formatProfessionText(item) }}</td>
                 <td>
@@ -224,7 +223,7 @@
               <div class="mobile-card-grid">
                 <p><span>装等</span><strong>{{ item.itemLevel || 0 }}</strong></p>
                 <p><span>评分</span><strong>{{ item.mythicScore || 0 }}</strong></p>
-                <p><span>钥石</span><strong>{{ formatMythicLevel(item.mythicBestLevel) }}</strong></p>
+                <p><span>副本</span><strong>{{ formatMythicDungeonText(item) }}</strong></p>
                 <p><span>等级</span><strong>{{ item.level || 0 }}</strong></p>
                 <p><span>种族</span><strong>{{ item.raceName || '-' }}</strong></p>
                 <p class="wide"><span>专业</span><strong>{{ formatProfessionText(item) }}</strong></p>
@@ -377,7 +376,7 @@
           <div class="form-inline-grid">
             <label class="form-field">
               <span>等级</span>
-              <input v-model.number="form.level" class="input" type="number" min="1" max="80" required />
+              <input v-model.number="form.level" class="input" type="number" min="1" max="90" required />
             </label>
             <label class="form-field">
               <span>装等</span>
@@ -387,12 +386,25 @@
 
           <div class="form-inline-grid">
             <label class="form-field">
-              <span>大秘境钥石</span>
-              <input v-model.number="form.mythicBestLevel" class="input" type="number" min="0" max="40" placeholder="例如：13" />
+              <span>钥石层数</span>
+              <input v-model.number="form.mythicBestLevel" class="input" type="number" min="0" max="40" placeholder="例如：12" />
             </label>
+            <label class="form-field">
+              <span>大秘境副本</span>
+              <select v-model="form.mythicDungeonName" class="input">
+                <option value="">未设置</option>
+                <option v-for="item in mythicDungeonOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-inline-grid">
             <label class="form-field">
               <span>大秘境评分</span>
               <input v-model.number="form.mythicScore" class="input" type="number" min="0" max="9999" placeholder="例如：3125" />
+            </label>
+            <label class="form-field">
+              <span>&nbsp;</span>
             </label>
           </div>
 
@@ -435,12 +447,20 @@ import {
   updateWowCharacter
 } from '@/api/wowCharacter'
 
-// 角色数据默认走本地缓存兜底，方便先看名片和职业配色效果。
-const LOCAL_CHARACTER_KEY = 'wow_character_records'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 const FACTION_OPTIONS = [
   {value: 'ALLIANCE', label: '联盟'},
   {value: 'HORDE', label: '部落'}
+]
+const MYTHIC_DUNGEON_OPTIONS = [
+  {value: '魔导师平台', label: '魔导师平台'},
+  {value: '迈萨拉洞窟', label: '迈萨拉洞窟'},
+  {value: '节点希纳斯', label: '节点希纳斯'},
+  {value: '风行者之塔', label: '风行者之塔'},
+  {value: '艾杰斯亚学院', label: '艾杰斯亚学院'},
+  {value: '萨隆矿坑', label: '萨隆矿坑'},
+  {value: '执政团之座', label: '执政团之座'},
+  {value: '通天峰', label: '通天峰'}
 ]
 // 职业颜色参考正式服职业色，用于主角色名片和列表标签统一展示。
 const CLASS_OPTIONS = [
@@ -458,298 +478,6 @@ const CLASS_OPTIONS = [
   {value: '术士', label: '术士', color: '#9482C9', textColor: '#100d1d'},
   {value: '战士', label: '战士', color: '#C79C6E', textColor: '#23170d'}
 ]
-const DEFAULT_CHARACTERS = [
-  {
-    id: 'wow-1',
-    characterName: '风渐渐',
-    className: '恶魔猎手',
-    specName: '浩劫',
-    raceName: '血精灵',
-    realmName: '影之哀伤',
-    faction: 'HORDE',
-    level: 80,
-    itemLevel: 169,
-    mythicBestLevel: 13,
-    mythicScore: 3125,
-    professionPrimary: '采药',
-    professionSecondary: '炼金',
-    note: '当前主号。',
-    updatedAt: '2026-03-12 22:15'
-  },
-  {
-    id: 'wow-2',
-    characterName: '剑山鞘',
-    className: '死亡骑士',
-    specName: '鲜血',
-    raceName: '人类',
-    realmName: '白银之手',
-    faction: 'ALLIANCE',
-    level: 90,
-    itemLevel: 165,
-    mythicBestLevel: 13,
-    mythicScore: 2855,
-    professionPrimary: '采矿',
-    professionSecondary: '工程',
-    note: '',
-    updatedAt: '2026-03-11 21:02'
-  },
-  {
-    id: 'wow-3',
-    characterName: '纸上彩虹',
-    className: '圣骑士',
-    specName: '惩戒',
-    raceName: '人类',
-    realmName: '主宰之剑',
-    faction: 'ALLIANCE',
-    level: 80,
-    itemLevel: 165,
-    mythicBestLevel: 13,
-    mythicScore: 3180,
-    professionPrimary: '珠宝',
-    professionSecondary: '锻造',
-    note: '',
-    updatedAt: '2026-03-10 18:35'
-  },
-  {
-    id: 'wow-4',
-    characterName: '無名神',
-    className: '法师',
-    specName: '火焰',
-    raceName: '人类',
-    realmName: '主宰之剑',
-    faction: 'ALLIANCE',
-    level: 80,
-    itemLevel: 142,
-    mythicBestLevel: 13,
-    mythicScore: 0,
-    professionPrimary: '附魔',
-    professionSecondary: '工程',
-    note: '',
-    updatedAt: '2026-03-09 13:22'
-  },
-  {
-    id: 'wow-5',
-    characterName: '康桥蝴蝶',
-    className: '猎人',
-    specName: '野兽控制',
-    raceName: '暗夜精灵',
-    realmName: '主宰之剑',
-    faction: 'ALLIANCE',
-    level: 80,
-    itemLevel: 124,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-08 10:42'
-  },
-  {
-    id: 'wow-6',
-    characterName: '纸上彩虹',
-    className: '唤魔师',
-    specName: '恩护',
-    raceName: '龙希尔',
-    realmName: '白银之手',
-    faction: 'ALLIANCE',
-    level: 80,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-07 09:18'
-  },
-  {
-    id: 'wow-7',
-    characterName: '大笨钟',
-    className: '德鲁伊',
-    specName: '恢复',
-    raceName: '暗夜精灵',
-    realmName: '凤凰之神',
-    faction: 'ALLIANCE',
-    level: 80,
-    itemLevel: 118,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-06 08:26'
-  },
-  {
-    id: 'wow-8',
-    characterName: '情绪零碎',
-    className: '萨满',
-    specName: '增强',
-    raceName: '土灵',
-    realmName: '凤凰之神',
-    faction: 'HORDE',
-    level: 80,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-05 14:22'
-  },
-  {
-    id: 'wow-9',
-    characterName: '無畏战神',
-    className: '战士',
-    specName: '武器',
-    raceName: '牛头人',
-    realmName: '影之哀伤',
-    faction: 'HORDE',
-    level: 80,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-05 10:05'
-  },
-  {
-    id: 'wow-10',
-    characterName: '时代的狂',
-    className: '潜行者',
-    specName: '奇袭',
-    raceName: '龙希尔',
-    realmName: '伊森利恩',
-    faction: 'HORDE',
-    level: 80,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-04 09:16'
-  },
-  {
-    id: 'wow-11',
-    characterName: '音乐的王',
-    className: '牧师',
-    specName: '神圣',
-    raceName: '狐人',
-    realmName: '伊森利恩',
-    faction: 'HORDE',
-    level: 80,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-03 15:10'
-  },
-  {
-    id: 'wow-12',
-    characterName: '尽怨了',
-    className: '术士',
-    specName: '恶魔学识',
-    raceName: '虚空精灵',
-    realmName: '白银之手',
-    faction: 'ALLIANCE',
-    level: 80,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-02 12:24'
-  },
-  {
-    id: 'wow-13',
-    characterName: '雨淅淅',
-    className: '武僧',
-    specName: '织雾',
-    raceName: '兽人',
-    realmName: '影之哀伤',
-    faction: 'HORDE',
-    level: 80,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-02 10:08'
-  },
-  {
-    id: 'wow-14',
-    characterName: '贝吉特',
-    className: '恶魔猎手',
-    specName: '浩劫',
-    raceName: '暗夜精灵',
-    realmName: '刺骨利刃',
-    faction: 'ALLIANCE',
-    level: 80,
-    itemLevel: 160,
-    mythicBestLevel: 10,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-03-01 22:11'
-  },
-  {
-    id: 'wow-15',
-    characterName: '观鸡踏土',
-    className: '死亡骑士',
-    specName: '鲜血',
-    raceName: '兽人',
-    realmName: '影之哀伤',
-    faction: 'HORDE',
-    level: 80,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-02-28 18:26'
-  },
-  {
-    id: 'wow-16',
-    characterName: '军情七处特工',
-    className: '潜行者',
-    specName: '敏锐',
-    raceName: '暗夜精灵',
-    realmName: '刺骨利刃',
-    faction: 'ALLIANCE',
-    level: 71,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-02-28 13:16'
-  },
-  {
-    id: 'wow-17',
-    characterName: 'Overload',
-    className: '唤魔师',
-    specName: '恩护',
-    raceName: '至高岭牛头人',
-    realmName: '凤凰之神',
-    faction: 'HORDE',
-    level: 80,
-    itemLevel: 0,
-    mythicBestLevel: 0,
-    mythicScore: 0,
-    professionPrimary: '',
-    professionSecondary: '',
-    note: '',
-    updatedAt: '2026-02-27 09:46'
-  }
-]
-
 // 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
@@ -777,55 +505,38 @@ function getClassMetaByName(className) {
   }
 }
 
-function formatDateTime(date = new Date()) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  const hour = `${date.getHours()}`.padStart(2, '0')
-  const minute = `${date.getMinutes()}`.padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}`
+function getErrorMessage(error, fallback) {
+  return error?.response?.data?.message || error?.message || fallback
 }
 
-// 统一角色字段命名，后续不管是本地数据还是战网同步数据都走这一层适配。
+function toNumber(value, defaultValue = 0) {
+  const nextValue = Number(value)
+  return Number.isFinite(nextValue) ? nextValue : defaultValue
+}
+
+function normalizeStatList(list, mapper) {
+  return Array.isArray(list) ? list.map((item) => mapper(item || {})) : []
+}
+
 function normalizeCharacter(item = {}) {
   return {
-    id: item.id ?? item.characterId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: item.id ?? item.characterId ?? '',
     characterName: item.characterName || item.name || '',
     className: item.className || item.characterClass || '',
     specName: item.specName || item.specialization || '',
     raceName: item.raceName || item.race || '',
     realmName: item.realmName || item.realm || '',
     faction: item.faction || 'ALLIANCE',
-    level: Number(item.level ?? 80),
-    itemLevel: Number(item.itemLevel ?? item.gearLevel ?? 0),
-    mythicBestLevel: Number(item.mythicBestLevel ?? item.mythicLevel ?? 0),
-    mythicScore: Number(item.mythicScore ?? item.mythicRating ?? 0),
+    level: toNumber(item.level, 90),
+    itemLevel: toNumber(item.itemLevel ?? item.gearLevel, 0),
+    mythicDungeonName: item.mythicDungeonName || item.mythicDungeon || item.bestDungeonName || item.keystoneName || '',
+    mythicBestLevel: toNumber(item.mythicBestLevel ?? item.mythicLevel, 0),
+    mythicScore: toNumber(item.mythicScore ?? item.mythicRating, 0),
     professionPrimary: item.professionPrimary || item.profession1 || '',
     professionSecondary: item.professionSecondary || item.profession2 || '',
     note: item.note || item.remark || '',
     updatedAt: item.updatedAt || item.updateTime || item.createdAt || item.createTime || ''
   }
-}
-
-function loadLocalCharacters() {
-  try {
-    const raw = localStorage.getItem(LOCAL_CHARACTER_KEY)
-    if (!raw) {
-      localStorage.setItem(LOCAL_CHARACTER_KEY, JSON.stringify(DEFAULT_CHARACTERS))
-      return DEFAULT_CHARACTERS.map((item) => normalizeCharacter(item))
-    }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return DEFAULT_CHARACTERS.map((item) => normalizeCharacter(item))
-    }
-    return parsed.map((item) => normalizeCharacter(item))
-  } catch (error) {
-    return DEFAULT_CHARACTERS.map((item) => normalizeCharacter(item))
-  }
-}
-
-function persistLocalCharacters(list) {
-  localStorage.setItem(LOCAL_CHARACTER_KEY, JSON.stringify(list))
 }
 
 function sortCharacters(list = []) {
@@ -836,72 +547,29 @@ function sortCharacters(list = []) {
   ))
 }
 
-// 主角色名片、阵营统计、职业分布和服务器排行都在这里集中计算。
-function buildOverview(list = []) {
-  const totalCharacters = list.length
-  const totalRealms = new Set(list.map((item) => item.realmName).filter(Boolean)).size
-  const highestItemLevel = list.reduce((max, item) => Math.max(max, Number(item.itemLevel || 0)), 0)
-  const highestMythicScore = list.reduce((max, item) => Math.max(max, Number(item.mythicScore || 0)), 0)
-  const averageItemLevel = totalCharacters
-    ? Math.round(list.reduce((sum, item) => sum + Number(item.itemLevel || 0), 0) / totalCharacters)
-    : 0
-  const featuredCharacters = sortCharacters(list).slice(0, 3)
-
-  const factionStats = FACTION_OPTIONS.map((item) => {
-    const count = list.filter((character) => character.faction === item.value).length
-    return {
-      label: item.label,
-      count,
-      ratio: totalCharacters ? `${Math.round((count / totalCharacters) * 100)}%` : '0%'
-    }
-  }).filter((item) => item.count > 0)
-
-  const classMap = list.reduce((result, item) => {
-    const current = result[item.className] || {
-      className: item.className,
-      count: 0,
-      itemLevelTotal: 0
-    }
-    current.count += 1
-    current.itemLevelTotal += Number(item.itemLevel || 0)
-    result[item.className] = current
-    return result
-  }, {})
-
-  const classStats = Object.values(classMap)
-    .map((item) => ({
-      className: item.className,
-      count: item.count,
-      averageItemLevel: item.count ? Math.round(item.itemLevelTotal / item.count) : 0
-    }))
-    .sort((prev, next) => next.count - prev.count || next.averageItemLevel - prev.averageItemLevel)
-
-  const realmMap = list.reduce((result, item) => {
-    const current = result[item.realmName] || {
-      realmName: item.realmName,
-      count: 0,
-      highestItemLevel: 0
-    }
-    current.count += 1
-    current.highestItemLevel = Math.max(current.highestItemLevel, Number(item.itemLevel || 0))
-    result[item.realmName] = current
-    return result
-  }, {})
-
-  const realmStats = Object.values(realmMap)
-    .sort((prev, next) => next.count - prev.count || next.highestItemLevel - prev.highestItemLevel)
-    .slice(0, 5)
-
+function normalizeOverview(payload = {}) {
   return {
-    totalCharacters,
-    totalRealms,
-    highestItemLevel,
-    highestMythicScore,
-    averageItemLevel,
-    featuredCharacters,
-    factionStats,
-    classStats,
-    realmStats
+    totalCharacters: toNumber(payload.totalCharacters, 0),
+    totalRealms: toNumber(payload.totalRealms, 0),
+    highestItemLevel: toNumber(payload.highestItemLevel, 0),
+    highestMythicScore: toNumber(payload.highestMythicScore, 0),
+    averageItemLevel: toNumber(payload.averageItemLevel, 0),
+    featuredCharacters: normalizeStatList(payload.featuredCharacters, normalizeCharacter),
+    factionStats: normalizeStatList(payload.factionStats, (item) => ({
+      label: item.label || item.name || '-',
+      count: toNumber(item.count, 0),
+      ratio: item.ratio || '0%'
+    })),
+    classStats: normalizeStatList(payload.classStats, (item) => ({
+      className: item.className || '-',
+      count: toNumber(item.count, 0),
+      averageItemLevel: toNumber(item.averageItemLevel, 0)
+    })),
+    realmStats: normalizeStatList(payload.realmStats, (item) => ({
+      realmName: item.realmName || '-',
+      count: toNumber(item.count, 0),
+      highestItemLevel: toNumber(item.highestItemLevel, 0)
+    }))
   }
 }
 
@@ -910,12 +578,9 @@ export default {
   setup() {
     const router = useRouter()
 
-    // 页面状态覆盖顶部概览、角色列表和新增编辑弹窗。
     const loading = ref(false)
     const submitting = ref(false)
-    const usingLocalData = ref(false)
     const total = ref(0)
-    const allRecords = ref([])
     const pagedRecords = ref([])
     const featuredCharacters = ref([])
     const factionStats = ref([])
@@ -940,8 +605,9 @@ export default {
       raceName: '',
       realmName: '',
       faction: 'ALLIANCE',
-      level: 80,
+      level: 90,
       itemLevel: 0,
+      mythicDungeonName: '',
       mythicBestLevel: 0,
       mythicScore: 0,
       professionPrimary: '',
@@ -961,13 +627,26 @@ export default {
     const pageSizeOptions = PAGE_SIZE_OPTIONS
     const factionOptions = FACTION_OPTIONS
     const classOptions = CLASS_OPTIONS
+    const mythicDungeonOptions = MYTHIC_DUNGEON_OPTIONS
     const classMetaMap = CLASS_OPTIONS.reduce((result, item) => {
       result[item.value] = item
       return result
     }, {})
 
-    const applyOverview = (list) => {
-      const nextOverview = buildOverview(list)
+    const resetOverview = () => {
+      overview.totalCharacters = 0
+      overview.totalRealms = 0
+      overview.highestItemLevel = 0
+      overview.highestMythicScore = 0
+      overview.averageItemLevel = 0
+      featuredCharacters.value = []
+      factionStats.value = []
+      classStats.value = []
+      realmStats.value = []
+    }
+
+    const applyOverview = (payload = {}) => {
+      const nextOverview = normalizeOverview(payload)
       overview.totalCharacters = nextOverview.totalCharacters
       overview.totalRealms = nextOverview.totalRealms
       overview.highestItemLevel = nextOverview.highestItemLevel
@@ -979,44 +658,14 @@ export default {
       realmStats.value = nextOverview.realmStats
     }
 
-    const matchesFilters = (item) => {
-      const keyword = query.keyword.trim().toLowerCase()
-      if (keyword) {
-        const text = [
-          item.characterName,
-          item.realmName,
-          item.raceName,
-          item.professionPrimary,
-          item.professionSecondary
-        ].filter(Boolean).join(' ').toLowerCase()
-        if (!text.includes(keyword)) {
-          return false
-        }
+    const loadOverview = async () => {
+      try {
+        const overviewRes = await getWowCharacterOverview()
+        applyOverview(unwrapData(overviewRes) || {})
+      } catch (error) {
+        resetOverview()
+        alert(getErrorMessage(error, 'WoW角色概览加载失败'))
       }
-      if (query.faction && item.faction !== query.faction) {
-        return false
-      }
-      if (query.className && item.className !== query.className) {
-        return false
-      }
-      return true
-    }
-
-    const applyLocalFilterAndPaging = () => {
-      const filtered = sortCharacters(allRecords.value.filter((item) => matchesFilters(item)))
-      total.value = filtered.length
-      const safePageNo = Math.min(query.pageNo, Math.max(1, Math.ceil(filtered.length / query.pageSize) || 1))
-      query.pageNo = safePageNo
-      const startIndex = (safePageNo - 1) * query.pageSize
-      pagedRecords.value = filtered.slice(startIndex, startIndex + query.pageSize)
-      applyOverview(filtered)
-    }
-
-    const syncLocalCharacters = (records) => {
-      const nextRecords = sortCharacters(records.map((item) => normalizeCharacter(item)))
-      allRecords.value = nextRecords
-      persistLocalCharacters(nextRecords)
-      applyLocalFilterAndPaging()
     }
 
     const loadCharacters = async () => {
@@ -1034,45 +683,22 @@ export default {
           ? payload
           : (payload.list || payload.records || payload.rows || [])
         const normalizedList = sortCharacters(rawList.map((item) => normalizeCharacter(item)))
-        allRecords.value = normalizedList
         pagedRecords.value = normalizedList
-        total.value = Number(payload.total ?? payload.count ?? normalizedList.length)
-        usingLocalData.value = false
-
-        try {
-          const overviewRes = await getWowCharacterOverview({
-            keyword: query.keyword || undefined,
-            faction: query.faction || undefined,
-            className: query.className || undefined
-          })
-          const overviewPayload = unwrapData(overviewRes) || {}
-          overview.totalCharacters = Number(overviewPayload.totalCharacters ?? normalizedList.length)
-          overview.totalRealms = Number(overviewPayload.totalRealms ?? 0)
-          overview.highestItemLevel = Number(overviewPayload.highestItemLevel ?? 0)
-          overview.highestMythicScore = Number(overviewPayload.highestMythicScore ?? 0)
-          overview.averageItemLevel = Number(overviewPayload.averageItemLevel ?? 0)
-          featuredCharacters.value = Array.isArray(overviewPayload.featuredCharacters)
-            ? overviewPayload.featuredCharacters.map((item) => normalizeCharacter(item))
-            : buildOverview(normalizedList).featuredCharacters
-          factionStats.value = Array.isArray(overviewPayload.factionStats)
-            ? overviewPayload.factionStats
-            : buildOverview(normalizedList).factionStats
-          classStats.value = Array.isArray(overviewPayload.classStats)
-            ? overviewPayload.classStats
-            : buildOverview(normalizedList).classStats
-          realmStats.value = Array.isArray(overviewPayload.realmStats)
-            ? overviewPayload.realmStats
-            : buildOverview(normalizedList).realmStats
-        } catch (error) {
-          applyOverview(normalizedList)
-        }
+        total.value = toNumber(payload.total ?? payload.count, normalizedList.length)
       } catch (error) {
-        allRecords.value = sortCharacters(loadLocalCharacters())
-        usingLocalData.value = true
-        applyLocalFilterAndPaging()
+        pagedRecords.value = []
+        total.value = 0
+        alert(getErrorMessage(error, 'WoW角色数据加载失败'))
+        loading.value = false
+        return
       } finally {
         loading.value = false
       }
+    }
+
+    const loadPageData = async () => {
+      await loadCharacters()
+      await loadOverview()
     }
 
     const resetForm = () => {
@@ -1082,8 +708,9 @@ export default {
       form.raceName = ''
       form.realmName = ''
       form.faction = 'ALLIANCE'
-      form.level = 80
+      form.level = 90
       form.itemLevel = 0
+      form.mythicDungeonName = ''
       form.mythicBestLevel = 0
       form.mythicScore = 0
       form.professionPrimary = ''
@@ -1098,8 +725,9 @@ export default {
       form.raceName = record.raceName || ''
       form.realmName = record.realmName || ''
       form.faction = record.faction || 'ALLIANCE'
-      form.level = Number(record.level || 80)
+      form.level = Number(record.level || 90)
       form.itemLevel = Number(record.itemLevel || 0)
+      form.mythicDungeonName = record.mythicDungeonName || ''
       form.mythicBestLevel = Number(record.mythicBestLevel || 0)
       form.mythicScore = Number(record.mythicScore || 0)
       form.professionPrimary = record.professionPrimary || ''
@@ -1138,6 +766,9 @@ export default {
       faction: form.faction,
       level: Number(form.level || 0),
       itemLevel: Number(form.itemLevel || 0),
+      mythicDungeonName: form.mythicDungeonName || null,
+      mythicDungeon: form.mythicDungeonName || null,
+      bestDungeonName: form.mythicDungeonName || null,
       mythicBestLevel: Number(form.mythicBestLevel || 0),
       mythicScore: Number(form.mythicScore || 0),
       professionPrimary: form.professionPrimary,
@@ -1158,6 +789,14 @@ export default {
         alert('请输入服务器')
         return
       }
+      if (form.mythicBestLevel > 0 && !form.mythicDungeonName) {
+        alert('请输入大秘境副本')
+        return
+      }
+      if (!form.mythicBestLevel && form.mythicDungeonName) {
+        alert('请输入钥石层数')
+        return
+      }
       if (submitting.value) {
         return
       }
@@ -1172,32 +811,9 @@ export default {
         }
         showDialog.value = false
         resetForm()
-        await loadCharacters()
+        await loadPageData()
       } catch (error) {
-        const now = formatDateTime()
-        if (dialogMode.value === 'create') {
-          syncLocalCharacters([
-            normalizeCharacter({
-              ...payload,
-              id: `wow-${Date.now()}`,
-              updatedAt: now
-            }),
-            ...loadLocalCharacters()
-          ])
-        } else {
-          syncLocalCharacters(loadLocalCharacters().map((item) => (
-            item.id === editingId.value
-              ? normalizeCharacter({
-                ...item,
-                ...payload,
-                updatedAt: now
-              })
-              : item
-          )))
-        }
-        usingLocalData.value = true
-        showDialog.value = false
-        resetForm()
+        alert(getErrorMessage(error, dialogMode.value === 'create' ? '新增角色失败' : '更新角色失败'))
       } finally {
         submitting.value = false
       }
@@ -1209,10 +825,9 @@ export default {
       }
       try {
         await deleteWowCharacter(item.id)
-        await loadCharacters()
+        await loadPageData()
       } catch (error) {
-        syncLocalCharacters(loadLocalCharacters().filter((record) => record.id !== item.id))
-        usingLocalData.value = true
+        alert(getErrorMessage(error, '删除角色失败'))
       }
     }
 
@@ -1249,7 +864,17 @@ export default {
     }
 
     const formatFactionText = (value) => factionOptions.find((item) => item.value === value)?.label || value || '-'
-    const formatMythicLevel = (value) => Number(value || 0) > 0 ? `${value} 层` : '-'
+    const formatMythicDungeonText = (item) => {
+      const dungeonName = item?.mythicDungeonName
+      const bestLevel = Number(item?.mythicBestLevel || 0)
+      if (dungeonName && bestLevel > 0) {
+        return `+${bestLevel} ${dungeonName}`
+      }
+      if (dungeonName) {
+        return dungeonName
+      }
+      return bestLevel > 0 ? `+${bestLevel}` : '-'
+    }
     const formatProfessionText = (item) => [item.professionPrimary, item.professionSecondary].filter(Boolean).join(' / ') || '-'
     const buildAvatarText = (name) => `${name || '角'}`.slice(0, 2)
     const getClassMeta = (className) => getClassMetaByName(className)
@@ -1295,13 +920,12 @@ export default {
     }
 
     onMounted(() => {
-      loadCharacters()
+      loadPageData()
     })
 
     return {
       loading,
       submitting,
-      usingLocalData,
       total,
       pagedRecords,
       featuredCharacters,
@@ -1316,6 +940,7 @@ export default {
       pageSizeOptions,
       factionOptions,
       classOptions,
+      mythicDungeonOptions,
       classMetaMap,
       totalPages,
       handleSearch,
@@ -1328,9 +953,10 @@ export default {
       submitDialog,
       removeCharacter,
       loadCharacters,
+      loadOverview,
       goBack,
       formatFactionText,
-      formatMythicLevel,
+      formatMythicDungeonText,
       formatProfessionText,
       buildAvatarText,
       getClassMeta,
@@ -1483,13 +1109,6 @@ export default {
   color: #d7f0ff;
 }
 
-.mock-tip {
-  padding: 4px 8px;
-  border-radius: 8px;
-  color: #ffecb3;
-  background: rgba(255, 184, 0, 0.2);
-}
-
 .spotlight-grid,
 .summary-grid,
 .mobile-card-grid,
@@ -1622,6 +1241,8 @@ export default {
   display: block;
   margin-top: 8px;
   font-size: 30px;
+  line-height: 1.15;
+  word-break: break-word;
   color: #ffd76e;
 }
 
