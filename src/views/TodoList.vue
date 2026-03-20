@@ -15,7 +15,7 @@
       <div class="hero-tags">
         <span class="hero-tag">今日 {{ summary.today }} 项</span>
         <span class="hero-tag">重要 {{ summary.important }} 项</span>
-        <span class="hero-tag">{{ usingLocalData ? '本地演示数据' : '已接真实接口' }}</span>
+        <span class="hero-tag">已接真实接口</span>
       </div>
     </div>
 
@@ -95,7 +95,6 @@
           </div>
           <div class="toolbar-right">
             <span>共 {{ total }} 条</span>
-            <span v-if="usingLocalData" class="mock-tip">当前为演示数据（后端未联通）</span>
           </div>
         </div>
 
@@ -373,8 +372,6 @@ import {
   updateTodoTaskStatus
 } from '@/api/todoList'
 
-// 待办支持本地模式运行，后端未联通时仍能完整演示列表和详情交互。
-const LOCAL_TASK_KEY = 'todo_list_records'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 const LIST_OPTIONS = [
   {value: 'MY_DAY', label: '我的一天'},
@@ -399,91 +396,6 @@ const VIEW_OPTIONS = [
   {value: 'IMPORTANT', label: '重要'},
   {value: 'COMPLETED', label: '已完成'}
 ]
-const DEFAULT_TASKS = [
-  {
-    id: 'todo-1',
-    title: '整理本周工作周报',
-    listCode: 'WORK',
-    importance: 'HIGH',
-    status: 'IN_PROGRESS',
-    important: true,
-    dueDate: '2026-03-16',
-    reminderAt: '2026-03-15 18:30',
-    note: '补齐项目进度、风险点和下周计划后再发送。',
-    steps: [
-      {id: 'todo-1-s1', title: '汇总本周完成事项', done: true},
-      {id: 'todo-1-s2', title: '整理阻塞和风险点', done: false},
-      {id: 'todo-1-s3', title: '发送给项目负责人确认', done: false}
-    ],
-    createdAt: '2026-03-10 09:20',
-    updatedAt: '2026-03-15 11:10'
-  },
-  {
-    id: 'todo-2',
-    title: '续费个人域名与服务器证书',
-    listCode: 'PERSONAL',
-    importance: 'HIGH',
-    status: 'TODO',
-    important: true,
-    dueDate: '2026-03-18',
-    reminderAt: '2026-03-17 09:00',
-    note: '证书与域名分两步处理，先确认付款方式。',
-    steps: [
-      {id: 'todo-2-s1', title: '确认域名到期时间', done: false},
-      {id: 'todo-2-s2', title: '完成支付', done: false}
-    ],
-    createdAt: '2026-03-08 20:10',
-    updatedAt: '2026-03-14 21:05'
-  },
-  {
-    id: 'todo-3',
-    title: '购买桌面支架和理线夹',
-    listCode: 'SHOPPING',
-    importance: 'MEDIUM',
-    status: 'TODO',
-    important: false,
-    dueDate: '2026-03-20',
-    reminderAt: '',
-    note: '优先选桌面厚度适配范围更大的款式。',
-    steps: [],
-    createdAt: '2026-03-11 19:40',
-    updatedAt: '2026-03-11 19:40'
-  },
-  {
-    id: 'todo-4',
-    title: '补完 Vue 编译器原理阅读笔记',
-    listCode: 'LEARNING',
-    importance: 'MEDIUM',
-    status: 'IN_PROGRESS',
-    important: false,
-    dueDate: '2026-03-22',
-    reminderAt: '2026-03-20 20:00',
-    note: '把 transform 阶段和 codegen 阶段的区别单独整理出来。',
-    steps: [
-      {id: 'todo-4-s1', title: '整理 AST transform 流程', done: true},
-      {id: 'todo-4-s2', title: '整理 codegen 输出结构', done: false}
-    ],
-    createdAt: '2026-03-06 22:00',
-    updatedAt: '2026-03-14 22:30'
-  },
-  {
-    id: 'todo-5',
-    title: '归档旧版系统菜单截图',
-    listCode: 'WORK',
-    importance: 'LOW',
-    status: 'COMPLETED',
-    important: false,
-    dueDate: '2026-03-12',
-    reminderAt: '',
-    note: '已同步到设计归档目录。',
-    steps: [
-      {id: 'todo-5-s1', title: '打包截图资源', done: true},
-      {id: 'todo-5-s2', title: '移动到归档目录', done: true}
-    ],
-    createdAt: '2026-03-09 17:30',
-    updatedAt: '2026-03-12 15:20'
-  }
-]
 
 // 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
@@ -494,13 +406,8 @@ function unwrapData(res) {
   return payload
 }
 
-function formatDateTime(date = new Date()) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  const hour = `${date.getHours()}`.padStart(2, '0')
-  const minute = `${date.getMinutes()}`.padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}`
+function getErrorMessage(error, fallback) {
+  return error?.response?.data?.message || error?.message || fallback
 }
 
 function getTodayText() {
@@ -533,14 +440,13 @@ function normalizeReminderInput(value) {
   return `${value}`.replace(' ', 'T').slice(0, 16)
 }
 
-// 任务归一后统一保留子任务、提醒和视图字段，模板层不再区分来源。
 function normalizeTask(item = {}) {
   const steps = Array.isArray(item.steps)
     ? item.steps.map((step) => buildStep(step))
     : []
 
   return {
-    id: item.id ?? item.taskId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: item.id ?? item.taskId ?? '',
     title: item.title || item.taskTitle || '',
     listCode: item.listCode || item.groupCode || 'MY_DAY',
     importance: item.importance || item.priority || 'MEDIUM',
@@ -555,32 +461,10 @@ function normalizeTask(item = {}) {
   }
 }
 
-function loadLocalTasks() {
-  try {
-    const raw = localStorage.getItem(LOCAL_TASK_KEY)
-    if (!raw) {
-      localStorage.setItem(LOCAL_TASK_KEY, JSON.stringify(DEFAULT_TASKS))
-      return DEFAULT_TASKS.map((item) => normalizeTask(item))
-    }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return DEFAULT_TASKS.map((item) => normalizeTask(item))
-    }
-    return parsed.map((item) => normalizeTask(item))
-  } catch (error) {
-    return DEFAULT_TASKS.map((item) => normalizeTask(item))
-  }
-}
-
-function persistLocalTasks(list) {
-  localStorage.setItem(LOCAL_TASK_KEY, JSON.stringify(list))
-}
-
 function countDoneSteps(steps = []) {
   return steps.filter((item) => item.done).length
 }
 
-// 排序规则优先保证未完成、重要和临期任务更靠前，接近主流待办应用的阅读顺序。
 function sortTasks(list) {
   return [...list].sort((prev, next) => {
     if (prev.status === 'COMPLETED' && next.status !== 'COMPLETED') {
@@ -631,22 +515,11 @@ function buildListDistribution(tasks = []) {
     .sort((prev, next) => next.count - prev.count)
 }
 
-function buildPayload(task) {
-  return {
-    title: task.title,
-    listCode: task.listCode,
-    importance: task.importance,
-    status: task.status,
-    important: task.important,
-    dueDate: task.dueDate,
-    reminderAt: normalizeReminderText(task.reminderAt),
-    note: task.note,
-    steps: task.steps.map((item) => ({
-      id: item.id,
-      title: item.title,
-      done: item.done
-    }))
+function normalizeReminderPayload(value) {
+  if (!value) {
+    return null
   }
+  return value.length === 16 ? `${value}:00` : value
 }
 
 export default {
@@ -654,13 +527,10 @@ export default {
   setup() {
     const router = useRouter()
 
-    // 页面主要维护三类状态：任务列表、概览统计和新增编辑弹窗。
     const loading = ref(false)
     const submitting = ref(false)
-    const usingLocalData = ref(false)
     const total = ref(0)
     const pagedTasks = ref([])
-    const allLocalTasks = ref([])
     const summary = reactive({
       total: 0,
       today: 0,
@@ -742,71 +612,34 @@ export default {
       return 'upcoming'
     }
 
-    const applyInsights = (records) => {
+    const applySummary = (records) => {
       const nextSummary = buildSummary(records)
       summary.total = nextSummary.total
       summary.today = nextSummary.today
       summary.important = nextSummary.important
       summary.completed = nextSummary.completed
-      upcomingTasks.value = buildUpcomingTasks(records)
-      listDistribution.value = buildListDistribution(records)
     }
 
-    const matchesView = (task) => {
-      if (query.viewCode === 'TODAY') {
-        return task.status !== 'COMPLETED' && (task.dueDate === getTodayText() || task.listCode === 'MY_DAY')
-      }
-      if (query.viewCode === 'IMPORTANT') {
-        return task.status !== 'COMPLETED' && task.important
-      }
-      if (query.viewCode === 'COMPLETED') {
-        return task.status === 'COMPLETED'
-      }
-      return true
-    }
-
-    const matchesFilters = (task) => {
-      const keyword = query.keyword.trim().toLowerCase()
-      if (keyword) {
-        const searchPool = [
-          task.title,
-          task.note,
-          ...task.steps.map((item) => item.title)
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-        if (!searchPool.includes(keyword)) {
-          return false
-        }
+    const applyPageInsights = (payload = {}, fallbackList = []) => {
+      if (payload.summary) {
+        summary.total = Number(payload.summary.total ?? 0)
+        summary.today = Number(payload.summary.today ?? 0)
+        summary.important = Number(payload.summary.important ?? 0)
+        summary.completed = Number(payload.summary.completed ?? 0)
+      } else {
+        applySummary(fallbackList)
       }
 
-      if (query.listCode && task.listCode !== query.listCode) {
-        return false
-      }
-      if (query.status && task.status !== query.status) {
-        return false
-      }
-      if (query.importance && task.importance !== query.importance) {
-        return false
-      }
-      return matchesView(task)
-    }
+      upcomingTasks.value = Array.isArray(payload.upcoming)
+        ? payload.upcoming.map((item) => normalizeTask(item))
+        : buildUpcomingTasks(fallbackList)
 
-    const applyLocalFilterAndPaging = () => {
-      const filtered = sortTasks(allLocalTasks.value.filter((item) => matchesFilters(item)))
-      total.value = filtered.length
-      const safePageNo = Math.min(query.pageNo, Math.max(1, Math.ceil(filtered.length / query.pageSize) || 1))
-      query.pageNo = safePageNo
-      const startIndex = (safePageNo - 1) * query.pageSize
-      pagedTasks.value = filtered.slice(startIndex, startIndex + query.pageSize)
-      applyInsights(allLocalTasks.value)
-    }
-
-    const syncLocalTasks = (records) => {
-      allLocalTasks.value = sortTasks(records.map((item) => normalizeTask(item)))
-      persistLocalTasks(allLocalTasks.value)
-      applyLocalFilterAndPaging()
+      listDistribution.value = Array.isArray(payload.listStats)
+        ? payload.listStats.map((item) => ({
+          listCode: item.listCode || item.code,
+          count: Number(item.count ?? item.total ?? 0)
+        }))
+        : buildListDistribution(fallbackList)
     }
 
     const loadTasks = async () => {
@@ -819,39 +652,23 @@ export default {
           listCode: query.listCode || undefined,
           status: query.status || undefined,
           importance: query.importance || undefined,
-          viewCode: query.viewCode
+          viewCode: query.viewCode === 'ALL' ? undefined : query.viewCode
         })
         const payload = unwrapData(res) || {}
         const rawList = Array.isArray(payload)
           ? payload
           : (payload.list || payload.records || payload.rows || [])
-        const normalizedList = rawList.map((item) => normalizeTask(item))
+        const normalizedList = sortTasks(rawList.map((item) => normalizeTask(item)))
         pagedTasks.value = normalizedList
         total.value = Number(payload.total ?? payload.count ?? normalizedList.length ?? 0)
-        usingLocalData.value = false
-
-        if (payload.summary) {
-          summary.total = Number(payload.summary.total ?? total.value)
-          summary.today = Number(payload.summary.today ?? 0)
-          summary.important = Number(payload.summary.important ?? 0)
-          summary.completed = Number(payload.summary.completed ?? 0)
-        } else {
-          applyInsights(normalizedList)
-        }
-
-        upcomingTasks.value = Array.isArray(payload.upcoming)
-          ? payload.upcoming.map((item) => normalizeTask(item))
-          : buildUpcomingTasks(normalizedList)
-        listDistribution.value = Array.isArray(payload.listStats)
-          ? payload.listStats.map((item) => ({
-            listCode: item.listCode || item.code,
-            count: Number(item.count ?? item.total ?? 0)
-          }))
-          : buildListDistribution(normalizedList)
+        applyPageInsights(payload, normalizedList)
       } catch (error) {
-        allLocalTasks.value = loadLocalTasks()
-        usingLocalData.value = true
-        applyLocalFilterAndPaging()
+        pagedTasks.value = []
+        total.value = 0
+        applySummary([])
+        upcomingTasks.value = []
+        listDistribution.value = []
+        alert(getErrorMessage(error, '待办任务加载失败'))
       } finally {
         loading.value = false
       }
@@ -923,8 +740,8 @@ export default {
       importance: form.importance,
       status: form.status,
       important: form.important,
-      dueDate: form.dueDate,
-      reminderAt: normalizeReminderText(form.reminderAt),
+      dueDate: form.dueDate || null,
+      reminderAt: normalizeReminderPayload(form.reminderAt),
       note: form.note,
       steps: form.steps.map((item) => ({
         id: item.id,
@@ -954,31 +771,7 @@ export default {
         resetForm()
         await loadTasks()
       } catch (error) {
-        const now = formatDateTime()
-        if (dialogMode.value === 'create') {
-          syncLocalTasks([
-            normalizeTask({
-              ...payload,
-              id: `todo-${Date.now()}`,
-              createdAt: now,
-              updatedAt: now
-            }),
-            ...loadLocalTasks()
-          ])
-        } else {
-          syncLocalTasks(loadLocalTasks().map((item) => (
-            item.id === editingId.value
-              ? normalizeTask({
-                ...item,
-                ...payload,
-                updatedAt: now
-              })
-              : item
-          )))
-        }
-        usingLocalData.value = true
-        showDialog.value = false
-        resetForm()
+        alert(getErrorMessage(error, dialogMode.value === 'create' ? '新增任务失败' : '更新任务失败'))
       } finally {
         submitting.value = false
       }
@@ -993,16 +786,7 @@ export default {
         })
         await loadTasks()
       } catch (error) {
-        syncLocalTasks(loadLocalTasks().map((record) => (
-          record.id === item.id
-            ? normalizeTask({
-              ...record,
-              status: nextStatus,
-              updatedAt: formatDateTime()
-            })
-            : record
-        )))
-        usingLocalData.value = true
+        alert(getErrorMessage(error, '更新任务状态失败'))
       }
     }
 
@@ -1013,16 +797,7 @@ export default {
         })
         await loadTasks()
       } catch (error) {
-        syncLocalTasks(loadLocalTasks().map((record) => (
-          record.id === item.id
-            ? normalizeTask({
-              ...record,
-              important: !record.important,
-              updatedAt: formatDateTime()
-            })
-            : record
-        )))
-        usingLocalData.value = true
+        alert(getErrorMessage(error, '更新重要标记失败'))
       }
     }
 
@@ -1034,8 +809,7 @@ export default {
         await deleteTodoTask(item.id)
         await loadTasks()
       } catch (error) {
-        syncLocalTasks(loadLocalTasks().filter((record) => record.id !== item.id))
-        usingLocalData.value = true
+        alert(getErrorMessage(error, '删除任务失败'))
       }
     }
 
@@ -1047,8 +821,7 @@ export default {
         await clearCompletedTodoTasks()
         await loadTasks()
       } catch (error) {
-        syncLocalTasks(loadLocalTasks().filter((record) => record.status !== 'COMPLETED'))
-        usingLocalData.value = true
+        alert(getErrorMessage(error, '清理已完成任务失败'))
       }
     }
 
@@ -1099,7 +872,6 @@ export default {
     return {
       loading,
       submitting,
-      usingLocalData,
       total,
       pagedTasks,
       summary,
@@ -1300,13 +1072,6 @@ export default {
 .hero-tag {
   background: rgba(91, 180, 255, 0.18);
   color: #d7f0ff;
-}
-
-.mock-tip {
-  padding: 4px 8px;
-  border-radius: 8px;
-  color: #ffecb3;
-  background: rgba(255, 184, 0, 0.2);
 }
 
 .view-btn,
