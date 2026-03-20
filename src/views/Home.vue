@@ -56,12 +56,15 @@
         <div class="panel-head">
           <div>
             <h1 class="home-title">侏儒军刀</h1>
-            <p class="home-subtitle">当前固定展示全部应用，后续由权限管理统一维护，并支持按使用频率排序。</p>
+            <p class="home-subtitle">{{ permissionHintText }}</p>
           </div>
-          <span class="app-count">应用总数 {{ tools.length }}</span>
+          <span class="app-count">{{ appPermissionStatusText }}</span>
         </div>
 
-        <div class="grid">
+        <div v-if="appPermissionLoading" class="home-state">
+          正在读取当前账号的应用权限...
+        </div>
+        <div v-else-if="tools.length" class="grid">
           <button
             v-for="tool in tools"
             :key="tool.key"
@@ -89,6 +92,9 @@
               <p class="tool-name">{{ tool.name }}</p>
             </div>
           </button>
+        </div>
+        <div v-else class="home-state">
+          当前账号暂无可见应用，请先在权限管理中完成授权。
         </div>
       </section>
     </main>
@@ -202,8 +208,11 @@
 import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {changePasswordApi, getPasswordPublicKeyApi} from '@/api/auth'
+import {getCurrentUserAccessibleApps} from '@/api/permission'
 import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
+import {USER_APP_DEFINITIONS} from '@/constants/appCatalog'
 import {encryptPasswordByPublicKey} from '@/utils/rsaEncrypt'
+import {readPermissionDraftMap} from '@/utils/permissionDraft'
 
 const WEEK_LABELS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
 const APP_COLOR_PALETTE = [
@@ -221,19 +230,6 @@ const APP_COLOR_PALETTE = [
 ]
 const TOOL_USAGE_STORAGE_KEY = 'home_tool_usage_map'
 const TOOL_CUSTOM_ORDER_STORAGE_KEY = 'home_tool_custom_order'
-// 桌面应用先在前端固定定义，后续再由权限系统接管显示与可用性。
-const APP_DEFINITIONS = [
-  {key: 'calculator', name: '计算器', featureCode: 'APP_CALCULATOR', route: '/calculator', usageCount: 0},
-  {key: 'work-log', name: '工作日志', featureCode: 'APP_WORK_LOG', route: '/work-log', usageCount: 0},
-  {key: 'password-vault', name: '密码备忘录', featureCode: 'APP_PASSWORD_MEMO', route: '/password-memo', usageCount: 0},
-  {key: 'todo-list', name: '待办列表', featureCode: 'APP_TODO_LIST', route: '/todo-list', usageCount: 0},
-  {key: 'fuel-stats', name: '油耗统计', featureCode: 'APP_FUEL_STATS', route: '/fuel-stats', usageCount: 0},
-  {key: 'wow-character', name: 'WoW角色统计', featureCode: 'APP_WOW_CHARACTER', route: '/wow-character-stats', usageCount: 0},
-  {key: 'personal-bills', name: '个人账单', featureCode: 'APP_PERSONAL_BILLS', route: '/personal-bills', usageCount: 0},
-  {key: 'knowledge-base', name: '经验库', featureCode: 'APP_KNOWLEDGE_BASE', route: '/knowledge-base', usageCount: 0},
-  {key: 'software-repo', name: '软件仓库', featureCode: 'APP_SOFTWARE_REPO', route: '/software-repo', usageCount: 0},
-  {key: 'health-record', name: '健康', featureCode: 'APP_HEALTH_RECORD', route: '/health', usageCount: 0}
-]
 
 function unwrapData(res) {
   const payload = res?.data
@@ -295,6 +291,29 @@ function buildToolEntry(item, index) {
   }
 }
 
+function extractAccessibleFeatureCodes(payload) {
+  if (!payload) {
+    return []
+  }
+  if (Array.isArray(payload)) {
+    return Array.from(new Set(payload
+      .map((item) => (typeof item === 'string' ? item : item?.featureCode || item?.code || item?.appCode))
+      .filter(Boolean)))
+  }
+
+  const rawCodes = payload.featureCodes || payload.grantedFeatureCodes || payload.appCodes || payload.grantedAppCodes
+  if (Array.isArray(rawCodes)) {
+    return Array.from(new Set(rawCodes.filter(Boolean)))
+  }
+
+  const rawApps = payload.apps || payload.list || payload.items || []
+  if (Array.isArray(rawApps)) {
+    return Array.from(new Set(rawApps.map((item) => item?.featureCode || item?.code || item?.appCode).filter(Boolean)))
+  }
+
+  return []
+}
+
 function extractErrorMessage(error, fallback) {
   const data = error?.response?.data || {}
   return data.message || data.msg || fallback
@@ -319,7 +338,7 @@ function readCustomOrder() {
   try {
     const raw = localStorage.getItem(TOOL_CUSTOM_ORDER_STORAGE_KEY)
     const parsed = JSON.parse(raw || '[]')
-    const validKeys = new Set(APP_DEFINITIONS.map((item) => item.key))
+    const validKeys = new Set(USER_APP_DEFINITIONS.map((item) => item.key))
     return Array.isArray(parsed) ? parsed.filter((item) => validKeys.has(item)) : []
   } catch (error) {
     return []
@@ -341,6 +360,9 @@ export default {
     const showUserDialog = ref(false)
     const activeDialogTab = ref('profile')
     const dialogLoading = ref(false)
+    const appPermissionLoading = ref(false)
+    const accessibleFeatureCodes = ref(null)
+    const appPermissionSource = ref('catalog')
     const toolUsageMap = ref(readUsageMap())
     const customToolOrder = ref(readCustomOrder())
     const draggingToolKey = ref('')
@@ -368,6 +390,27 @@ export default {
     }
 
     const currentDateText = computed(() => formatDateText(currentTime.value))
+    const appPermissionStatusText = computed(() => {
+      if (appPermissionLoading.value) {
+        return '权限加载中'
+      }
+      if (appPermissionSource.value === 'backend') {
+        return `已授权 ${tools.value.length} 个应用`
+      }
+      if (appPermissionSource.value === 'draft') {
+        return `草稿权限 ${tools.value.length} 个应用`
+      }
+      return `应用总数 ${tools.value.length}`
+    })
+    const permissionHintText = computed(() => {
+      if (appPermissionSource.value === 'backend') {
+        return '主页已优先按当前用户授权显示应用入口，桌面排序仍支持使用频率与拖拽自定义。'
+      }
+      if (appPermissionSource.value === 'draft') {
+        return '主页当前按本地权限草稿显示应用入口，待后端接口接通后将自动切换为真实授权。'
+      }
+      return '主页会优先读取当前用户应用权限；在权限接口未接通前，默认展示应用目录并支持桌面排序。'
+    })
 
     const systemMenus = [
       {key: 'user', name: '用户管理', shortName: '用'},
@@ -378,7 +421,10 @@ export default {
 
     // 默认按使用频率排序；一旦用户拖拽过桌面，就优先采用自定义顺序。
     const tools = computed(() => {
-      const nextTools = APP_DEFINITIONS.map((item, index) => buildToolEntry({
+      const baseDefinitions = Array.isArray(accessibleFeatureCodes.value)
+        ? USER_APP_DEFINITIONS.filter((item) => accessibleFeatureCodes.value.includes(item.featureCode))
+        : USER_APP_DEFINITIONS
+      const nextTools = baseDefinitions.map((item, index) => buildToolEntry({
         ...item,
         usageCount: Number(toolUsageMap.value[item.key] ?? item.usageCount ?? 0)
       }, index))
@@ -453,6 +499,28 @@ export default {
       syncProfileForm()
     }
 
+    const loadCurrentUserAccessibleApps = async () => {
+      appPermissionLoading.value = true
+      try {
+        const res = await getCurrentUserAccessibleApps()
+        accessibleFeatureCodes.value = extractAccessibleFeatureCodes(unwrapData(res))
+        appPermissionSource.value = 'backend'
+      } catch (error) {
+        const currentUser = normalizeCurrentUser(user.value || {})
+        const draftMap = readPermissionDraftMap()
+        const draftUserId = currentUser.id !== null && currentUser.id !== undefined ? `${currentUser.id}` : ''
+        if (draftUserId && Object.prototype.hasOwnProperty.call(draftMap, draftUserId)) {
+          accessibleFeatureCodes.value = draftMap[draftUserId]
+          appPermissionSource.value = 'draft'
+        } else {
+          accessibleFeatureCodes.value = null
+          appPermissionSource.value = 'catalog'
+        }
+      } finally {
+        appPermissionLoading.value = false
+      }
+    }
+
     const logout = () => {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
@@ -471,6 +539,10 @@ export default {
     const onSystemMenuClick = (menu) => {
       if (menu.key === 'user') {
         router.push('/system/users')
+        return
+      }
+      if (menu.key === 'permission') {
+        router.push('/system/permissions')
         return
       }
       if (menu.key === 'dict') {
@@ -671,6 +743,7 @@ export default {
         currentTime.value = new Date()
       }, 60 * 1000)
       window.addEventListener('resize', syncViewport)
+      loadCurrentUserAccessibleApps()
     })
 
     onBeforeUnmount(() => {
@@ -685,6 +758,9 @@ export default {
       isMobileViewport,
       menuCollapsed,
       currentDateText,
+      appPermissionLoading,
+      appPermissionStatusText,
+      permissionHintText,
       systemMenus,
       tools,
       draggingToolKey,
@@ -931,6 +1007,17 @@ export default {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.88);
   background: rgba(255, 255, 255, 0.14);
+}
+
+.home-state {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
 }
 
 .grid {
