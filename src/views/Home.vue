@@ -1,40 +1,5 @@
 <template>
   <div class="home-page">
-    <aside class="side-menu" :class="{ collapsed: menuCollapsed }">
-      <div class="menu-head">
-        <span v-if="!menuCollapsed" class="menu-title">系统菜单</span>
-        <button class="collapse-btn" @click="toggleMenu">
-          <svg
-            v-if="isMobileViewport && menuCollapsed"
-            class="settings-icon"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.22 1.13-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
-              fill="currentColor"
-            />
-          </svg>
-          <template v-else>
-            {{ menuCollapsed ? '>' : '<' }}
-          </template>
-        </button>
-      </div>
-
-      <nav class="menu-list">
-        <button
-          v-for="item in systemMenus"
-          :key="item.key"
-          class="menu-item"
-          :title="item.name"
-          @click="onSystemMenuClick(item)"
-        >
-          <span class="menu-icon">{{ item.shortName }}</span>
-          <span v-if="!menuCollapsed" class="menu-label">{{ item.name }}</span>
-        </button>
-      </nav>
-    </aside>
-
     <main class="main-area">
       <div class="top-bar">
         <button class="star-back-btn" @click="goToStarInteractive">返回星空互动图</button>
@@ -48,7 +13,48 @@
           </div>
 
           <span class="current-date">{{ currentDateText }}</span>
-          <button class="logout-btn" @click="logout">退出</button>
+
+          <div ref="systemMenuRef" class="system-menu-box">
+            <button
+              class="system-menu-toggle"
+              :class="{ active: showSystemMenu }"
+              type="button"
+              aria-label="系统菜单"
+              @click.stop="toggleSystemMenu"
+            >
+              <svg class="gear-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.22 1.13-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+
+            <div v-if="showSystemMenu" class="system-menu-dropdown">
+              <div class="system-menu-header">
+                <strong>{{ user.displayName || user.username || '当前用户' }}</strong>
+                <span>系统菜单</span>
+              </div>
+
+              <button
+                v-for="item in systemMenus"
+                :key="item.key"
+                type="button"
+                class="system-dropdown-item"
+                @click="handleSystemMenuAction(item)"
+              >
+                <span class="menu-icon">{{ item.shortName }}</span>
+                <span>{{ item.name }}</span>
+              </button>
+
+              <div class="system-menu-divider"></div>
+
+              <button type="button" class="system-dropdown-item danger" @click="handleLogoutAction">
+                <span class="menu-icon">退</span>
+                <span>退出登录</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -381,11 +387,10 @@ export default {
   setup() {
     const router = useRouter()
     const user = ref(normalizeCurrentUser(JSON.parse(localStorage.getItem('user') || '{}')))
-    const menuCollapsed = ref(true)
     const currentTime = ref(new Date())
-    const isMobileViewport = ref(window.innerWidth <= 640)
 
     const showUserDialog = ref(false)
+    const showSystemMenu = ref(false)
     const activeDialogTab = ref('profile')
     const dialogLoading = ref(false)
     const appPermissionLoading = ref(false)
@@ -397,6 +402,7 @@ export default {
     const draggingToolKey = ref('')
     const dragOverToolKey = ref('')
     const suppressNextToolOpen = ref(false)
+    const systemMenuRef = ref(null)
 
     // 顶部个人中心的资料与密码修改共用一个弹框，按 tab 切换表单。
     const profileForm = reactive({
@@ -413,10 +419,6 @@ export default {
     })
 
     let timer = null
-
-    const syncViewport = () => {
-      isMobileViewport.value = window.innerWidth <= 640
-    }
 
     const currentDateText = computed(() => formatDateText(currentTime.value))
     const appPermissionStatusText = computed(() => {
@@ -568,10 +570,6 @@ export default {
       router.push('/star-interactive')
     }
 
-    const toggleMenu = () => {
-      menuCollapsed.value = !menuCollapsed.value
-    }
-
     const onSystemMenuClick = (menu) => {
       if (menu.key === 'user') {
         router.push('/system/users')
@@ -590,6 +588,34 @@ export default {
         return
       }
       alert(`菜单【${menu.name}】待接入具体功能`)
+    }
+
+    const closeSystemMenu = () => {
+      showSystemMenu.value = false
+    }
+
+    const toggleSystemMenu = () => {
+      showSystemMenu.value = !showSystemMenu.value
+    }
+
+    const handleSystemMenuAction = (menu) => {
+      closeSystemMenu()
+      onSystemMenuClick(menu)
+    }
+
+    const handleLogoutAction = () => {
+      closeSystemMenu()
+      logout()
+    }
+
+    const handleDocumentClick = (event) => {
+      if (!showSystemMenu.value) {
+        return
+      }
+      const container = systemMenuRef.value
+      if (container && !container.contains(event.target)) {
+        closeSystemMenu()
+      }
     }
 
     const openTool = (tool) => {
@@ -782,7 +808,7 @@ export default {
       timer = setInterval(() => {
         currentTime.value = new Date()
       }, 60 * 1000)
-      window.addEventListener('resize', syncViewport)
+      document.addEventListener('click', handleDocumentClick)
       loadCurrentUserAccessibleApps()
     })
 
@@ -790,13 +816,13 @@ export default {
       if (timer) {
         clearInterval(timer)
       }
-      window.removeEventListener('resize', syncViewport)
+      document.removeEventListener('click', handleDocumentClick)
     })
 
     return {
       user,
-      isMobileViewport,
-      menuCollapsed,
+      showSystemMenu,
+      systemMenuRef,
       currentDateText,
       appPermissionLoading,
       appPermissionStatusText,
@@ -814,8 +840,10 @@ export default {
       passwordForm,
       logout,
       goToStarInteractive,
-      toggleMenu,
       onSystemMenuClick,
+      toggleSystemMenu,
+      handleSystemMenuAction,
+      handleLogoutAction,
       openTool,
       handleToolDragStart,
       handleToolDragEnter,
@@ -835,79 +863,8 @@ export default {
 .home-page {
   min-height: 100vh;
   height: 100%;
-  display: flex;
   color: #fff;
   overflow: hidden;
-}
-
-.side-menu {
-  width: 220px;
-  padding: 14px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  background: rgba(10, 26, 48, 0.6);
-  border-right: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(12px);
-  transition: width 0.3s ease;
-}
-
-.side-menu.collapsed {
-  width: 72px;
-}
-
-.menu-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 36px;
-}
-
-.menu-title {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 1px;
-}
-
-.collapse-btn {
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.settings-icon {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-.menu-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.menu-item {
-  border: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 40px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  color: #fff;
-  text-align: left;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.menu-item:hover {
-  background: rgba(255, 255, 255, 0.22);
 }
 
 .menu-icon {
@@ -921,12 +878,7 @@ export default {
   background: rgba(255, 255, 255, 0.24);
 }
 
-.menu-label {
-  font-size: 14px;
-}
-
 .main-area {
-  flex: 1;
   min-width: 0;
   padding: 20px 28px;
   display: flex;
@@ -952,6 +904,99 @@ export default {
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 16px;
+}
+
+.system-menu-box {
+  position: relative;
+}
+
+.system-menu-toggle {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.system-menu-toggle:hover,
+.system-menu-toggle.active {
+  background: rgba(96, 204, 255, 0.24);
+}
+
+.system-menu-toggle.active {
+  transform: rotate(18deg);
+}
+
+.gear-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.system-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 12;
+  width: 220px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(7, 22, 39, 0.92);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(18px);
+}
+
+.system-menu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px 12px;
+}
+
+.system-menu-header strong {
+  font-size: 14px;
+}
+
+.system-menu-header span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.system-dropdown-item {
+  width: 100%;
+  min-height: 42px;
+  border: none;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+  background: transparent;
+}
+
+.system-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.system-dropdown-item.danger {
+  color: #fecaca;
+}
+
+.system-menu-divider {
+  height: 1px;
+  margin: 8px 0;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .star-back-btn {
@@ -997,16 +1042,6 @@ export default {
   padding: 6px 10px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.16);
-}
-
-.logout-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(6px);
 }
 
 .main-panel {
@@ -1290,7 +1325,7 @@ export default {
 
   .top-right-wrap {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end;
   }
 
   .grid {
@@ -1300,48 +1335,9 @@ export default {
 }
 
 @media (max-width: 640px) {
-  .home-page {
-    position: relative;
-  }
-
-  .side-menu {
-    position: fixed;
-    top: 12px;
-    left: 12px;
-    bottom: auto;
-    z-index: 12;
-    width: 60px;
-    padding: 10px 8px;
-    border-radius: 14px;
-  }
-
-  .side-menu.collapsed {
-    width: 60px;
-  }
-
-  .side-menu:not(.collapsed) {
-    width: 188px;
-  }
-
-  .side-menu.collapsed .menu-list {
-    display: none;
-  }
-
-  .side-menu.collapsed .menu-head {
-    justify-content: center;
-  }
-
-  .side-menu.collapsed .collapse-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 999px;
-    background: linear-gradient(135deg, rgba(74, 162, 255, 0.92), rgba(67, 201, 163, 0.92));
-    box-shadow: 0 10px 24px rgba(30, 102, 196, 0.32);
-  }
-
   .main-area {
     width: 100%;
-    padding: 70px 12px 12px;
+    padding: 16px 12px 12px;
   }
 
   .panel-head {
@@ -1379,8 +1375,19 @@ export default {
     width: 100%;
   }
 
+  .top-right-wrap {
+    justify-content: flex-start;
+  }
+
+  .system-menu-box {
+    margin-left: auto;
+  }
+
+  .system-menu-dropdown {
+    width: min(240px, calc(100vw - 24px));
+  }
+
   .current-date,
-  .logout-btn,
   .user-name-btn {
     width: auto;
   }
@@ -1409,8 +1416,7 @@ export default {
     justify-content: space-between;
   }
 
-  .current-date,
-  .logout-btn {
+  .current-date {
     width: 100%;
     text-align: center;
   }
