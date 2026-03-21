@@ -11,7 +11,7 @@
       <div>
         <h1 class="page-title">权限管理</h1>
         <p class="page-subtitle">
-          以“用户 - 应用授权”为核心设计。当前重点控制每个用户可进入哪些应用，并预留应用管理、系统日志两块后续能力。
+          以“用户 - 应用授权”为核心设计。当前重点控制每个用户可进入哪些应用；应用管理已接入前端，系统日志继续预留。
         </p>
       </div>
       <div class="hero-tags">
@@ -238,7 +238,7 @@
 
         <div class="insight-block">
           <div class="insight-head">
-            <h3 class="insight-title">预留模块</h3>
+            <h3 class="insight-title">联动模块</h3>
             <span>{{ reservedCapabilities.length }} 项</span>
           </div>
           <div class="reserve-list">
@@ -250,6 +250,9 @@
               <p>{{ item.description }}</p>
             </article>
           </div>
+          <button class="ghost-link" type="button" @click="goToAppManagement">
+            前往应用管理
+          </button>
         </div>
 
         <div class="insight-block">
@@ -259,7 +262,7 @@
           <div class="note-box">
             <p>主页应用显示优先读取“当前用户可访问应用”接口。</p>
             <p>权限管理页聚焦应用级授权，不和用户基础资料编辑混在一起。</p>
-            <p>后续应用管理将接管图标、加密方式、密级、上下线状态等元数据。</p>
+            <p>应用目录已由应用管理维护，权限页应直接复用同一份应用数据源。</p>
           </div>
         </div>
       </aside>
@@ -270,6 +273,7 @@
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import {listSystemApps} from '@/api/appManagement'
 import {listSystemUsers} from '@/api/systemUser'
 import {
   getUserAppPermissions,
@@ -279,13 +283,13 @@ import {
 } from '@/api/permission'
 import {
   APP_SECURITY_LEVEL_OPTIONS,
-  RESERVED_SYSTEM_CAPABILITIES,
-  USER_APP_DEFINITIONS
+  RESERVED_SYSTEM_CAPABILITIES
 } from '@/constants/appCatalog'
 import {
   getDraftFeatureCodesForUser,
   saveDraftFeatureCodesForUser
 } from '@/utils/permissionDraft'
+import {mergeAppCatalogList, persistAppCatalogDraftList, resolveAppCatalogList} from '@/utils/appCatalogDraft'
 
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 
@@ -367,7 +371,7 @@ export default {
     const saving = ref(false)
 
     const users = ref([])
-    const appCatalog = ref(USER_APP_DEFINITIONS.map((item) => normalizeApp(item)))
+    const appCatalog = ref(resolveAppCatalogList().map((item) => normalizeApp(item)))
     const selectedUserId = ref('')
     const selectedFeatureCodes = ref([])
     const permissionSource = ref('draft')
@@ -431,14 +435,32 @@ export default {
 
     const loadAppCatalog = async () => {
       try {
+        try {
+          const res = await listSystemApps({
+            pageNo: 1,
+            pageSize: 200
+          })
+          const payload = unwrapData(res) || {}
+          const {list} = parseListPayload(payload)
+          if (list.length) {
+            appCatalog.value = list.map((item) => normalizeApp(item)).filter((item) => item.featureCode)
+            persistAppCatalogDraftList(mergeAppCatalogList(resolveAppCatalogList(), appCatalog.value))
+            return
+          }
+        } catch (appError) {}
+
         const res = await listPermissionApps()
         const payload = unwrapData(res) || {}
         const rawList = Array.isArray(payload) ? payload : (payload.list || payload.items || payload.apps || [])
         if (Array.isArray(rawList) && rawList.length) {
           appCatalog.value = rawList.map((item) => normalizeApp(item)).filter((item) => item.featureCode)
+          persistAppCatalogDraftList(mergeAppCatalogList(resolveAppCatalogList(), appCatalog.value))
+          return
         }
+
+        appCatalog.value = resolveAppCatalogList().map((item) => normalizeApp(item))
       } catch (error) {
-        appCatalog.value = USER_APP_DEFINITIONS.map((item) => normalizeApp(item))
+        appCatalog.value = resolveAppCatalogList().map((item) => normalizeApp(item))
       }
     }
 
@@ -613,6 +635,10 @@ export default {
       router.push('/home')
     }
 
+    const goToAppManagement = () => {
+      router.push('/system/apps')
+    }
+
     onMounted(async () => {
       await loadAppCatalog()
       await loadUsers()
@@ -650,7 +676,8 @@ export default {
       toggleAllApps,
       grantBySecurityLevel,
       savePermissions,
-      goBackHome
+      goBackHome,
+      goToAppManagement
     }
   }
 }
@@ -1040,6 +1067,17 @@ export default {
 .note-box p {
   margin: 0;
   color: rgba(255, 255, 255, 0.8);
+}
+
+.ghost-link {
+  width: 100%;
+  margin-top: 12px;
+  min-height: 38px;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 @media (max-width: 1200px) {

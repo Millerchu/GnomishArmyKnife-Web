@@ -84,7 +84,9 @@
           >
             <div class="tool-top">
               <div class="icon-box" :style="tool.iconStyle">
-                <span class="icon-text">{{ tool.iconText }}</span>
+                <img v-if="usesImageIcon(tool.iconType) && tool.iconUrl" class="icon-image" :src="tool.iconUrl" :alt="tool.name"/>
+                <span v-else-if="tool.iconType === 'PRESET'" class="icon-svg" v-html="getPresetIconSvg(tool.iconPreset)"></span>
+                <span v-else class="icon-text">{{ tool.iconText }}</span>
               </div>
             </div>
 
@@ -209,8 +211,9 @@ import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {changePasswordApi, getPasswordPublicKeyApi} from '@/api/auth'
 import {getCurrentUserAccessibleApps} from '@/api/permission'
+import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
-import {USER_APP_DEFINITIONS} from '@/constants/appCatalog'
+import {mergeAppCatalogList, normalizeSystemApp, resolveAppCatalogList} from '@/utils/appCatalogDraft'
 import {encryptPasswordByPublicKey} from '@/utils/rsaEncrypt'
 import {readPermissionDraftMap} from '@/utils/permissionDraft'
 
@@ -291,6 +294,10 @@ function buildToolEntry(item, index) {
   }
 }
 
+function usesImageIcon(iconType) {
+  return ['UPLOAD', 'URL'].includes(iconType)
+}
+
 function extractAccessibleFeatureCodes(payload) {
   if (!payload) {
     return []
@@ -311,6 +318,26 @@ function extractAccessibleFeatureCodes(payload) {
     return Array.from(new Set(rawApps.map((item) => item?.featureCode || item?.code || item?.appCode).filter(Boolean)))
   }
 
+  return []
+}
+
+function extractAccessibleApps(payload) {
+  if (!payload) {
+    return []
+  }
+  if (Array.isArray(payload)) {
+    return payload
+      .filter((item) => item && typeof item === 'object')
+      .map((item, index) => normalizeSystemApp(item, index))
+      .filter((item) => item.featureCode)
+  }
+
+  const rawApps = payload.apps || payload.list || payload.items || []
+  if (Array.isArray(rawApps)) {
+    return rawApps
+      .map((item, index) => normalizeSystemApp(item, index))
+      .filter((item) => item.featureCode)
+  }
   return []
 }
 
@@ -338,8 +365,9 @@ function readCustomOrder() {
   try {
     const raw = localStorage.getItem(TOOL_CUSTOM_ORDER_STORAGE_KEY)
     const parsed = JSON.parse(raw || '[]')
-    const validKeys = new Set(USER_APP_DEFINITIONS.map((item) => item.key))
-    return Array.isArray(parsed) ? parsed.filter((item) => validKeys.has(item)) : []
+    return Array.isArray(parsed)
+      ? Array.from(new Set(parsed.filter((item) => typeof item === 'string' && item.trim())))
+      : []
   } catch (error) {
     return []
   }
@@ -363,6 +391,7 @@ export default {
     const appPermissionLoading = ref(false)
     const accessibleFeatureCodes = ref(null)
     const appPermissionSource = ref('catalog')
+    const toolCatalog = ref(resolveAppCatalogList())
     const toolUsageMap = ref(readUsageMap())
     const customToolOrder = ref(readCustomOrder())
     const draggingToolKey = ref('')
@@ -414,6 +443,7 @@ export default {
 
     const systemMenus = [
       {key: 'user', name: '用户管理', shortName: '用'},
+      {key: 'app', name: '应用管理', shortName: '应'},
       {key: 'permission', name: '权限管理', shortName: '权'},
       {key: 'dict', name: '数据字典', shortName: '字'},
       {key: 'log', name: '系统日志', shortName: '志'}
@@ -422,8 +452,8 @@ export default {
     // 默认按使用频率排序；一旦用户拖拽过桌面，就优先采用自定义顺序。
     const tools = computed(() => {
       const baseDefinitions = Array.isArray(accessibleFeatureCodes.value)
-        ? USER_APP_DEFINITIONS.filter((item) => accessibleFeatureCodes.value.includes(item.featureCode))
-        : USER_APP_DEFINITIONS
+        ? toolCatalog.value.filter((item) => accessibleFeatureCodes.value.includes(item.featureCode))
+        : toolCatalog.value
       const nextTools = baseDefinitions.map((item, index) => buildToolEntry({
         ...item,
         usageCount: Number(toolUsageMap.value[item.key] ?? item.usageCount ?? 0)
@@ -503,7 +533,12 @@ export default {
       appPermissionLoading.value = true
       try {
         const res = await getCurrentUserAccessibleApps()
-        accessibleFeatureCodes.value = extractAccessibleFeatureCodes(unwrapData(res))
+        const payload = unwrapData(res)
+        accessibleFeatureCodes.value = extractAccessibleFeatureCodes(payload)
+        const accessibleApps = extractAccessibleApps(payload)
+        toolCatalog.value = accessibleApps.length
+          ? mergeAppCatalogList(resolveAppCatalogList(), accessibleApps)
+          : resolveAppCatalogList()
         appPermissionSource.value = 'backend'
       } catch (error) {
         const currentUser = normalizeCurrentUser(user.value || {})
@@ -516,6 +551,7 @@ export default {
           accessibleFeatureCodes.value = null
           appPermissionSource.value = 'catalog'
         }
+        toolCatalog.value = resolveAppCatalogList()
       } finally {
         appPermissionLoading.value = false
       }
@@ -539,6 +575,10 @@ export default {
     const onSystemMenuClick = (menu) => {
       if (menu.key === 'user') {
         router.push('/system/users')
+        return
+      }
+      if (menu.key === 'app') {
+        router.push('/system/apps')
         return
       }
       if (menu.key === 'permission') {
@@ -761,8 +801,10 @@ export default {
       appPermissionLoading,
       appPermissionStatusText,
       permissionHintText,
+      getPresetIconSvg,
       systemMenus,
       tools,
+      usesImageIcon,
       draggingToolKey,
       dragOverToolKey,
       showUserDialog,
@@ -1076,6 +1118,18 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
+}
+
+.icon-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.icon-svg :deep(svg) {
+  width: 28px;
+  height: 28px;
 }
 
 .icon-text {

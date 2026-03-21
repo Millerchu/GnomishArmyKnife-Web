@@ -4,6 +4,7 @@ import Register from '../views/Register.vue'
 import Home from '../views/Home.vue'
 import WorkLog from '../views/WorkLog.vue'
 import UserManagement from '../views/UserManagement.vue'
+import AppManagement from '../views/AppManagement.vue'
 import PermissionManagement from '../views/PermissionManagement.vue'
 import StarInteractive from '../views/StarInteractive.vue'
 import DataDictionary from '../views/DataDictionary.vue'
@@ -34,6 +35,7 @@ const routes = [
     {path: '/health', component: HealthRecord},
     {path: '/work-log', component: WorkLog},
     {path: '/system/users', component: UserManagement},
+    {path: '/system/apps', component: AppManagement},
     {path: '/system/permissions', component: PermissionManagement},
     {path: '/system/dictionaries', component: DataDictionary}
 ]

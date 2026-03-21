@@ -4,6 +4,24 @@ export const APP_SECURITY_LEVEL_OPTIONS = [
   {value: 'CONFIDENTIAL', label: '受限'}
 ]
 
+export const APP_ENCRYPTION_MODE_OPTIONS = [
+  {value: 'NONE', label: '无额外加密'},
+  {value: 'FIELD', label: '字段加密'},
+  {value: 'END_TO_END', label: '端到端加密'}
+]
+
+export const APP_ICON_TYPE_OPTIONS = [
+  {value: 'PRESET', label: '预设图标'},
+  {value: 'UPLOAD', label: '本地上传'},
+  {value: 'URL', label: '图片地址'},
+  {value: 'TEXT', label: '文本图标'}
+]
+
+export const APP_STATUS_OPTIONS = [
+  {value: 'ENABLED', label: '启用'},
+  {value: 'DISABLED', label: '停用'}
+]
+
 export const USER_APP_DEFINITIONS = [
   {
     key: 'calculator',
@@ -111,8 +129,8 @@ export const RESERVED_SYSTEM_CAPABILITIES = [
   {
     key: 'app-management',
     name: '应用管理',
-    status: '预留',
-    description: '后续维护应用图标、密级、加密方式、排序与上下线状态。'
+    status: '前端已接入',
+    description: '当前可维护应用名称、图标、密级、加密方式、排序与上下线状态。'
   },
   {
     key: 'permission-log',
