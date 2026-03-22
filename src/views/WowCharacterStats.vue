@@ -44,10 +44,10 @@
               <div class="card-title-wrap">
                 <div class="title-line">
                   <strong class="character-name">{{ item.characterName }}</strong>
-                  <span class="spec-chip">{{ item.specName || item.className }}</span>
+                  <span class="spec-chip">{{ formatSpecText(item.specName) || item.className }}</span>
                 </div>
                 <p class="card-subtitle">
-                  {{ item.raceName }} · {{ item.className }} · {{ formatFactionText(item.faction) }} · {{ item.realmName }}
+                  {{ formatRaceText(item.raceName) }} · {{ item.className }} · {{ formatFactionText(item.faction) }} · {{ item.realmName }}
                 </p>
               </div>
             </div>
@@ -177,10 +177,10 @@
                   <div class="class-cell">
                     <span class="class-dot" :style="{background: getClassMeta(item.className).color}"></span>
                     <span>{{ item.className }}</span>
-                    <span class="cell-muted">{{ item.specName || '-' }}</span>
+                    <span class="cell-muted">{{ formatSpecText(item.specName) || '-' }}</span>
                   </div>
                 </td>
-                <td>{{ item.raceName || '-' }}</td>
+                <td>{{ formatRaceText(item.raceName) }}</td>
                 <td>{{ item.realmName || '-' }}</td>
                 <td>
                   <span class="faction-chip" :class="item.faction === 'HORDE' ? 'horde' : 'alliance'">
@@ -213,7 +213,7 @@
               <div class="mobile-card-head">
                 <div>
                   <h3 class="mobile-card-title">{{ item.characterName }}</h3>
-                  <p class="mobile-card-subtitle">{{ item.className }} · {{ item.specName || '-' }} · {{ item.realmName }}</p>
+                  <p class="mobile-card-subtitle">{{ item.className }} · {{ formatSpecText(item.specName) || '-' }} · {{ item.realmName }}</p>
                 </div>
                 <span class="faction-chip" :class="item.faction === 'HORDE' ? 'horde' : 'alliance'">
                   {{ formatFactionText(item.faction) }}
@@ -225,7 +225,7 @@
                 <p><span>评分</span><strong>{{ item.mythicScore || 0 }}</strong></p>
                 <p><span>副本</span><strong>{{ formatMythicDungeonText(item) }}</strong></p>
                 <p><span>等级</span><strong>{{ item.level || 0 }}</strong></p>
-                <p><span>种族</span><strong>{{ item.raceName || '-' }}</strong></p>
+                <p><span>种族</span><strong>{{ formatRaceText(item.raceName) }}</strong></p>
                 <p class="wide"><span>专业</span><strong>{{ formatProfessionText(item) }}</strong></p>
               </div>
 
@@ -352,11 +352,17 @@
           <div class="form-inline-grid">
             <label class="form-field">
               <span>专精</span>
-              <input v-model.trim="form.specName" class="input" maxlength="24" placeholder="例如：浩劫" />
+              <select v-model="form.specName" class="input" required>
+                <option value="">请选择专精</option>
+                <option v-for="item in availableSpecOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
             </label>
             <label class="form-field">
               <span>种族</span>
-              <input v-model.trim="form.raceName" class="input" maxlength="24" placeholder="例如：血精灵" required />
+              <select v-model="form.raceName" class="input" required>
+                <option value="">请选择种族</option>
+                <option v-for="item in availableRaceOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
             </label>
           </div>
 
@@ -368,7 +374,7 @@
             <label class="form-field">
               <span>阵营</span>
               <select v-model="form.faction" class="input" required>
-                <option v-for="item in factionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+                <option v-for="item in formFactionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
               </select>
             </label>
           </div>
@@ -411,11 +417,17 @@
           <div class="form-inline-grid">
             <label class="form-field">
               <span>专业 1</span>
-              <input v-model.trim="form.professionPrimary" class="input" maxlength="24" placeholder="例如：采药" />
+              <select v-model="form.professionPrimary" class="input">
+                <option value="">未设置</option>
+                <option v-for="item in availablePrimaryProfessionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
             </label>
             <label class="form-field">
               <span>专业 2</span>
-              <input v-model.trim="form.professionSecondary" class="input" maxlength="24" placeholder="例如：炼金" />
+              <select v-model="form.professionSecondary" class="input">
+                <option value="">未设置</option>
+                <option v-for="item in availableSecondaryProfessionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
             </label>
           </div>
 
@@ -437,8 +449,15 @@
 </template>
 
 <script>
-import {computed, onMounted, reactive, ref} from 'vue'
+import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
+import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
+import {
+  WOW_CLASS_RULES,
+  getAllowedFactionsByRaceCode,
+  getAllowedRaceCodesByClassCode,
+  getAllowedSpecCodesByClassCode
+} from '@/constants/wowCharacterRules'
 import {
   createWowCharacter,
   deleteWowCharacter,
@@ -448,37 +467,16 @@ import {
 } from '@/api/wowCharacter'
 
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
-const FACTION_OPTIONS = [
-  {value: 'ALLIANCE', label: '联盟'},
-  {value: 'HORDE', label: '部落'}
-]
-const MYTHIC_DUNGEON_OPTIONS = [
-  {value: '魔导师平台', label: '魔导师平台'},
-  {value: '迈萨拉洞窟', label: '迈萨拉洞窟'},
-  {value: '节点希纳斯', label: '节点希纳斯'},
-  {value: '风行者之塔', label: '风行者之塔'},
-  {value: '艾杰斯亚学院', label: '艾杰斯亚学院'},
-  {value: '萨隆矿坑', label: '萨隆矿坑'},
-  {value: '执政团之座', label: '执政团之座'},
-  {value: '通天峰', label: '通天峰'}
-]
-// 职业颜色参考正式服职业色，用于主角色名片和列表标签统一展示。
-const CLASS_OPTIONS = [
-  {value: '死亡骑士', label: '死亡骑士', color: '#C41F3B', textColor: '#ffffff'},
-  {value: '恶魔猎手', label: '恶魔猎手', color: '#A330C9', textColor: '#ffffff'},
-  {value: '德鲁伊', label: '德鲁伊', color: '#FF7D0A', textColor: '#1f1607'},
-  {value: '唤魔师', label: '唤魔师', color: '#33937F', textColor: '#ffffff'},
-  {value: '猎人', label: '猎人', color: '#ABD473', textColor: '#1f2910'},
-  {value: '法师', label: '法师', color: '#69CCF0', textColor: '#07202f'},
-  {value: '武僧', label: '武僧', color: '#00FF96', textColor: '#062119'},
-  {value: '圣骑士', label: '圣骑士', color: '#F58CBA', textColor: '#2d0f1d'},
-  {value: '牧师', label: '牧师', color: '#F4F4F4', textColor: '#111111'},
-  {value: '潜行者', label: '潜行者', color: '#FFF569', textColor: '#312b07'},
-  {value: '萨满', label: '萨满', color: '#0070DE', textColor: '#ffffff'},
-  {value: '术士', label: '术士', color: '#9482C9', textColor: '#100d1d'},
-  {value: '战士', label: '战士', color: '#C79C6E', textColor: '#23170d'}
-]
-// 兼容统一响应包装与直接返回数据的两种接口形态。
+const WOW_APP_CODE = 'APP_WOW_CHARACTER'
+const WOW_MODULE_CODE = 'WOW_CHARACTER'
+const FACTION_FIELD_CODE = 'faction'
+const CLASS_NAME_FIELD_CODE = 'className'
+const RACE_NAME_FIELD_CODE = 'raceName'
+const SPEC_NAME_FIELD_CODE = 'specName'
+const MYTHIC_DUNGEON_FIELD_CODE = 'mythicDungeonName'
+const PROFESSION_PRIMARY_FIELD_CODE = 'professionPrimary'
+const DEFAULT_FACTION_VALUE = 'ALLIANCE'
+
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -487,7 +485,6 @@ function unwrapData(res) {
   return payload
 }
 
-// 名片、标签和统计卡的视觉颜色都从职业色派生，避免样式层硬编码多份颜色。
 function classColorToRgba(hex, alpha) {
   const value = hex.replace('#', '')
   const red = parseInt(value.slice(0, 2), 16)
@@ -496,13 +493,48 @@ function classColorToRgba(hex, alpha) {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`
 }
 
-function getClassMetaByName(className) {
-  return CLASS_OPTIONS.find((item) => item.value === className) || {
+function getClassMetaByName(classMetaMap, className) {
+  return classMetaMap[className] || {
     value: className || '未知职业',
     label: className || '未知职业',
     color: '#64748b',
     textColor: '#ffffff'
   }
+}
+
+function normalizeDictionaryOptions(payload, extrasResolver) {
+  if (!Array.isArray(payload)) {
+    return []
+  }
+  return payload
+    .map((item) => {
+      const option = {
+        itemCode: item?.itemCode || item?.code || '',
+        label: item?.itemLabel || item?.label || item?.itemValue || item?.value || '',
+        value: item?.itemValue || item?.value || item?.itemCode || item?.code || '',
+        isDefault: Boolean(item?.isDefault)
+      }
+      return {
+        ...option,
+        ...(extrasResolver ? extrasResolver(option, item) : {})
+      }
+    })
+    .filter((item) => item.value)
+}
+
+function findOptionByAny(options, rawValue) {
+  if (rawValue === null || rawValue === undefined || rawValue === '') {
+    return null
+  }
+  return options.find((item) => item.value === rawValue || item.itemCode === rawValue || item.label === rawValue) || null
+}
+
+function normalizeSelectedValue(options, rawValue, fallback = '') {
+  return findOptionByAny(options, rawValue)?.value || fallback
+}
+
+function getOptionLabel(options, rawValue, fallback = '-') {
+  return findOptionByAny(options, rawValue)?.label || fallback
 }
 
 function getErrorMessage(error, fallback) {
@@ -526,7 +558,7 @@ function normalizeCharacter(item = {}) {
     specName: item.specName || item.specialization || '',
     raceName: item.raceName || item.race || '',
     realmName: item.realmName || item.realm || '',
-    faction: item.faction || 'ALLIANCE',
+    faction: item.faction || DEFAULT_FACTION_VALUE,
     level: toNumber(item.level, 90),
     itemLevel: toNumber(item.itemLevel ?? item.gearLevel, 0),
     mythicDungeonName: item.mythicDungeonName || item.mythicDungeon || item.bestDungeonName || item.keystoneName || '',
@@ -589,6 +621,12 @@ export default {
     const showDialog = ref(false)
     const dialogMode = ref('create')
     const editingId = ref('')
+    const factionOptions = ref([])
+    const classOptions = ref([])
+    const raceOptions = ref([])
+    const specOptions = ref([])
+    const professionOptions = ref([])
+    const mythicDungeonOptions = ref([])
 
     const query = reactive({
       keyword: '',
@@ -600,11 +638,11 @@ export default {
 
     const form = reactive({
       characterName: '',
-      className: CLASS_OPTIONS[0].value,
+      className: '',
       specName: '',
       raceName: '',
       realmName: '',
-      faction: 'ALLIANCE',
+      faction: DEFAULT_FACTION_VALUE,
       level: 90,
       itemLevel: 0,
       mythicDungeonName: '',
@@ -625,13 +663,129 @@ export default {
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
     const pageSizeOptions = PAGE_SIZE_OPTIONS
-    const factionOptions = FACTION_OPTIONS
-    const classOptions = CLASS_OPTIONS
-    const mythicDungeonOptions = MYTHIC_DUNGEON_OPTIONS
-    const classMetaMap = CLASS_OPTIONS.reduce((result, item) => {
-      result[item.value] = item
+    const classMetaMap = computed(() => classOptions.value.reduce((result, item) => {
+      const style = WOW_CLASS_RULES[item.itemCode]?.style || {color: '#64748b', textColor: '#ffffff'}
+      const meta = {
+        value: item.value,
+        label: item.label,
+        color: style.color,
+        textColor: style.textColor
+      }
+      result[item.value] = meta
+      result[item.label] = meta
+      result[item.itemCode] = meta
       return result
-    }, {})
+    }, {}))
+    const formFactionOptions = computed(() => {
+      const raceOption = findOptionByAny(raceOptions.value, form.raceName)
+      if (!raceOption) {
+        return factionOptions.value
+      }
+      const allowedFactions = new Set(getAllowedFactionsByRaceCode(raceOption.itemCode))
+      return factionOptions.value.filter((item) => allowedFactions.has(item.value))
+    })
+    const availableRaceOptions = computed(() => {
+      const classOption = findOptionByAny(classOptions.value, form.className)
+      const allowedRaceCodes = classOption ? new Set(getAllowedRaceCodesByClassCode(classOption.itemCode)) : null
+      return raceOptions.value.filter((item) => {
+        const matchesClass = !allowedRaceCodes || allowedRaceCodes.has(item.itemCode)
+        const matchesFaction = !form.faction || getAllowedFactionsByRaceCode(item.itemCode).includes(form.faction)
+        return matchesClass && matchesFaction
+      })
+    })
+    const availableSpecOptions = computed(() => {
+      const classOption = findOptionByAny(classOptions.value, form.className)
+      if (!classOption) {
+        return []
+      }
+      const allowedSpecCodes = new Set(getAllowedSpecCodesByClassCode(classOption.itemCode))
+      return specOptions.value.filter((item) => allowedSpecCodes.has(item.itemCode))
+    })
+    const availablePrimaryProfessionOptions = computed(() => professionOptions.value.filter((item) => item.value !== form.professionSecondary))
+    const availableSecondaryProfessionOptions = computed(() => professionOptions.value.filter((item) => item.value !== form.professionPrimary))
+
+    const getDefaultFactionValue = () => {
+      const matched = factionOptions.value.find((item) => item.value === DEFAULT_FACTION_VALUE)
+      return matched?.value || factionOptions.value[0]?.value || DEFAULT_FACTION_VALUE
+    }
+
+    const getDefaultClassValue = () => classOptions.value.find((item) => item.isDefault)?.value || classOptions.value[0]?.value || ''
+
+    const normalizeFormSelections = () => {
+      form.className = normalizeSelectedValue(classOptions.value, form.className, getDefaultClassValue())
+      form.faction = normalizeSelectedValue(factionOptions.value, form.faction, getDefaultFactionValue())
+      form.raceName = normalizeSelectedValue(raceOptions.value, form.raceName, '')
+      form.specName = normalizeSelectedValue(specOptions.value, form.specName, '')
+      form.professionPrimary = normalizeSelectedValue(professionOptions.value, form.professionPrimary, '')
+      form.professionSecondary = normalizeSelectedValue(professionOptions.value, form.professionSecondary, '')
+      if (!formFactionOptions.value.some((item) => item.value === form.faction)) {
+        form.faction = formFactionOptions.value[0]?.value || getDefaultFactionValue()
+      }
+      if (form.raceName && !availableRaceOptions.value.some((item) => item.value === form.raceName)) {
+        form.raceName = ''
+      }
+      if (form.specName && !availableSpecOptions.value.some((item) => item.value === form.specName)) {
+        form.specName = ''
+      }
+      if (query.faction) {
+        query.faction = normalizeSelectedValue(factionOptions.value, query.faction, '')
+      }
+      if (query.className) {
+        query.className = normalizeSelectedValue(classOptions.value, query.className, '')
+      }
+    }
+
+    const loadDictionaryOptions = async () => {
+      try {
+        const [factionRes, classRes, raceRes, specRes, professionRes, mythicDungeonRes] = await Promise.all([
+          listDataDictionaryOptionsByUsage({
+            appCode: WOW_APP_CODE,
+            moduleCode: WOW_MODULE_CODE,
+            bizFieldCode: FACTION_FIELD_CODE
+          }),
+          listDataDictionaryOptionsByUsage({
+            appCode: WOW_APP_CODE,
+            moduleCode: WOW_MODULE_CODE,
+            bizFieldCode: CLASS_NAME_FIELD_CODE
+          }),
+          listDataDictionaryOptionsByUsage({
+            appCode: WOW_APP_CODE,
+            moduleCode: WOW_MODULE_CODE,
+            bizFieldCode: RACE_NAME_FIELD_CODE
+          }),
+          listDataDictionaryOptionsByUsage({
+            appCode: WOW_APP_CODE,
+            moduleCode: WOW_MODULE_CODE,
+            bizFieldCode: SPEC_NAME_FIELD_CODE
+          }),
+          listDataDictionaryOptionsByUsage({
+            appCode: WOW_APP_CODE,
+            moduleCode: WOW_MODULE_CODE,
+            bizFieldCode: PROFESSION_PRIMARY_FIELD_CODE
+          }),
+          listDataDictionaryOptionsByUsage({
+            appCode: WOW_APP_CODE,
+            moduleCode: WOW_MODULE_CODE,
+            bizFieldCode: MYTHIC_DUNGEON_FIELD_CODE
+          })
+        ])
+        factionOptions.value = normalizeDictionaryOptions(unwrapData(factionRes))
+        classOptions.value = normalizeDictionaryOptions(unwrapData(classRes))
+        raceOptions.value = normalizeDictionaryOptions(unwrapData(raceRes))
+        specOptions.value = normalizeDictionaryOptions(unwrapData(specRes))
+        professionOptions.value = normalizeDictionaryOptions(unwrapData(professionRes))
+        mythicDungeonOptions.value = normalizeDictionaryOptions(unwrapData(mythicDungeonRes))
+        normalizeFormSelections()
+      } catch (error) {
+        factionOptions.value = []
+        classOptions.value = []
+        raceOptions.value = []
+        specOptions.value = []
+        professionOptions.value = []
+        mythicDungeonOptions.value = []
+        alert(getErrorMessage(error, 'WoW角色字典选项加载失败'))
+      }
+    }
 
     const resetOverview = () => {
       overview.totalCharacters = 0
@@ -703,11 +857,11 @@ export default {
 
     const resetForm = () => {
       form.characterName = ''
-      form.className = CLASS_OPTIONS[0].value
+      form.className = getDefaultClassValue()
       form.specName = ''
       form.raceName = ''
       form.realmName = ''
-      form.faction = 'ALLIANCE'
+      form.faction = getDefaultFactionValue()
       form.level = 90
       form.itemLevel = 0
       form.mythicDungeonName = ''
@@ -720,19 +874,20 @@ export default {
 
     const fillForm = (record) => {
       form.characterName = record.characterName || ''
-      form.className = record.className || CLASS_OPTIONS[0].value
-      form.specName = record.specName || ''
-      form.raceName = record.raceName || ''
+      form.className = normalizeSelectedValue(classOptions.value, record.className, getDefaultClassValue())
+      form.specName = normalizeSelectedValue(specOptions.value, record.specName, '')
+      form.raceName = normalizeSelectedValue(raceOptions.value, record.raceName, '')
       form.realmName = record.realmName || ''
-      form.faction = record.faction || 'ALLIANCE'
+      form.faction = normalizeSelectedValue(factionOptions.value, record.faction, getDefaultFactionValue())
       form.level = Number(record.level || 90)
       form.itemLevel = Number(record.itemLevel || 0)
-      form.mythicDungeonName = record.mythicDungeonName || ''
+      form.mythicDungeonName = normalizeSelectedValue(mythicDungeonOptions.value, record.mythicDungeonName, '')
       form.mythicBestLevel = Number(record.mythicBestLevel || 0)
       form.mythicScore = Number(record.mythicScore || 0)
-      form.professionPrimary = record.professionPrimary || ''
-      form.professionSecondary = record.professionSecondary || ''
+      form.professionPrimary = normalizeSelectedValue(professionOptions.value, record.professionPrimary, '')
+      form.professionSecondary = normalizeSelectedValue(professionOptions.value, record.professionSecondary, '')
       form.note = record.note || ''
+      normalizeFormSelections()
     }
 
     const openCreateDialog = () => {
@@ -760,7 +915,7 @@ export default {
     const buildFormPayload = () => ({
       characterName: form.characterName,
       className: form.className,
-      specName: form.specName,
+      specName: form.specName || null,
       raceName: form.raceName,
       realmName: form.realmName,
       faction: form.faction,
@@ -771,22 +926,53 @@ export default {
       bestDungeonName: form.mythicDungeonName || null,
       mythicBestLevel: Number(form.mythicBestLevel || 0),
       mythicScore: Number(form.mythicScore || 0),
-      professionPrimary: form.professionPrimary,
-      professionSecondary: form.professionSecondary,
+      professionPrimary: form.professionPrimary || null,
+      professionSecondary: form.professionSecondary || null,
       note: form.note
     })
 
     const submitDialog = async () => {
+      const classOption = findOptionByAny(classOptions.value, form.className)
+      const raceOption = findOptionByAny(raceOptions.value, form.raceName)
+      const specOption = findOptionByAny(specOptions.value, form.specName)
+      if (!classOption) {
+        alert('职业字典未加载完成')
+        return
+      }
+      if (!specOption) {
+        alert('请选择专精')
+        return
+      }
+      if (!raceOption) {
+        alert('请选择种族')
+        return
+      }
+      if (!form.faction) {
+        alert('阵营字典未加载完成')
+        return
+      }
       if (!form.characterName) {
         alert('请输入角色名')
         return
       }
-      if (!form.raceName) {
-        alert('请输入种族')
-        return
-      }
       if (!form.realmName) {
         alert('请输入服务器')
+        return
+      }
+      if (!getAllowedRaceCodesByClassCode(classOption.itemCode).includes(raceOption.itemCode)) {
+        alert('当前职业不能选择这个种族')
+        return
+      }
+      if (!getAllowedSpecCodesByClassCode(classOption.itemCode).includes(specOption.itemCode)) {
+        alert('当前职业不能选择这个专精')
+        return
+      }
+      if (!getAllowedFactionsByRaceCode(raceOption.itemCode).includes(form.faction)) {
+        alert('当前种族不能选择这个阵营')
+        return
+      }
+      if (form.professionPrimary && form.professionPrimary === form.professionSecondary) {
+        alert('两个专业不能相同')
         return
       }
       if (form.mythicBestLevel > 0 && !form.mythicDungeonName) {
@@ -863,9 +1049,12 @@ export default {
       router.push('/home')
     }
 
-    const formatFactionText = (value) => factionOptions.find((item) => item.value === value)?.label || value || '-'
+    const formatFactionText = (value) => getOptionLabel(factionOptions.value, value, value || '-')
+    const formatSpecText = (value) => value ? getOptionLabel(specOptions.value, value, value) : ''
+    const formatRaceText = (value) => value ? getOptionLabel(raceOptions.value, value, value) : '-'
+    const formatProfessionValue = (value) => value ? getOptionLabel(professionOptions.value, value, value) : ''
     const formatMythicDungeonText = (item) => {
-      const dungeonName = item?.mythicDungeonName
+      const dungeonName = getOptionLabel(mythicDungeonOptions.value, item?.mythicDungeonName, item?.mythicDungeonName || '')
       const bestLevel = Number(item?.mythicBestLevel || 0)
       if (dungeonName && bestLevel > 0) {
         return `+${bestLevel} ${dungeonName}`
@@ -875,9 +1064,9 @@ export default {
       }
       return bestLevel > 0 ? `+${bestLevel}` : '-'
     }
-    const formatProfessionText = (item) => [item.professionPrimary, item.professionSecondary].filter(Boolean).join(' / ') || '-'
+    const formatProfessionText = (item) => [formatProfessionValue(item.professionPrimary), formatProfessionValue(item.professionSecondary)].filter(Boolean).join(' / ') || '-'
     const buildAvatarText = (name) => `${name || '角'}`.slice(0, 2)
-    const getClassMeta = (className) => getClassMetaByName(className)
+    const getClassMeta = (className) => getClassMetaByName(classMetaMap.value, className)
 
     const buildCardStyle = (item) => {
       const classMeta = getClassMeta(item.className)
@@ -919,8 +1108,83 @@ export default {
       }
     }
 
-    onMounted(() => {
-      loadPageData()
+    watch(() => form.className, () => {
+      const normalized = normalizeSelectedValue(classOptions.value, form.className, getDefaultClassValue())
+      if (normalized !== form.className) {
+        form.className = normalized
+        return
+      }
+      if (form.specName && !availableSpecOptions.value.some((item) => item.value === form.specName)) {
+        form.specName = ''
+      }
+      if (form.raceName && !availableRaceOptions.value.some((item) => item.value === form.raceName)) {
+        form.raceName = ''
+      }
+    })
+
+    watch(() => form.faction, () => {
+      const normalized = normalizeSelectedValue(factionOptions.value, form.faction, getDefaultFactionValue())
+      if (normalized !== form.faction) {
+        form.faction = normalized
+        return
+      }
+      if (!formFactionOptions.value.some((item) => item.value === form.faction)) {
+        form.faction = formFactionOptions.value[0]?.value || getDefaultFactionValue()
+        return
+      }
+      if (form.raceName && !availableRaceOptions.value.some((item) => item.value === form.raceName)) {
+        form.raceName = ''
+      }
+    })
+
+    watch(() => form.raceName, () => {
+      const normalized = normalizeSelectedValue(raceOptions.value, form.raceName, '')
+      if (normalized !== form.raceName) {
+        form.raceName = normalized
+        return
+      }
+      const raceOption = findOptionByAny(raceOptions.value, form.raceName)
+      if (!raceOption) {
+        return
+      }
+      const allowedFactions = getAllowedFactionsByRaceCode(raceOption.itemCode)
+      if (!allowedFactions.includes(form.faction)) {
+        form.faction = formFactionOptions.value[0]?.value || allowedFactions[0] || getDefaultFactionValue()
+      }
+    })
+
+    watch(() => form.specName, () => {
+      const normalized = normalizeSelectedValue(specOptions.value, form.specName, '')
+      if (normalized !== form.specName) {
+        form.specName = normalized
+      }
+    })
+
+    watch(() => form.professionPrimary, () => {
+      const normalized = normalizeSelectedValue(professionOptions.value, form.professionPrimary, '')
+      if (normalized !== form.professionPrimary) {
+        form.professionPrimary = normalized
+        return
+      }
+      if (form.professionPrimary && form.professionPrimary === form.professionSecondary) {
+        form.professionSecondary = ''
+      }
+    })
+
+    watch(() => form.professionSecondary, () => {
+      const normalized = normalizeSelectedValue(professionOptions.value, form.professionSecondary, '')
+      if (normalized !== form.professionSecondary) {
+        form.professionSecondary = normalized
+        return
+      }
+      if (form.professionSecondary && form.professionSecondary === form.professionPrimary) {
+        form.professionPrimary = ''
+      }
+    })
+
+    onMounted(async () => {
+      await loadDictionaryOptions()
+      await loadPageData()
     })
 
     return {
@@ -940,8 +1204,16 @@ export default {
       pageSizeOptions,
       factionOptions,
       classOptions,
+      raceOptions,
+      specOptions,
+      professionOptions,
       mythicDungeonOptions,
       classMetaMap,
+      formFactionOptions,
+      availableRaceOptions,
+      availableSpecOptions,
+      availablePrimaryProfessionOptions,
+      availableSecondaryProfessionOptions,
       totalPages,
       handleSearch,
       resetQuery,
@@ -956,6 +1228,8 @@ export default {
       loadOverview,
       goBack,
       formatFactionText,
+      formatSpecText,
+      formatRaceText,
       formatMythicDungeonText,
       formatProfessionText,
       buildAvatarText,
