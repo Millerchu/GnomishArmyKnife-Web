@@ -7,9 +7,9 @@
         <div class="top-right-wrap">
           <div class="welcome-wrap">
             <span class="welcome-label">欢迎，</span>
-            <button class="user-name-btn" @click="openUserDialog()">
+            <span class="user-name-text">
               {{ user.displayName || user.username || '用户' }}
-            </button>
+            </span>
           </div>
 
           <span class="current-date">{{ currentDateText }}</span>
@@ -37,21 +37,15 @@
               </div>
 
               <button
-                v-for="item in systemMenus"
+                v-for="item in visibleSystemMenus"
                 :key="item.key"
                 type="button"
                 class="system-dropdown-item"
+                :class="{ danger: item.key === 'logout' }"
                 @click="handleSystemMenuAction(item)"
               >
                 <span class="menu-icon">{{ item.shortName }}</span>
                 <span>{{ item.name }}</span>
-              </button>
-
-              <div class="system-menu-divider"></div>
-
-              <button type="button" class="system-dropdown-item danger" @click="handleLogoutAction">
-                <span class="menu-icon">退</span>
-                <span>退出登录</span>
               </button>
             </div>
           </div>
@@ -254,6 +248,7 @@ function normalizeCurrentUser(source = {}) {
     id: source.id ?? source.userId ?? source.uid ?? null,
     username: source.username || source.userName || '',
     displayName: source.displayName || source.nickname || source.nickName || source.name || '',
+    roleCode: `${source.roleCode || source.role || 'USER'}`.toUpperCase(),
     phone: source.phone || source.mobile || source.mobilePhone || source.telephone || '',
     email: source.email || source.emailAddress || source.mail || ''
   }
@@ -421,6 +416,7 @@ export default {
     let timer = null
 
     const currentDateText = computed(() => formatDateText(currentTime.value))
+    const currentUserRole = computed(() => `${normalizeCurrentUser(user.value || {}).roleCode || 'USER'}`.toUpperCase())
     const appPermissionStatusText = computed(() => {
       if (appPermissionLoading.value) {
         return '权限加载中'
@@ -444,12 +440,20 @@ export default {
     })
 
     const systemMenus = [
+      {key: 'profile', name: '个人中心', shortName: '我'},
       {key: 'user', name: '用户管理', shortName: '用'},
       {key: 'app', name: '应用管理', shortName: '应'},
       {key: 'permission', name: '权限管理', shortName: '权'},
       {key: 'dict', name: '数据字典', shortName: '字'},
-      {key: 'log', name: '系统日志', shortName: '志'}
+      {key: 'log', name: '系统日志', shortName: '志'},
+      {key: 'logout', name: '退出登录', shortName: '退'}
     ]
+    const visibleSystemMenus = computed(() => {
+      if (currentUserRole.value === 'ADMIN') {
+        return systemMenus
+      }
+      return systemMenus.filter((item) => ['profile', 'dict', 'logout'].includes(item.key))
+    })
 
     // 默认按使用频率排序；一旦用户拖拽过桌面，就优先采用自定义顺序。
     const tools = computed(() => {
@@ -566,11 +570,22 @@ export default {
       router.push('/login')
     }
 
+    const requestLogout = () => {
+      if (!window.confirm('确定要退出登录吗？')) {
+        return
+      }
+      logout()
+    }
+
     const goToStarInteractive = () => {
       router.push('/star-interactive')
     }
 
     const onSystemMenuClick = (menu) => {
+      if (menu.key === 'profile') {
+        openUserDialog()
+        return
+      }
       if (menu.key === 'user') {
         router.push('/system/users')
         return
@@ -587,6 +602,10 @@ export default {
         router.push('/system/dictionaries')
         return
       }
+      if (menu.key === 'logout') {
+        requestLogout()
+        return
+      }
       alert(`菜单【${menu.name}】待接入具体功能`)
     }
 
@@ -601,11 +620,6 @@ export default {
     const handleSystemMenuAction = (menu) => {
       closeSystemMenu()
       onSystemMenuClick(menu)
-    }
-
-    const handleLogoutAction = () => {
-      closeSystemMenu()
-      logout()
     }
 
     const handleDocumentClick = (event) => {
@@ -824,11 +838,13 @@ export default {
       showSystemMenu,
       systemMenuRef,
       currentDateText,
+      currentUserRole,
       appPermissionLoading,
       appPermissionStatusText,
       permissionHintText,
       getPresetIconSvg,
       systemMenus,
+      visibleSystemMenus,
       tools,
       usesImageIcon,
       draggingToolKey,
@@ -839,11 +855,11 @@ export default {
       profileForm,
       passwordForm,
       logout,
+      requestLogout,
       goToStarInteractive,
       onSystemMenuClick,
       toggleSystemMenu,
       handleSystemMenuAction,
-      handleLogoutAction,
       openTool,
       handleToolDragStart,
       handleToolDragEnter,
@@ -993,12 +1009,6 @@ export default {
   color: #fecaca;
 }
 
-.system-menu-divider {
-  height: 1px;
-  margin: 8px 0;
-  background: rgba(255, 255, 255, 0.12);
-}
-
 .star-back-btn {
   border: none;
   height: 34px;
@@ -1024,18 +1034,11 @@ export default {
   font-weight: 500;
 }
 
-.user-name-btn {
-  border: none;
+.user-name-text {
   padding: 4px 8px;
   border-radius: 8px;
-  color: #fff;
-  cursor: pointer;
   font-size: 14px;
   background: rgba(255, 255, 255, 0.18);
-}
-
-.user-name-btn:hover {
-  background: rgba(255, 255, 255, 0.28);
 }
 
 .current-date {
@@ -1388,7 +1391,7 @@ export default {
   }
 
   .current-date,
-  .user-name-btn {
+  .user-name-text {
     width: auto;
   }
 
