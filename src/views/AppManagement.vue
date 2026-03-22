@@ -54,6 +54,16 @@
             </option>
           </select>
         </label>
+
+        <label class="field">
+          <span>数据来源</span>
+          <select v-model="filters.dataSourceMode" class="input">
+            <option value="">全部来源</option>
+            <option v-for="item in APP_DATA_SOURCE_OPTIONS" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </option>
+          </select>
+        </label>
       </div>
 
       <div class="filter-actions">
@@ -79,6 +89,7 @@
         <div class="table-head">
           <span>应用</span>
           <span>编码 / 路由</span>
+          <span>数据来源</span>
           <span>密级 / 加密</span>
           <span>图标来源</span>
           <span>状态</span>
@@ -108,6 +119,11 @@
               <div class="cell route-cell">
                 <strong>{{ item.featureCode }}</strong>
                 <span>{{ item.route || '主页聚合应用' }}</span>
+              </div>
+
+              <div class="cell source-mode-cell">
+                <strong>{{ formatDataSourceMode(item.dataSourceMode) }}</strong>
+                <span>{{ item.dataSourceMode === 'REAL' ? '联调真实接口' : '展示演示数据' }}</span>
               </div>
 
               <div class="cell tag-cell">
@@ -197,6 +213,7 @@
             <p>{{ form.route || '主页聚合应用' }} · {{ form.category || '未分类' }}</p>
           </div>
           <div class="preview-tags">
+            <span class="tag">{{ formatDataSourceMode(form.dataSourceMode) }}</span>
             <span class="tag security">{{ formatSecurityLevel(form.securityLevel) }}</span>
             <span class="tag">{{ formatEncryptionMode(form.encryptionMode) }}</span>
           </div>
@@ -221,6 +238,15 @@
           <label class="field">
             <span>应用分类</span>
             <input v-model.trim="form.category" class="input" maxlength="32" placeholder="效率工具"/>
+          </label>
+
+          <label class="field">
+            <span>数据来源</span>
+            <select v-model="form.dataSourceMode" class="input">
+              <option v-for="item in APP_DATA_SOURCE_OPTIONS" :key="item.value" :value="item.value">
+                {{ item.label }}
+              </option>
+            </select>
           </label>
 
           <label class="field">
@@ -344,6 +370,7 @@ import {
 } from '@/api/appManagement'
 import {APP_PRESET_ICONS, getPresetIconSvg} from '@/constants/appIconLibrary'
 import {
+  APP_DATA_SOURCE_OPTIONS,
   APP_ENCRYPTION_MODE_OPTIONS,
   APP_ICON_TYPE_OPTIONS,
   APP_SECURITY_LEVEL_OPTIONS,
@@ -396,6 +423,7 @@ function createEmptyForm() {
     featureCode: '',
     route: '',
     category: '',
+    dataSourceMode: 'REAL',
     securityLevel: 'INTERNAL',
     encryptionMode: 'NONE',
     iconType: 'PRESET',
@@ -431,6 +459,8 @@ function normalizeFormPayload(form) {
     name: `${form.name || ''}`.trim(),
     route: `${form.route || ''}`.trim(),
     category: `${form.category || ''}`.trim(),
+    dataSourceMode: form.dataSourceMode,
+    dataSourceType: form.dataSourceMode,
     securityLevel: form.securityLevel,
     encryptionMode: form.encryptionMode,
     iconType,
@@ -468,7 +498,8 @@ export default {
     const filters = reactive({
       keyword: '',
       status: '',
-      securityLevel: ''
+      securityLevel: '',
+      dataSourceMode: ''
     })
 
     const pagination = reactive({
@@ -487,6 +518,10 @@ export default {
 
     const formatSecurityLevel = (value) => {
       return APP_SECURITY_LEVEL_OPTIONS.find((item) => item.value === value)?.label || value || '-'
+    }
+
+    const formatDataSourceMode = (value) => {
+      return APP_DATA_SOURCE_OPTIONS.find((item) => item.value === value)?.label || value || '-'
     }
 
     const formatEncryptionMode = (value) => {
@@ -524,6 +559,7 @@ export default {
       form.featureCode = normalized.featureCode || ''
       form.route = normalized.route || ''
       form.category = normalized.category || ''
+      form.dataSourceMode = normalized.dataSourceMode || 'REAL'
       form.securityLevel = normalized.securityLevel || 'INTERNAL'
       form.encryptionMode = normalized.encryptionMode || 'NONE'
       form.iconType = normalized.iconType || 'PRESET'
@@ -559,6 +595,9 @@ export default {
         if (filters.securityLevel && item.securityLevel !== filters.securityLevel) {
           return false
         }
+        if (filters.dataSourceMode && item.dataSourceMode !== filters.dataSourceMode) {
+          return false
+        }
         return true
       })
     }
@@ -578,6 +617,9 @@ export default {
         }
         if (filters.securityLevel) {
           params.securityLevel = filters.securityLevel
+        }
+        if (filters.dataSourceMode) {
+          params.dataSourceMode = filters.dataSourceMode
         }
 
         try {
@@ -811,6 +853,7 @@ export default {
       filters.keyword = ''
       filters.status = ''
       filters.securityLevel = ''
+      filters.dataSourceMode = ''
       pagination.pageNo = 1
       loadApps()
     }
@@ -842,6 +885,7 @@ export default {
     })
 
     return {
+      APP_DATA_SOURCE_OPTIONS,
       APP_ENCRYPTION_MODE_OPTIONS,
       APP_ICON_TYPE_OPTIONS,
       APP_PRESET_ICONS,
@@ -866,6 +910,7 @@ export default {
       usesImageIcon,
       previewClassName,
       formatSecurityLevel,
+      formatDataSourceMode,
       formatEncryptionMode,
       formatIconType,
       formatIconSummary,
@@ -1028,7 +1073,10 @@ export default {
   gap: 14px;
 }
 
-.filter-grid,
+.filter-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .editor-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1124,7 +1172,7 @@ export default {
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) minmax(180px, 1.5fr) minmax(180px, 1.2fr) minmax(160px, 1.2fr) minmax(150px, 1fr) minmax(160px, 1fr);
+  grid-template-columns: minmax(220px, 2fr) minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(180px, 1.2fr) minmax(160px, 1.2fr) minmax(150px, 1fr) minmax(160px, 1fr);
   gap: 14px;
   padding: 14px 16px;
   align-items: center;
@@ -1147,6 +1195,7 @@ export default {
 
 .app-cell,
 .route-cell,
+.source-mode-cell,
 .source-cell,
 .status-cell {
   display: flex;

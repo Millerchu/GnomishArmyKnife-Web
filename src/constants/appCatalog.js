@@ -22,6 +22,11 @@ export const APP_STATUS_OPTIONS = [
   {value: 'DISABLED', label: '停用'}
 ]
 
+export const APP_DATA_SOURCE_OPTIONS = [
+  {value: 'REAL', label: '真实数据'},
+  {value: 'DEMO', label: '演示数据'}
+]
+
 export const USER_APP_DEFINITIONS = [
   {
     key: 'calculator',
@@ -29,6 +34,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_CALCULATOR',
     route: '/calculator',
     category: '效率工具',
+    dataSourceMode: 'REAL',
     securityLevel: 'PUBLIC',
     encryptionMode: 'NONE',
     description: '日常数值计算与公式换算。'
@@ -39,6 +45,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_WORK_LOG',
     route: '/work-log',
     category: '办公协同',
+    dataSourceMode: 'REAL',
     securityLevel: 'INTERNAL',
     encryptionMode: 'FIELD',
     description: '记录工作日报、项目投入与工时信息。'
@@ -49,6 +56,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_PASSWORD_MEMO',
     route: '/password-memo',
     category: '安全工具',
+    dataSourceMode: 'REAL',
     securityLevel: 'CONFIDENTIAL',
     encryptionMode: 'END_TO_END',
     description: '管理账号密码、校验访问口令并控制明文查看。'
@@ -59,6 +67,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_TODO_LIST',
     route: '/todo-list',
     category: '效率工具',
+    dataSourceMode: 'REAL',
     securityLevel: 'INTERNAL',
     encryptionMode: 'NONE',
     description: '安排任务清单、提醒与子任务进度。'
@@ -69,6 +78,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_FUEL_STATS',
     route: '/fuel-stats',
     category: '个人生活',
+    dataSourceMode: 'REAL',
     securityLevel: 'PUBLIC',
     encryptionMode: 'NONE',
     description: '追踪车辆油耗、里程与加油成本。'
@@ -79,6 +89,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_WOW_CHARACTER',
     route: '/wow-character-stats',
     category: '个人兴趣',
+    dataSourceMode: 'REAL',
     securityLevel: 'PUBLIC',
     encryptionMode: 'NONE',
     description: '维护角色信息、评分与副本表现。'
@@ -89,6 +100,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_PERSONAL_BILLS',
     route: '/personal-bills',
     category: '财务管理',
+    dataSourceMode: 'REAL',
     securityLevel: 'CONFIDENTIAL',
     encryptionMode: 'FIELD',
     description: '查看收入支出、预算和资金分布。'
@@ -99,6 +111,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_KNOWLEDGE_BASE',
     route: '/knowledge-base',
     category: '知识沉淀',
+    dataSourceMode: 'REAL',
     securityLevel: 'INTERNAL',
     encryptionMode: 'NONE',
     description: '沉淀经验文档、流程规范和可复用方案。'
@@ -109,6 +122,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_SOFTWARE_REPO',
     route: '/software-repo',
     category: '资产管理',
+    dataSourceMode: 'REAL',
     securityLevel: 'INTERNAL',
     encryptionMode: 'NONE',
     description: '管理软件资产、来源与版本信息。'
@@ -119,6 +133,7 @@ export const USER_APP_DEFINITIONS = [
     featureCode: 'APP_HEALTH_RECORD',
     route: '/health',
     category: '个人生活',
+    dataSourceMode: 'REAL',
     securityLevel: 'CONFIDENTIAL',
     encryptionMode: 'FIELD',
     description: '记录体征、指标和健康趋势。'
@@ -130,7 +145,7 @@ export const RESERVED_SYSTEM_CAPABILITIES = [
     key: 'app-management',
     name: '应用管理',
     status: '前端已接入',
-    description: '当前可维护应用名称、图标、密级、加密方式、排序与上下线状态。'
+    description: '当前可维护应用名称、图标、数据来源、密级、加密方式、排序与上下线状态。'
   },
   {
     key: 'permission-log',

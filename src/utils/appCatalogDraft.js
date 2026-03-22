@@ -28,6 +28,7 @@ export function normalizeSystemApp(source = {}, index = 0) {
     featureCode,
     route,
     category,
+    dataSourceMode: `${source.dataSourceMode || source.dataSourceType || source.sourceMode || 'REAL'}`.trim().toUpperCase(),
     securityLevel: source.securityLevel || source.appSecurityLevel || 'INTERNAL',
     encryptionMode: source.encryptionMode || source.encryptMode || 'NONE',
     iconType: resolvedIconType,
