@@ -14,7 +14,6 @@
       </div>
       <div class="hero-tags">
         <span class="hero-tag">共 {{ pagination.total }} 条</span>
-        <span v-if="usingMockData" class="hero-tag">本地演示数据</span>
       </div>
     </div>
 
@@ -59,7 +58,6 @@
         </div>
         <div class="toolbar-right">
           <span>共 {{ pagination.total }} 条</span>
-          <span v-if="usingMockData" class="mock-tip">当前为演示数据（后端未联通）</span>
         </div>
       </div>
 
@@ -426,69 +424,11 @@ import {
   updateDataDictionaryStatus
 } from '@/api/dataDictionary'
 
-// 主列表演示数据，保证字典页和字典项维护页都能独立预览。
-const MOCK_DICTIONARIES = [
-  {
-    id: 1,
-    dictCode: 'WORK_LOG_PROJECT',
-    dictName: '工作日志项目',
-    status: 'ENABLED',
-    creatorName: '系统管理员',
-    referenceApps: ['工作日志'],
-    createTime: '2026-03-01 10:12:00',
-    itemCount: 3,
-    description: '工作日志项目预设'
-  },
-  {
-    id: 2,
-    dictCode: 'USER_ROLE_TYPE',
-    dictName: '用户类型',
-    status: 'ENABLED',
-    creatorName: '系统管理员',
-    referenceApps: ['用户管理'],
-    createTime: '2026-03-03 13:22:00',
-    itemCount: 3,
-    description: '用户角色与类型预设'
-  },
-  {
-    id: 3,
-    dictCode: 'WORK_LOG_TYPE',
-    dictName: '工作日志类型',
-    status: 'ENABLED',
-    creatorName: '系统管理员',
-    referenceApps: ['工作日志'],
-    createTime: '2026-03-05 09:38:00',
-    itemCount: 4,
-    description: '工作类型枚举'
-  }
-]
-
-// 字典项按字典主键分组，模拟后端主从结构返回。
-const MOCK_DICTIONARY_ITEMS = {
-  1: [
-    {id: 101, itemCode: 'backend', itemLabel: '后端项目', itemValue: 'BACKEND', sort: 1, status: 'ENABLED', isDefault: true, description: '默认项目类型'},
-    {id: 102, itemCode: 'frontend', itemLabel: '前端项目', itemValue: 'FRONTEND', sort: 2, status: 'ENABLED', isDefault: false, description: 'Web 前端相关'},
-    {id: 103, itemCode: 'mobile', itemLabel: '移动端项目', itemValue: 'MOBILE', sort: 3, status: 'DISABLED', isDefault: false, description: '移动端预设'}
-  ],
-  2: [
-    {id: 201, itemCode: 'admin', itemLabel: '系统管理员', itemValue: 'ADMIN', sort: 1, status: 'ENABLED', isDefault: false, description: '最高权限'},
-    {id: 202, itemCode: 'dev', itemLabel: '开发人员', itemValue: 'DEV', sort: 2, status: 'ENABLED', isDefault: false, description: '研发账户'},
-    {id: 203, itemCode: 'user', itemLabel: '普通用户', itemValue: 'USER', sort: 3, status: 'ENABLED', isDefault: true, description: '默认注册角色'}
-  ],
-  3: [
-    {id: 301, itemCode: 'develop', itemLabel: '开发', itemValue: 'DEVELOP', sort: 1, status: 'ENABLED', isDefault: true, description: '默认工作类型'},
-    {id: 302, itemCode: 'test', itemLabel: '测试', itemValue: 'TEST', sort: 2, status: 'ENABLED', isDefault: false, description: '测试类工作'},
-    {id: 303, itemCode: 'meeting', itemLabel: '会议', itemValue: 'MEETING', sort: 3, status: 'ENABLED', isDefault: false, description: '会议沟通'},
-    {id: 304, itemCode: 'support', itemLabel: '支持', itemValue: 'SUPPORT', sort: 4, status: 'DISABLED', isDefault: false, description: '支持响应'}
-  ]
-}
-
 function extractErrorMessage(error, fallback) {
   const data = error?.response?.data || {}
   return data.message || data.msg || fallback
 }
 
-// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -497,7 +437,6 @@ function unwrapData(res) {
   return payload
 }
 
-// 主列表和字典项列表都复用这套分页解析，降低联调时的适配成本。
 function parseListPayload(payload) {
   if (Array.isArray(payload)) {
     return {
@@ -559,7 +498,6 @@ function normalizeReferenceApps(value) {
   return []
 }
 
-// 字典主表字段做统一归一，模板里不直接感知后端字段差异。
 function normalizeDictionary(item) {
   const source = item || {}
   return {
@@ -575,7 +513,6 @@ function normalizeDictionary(item) {
   }
 }
 
-// 字典项的默认值、状态和排序字段在这里统一处理。
 function normalizeDictionaryItem(item) {
   const source = item || {}
   return {
@@ -590,44 +527,30 @@ function normalizeDictionaryItem(item) {
   }
 }
 
-function formatDateTime() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = `${now.getMonth() + 1}`.padStart(2, '0')
-  const day = `${now.getDate()}`.padStart(2, '0')
-  const hour = `${now.getHours()}`.padStart(2, '0')
-  const minute = `${now.getMinutes()}`.padStart(2, '0')
-  const second = `${now.getSeconds()}`.padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}:${second}`
-}
-
-function cloneMockItemsMap(source) {
-  return Object.keys(source).reduce((acc, key) => {
-    acc[key] = source[key].map((item) => ({...item}))
-    return acc
-  }, {})
+function extractEntityId(payload, candidates = ['id']) {
+  if (!payload || typeof payload !== 'object') {
+    return null
+  }
+  for (const key of candidates) {
+    if (payload[key] !== undefined && payload[key] !== null) {
+      return payload[key]
+    }
+  }
+  return null
 }
 
 export default {
   name: 'DataDictionary',
   setup() {
     const router = useRouter()
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
-    const creatorName = currentUser.displayName || currentUser.username || '当前用户'
 
-    // 页面是“字典主列表 + 下方字典项维护”的联动结构，状态集中在 setup 顶部维护。
     const loading = ref(false)
     const itemsLoading = ref(false)
     const submitting = ref(false)
-    const usingMockData = ref(false)
-    const mockAlertShown = ref(false)
 
     const dictionaries = ref([])
     const dictionaryItems = ref([])
     const selectedDictionaryId = ref(null)
-
-    const mockDictionaries = ref(MOCK_DICTIONARIES.map((item) => ({...item})))
-    const mockDictionaryItems = ref(cloneMockItemsMap(MOCK_DICTIONARY_ITEMS))
 
     const filters = reactive({
       keyword: '',
@@ -676,9 +599,6 @@ export default {
 
     const referenceAppOptions = computed(() => {
       const set = new Set()
-      mockDictionaries.value.forEach((item) => {
-        item.referenceApps.forEach((app) => set.add(app))
-      })
       dictionaries.value.forEach((item) => {
         item.referenceApps.forEach((app) => set.add(app))
       })
@@ -689,78 +609,9 @@ export default {
       return apps && apps.length ? apps.join('、') : '-'
     }
 
-    const syncMockItemCount = (dictionaryId) => {
-      const items = mockDictionaryItems.value[dictionaryId] || []
-      const target = mockDictionaries.value.find((item) => item.id === dictionaryId)
-      if (target) {
-        target.itemCount = items.length
-      }
-    }
-
-    const applyMockDictionaries = () => {
-      const keyword = filters.keyword.trim().toLowerCase()
-      const filtered = mockDictionaries.value.filter((item) => {
-        if (filters.status && item.status !== filters.status) {
-          return false
-        }
-        if (filters.referenceApp && !item.referenceApps.includes(filters.referenceApp)) {
-          return false
-        }
-        if (!keyword) {
-          return true
-        }
-        const text = [item.dictCode, item.dictName, item.referenceApps.join('|')].join('|').toLowerCase()
-        return text.includes(keyword)
-      })
-
-      pagination.total = filtered.length
-      const maxPage = Math.max(Math.ceil(filtered.length / pagination.pageSize), 1)
-      if (pagination.pageNo > maxPage) {
-        pagination.pageNo = maxPage
-      }
-      const start = (pagination.pageNo - 1) * pagination.pageSize
-      const end = start + pagination.pageSize
-      dictionaries.value = filtered.slice(start, end).map((item) => ({...item}))
-
-      if (!dictionaries.value.length) {
-        selectedDictionaryId.value = null
-        dictionaryItems.value = []
-        return
-      }
-
-      const exists = dictionaries.value.some((item) => item.id === selectedDictionaryId.value)
-      selectedDictionaryId.value = exists ? selectedDictionaryId.value : dictionaries.value[0].id
-      applyMockDictionaryItems()
-    }
-
-    const applyMockDictionaryItems = () => {
-      if (!selectedDictionaryId.value) {
-        dictionaryItems.value = []
-        return
-      }
-      const items = mockDictionaryItems.value[selectedDictionaryId.value] || []
-      dictionaryItems.value = items
-        .map((item) => ({...item}))
-        .sort((a, b) => a.sort - b.sort)
-    }
-
-    const switchToMockMode = () => {
-      usingMockData.value = true
-      applyMockDictionaries()
-      if (!mockAlertShown.value) {
-        mockAlertShown.value = true
-        alert('数据字典接口未联通，已回退为演示数据模式')
-      }
-    }
-
     const fetchDictionaryItems = async () => {
       if (!selectedDictionaryId.value) {
         dictionaryItems.value = []
-        return
-      }
-
-      if (usingMockData.value) {
-        applyMockDictionaryItems()
         return
       }
 
@@ -769,10 +620,13 @@ export default {
         const res = await listDataDictionaryItems(selectedDictionaryId.value)
         const payload = unwrapData(res)
         const {list} = parseListPayload(payload)
-        dictionaryItems.value = list.map((item) => normalizeDictionaryItem(item)).sort((a, b) => a.sort - b.sort)
+        dictionaryItems.value = list
+          .map((item) => normalizeDictionaryItem(item))
+          .sort((a, b) => a.sort - b.sort)
       } catch (error) {
         console.error(error)
-        switchToMockMode()
+        dictionaryItems.value = []
+        alert(extractErrorMessage(error, '加载字典项失败，请稍后重试'))
       } finally {
         itemsLoading.value = false
       }
@@ -781,11 +635,6 @@ export default {
     const fetchDictionaries = async () => {
       loading.value = true
       try {
-        if (usingMockData.value) {
-          applyMockDictionaries()
-          return
-        }
-
         const params = {
           pageNo: pagination.pageNo,
           pageSize: pagination.pageSize
@@ -803,7 +652,9 @@ export default {
         const res = await listDataDictionaries(params)
         const payload = unwrapData(res)
         const {list, total} = parseListPayload(payload)
-        dictionaries.value = list.map((item) => normalizeDictionary(item)).filter((item) => item.id !== null && item.id !== undefined)
+        dictionaries.value = list
+          .map((item) => normalizeDictionary(item))
+          .filter((item) => item.id !== null && item.id !== undefined)
         pagination.total = total
 
         if (!dictionaries.value.length) {
@@ -817,7 +668,11 @@ export default {
         await fetchDictionaryItems()
       } catch (error) {
         console.error(error)
-        switchToMockMode()
+        dictionaries.value = []
+        dictionaryItems.value = []
+        selectedDictionaryId.value = null
+        pagination.total = 0
+        alert(extractErrorMessage(error, '加载数据字典失败，请稍后重试'))
       } finally {
         loading.value = false
       }
@@ -915,35 +770,21 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          if (dictionaryDialogMode.value === 'create') {
-            const maxId = mockDictionaries.value.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0)
-            const nextId = maxId + 1
-            mockDictionaries.value.unshift({
-              id: nextId,
-              ...payload,
-              creatorName,
-              createTime: formatDateTime(),
-              itemCount: 0
-            })
-            mockDictionaryItems.value[nextId] = []
-            selectedDictionaryId.value = nextId
-            pagination.pageNo = 1
-          } else {
-            const index = mockDictionaries.value.findIndex((item) => item.id === dictionaryForm.id)
-            if (index >= 0) {
-              mockDictionaries.value[index] = {
-                ...mockDictionaries.value[index],
-                ...payload
-              }
-            }
+        let nextSelectedId = selectedDictionaryId.value
+
+        if (dictionaryDialogMode.value === 'create') {
+          const res = await createDataDictionary(payload)
+          const createdId = extractEntityId(unwrapData(res), ['id', 'dictionaryId', 'dictId'])
+          if (createdId !== null) {
+            nextSelectedId = createdId
           }
-        } else if (dictionaryDialogMode.value === 'create') {
-          await createDataDictionary(payload)
+          pagination.pageNo = 1
         } else {
           await updateDataDictionary(dictionaryForm.id, payload)
+          nextSelectedId = dictionaryForm.id
         }
 
+        selectedDictionaryId.value = nextSelectedId
         showDictionaryDialog.value = false
         await fetchDictionaries()
         alert(dictionaryDialogMode.value === 'create' ? '数据字典新增成功' : '数据字典更新成功')
@@ -960,20 +801,10 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          const index = mockDictionaries.value.findIndex((dict) => dict.id === item.id)
-          if (index >= 0) {
-            mockDictionaries.value[index] = {
-              ...mockDictionaries.value[index],
-              status: nextStatus
-            }
-          }
-        } else {
-          await updateDataDictionaryStatus(item.id, {
-            status: nextStatus,
-            enabled: nextStatus === 'ENABLED'
-          })
-        }
+        await updateDataDictionaryStatus(item.id, {
+          status: nextStatus,
+          enabled: nextStatus === 'ENABLED'
+        })
         await fetchDictionaries()
       } catch (error) {
         console.error(error)
@@ -991,14 +822,9 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          mockDictionaries.value = mockDictionaries.value.filter((dict) => dict.id !== item.id)
-          delete mockDictionaryItems.value[item.id]
-          if (selectedDictionaryId.value === item.id) {
-            selectedDictionaryId.value = null
-          }
-        } else {
-          await deleteDataDictionary(item.id)
+        await deleteDataDictionary(item.id)
+        if (selectedDictionaryId.value === item.id) {
+          selectedDictionaryId.value = null
         }
         await fetchDictionaries()
         alert('删除成功')
@@ -1049,17 +875,6 @@ export default {
       showItemDialog.value = false
     }
 
-    const applyMockDefaultFlag = (dictionaryId, itemId) => {
-      if (!itemForm.isDefault) {
-        return
-      }
-      const list = mockDictionaryItems.value[dictionaryId] || []
-      mockDictionaryItems.value[dictionaryId] = list.map((item) => ({
-        ...item,
-        isDefault: item.id === itemId
-      }))
-    }
-
     const submitItemDialog = async () => {
       if (!selectedDictionary.value) {
         alert('请先选择字典')
@@ -1083,29 +898,7 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          const dictId = selectedDictionary.value.id
-          const currentList = mockDictionaryItems.value[dictId] || []
-          if (itemDialogMode.value === 'create') {
-            const maxId = Object.values(mockDictionaryItems.value)
-              .flat()
-              .reduce((max, item) => Math.max(max, Number(item.id) || 0), 0)
-            const nextId = maxId + 1
-            mockDictionaryItems.value[dictId] = currentList.concat({
-              id: nextId,
-              ...payload
-            })
-            applyMockDefaultFlag(dictId, nextId)
-          } else {
-            mockDictionaryItems.value[dictId] = currentList.map((item) => (
-              item.id === itemForm.id
-                ? {...item, ...payload}
-                : {...item}
-            ))
-            applyMockDefaultFlag(dictId, itemForm.id)
-          }
-          syncMockItemCount(dictId)
-        } else if (itemDialogMode.value === 'create') {
+        if (itemDialogMode.value === 'create') {
           await createDataDictionaryItem(selectedDictionary.value.id, payload)
         } else {
           await updateDataDictionaryItem(selectedDictionary.value.id, itemForm.id, payload)
@@ -1113,7 +906,6 @@ export default {
 
         showItemDialog.value = false
         await fetchDictionaries()
-        await fetchDictionaryItems()
         alert(itemDialogMode.value === 'create' ? '字典项新增成功' : '字典项更新成功')
       } catch (error) {
         console.error(error)
@@ -1131,18 +923,10 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          mockDictionaryItems.value[selectedDictionary.value.id] = (mockDictionaryItems.value[selectedDictionary.value.id] || []).map((current) => (
-            current.id === item.id
-              ? {...current, status: nextStatus}
-              : {...current}
-          ))
-        } else {
-          await updateDataDictionaryItemStatus(selectedDictionary.value.id, item.id, {
-            status: nextStatus,
-            enabled: nextStatus === 'ENABLED'
-          })
-        }
+        await updateDataDictionaryItemStatus(selectedDictionary.value.id, item.id, {
+          status: nextStatus,
+          enabled: nextStatus === 'ENABLED'
+        })
         await fetchDictionaryItems()
       } catch (error) {
         console.error(error)
@@ -1163,15 +947,8 @@ export default {
 
       submitting.value = true
       try {
-        if (usingMockData.value) {
-          const dictId = selectedDictionary.value.id
-          mockDictionaryItems.value[dictId] = (mockDictionaryItems.value[dictId] || []).filter((current) => current.id !== item.id)
-          syncMockItemCount(dictId)
-        } else {
-          await deleteDataDictionaryItem(selectedDictionary.value.id, item.id)
-        }
+        await deleteDataDictionaryItem(selectedDictionary.value.id, item.id)
         await fetchDictionaries()
-        await fetchDictionaryItems()
         alert('删除成功')
       } catch (error) {
         console.error(error)
@@ -1189,7 +966,6 @@ export default {
       loading,
       itemsLoading,
       submitting,
-      usingMockData,
       dictionaries,
       dictionaryItems,
       selectedDictionaryId,
@@ -1415,13 +1191,6 @@ export default {
   margin: 6px 0 0;
   color: rgba(255, 255, 255, 0.76);
   font-size: 13px;
-}
-
-.mock-tip {
-  padding: 4px 8px;
-  border-radius: 999px;
-  color: #ffecb3;
-  background: rgba(255, 184, 0, 0.18);
 }
 
 .table-wrap {
