@@ -113,7 +113,7 @@
           </div>
         </div>
 
-        <div v-if="loading" class="empty-state">加载中...</div>
+        <div v-if="loading && !pagedRecords.length" class="empty-state">加载中...</div>
         <template v-else>
           <div v-if="pagedRecords.length" class="table-wrap desktop-table">
             <table class="record-table">

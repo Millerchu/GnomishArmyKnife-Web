@@ -107,7 +107,7 @@
           </tr>
           </thead>
           <tbody>
-          <tr v-if="loading">
+          <tr v-if="loading && !users.length">
             <td colspan="10" class="empty-cell">加载中...</td>
           </tr>
           <tr v-else-if="!users.length">
@@ -148,7 +148,7 @@
       </div>
 
       <div class="mobile-user-list">
-        <div v-if="loading" class="mobile-empty">加载中...</div>
+        <div v-if="loading && !users.length" class="mobile-empty">加载中...</div>
         <div v-else-if="!users.length" class="mobile-empty">暂无用户数据</div>
         <article v-for="item in users" v-else :key="item.id" class="mobile-user-card">
           <div class="mobile-card-head">

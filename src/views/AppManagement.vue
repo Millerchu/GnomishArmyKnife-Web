@@ -96,7 +96,7 @@
           <span>操作</span>
         </div>
 
-        <div v-if="loading" class="empty-state">加载中...</div>
+        <div v-if="loading && !apps.length" class="empty-state">加载中...</div>
         <template v-else>
           <div v-if="apps.length" class="table-body">
             <article v-for="item in apps" :key="item.id" class="table-row">

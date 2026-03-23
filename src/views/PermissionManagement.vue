@@ -70,7 +70,7 @@
           </div>
         </div>
 
-        <div v-if="userLoading" class="empty-state">加载中...</div>
+        <div v-if="userLoading && !users.length" class="empty-state">加载中...</div>
         <template v-else>
           <div v-if="users.length" class="user-list">
             <button

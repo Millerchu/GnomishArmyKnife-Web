@@ -75,7 +75,7 @@
           </div>
         </div>
 
-        <div v-if="loading" class="empty-state">加载中...</div>
+        <div v-if="loading && !pagedPackages.length" class="empty-state">加载中...</div>
         <div v-else-if="!pagedPackages.length" class="empty-state">当前条件下暂无软件记录</div>
 
         <div v-else class="software-list">

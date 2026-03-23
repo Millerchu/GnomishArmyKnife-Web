@@ -76,7 +76,7 @@
           </tr>
           </thead>
           <tbody>
-          <tr v-if="loading">
+          <tr v-if="loading && !dictionaries.length">
             <td colspan="8" class="empty-cell">加载中...</td>
           </tr>
           <tr v-else-if="!dictionaries.length">
@@ -114,7 +114,7 @@
       </div>
 
       <div class="mobile-dict-list">
-        <div v-if="loading" class="mobile-empty">加载中...</div>
+        <div v-if="loading && !dictionaries.length" class="mobile-empty">加载中...</div>
         <div v-else-if="!dictionaries.length" class="mobile-empty">暂无字典数据</div>
         <article
           v-for="item in dictionaries"
@@ -206,7 +206,7 @@
           </tr>
           </thead>
           <tbody>
-          <tr v-if="itemsLoading">
+          <tr v-if="itemsLoading && !dictionaryItems.length">
             <td colspan="8" class="empty-cell">加载中...</td>
           </tr>
           <tr v-else-if="!dictionaryItems.length">
@@ -237,7 +237,7 @@
       </div>
 
       <div v-if="selectedDictionary" class="mobile-item-list">
-        <div v-if="itemsLoading" class="mobile-empty">加载中...</div>
+        <div v-if="itemsLoading && !dictionaryItems.length" class="mobile-empty">加载中...</div>
         <div v-else-if="!dictionaryItems.length" class="mobile-empty">该字典暂无字典项</div>
         <article v-for="item in dictionaryItems" v-else :key="item.id" class="mobile-dict-card">
           <div class="mobile-card-head">

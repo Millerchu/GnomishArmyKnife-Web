@@ -98,7 +98,7 @@
           </div>
         </div>
 
-        <div v-if="loading" class="empty-state">加载中...</div>
+        <div v-if="loading && !pagedTasks.length" class="empty-state">加载中...</div>
         <div v-else-if="!pagedTasks.length" class="empty-state">当前条件下暂无任务</div>
         <template v-else>
           <div class="task-list desktop-task-list">
