@@ -387,6 +387,22 @@ function getWeekOffsetByDate(logDate) {
   return Math.round(diffTime / (7 * 24 * 60 * 60 * 1000))
 }
 
+function toSafeIdText(value) {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  return String(value).trim()
+}
+
+function resolveLegacyRoundedUserId(userId) {
+  const normalized = toSafeIdText(userId)
+  if (!/^\d+$/.test(normalized)) {
+    return ''
+  }
+  const rounded = String(Number(normalized))
+  return rounded && rounded !== normalized ? rounded : ''
+}
+
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -544,7 +560,8 @@ export default {
   setup() {
     const router = useRouter()
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
-    const currentUserId = currentUser.id || currentUser.userId || currentUser.userid || ''
+    const currentUserId = toSafeIdText(currentUser.id || currentUser.userId || currentUser.userid || '')
+    const legacyRoundedUserId = resolveLegacyRoundedUserId(currentUserId)
 
     const loading = ref(false)
     const submitting = ref(false)
@@ -748,6 +765,25 @@ export default {
       return `${formatDecimal(value, 2)} h`
     }
 
+    function mergeLogsByDate(logGroups = []) {
+      const mergedMap = new Map()
+      logGroups.flat().forEach((item) => {
+        if (!item?.logDate) {
+          return
+        }
+        if (!mergedMap.has(item.logDate) || toSafeIdText(item.userId) === currentUserId) {
+          mergedMap.set(item.logDate, item)
+        }
+      })
+      return Array.from(mergedMap.values())
+    }
+
+    async function requestLogsWithCompatibleUserIds(loader) {
+      const userIds = Array.from(new Set([currentUserId, legacyRoundedUserId].filter(Boolean)))
+      const responses = await Promise.all(userIds.map((userId) => loader(userId)))
+      return mergeLogsByDate(responses)
+    }
+
     function getDefaultOptionValue(options) {
       return options.find((item) => item.isDefault)?.value || options[0]?.value || ''
     }
@@ -808,13 +844,16 @@ export default {
       }
       loading.value = true
       try {
-        const res = await getWeeklyBrief({
-          userId: currentUserId,
-          refDate: weekDays.value[0].date
+        const list = await requestLogsWithCompatibleUserIds(async (userId) => {
+          const res = await getWeeklyBrief({
+            userId,
+            refDate: weekDays.value[0].date
+          })
+          const data = unwrapData(res)
+          const rawList = Array.isArray(data) ? data : []
+          return rawList.map(normalizeLog)
         })
-        const data = unwrapData(res)
-        const list = Array.isArray(data) ? data : []
-        weeklyLogs.value = list.map(normalizeLog)
+        weeklyLogs.value = list.sort((prev, next) => parseDate(prev.logDate) - parseDate(next.logDate))
       } catch (error) {
         console.error(error)
         alert('加载当周日志失败，请检查后端服务')
@@ -828,14 +867,16 @@ export default {
         return []
       }
       try {
-        const res = await listWorkLogs({
-          userId: currentUserId,
+        const list = await requestLogsWithCompatibleUserIds((userId) => listWorkLogs({
+          userId,
           startDate: date,
           endDate: date
-        })
-        const data = unwrapData(res)
-        const list = Array.isArray(data) ? data : []
-        detailDayLogs.value = list.map(normalizeLog)
+        }).then((res) => {
+          const data = unwrapData(res)
+          const rawList = Array.isArray(data) ? data : []
+          return rawList.map(normalizeLog)
+        }))
+        detailDayLogs.value = list.sort((prev, next) => parseDate(prev.logDate) - parseDate(next.logDate))
         return detailDayLogs.value
       } catch (error) {
         console.error(error)
@@ -849,15 +890,16 @@ export default {
         return
       }
       try {
-        const res = await listWorkLogs({
-          userId: currentUserId,
+        const list = await requestLogsWithCompatibleUserIds((userId) => listWorkLogs({
+          userId,
           startDate: `${yearFilter.value}-01-01`,
           endDate: `${yearFilter.value}-12-31`
-        })
-        const data = unwrapData(res)
-        const list = Array.isArray(data) ? data : []
+        }).then((res) => {
+          const data = unwrapData(res)
+          const rawList = Array.isArray(data) ? data : []
+          return rawList.map(normalizeLog)
+        }))
         yearLogs.value = list
-          .map(normalizeLog)
           .sort((prev, next) => parseDate(next.logDate) - parseDate(prev.logDate))
       } catch (error) {
         console.error(error)
@@ -1028,7 +1070,7 @@ export default {
         let savedLogId = form.id
         if (dialogMode.value === 'create') {
           const res = await createWorkLog({
-            userId: Number(currentUserId),
+            userId: currentUserId,
             ...payload
           })
           const savedLog = normalizeLog(unwrapData(res) || {})
