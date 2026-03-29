@@ -252,10 +252,20 @@
                   <button type="button" class="mini-link" @click="clearTypes">清空</button>
                 </div>
 
-                <label v-for="item in typeOptions" :key="item.value" class="multi-option">
-                  <input v-model="form.typeCodes" type="checkbox" :value="item.value" />
-                  <span>{{ item.label }}</span>
-                </label>
+                <div class="multi-option-grid">
+                  <label
+                    v-for="item in typeOptions"
+                    :key="item.value"
+                    class="multi-option"
+                    :class="{checked: form.typeCodes.includes(item.value)}"
+                  >
+                    <input v-model="form.typeCodes" class="multi-option-input" type="checkbox" :value="item.value" />
+                    <span class="multi-option-check" aria-hidden="true">
+                      <span class="multi-option-checkmark" />
+                    </span>
+                    <span class="multi-option-label">{{ item.label }}</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -1693,13 +1703,19 @@ export default {
   position: relative;
 }
 
+.multi-select.open .multi-select-trigger {
+  border-color: rgba(111, 187, 255, 0.64);
+  box-shadow: 0 0 0 3px rgba(73, 146, 211, 0.16);
+  background: rgba(18, 42, 66, 0.88);
+}
+
 .multi-select-trigger {
   width: 100%;
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(38, 58, 79, 0.92), rgba(27, 47, 68, 0.92));
   color: #fff;
   display: flex;
   justify-content: space-between;
@@ -1711,13 +1727,13 @@ export default {
 
 .multi-select-panel {
   margin-top: 8px;
-  padding: 12px;
-  border-radius: 14px;
-  background: rgba(6, 18, 30, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(5, 17, 30, 0.98), rgba(9, 24, 39, 0.96));
+  border: 1px solid rgba(107, 180, 255, 0.16);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32);
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .multi-select-actions {
@@ -1729,18 +1745,89 @@ export default {
 .mini-link {
   border: none;
   background: transparent;
-  color: #7eb7eb;
+  color: #8eccff;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 700;
+}
+
+.mini-link:hover {
+  color: #d6ecff;
+}
+
+.multi-option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .multi-option {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 12px;
+  min-height: 58px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.multi-option:hover {
+  transform: translateY(-1px);
+  border-color: rgba(120, 191, 255, 0.28);
+  background: rgba(37, 65, 93, 0.62);
+}
+
+.multi-option.checked {
+  border-color: rgba(110, 191, 255, 0.52);
+  background: linear-gradient(135deg, rgba(18, 73, 130, 0.68), rgba(23, 95, 151, 0.5));
+}
+
+.multi-option-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.multi-option-check {
+  position: relative;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+.multi-option-checkmark {
+  position: absolute;
+  inset: 4px 6px 5px 6px;
+  border-right: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  transform: rotate(40deg) scale(0.2);
+  transform-origin: center;
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.multi-option.checked .multi-option-check {
+  border-color: rgba(153, 223, 255, 0.88);
+  background: linear-gradient(180deg, rgba(100, 189, 255, 0.96), rgba(44, 128, 236, 0.92));
+}
+
+.multi-option.checked .multi-option-checkmark {
+  border-color: #fff;
+  transform: rotate(40deg) scale(1);
+}
+
+.multi-option-label {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.94);
 }
 
 .selected-type-row {
@@ -1807,6 +1894,10 @@ export default {
   .calendar-grid,
   .week-stats-grid,
   .form-inline-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .multi-option-grid {
     grid-template-columns: 1fr;
   }
 
