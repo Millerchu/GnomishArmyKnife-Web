@@ -214,7 +214,7 @@ export default {
         localStorage.setItem('user', JSON.stringify(user || {}))
         sessionStorage.setItem('currentUserPlainPassword', form.password)
 
-        router.push('/star-interactive')
+        router.push('/home')
       } catch (error) {
         console.error(error)
         errorMessage.value = getLoginErrorMessage(error)

@@ -2,7 +2,15 @@
   <div class="home-page">
     <main class="main-area">
       <div class="top-bar">
-        <button class="star-back-btn" @click="goToStarInteractive">返回星空互动图</button>
+        <button
+          class="easter-egg-trigger"
+          type="button"
+          aria-label="主页彩蛋入口"
+          title="连续点击三次试试看"
+          @click="handleEasterEggTrigger"
+        >
+          <span class="easter-egg-mark">侏</span>
+        </button>
 
         <div class="top-right-wrap">
           <div class="welcome-wrap">
@@ -299,6 +307,25 @@ function usesImageIcon(iconType) {
   return ['UPLOAD', 'URL'].includes(iconType)
 }
 
+function isSystemMenuOnlyRoute(route = '') {
+  const normalized = `${route || ''}`.trim().toLowerCase()
+  if (!normalized) {
+    return false
+  }
+
+  if (normalized.startsWith('/system/')) {
+    return true
+  }
+
+  return [
+    '/data-dictionary',
+    '/user-management',
+    '/app-management',
+    '/permission-management',
+    '/data-migration'
+  ].includes(normalized)
+}
+
 function extractAccessibleFeatureCodes(payload) {
   if (!payload) {
     return []
@@ -398,6 +425,8 @@ export default {
     const dragOverToolKey = ref('')
     const suppressNextToolOpen = ref(false)
     const systemMenuRef = ref(null)
+    const easterEggClickCount = ref(0)
+    let easterEggTimer = null
 
     // 顶部个人中心的资料与密码修改共用一个弹框，按 tab 切换表单。
     const profileForm = reactive({
@@ -444,6 +473,7 @@ export default {
       {key: 'user', name: '用户管理', shortName: '用'},
       {key: 'app', name: '应用管理', shortName: '应'},
       {key: 'permission', name: '权限管理', shortName: '权'},
+      {key: 'migration', name: '数据迁移', shortName: '迁'},
       {key: 'dict', name: '数据字典', shortName: '字'},
       {key: 'log', name: '系统日志', shortName: '志'},
       {key: 'logout', name: '退出登录', shortName: '退'}
@@ -452,7 +482,7 @@ export default {
       if (currentUserRole.value === 'ADMIN') {
         return systemMenus
       }
-      return systemMenus.filter((item) => ['profile', 'dict', 'logout'].includes(item.key))
+      return systemMenus.filter((item) => ['profile', 'logout'].includes(item.key))
     })
 
     // 默认按使用频率排序；一旦用户拖拽过桌面，就优先采用自定义顺序。
@@ -460,7 +490,9 @@ export default {
       const baseDefinitions = Array.isArray(accessibleFeatureCodes.value)
         ? toolCatalog.value.filter((item) => accessibleFeatureCodes.value.includes(item.featureCode))
         : toolCatalog.value
-      const nextTools = baseDefinitions.map((item, index) => buildToolEntry({
+      // 系统管理类页面统一从右上角系统菜单进入，不在主页桌面重复展示图标。
+      const desktopVisibleDefinitions = baseDefinitions.filter((item) => !isSystemMenuOnlyRoute(item.route))
+      const nextTools = desktopVisibleDefinitions.map((item, index) => buildToolEntry({
         ...item,
         usageCount: Number(toolUsageMap.value[item.key] ?? item.usageCount ?? 0)
       }, index))
@@ -581,6 +613,31 @@ export default {
       router.push('/star-interactive')
     }
 
+    const resetEasterEggProgress = () => {
+      easterEggClickCount.value = 0
+      if (easterEggTimer) {
+        clearTimeout(easterEggTimer)
+        easterEggTimer = null
+      }
+    }
+
+    const handleEasterEggTrigger = () => {
+      easterEggClickCount.value += 1
+      if (easterEggTimer) {
+        clearTimeout(easterEggTimer)
+      }
+
+      if (easterEggClickCount.value >= 3) {
+        resetEasterEggProgress()
+        goToStarInteractive()
+        return
+      }
+
+      easterEggTimer = setTimeout(() => {
+        resetEasterEggProgress()
+      }, 1200)
+    }
+
     const onSystemMenuClick = (menu) => {
       if (menu.key === 'profile') {
         openUserDialog()
@@ -600,6 +657,10 @@ export default {
       }
       if (menu.key === 'dict') {
         router.push('/system/dictionaries')
+        return
+      }
+      if (menu.key === 'migration') {
+        router.push('/system/data-migrations')
         return
       }
       if (menu.key === 'logout') {
@@ -830,6 +891,7 @@ export default {
       if (timer) {
         clearInterval(timer)
       }
+      resetEasterEggProgress()
       document.removeEventListener('click', handleDocumentClick)
     })
 
@@ -857,6 +919,7 @@ export default {
       logout,
       requestLogout,
       goToStarInteractive,
+      handleEasterEggTrigger,
       onSystemMenuClick,
       toggleSystemMenu,
       handleSystemMenuAction,
@@ -1009,19 +1072,31 @@ export default {
   color: #fecaca;
 }
 
-.star-back-btn {
-  border: none;
+.easter-egg-trigger {
+  width: 34px;
   height: 34px;
-  padding: 0 12px;
-  border-radius: 8px;
-  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  font-size: 13px;
-  background: rgba(82, 164, 255, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+  transition: transform 0.18s ease, color 0.18s ease, background 0.18s ease;
 }
 
-.star-back-btn:hover {
-  background: rgba(82, 164, 255, 0.78);
+.easter-egg-trigger:hover {
+  transform: translateY(-1px);
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.easter-egg-mark {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 .welcome-wrap {
@@ -1322,8 +1397,8 @@ export default {
     align-items: stretch;
   }
 
-  .star-back-btn {
-    width: 100%;
+  .easter-egg-trigger {
+    width: 34px;
   }
 
   .top-right-wrap {
