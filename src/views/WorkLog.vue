@@ -29,37 +29,58 @@
 
       <div class="week-stats-grid">
         <article class="stats-card stats-card-wide">
-          <span class="stats-label">参与项目</span>
-          <div v-if="weeklyStats.projects.length" class="stats-chip-row">
+          <div class="stats-card-head">
+            <span class="stats-label">参与项目</span>
+            <span class="stats-card-badge">Projects</span>
+          </div>
+          <div v-if="weeklyStats.projects.length" class="stats-chip-row stats-chip-row-dense">
             <span v-for="project in weeklyStats.projects" :key="project" class="stats-chip">{{ project }}</span>
           </div>
           <strong v-else class="stats-empty">暂无项目</strong>
         </article>
 
         <article class="stats-card stats-card-wide">
-          <span class="stats-label">当前状态</span>
-          <div v-if="weeklyStats.statuses.length" class="stats-chip-row">
+          <div class="stats-card-head">
+            <span class="stats-label">当前状态</span>
+            <span class="stats-card-badge">Status</span>
+          </div>
+          <div v-if="weeklyStats.statuses.length" class="stats-chip-row stats-chip-row-dense">
             <span v-for="status in weeklyStats.statuses" :key="status" class="stats-chip status-chip">{{ status }}</span>
           </div>
           <strong v-else class="stats-empty">暂无状态</strong>
         </article>
 
-        <article class="stats-card">
-          <span class="stats-label">人天总计</span>
-          <strong>{{ formatPersonDayText(weeklyStats.personDayTotal) }}</strong>
-          <small>{{ weeklyStats.workDays }} 天有记录</small>
+        <article class="stats-card stats-card-metric">
+          <div class="stats-card-head">
+            <span class="stats-label">人天总计</span>
+            <span class="stats-card-badge">PD</span>
+          </div>
+          <div class="stats-metric-block">
+            <strong>{{ formatPersonDayText(weeklyStats.personDayTotal) }}</strong>
+            <small>{{ weeklyStats.workDays }} 天有记录</small>
+          </div>
         </article>
 
-        <article class="stats-card">
-          <span class="stats-label">加班总计</span>
-          <strong>{{ formatHoursText(weeklyStats.overtimeHoursTotal) }}</strong>
-          <small>{{ weeklyStats.weekendLogCount }} 条周末记录</small>
+        <article class="stats-card stats-card-metric">
+          <div class="stats-card-head">
+            <span class="stats-label">加班总计</span>
+            <span class="stats-card-badge">OT</span>
+          </div>
+          <div class="stats-metric-block">
+            <strong>{{ formatHoursText(weeklyStats.overtimeHoursTotal) }}</strong>
+            <small>{{ weeklyStats.weekendLogCount }} 条周末记录</small>
+          </div>
         </article>
 
-        <article class="stats-card">
-          <span class="stats-label">日志条数</span>
-          <strong>{{ weeklyStats.logCount }}</strong>
-          <small>{{ weeklyStats.locations.length ? `${weeklyStats.locations.length} 个地点` : '暂无地点' }}</small>
+        <article class="stats-card stats-card-metric">
+          <div class="stats-card-head">
+            <span class="stats-label">日志条数</span>
+            <span class="stats-card-badge">Logs</span>
+          </div>
+          <div class="stats-metric-block">
+            <strong>{{ weeklyStats.logCount }}</strong>
+            <small>{{ weeklyStats.locations.length ? `${weeklyStats.locations.length} 个地点` : '暂无地点' }}</small>
+          </div>
         </article>
       </div>
     </section>
@@ -87,19 +108,31 @@
         @dblclick="openDayDetail(day.date)"
       >
         <div class="day-head">
-          <span>{{ day.weekLabel }}</span>
-          <span>{{ day.date }}</span>
+          <div class="day-head-main">
+            <strong>{{ day.weekLabel }}</strong>
+            <span>{{ day.date }}</span>
+          </div>
+          <span class="day-count-badge">{{ daySummaryMap[day.date]?.count || 0 }}</span>
         </div>
 
         <div v-if="daySummaryMap[day.date]?.count" class="summary-wrap">
-          <div class="summary-chip-row">
+          <div class="summary-chip-row summary-chip-row-dense">
             <span v-for="type in daySummaryMap[day.date].typeLabels" :key="`${day.date}-${type}`" class="summary-chip">{{ type }}</span>
           </div>
           <p class="summary-projects">{{ daySummaryMap[day.date].projectsText }}</p>
           <p class="summary-work">{{ daySummaryMap[day.date].workItemsText }}</p>
+          <div class="summary-metric-strip">
+            <span class="summary-metric">
+              <small>人天</small>
+              <strong>{{ formatPersonDayText(daySummaryMap[day.date].personDayTotal) }}</strong>
+            </span>
+            <span class="summary-metric">
+              <small>加班</small>
+              <strong>{{ formatHoursText(daySummaryMap[day.date].overtimeHoursTotal) }}</strong>
+            </span>
+          </div>
           <div class="summary-foot">
-            <span>{{ formatPersonDayText(daySummaryMap[day.date].personDayTotal) }}</span>
-            <span>{{ formatHoursText(daySummaryMap[day.date].overtimeHoursTotal) }}</span>
+            <span>双击查看明细</span>
             <span>{{ daySummaryMap[day.date].count }} 条</span>
           </div>
         </div>
@@ -1232,7 +1265,9 @@ export default {
   min-height: 100vh;
   height: 100%;
   color: #fff;
-  padding: 20px;
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  padding: 18px;
   overflow: auto;
 }
 
@@ -1293,19 +1328,22 @@ export default {
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 14px;
-  padding: 16px 18px;
+  padding: 15px 16px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 42px;
+  font-size: clamp(30px, 3.1vw, 40px);
   font-weight: 800;
   letter-spacing: 0.02em;
+  line-height: 1.06;
 }
 
 .page-subtitle {
   margin: 8px 0 0;
-  font-size: 15px;
+  max-width: 780px;
+  font-size: 14px;
+  line-height: 1.65;
   color: rgba(255, 255, 255, 0.78);
 }
 
@@ -1323,10 +1361,10 @@ export default {
 .selected-type-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 12px;
+  min-height: 28px;
+  padding: 0 11px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.9);
@@ -1347,13 +1385,13 @@ export default {
 
 .action-btn,
 .ghost-btn {
-  min-height: 40px;
-  padding: 0 16px;
+  min-height: 38px;
+  padding: 0 14px;
   border: none;
   border-radius: 12px;
   cursor: pointer;
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   transition: transform 0.18s ease, opacity 0.18s ease;
 }
@@ -1387,7 +1425,7 @@ export default {
 .week-stats-panel,
 .detail-panel {
   margin-bottom: 14px;
-  padding: 18px;
+  padding: 16px;
 }
 
 .panel-head,
@@ -1401,14 +1439,16 @@ export default {
 
 .panel-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .panel-tip {
   margin: 6px 0 0;
-  font-size: 13px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.72);
+  line-height: 1.55;
 }
 
 .week-stats-grid {
@@ -1418,36 +1458,82 @@ export default {
 }
 
 .stats-card {
-  padding: 16px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+  padding: 13px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    linear-gradient(135deg, rgba(9, 32, 51, 0.96), rgba(13, 46, 70, 0.84));
+  border: 1px solid rgba(120, 186, 241, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+
+.stats-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(91, 191, 255, 0.92), rgba(95, 131, 255, 0));
 }
 
 .stats-card-wide {
   grid-column: span 2;
 }
 
+.stats-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stats-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(168, 223, 255, 0.88);
+  background: rgba(85, 170, 237, 0.12);
+  border: 1px solid rgba(118, 197, 255, 0.14);
+}
+
 .stats-label {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.66);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.56);
   text-transform: uppercase;
 }
 
+.stats-metric-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+}
+
 .stats-card strong {
-  font-size: 28px;
-  line-height: 1.1;
+  font-size: 25px;
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .stats-card small,
 .stats-empty,
 .selected-type-empty {
   color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .stats-chip-row,
@@ -1459,6 +1545,16 @@ export default {
   gap: 8px;
 }
 
+.stats-chip-row-dense,
+.summary-chip-row-dense {
+  gap: 6px;
+}
+
+.stats-card-metric {
+  justify-content: space-between;
+  min-height: 122px;
+}
+
 .status-chip {
   background: rgba(96, 173, 255, 0.14);
 }
@@ -1466,17 +1562,21 @@ export default {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 14px;
 }
 
 .day-card {
-  min-height: 220px;
-  padding: 14px;
-  border-radius: 16px;
-  background: rgba(10, 28, 45, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.16);
+  position: relative;
+  overflow: hidden;
+  min-height: 192px;
+  padding: 12px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(80, 166, 239, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(10, 30, 49, 0.96), rgba(9, 24, 39, 0.88));
+  border: 1px solid rgba(109, 170, 218, 0.14);
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
@@ -1487,47 +1587,116 @@ export default {
 }
 
 .day-card.active {
-  border-color: rgba(103, 180, 255, 0.9);
-  background: rgba(15, 42, 68, 0.9);
+  border-color: rgba(103, 180, 255, 0.92);
+  background:
+    radial-gradient(circle at top right, rgba(98, 181, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(14, 38, 60, 0.98), rgba(12, 31, 49, 0.94));
+  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(102, 176, 255, 0.15);
 }
 
 .day-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  margin-bottom: 12px;
-  font-size: 13px;
+  margin-bottom: 10px;
   color: rgba(255, 255, 255, 0.76);
+}
+
+.day-head-main {
+  display: grid;
+  gap: 2px;
+}
+
+.day-head-main strong {
+  font-size: 13px;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.day-head-main span {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.day-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(236, 247, 255, 0.94);
+  background: rgba(77, 146, 203, 0.2);
+  border: 1px solid rgba(114, 184, 242, 0.16);
 }
 
 .summary-wrap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  min-height: calc(100% - 38px);
 }
 
 .summary-projects {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
+  line-height: 1.45;
 }
 
 .summary-work {
   margin: 0;
+  font-size: 12px;
+  line-height: 1.48;
+  color: rgba(255, 255, 255, 0.7);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.summary-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: auto;
+}
+
+.summary-metric {
+  display: grid;
+  gap: 3px;
+  padding: 8px 9px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.summary-metric small {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.summary-metric strong {
   font-size: 13px;
-  line-height: 1.65;
-  color: rgba(255, 255, 255, 0.76);
+  line-height: 1.15;
+  color: rgba(255, 255, 255, 0.94);
 }
 
 .summary-foot {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
   gap: 8px 12px;
-  margin-top: auto;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.68);
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.52);
 }
 
 .empty-text {
@@ -1543,7 +1712,7 @@ export default {
 
 .detail-item,
 .mobile-log-card {
-  padding: 14px;
+  padding: 13px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1574,14 +1743,15 @@ export default {
   flex-wrap: wrap;
   gap: 8px 12px;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .detail-work,
 .mobile-log-work {
   margin: 10px 0;
   color: rgba(255, 255, 255, 0.92);
-  line-height: 1.7;
+  line-height: 1.6;
+  font-size: 13px;
 }
 
 .year-head {
@@ -1597,14 +1767,14 @@ export default {
 .form-field textarea,
 .form-field select {
   width: 100%;
-  min-height: 42px;
-  padding: 10px 12px;
+  min-height: 40px;
+  padding: 9px 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
   outline: none;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .year-select {
@@ -1612,7 +1782,7 @@ export default {
 }
 
 .form-field textarea {
-  min-height: 104px;
+  min-height: 96px;
   resize: vertical;
 }
 
@@ -1623,10 +1793,11 @@ export default {
 
 .log-table th,
 .log-table td {
-  padding: 12px 10px;
+  padding: 10px 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   text-align: left;
   vertical-align: top;
+  font-size: 13px;
 }
 
 .log-table th {
@@ -1657,12 +1828,12 @@ export default {
 
 .dialog {
   width: min(720px, 100%);
-  padding: 22px;
+  padding: 20px;
 }
 
 .dialog h3 {
   margin: 0 0 16px;
-  font-size: 24px;
+  font-size: 22px;
 }
 
 .dialog-form {
@@ -1674,7 +1845,7 @@ export default {
 .form-inline-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .form-field {
@@ -1711,8 +1882,8 @@ export default {
 
 .multi-select-trigger {
   width: 100%;
-  min-height: 44px;
-  padding: 0 14px;
+  min-height: 42px;
+  padding: 0 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(38, 58, 79, 0.92), rgba(27, 47, 68, 0.92));
@@ -1722,7 +1893,7 @@ export default {
   align-items: center;
   gap: 12px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .multi-select-panel {
@@ -1766,8 +1937,8 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 58px;
-  padding: 0 16px;
+  min-height: 52px;
+  padding: 0 14px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.05);
@@ -1825,7 +1996,7 @@ export default {
 
 .multi-option-label {
   flex: 1;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.94);
 }
@@ -1862,6 +2033,17 @@ export default {
 }
 
 @media (max-width: 1280px) {
+  .work-log-page {
+    width: 100%;
+    padding: 16px;
+  }
+
+  .hero-panel,
+  .week-stats-panel,
+  .detail-panel {
+    padding: 15px;
+  }
+
   .week-stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1871,13 +2053,44 @@ export default {
   }
 
   .calendar-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .day-card {
+    min-height: 176px;
+  }
+
+  .summary-work {
+    -webkit-line-clamp: 3;
+  }
+}
+
+@media (max-width: 1100px) {
+  .page-title {
+    font-size: 32px;
+  }
+
+  .calendar-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .top-bar {
+    align-items: stretch;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .actions .action-btn {
+    flex: 1 1 calc(33.333% - 8px);
+    justify-content: center;
   }
 }
 
 @media (max-width: 900px) {
   .work-log-page {
-    padding: 16px;
+    padding: 14px;
   }
 
   .hero-panel,
@@ -1888,13 +2101,22 @@ export default {
   }
 
   .page-title {
-    font-size: 34px;
+    font-size: 28px;
   }
 
   .calendar-grid,
   .week-stats-grid,
   .form-inline-grid {
     grid-template-columns: 1fr;
+  }
+
+  .top-bar,
+  .actions {
+    gap: 8px;
+  }
+
+  .actions .action-btn {
+    flex: 1 1 calc(50% - 8px);
   }
 
   .multi-option-grid {
@@ -1919,7 +2141,100 @@ export default {
   }
 
   .day-card {
-    min-height: 180px;
+    min-height: 154px;
+  }
+
+  .summary-metric-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-work {
+    -webkit-line-clamp: 3;
+  }
+}
+
+@media (max-width: 640px) {
+  .work-log-page {
+    padding: 12px;
+  }
+
+  .hero-panel,
+  .week-stats-panel,
+  .detail-panel,
+  .dialog {
+    border-radius: 16px;
+  }
+
+  .hero-panel,
+  .week-stats-panel,
+  .detail-panel {
+    padding: 14px 12px;
+  }
+
+  .hero-tags {
+    justify-content: flex-start;
+  }
+
+  .week-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .stats-card,
+  .stats-card-wide {
+    grid-column: span 1;
+  }
+
+  .stats-card {
+    padding: 12px;
+  }
+
+  .stats-card strong {
+    font-size: 20px;
+  }
+
+  .stats-card-badge {
+    min-width: 38px;
+    font-size: 9px;
+  }
+
+  .calendar-grid {
+    gap: 8px;
+  }
+
+  .day-card,
+  .detail-item,
+  .mobile-log-card {
+    padding: 11px;
+  }
+
+  .actions .action-btn,
+  .actions .ghost-btn {
+    flex: 1 1 100%;
+  }
+
+  .year-select {
+    width: 100%;
+  }
+
+  .dialog-mask {
+    padding: 10px;
+  }
+
+  .dialog {
+    padding: 16px;
+  }
+
+  .dialog h3 {
+    font-size: 20px;
+  }
+
+  .form-inline-grid {
+    gap: 10px;
+  }
+
+  .summary-work {
+    -webkit-line-clamp: 2;
   }
 }
 </style>
