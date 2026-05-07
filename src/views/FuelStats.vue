@@ -15,7 +15,7 @@
       <div class="hero-tags">
         <span class="hero-tag">平均油耗 {{ formatConsumption(summary.averageConsumption) }}</span>
         <span class="hero-tag">本月实付 {{ formatCurrency(summary.currentMonthAmount) }}</span>
-        <span class="hero-tag">{{ usingLocalData ? '本地演示数据' : '已接真实接口' }}</span>
+        <span class="hero-tag">已接真实接口</span>
       </div>
     </div>
 
@@ -109,7 +109,6 @@
           </div>
           <div class="toolbar-right">
             <span>共 {{ total }} 条</span>
-            <span v-if="usingLocalData" class="mock-tip">当前为演示数据（后端未联通）</span>
           </div>
         </div>
 
@@ -390,8 +389,6 @@ import {
   updateFuelRecord
 } from '@/api/fuelStats'
 
-// 油耗记录默认支持本地演示，并额外提供最新油价与报表的静态兜底数据。
-const LOCAL_RECORD_KEY = 'fuel_stats_records'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 const FUEL_TYPE_OPTIONS = [
   {value: '92', label: '92 号汽油'},
@@ -403,98 +400,6 @@ const FILL_TYPE_OPTIONS = [
   {value: 'FULL', label: '满油'},
   {value: 'PARTIAL', label: '补油'}
 ]
-const DEFAULT_RECORDS = [
-  {
-    id: 'fuel-1',
-    vehicleName: 'Model Y',
-    fuelDate: '2026-03-13',
-    odometerKm: 15320,
-    fuelVolume: 41.26,
-    totalAmount: 326.78,
-    discountedAmount: 308.78,
-    unitPrice: 7.92,
-    fuelType: '95',
-    fillType: 'FULL',
-    stationName: '中国石化滨江站',
-    note: '周末高速返程后加满。',
-    createdAt: '2026-03-13 20:14',
-    updatedAt: '2026-03-13 20:14'
-  },
-  {
-    id: 'fuel-2',
-    vehicleName: 'Model Y',
-    fuelDate: '2026-03-05',
-    odometerKm: 14876,
-    fuelVolume: 39.82,
-    totalAmount: 314.18,
-    discountedAmount: 302.18,
-    unitPrice: 7.89,
-    fuelType: '95',
-    fillType: 'FULL',
-    stationName: '中国石油城西站',
-    note: '工作周通勤加油。',
-    createdAt: '2026-03-05 08:32',
-    updatedAt: '2026-03-05 08:32'
-  },
-  {
-    id: 'fuel-3',
-    vehicleName: '卡罗拉',
-    fuelDate: '2026-03-12',
-    odometerKm: 86210,
-    fuelVolume: 33.57,
-    totalAmount: 251.77,
-    discountedAmount: 245.77,
-    unitPrice: 7.50,
-    fuelType: '92',
-    fillType: 'FULL',
-    stationName: '壳牌文一路站',
-    note: '城区通勤，油耗相对稳定。',
-    createdAt: '2026-03-12 19:05',
-    updatedAt: '2026-03-12 19:05'
-  },
-  {
-    id: 'fuel-4',
-    vehicleName: '卡罗拉',
-    fuelDate: '2026-03-01',
-    odometerKm: 85736,
-    fuelVolume: 34.12,
-    totalAmount: 255.22,
-    discountedAmount: 251.22,
-    unitPrice: 7.48,
-    fuelType: '92',
-    fillType: 'FULL',
-    stationName: '壳牌文一路站',
-    note: '',
-    createdAt: '2026-03-01 18:11',
-    updatedAt: '2026-03-01 18:11'
-  },
-  {
-    id: 'fuel-5',
-    vehicleName: 'Model Y',
-    fuelDate: '2026-02-24',
-    odometerKm: 14430,
-    fuelVolume: 40.15,
-    totalAmount: 312.37,
-    discountedAmount: 300.37,
-    unitPrice: 7.78,
-    fuelType: '95',
-    fillType: 'PARTIAL',
-    stationName: '中国石化滨江站',
-    note: '长途出发前补油。',
-    createdAt: '2026-02-24 07:56',
-    updatedAt: '2026-02-24 07:56'
-  }
-]
-const DEFAULT_LATEST_PRICES = {
-  publishDate: '2026-03-15 09:00',
-  prices: {
-    '92': 7.58,
-    '95': 8.09,
-    '98': 8.96,
-    DIESEL: 7.26
-  }
-}
-
 // 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
@@ -502,20 +407,6 @@ function unwrapData(res) {
     return payload.data
   }
   return payload
-}
-
-function formatDateTime(date = new Date()) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  const hour = `${date.getHours()}`.padStart(2, '0')
-  const minute = `${date.getMinutes()}`.padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}`
-}
-
-function getCurrentMonthKey() {
-  const date = new Date()
-  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}`
 }
 
 // 统一加油记录字段，并把优惠后实付金额和优惠金额一并算好供页面复用。
@@ -544,27 +435,6 @@ function normalizeRecord(item = {}) {
     distanceKm: Number(item.distanceKm ?? 0),
     fuelConsumption: item.fuelConsumption != null ? Number(item.fuelConsumption) : null
   }
-}
-
-function loadLocalRecords() {
-  try {
-    const raw = localStorage.getItem(LOCAL_RECORD_KEY)
-    if (!raw) {
-      localStorage.setItem(LOCAL_RECORD_KEY, JSON.stringify(DEFAULT_RECORDS))
-      return DEFAULT_RECORDS.map((item) => normalizeRecord(item))
-    }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return DEFAULT_RECORDS.map((item) => normalizeRecord(item))
-    }
-    return parsed.map((item) => normalizeRecord(item))
-  } catch (error) {
-    return DEFAULT_RECORDS.map((item) => normalizeRecord(item))
-  }
-}
-
-function persistLocalRecords(list) {
-  localStorage.setItem(LOCAL_RECORD_KEY, JSON.stringify(list))
 }
 
 // 里程差和百公里油耗依赖同车上一条记录，这里集中补全派生指标。
@@ -599,29 +469,6 @@ function calculateDerivedRecords(records = []) {
 }
 
 // 概览卡片、车辆统计和图表公用同一套聚合结果，保证金额口径始终按优惠后实付计算。
-function buildSummary(records = []) {
-  const totalAmount = records.reduce((sum, item) => sum + Number(item.discountedAmount || item.totalAmount || 0), 0)
-  const totalDiscountAmount = records.reduce((sum, item) => sum + Number(item.discountAmount || 0), 0)
-  const totalFuelVolume = records.reduce((sum, item) => sum + Number(item.fuelVolume || 0), 0)
-  const currentMonthKey = getCurrentMonthKey()
-  const currentMonthAmount = records
-    .filter((item) => `${item.fuelDate || ''}`.startsWith(currentMonthKey))
-    .reduce((sum, item) => sum + Number(item.discountedAmount || item.totalAmount || 0), 0)
-  const consumptionRecords = records.filter((item) => item.fuelConsumption != null && item.fuelConsumption > 0)
-  const averageConsumption = consumptionRecords.length
-    ? consumptionRecords.reduce((sum, item) => sum + Number(item.fuelConsumption || 0), 0) / consumptionRecords.length
-    : 0
-
-  return {
-    totalAmount,
-    totalDiscountAmount,
-    totalFuelVolume,
-    averageUnitPrice: totalFuelVolume > 0 ? totalAmount / totalFuelVolume : 0,
-    averageConsumption,
-    currentMonthAmount
-  }
-}
-
 function buildVehicleStats(records = []) {
   const map = records.reduce((result, item) => {
     const current = result[item.vehicleName] || {
@@ -700,10 +547,8 @@ export default {
     // 页面状态分成记录列表、洞察面板、图表报表和弹窗表单四块。
     const loading = ref(false)
     const submitting = ref(false)
-    const usingLocalData = ref(false)
     const total = ref(0)
     const pagedRecords = ref([])
-    const allRecords = ref([])
     const vehicleStats = ref([])
     const recentRecords = ref([])
     const monthlyFuelReport = ref([])
@@ -832,29 +677,15 @@ export default {
       return 'high'
     }
 
-    const applyInsights = (records) => {
-      const nextSummary = buildSummary(records)
-      summary.totalAmount = nextSummary.totalAmount
-      summary.totalDiscountAmount = nextSummary.totalDiscountAmount
-      summary.totalFuelVolume = nextSummary.totalFuelVolume
-      summary.averageUnitPrice = nextSummary.averageUnitPrice
-      summary.averageConsumption = nextSummary.averageConsumption
-      summary.currentMonthAmount = nextSummary.currentMonthAmount
-      vehicleStats.value = buildVehicleStats(records)
-      recentRecords.value = buildRecentRecords(records)
-      monthlyFuelReport.value = buildMonthlyFuelReport(records)
-      yearlyCostReport.value = buildYearlyCostReport(records)
-    }
-
     const applyLatestPrices = (payload = {}) => {
-      latestFuelPrices.publishDate = payload.publishDate || payload.updateTime || DEFAULT_LATEST_PRICES.publishDate
-      latestFuelPrices.prices['92'] = Number(payload.prices?.['92'] ?? payload.price92 ?? DEFAULT_LATEST_PRICES.prices['92'])
-      latestFuelPrices.prices['95'] = Number(payload.prices?.['95'] ?? payload.price95 ?? DEFAULT_LATEST_PRICES.prices['95'])
-      latestFuelPrices.prices['98'] = Number(payload.prices?.['98'] ?? payload.price98 ?? DEFAULT_LATEST_PRICES.prices['98'])
-      latestFuelPrices.prices.DIESEL = Number(payload.prices?.DIESEL ?? payload.priceDiesel ?? DEFAULT_LATEST_PRICES.prices.DIESEL)
+      latestFuelPrices.publishDate = payload.publishDate || payload.updateTime || ''
+      latestFuelPrices.prices['92'] = Number(payload.prices?.['92'] ?? payload.price92 ?? 0)
+      latestFuelPrices.prices['95'] = Number(payload.prices?.['95'] ?? payload.price95 ?? 0)
+      latestFuelPrices.prices['98'] = Number(payload.prices?.['98'] ?? payload.price98 ?? 0)
+      latestFuelPrices.prices.DIESEL = Number(payload.prices?.DIESEL ?? payload.priceDiesel ?? 0)
     }
 
-    const applyReports = (payload = {}, fallbackRecords = []) => {
+    const applyReports = (payload = {}) => {
       if (Array.isArray(payload.currentYearMonthlyFuel) && payload.currentYearMonthlyFuel.length) {
         monthlyFuelReport.value = payload.currentYearMonthlyFuel.map((item) => ({
           label: item.label || item.month || '',
@@ -862,7 +693,7 @@ export default {
           totalAmount: Number(item.totalAmount ?? item.discountedAmount ?? item.actualAmount ?? 0)
         }))
       } else {
-        monthlyFuelReport.value = buildMonthlyFuelReport(fallbackRecords)
+        monthlyFuelReport.value = []
       }
 
       if (Array.isArray(payload.yearlyCostStats) && payload.yearlyCostStats.length) {
@@ -872,25 +703,8 @@ export default {
           totalFuelVolume: Number(item.totalFuelVolume ?? 0)
         }))
       } else {
-        yearlyCostReport.value = buildYearlyCostReport(fallbackRecords)
+        yearlyCostReport.value = []
       }
-    }
-
-    const applyLocalFilterAndPaging = () => {
-      const filtered = allRecords.value
-      total.value = filtered.length
-      const safePageNo = Math.min(query.pageNo, Math.max(1, Math.ceil(filtered.length / query.pageSize) || 1))
-      query.pageNo = safePageNo
-      const startIndex = (safePageNo - 1) * query.pageSize
-      pagedRecords.value = filtered.slice(startIndex, startIndex + query.pageSize)
-      applyInsights(allRecords.value)
-    }
-
-    const syncLocalRecords = (records) => {
-      const nextRecords = calculateDerivedRecords(records)
-      allRecords.value = nextRecords
-      persistLocalRecords(nextRecords)
-      applyLocalFilterAndPaging()
     }
 
     const loadRecords = async () => {
@@ -904,11 +718,9 @@ export default {
         const rawList = Array.isArray(payload)
           ? payload
           : (payload.list || payload.records || payload.rows || [])
-        const normalizedList = calculateDerivedRecords(rawList)
-        allRecords.value = normalizedList
+        const normalizedList = rawList.map((item) => normalizeRecord(item))
         pagedRecords.value = normalizedList
         total.value = Number(payload.total ?? payload.count ?? normalizedList.length ?? 0)
-        usingLocalData.value = false
 
         try {
           const summaryRes = await getFuelSummary()
@@ -924,27 +736,42 @@ export default {
             ? summaryPayload.recentRecords.map((item) => normalizeRecord(item))
             : buildRecentRecords(normalizedList)
         } catch (error) {
-          applyInsights(normalizedList)
+          vehicleStats.value = buildVehicleStats(normalizedList)
+          recentRecords.value = buildRecentRecords(normalizedList)
         }
 
         try {
           const priceRes = await getLatestFuelPrices()
           applyLatestPrices(unwrapData(priceRes) || {})
         } catch (error) {
-          applyLatestPrices(DEFAULT_LATEST_PRICES)
+          applyLatestPrices()
         }
 
         try {
           const reportRes = await getFuelReports()
-          applyReports(unwrapData(reportRes) || {}, normalizedList)
+          applyReports(unwrapData(reportRes) || {})
         } catch (error) {
-          applyReports({}, normalizedList)
+          applyReports({})
         }
       } catch (error) {
-        allRecords.value = calculateDerivedRecords(loadLocalRecords())
-        usingLocalData.value = true
-        applyLocalFilterAndPaging()
-        applyLatestPrices(DEFAULT_LATEST_PRICES)
+        pagedRecords.value = []
+        total.value = 0
+        vehicleStats.value = []
+        recentRecords.value = []
+        monthlyFuelReport.value = []
+        yearlyCostReport.value = []
+        latestFuelPrices.publishDate = ''
+        latestFuelPrices.prices['92'] = 0
+        latestFuelPrices.prices['95'] = 0
+        latestFuelPrices.prices['98'] = 0
+        latestFuelPrices.prices.DIESEL = 0
+        summary.totalAmount = 0
+        summary.totalDiscountAmount = 0
+        summary.totalFuelVolume = 0
+        summary.averageUnitPrice = 0
+        summary.averageConsumption = 0
+        summary.currentMonthAmount = 0
+        alert(error?.response?.data?.message || '加载油耗统计数据失败')
       } finally {
         loading.value = false
       }
@@ -1064,31 +891,7 @@ export default {
         resetForm()
         await loadRecords()
       } catch (error) {
-        const now = formatDateTime()
-        if (dialogMode.value === 'create') {
-          syncLocalRecords([
-            normalizeRecord({
-              ...payload,
-              id: `fuel-${Date.now()}`,
-              createdAt: now,
-              updatedAt: now
-            }),
-            ...loadLocalRecords()
-          ])
-        } else {
-          syncLocalRecords(loadLocalRecords().map((item) => (
-            item.id === editingId.value
-              ? normalizeRecord({
-                ...item,
-                ...payload,
-                updatedAt: now
-              })
-              : item
-          )))
-        }
-        usingLocalData.value = true
-        showDialog.value = false
-        resetForm()
+        alert(error?.response?.data?.message || '保存加油记录失败')
       } finally {
         submitting.value = false
       }
@@ -1102,8 +905,7 @@ export default {
         await deleteFuelRecord(item.id)
         await loadRecords()
       } catch (error) {
-        syncLocalRecords(loadLocalRecords().filter((record) => record.id !== item.id))
-        usingLocalData.value = true
+        alert(error?.response?.data?.message || '删除加油记录失败')
       }
     }
 
@@ -1139,7 +941,6 @@ export default {
     return {
       loading,
       submitting,
-      usingLocalData,
       total,
       pagedRecords,
       summary,
@@ -1339,13 +1140,6 @@ export default {
 .hero-tag {
   background: rgba(91, 180, 255, 0.18);
   color: #d7f0ff;
-}
-
-.mock-tip {
-  padding: 4px 8px;
-  border-radius: 8px;
-  color: #ffecb3;
-  background: rgba(255, 184, 0, 0.2);
 }
 
 .price-date {
