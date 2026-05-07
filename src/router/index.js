@@ -6,6 +6,7 @@ import WorkLog from '../views/WorkLog.vue'
 import UserManagement from '../views/UserManagement.vue'
 import AppManagement from '../views/AppManagement.vue'
 import PermissionManagement from '../views/PermissionManagement.vue'
+import DataMigration from '../views/DataMigration.vue'
 import StarInteractive from '../views/StarInteractive.vue'
 import DataDictionary from '../views/DataDictionary.vue'
 import Calculator from '../views/Calculator.vue'
@@ -37,6 +38,7 @@ const routes = [
     {path: '/system/users', component: UserManagement},
     {path: '/system/apps', component: AppManagement},
     {path: '/system/permissions', component: PermissionManagement},
+    {path: '/system/data-migrations', component: DataMigration},
     {path: '/system/dictionaries', component: DataDictionary}
 ]
 
