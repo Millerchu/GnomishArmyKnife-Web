@@ -19,6 +19,48 @@
       </div>
     </div>
 
+    <section class="headline-panel">
+      <article class="headline-card">
+        <div class="headline-copy">
+          <div class="headline-topline">
+            <span class="headline-label">最新油耗</span>
+            <div v-if="consumptionVehicleOptions.length" class="headline-switches">
+              <button
+                v-for="vehicleName in consumptionVehicleOptions"
+                :key="vehicleName"
+                type="button"
+                class="headline-switch-btn"
+                :class="{ active: vehicleName === activeConsumptionVehicleName }"
+                @click="switchConsumptionVehicle(vehicleName)"
+              >
+                {{ vehicleName }}
+              </button>
+            </div>
+          </div>
+          <strong class="headline-value">{{ formatConsumption(latestConsumptionRecord?.fuelConsumption) }}</strong>
+          <p class="headline-meta">
+            {{ latestConsumptionRecord?.vehicleName || '暂无车辆' }}
+            <span v-if="latestConsumptionRecord?.fuelDate"> · {{ latestConsumptionRecord.fuelDate }}</span>
+            <span v-if="latestConsumptionRecord?.distanceKm > 0"> · 里程差 {{ formatNumber(latestConsumptionRecord.distanceKm) }} km</span>
+          </p>
+        </div>
+        <div class="headline-stats">
+          <div class="headline-stat">
+            <span>最新实付</span>
+            <strong>{{ formatCurrency(latestConsumptionRecord?.discountedAmount || latestConsumptionRecord?.totalAmount) }}</strong>
+          </div>
+          <div class="headline-stat">
+            <span>加油量</span>
+            <strong>{{ latestConsumptionRecord ? `${formatNumber(latestConsumptionRecord.fuelVolume)} L` : '-' }}</strong>
+          </div>
+          <div class="headline-stat">
+            <span>车辆均值</span>
+            <strong>{{ formatConsumption(activeVehicleAverageConsumption) }}</strong>
+          </div>
+        </div>
+      </article>
+    </section>
+
     <section class="price-panel">
       <div class="price-layout">
         <div class="price-info">
@@ -34,6 +76,13 @@
             <article v-for="item in fuelPriceCards" :key="item.code" class="price-card">
               <span>{{ item.label }}</span>
               <strong>{{ item.priceText }}</strong>
+            </article>
+          </div>
+
+          <div class="price-extra-grid">
+            <article v-for="item in fuelPriceExtraItems" :key="item.label" class="price-extra-item">
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
             </article>
           </div>
         </div>
@@ -120,15 +169,10 @@
               <tr>
                 <th>日期</th>
                 <th>车辆</th>
-                <th>里程(km)</th>
                 <th>加油量(L)</th>
-                <th>加油金额</th>
                 <th>优惠后</th>
-                <th>优惠金额</th>
-                <th>单价</th>
-                <th>油号</th>
-                <th>方式</th>
                 <th>估算油耗</th>
+                <th>油站</th>
                 <th>操作</th>
               </tr>
               </thead>
@@ -136,17 +180,13 @@
               <tr v-for="item in pagedRecords" :key="item.id">
                 <td>{{ item.fuelDate }}</td>
                 <td>{{ item.vehicleName }}</td>
-                <td>{{ formatNumber(item.odometerKm) }}</td>
                 <td>{{ formatNumber(item.fuelVolume) }}</td>
-                <td>{{ formatCurrency(item.totalAmount) }}</td>
                 <td>{{ formatCurrency(item.discountedAmount) }}</td>
-                <td>{{ formatCurrency(item.discountAmount) }}</td>
-                <td>{{ formatUnitPrice(item.unitPrice) }}</td>
-                <td>{{ formatFuelTypeText(item.fuelType) }}</td>
-                <td>{{ formatFillTypeText(item.fillType) }}</td>
                 <td>{{ formatConsumption(item.fuelConsumption) }}</td>
+                <td>{{ item.stationName || '-' }}</td>
                 <td>
                   <div class="row-actions">
+                    <button class="mini-btn" @click="openDetailDialog(item)">详情</button>
                     <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
                     <button class="mini-btn danger" @click="removeRecord(item)">删除</button>
                   </div>
@@ -169,17 +209,14 @@
               </div>
 
               <div class="mobile-record-grid">
-                <p><span>里程</span><strong>{{ formatNumber(item.odometerKm) }} km</strong></p>
                 <p><span>加油量</span><strong>{{ formatNumber(item.fuelVolume) }} L</strong></p>
-                <p><span>加油金额</span><strong>{{ formatCurrency(item.totalAmount) }}</strong></p>
                 <p><span>优惠后</span><strong>{{ formatCurrency(item.discountedAmount) }}</strong></p>
-                <p><span>优惠金额</span><strong>{{ formatCurrency(item.discountAmount) }}</strong></p>
-                <p><span>单价</span><strong>{{ formatUnitPrice(item.unitPrice) }}</strong></p>
-                <p><span>油号 / 方式</span><strong>{{ formatFuelTypeText(item.fuelType) }} / {{ formatFillTypeText(item.fillType) }}</strong></p>
+                <p><span>油站</span><strong>{{ item.stationName || '-' }}</strong></p>
                 <p class="wide"><span>备注</span><strong>{{ item.note || '-' }}</strong></p>
               </div>
 
               <div class="mobile-card-actions">
+                <button class="mini-btn" @click="openDetailDialog(item)">详情</button>
                 <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
                 <button class="mini-btn danger" @click="removeRecord(item)">删除</button>
               </div>
@@ -292,6 +329,41 @@
         </article>
       </div>
     </section>
+
+    <div v-if="showDetailDialog && detailRecord" class="dialog-mask" @click.self="closeDetailDialog">
+      <div class="dialog detail-dialog">
+        <div class="detail-dialog-head">
+          <div>
+            <h3 class="dialog-title">加油记录详情</h3>
+            <p class="detail-dialog-subtitle">{{ detailRecord.vehicleName }} · {{ detailRecord.fuelDate }}</p>
+          </div>
+          <span class="consumption-chip" :class="consumptionClassMap[getConsumptionLevel(detailRecord.fuelConsumption)]">
+            {{ formatConsumption(detailRecord.fuelConsumption) }}
+          </span>
+        </div>
+
+        <div class="detail-grid">
+          <p><span>车辆名称</span><strong>{{ detailRecord.vehicleName || '-' }}</strong></p>
+          <p><span>加油日期</span><strong>{{ detailRecord.fuelDate || '-' }}</strong></p>
+          <p><span>当前里程</span><strong>{{ formatNumber(detailRecord.odometerKm) }} km</strong></p>
+          <p><span>里程差</span><strong>{{ detailRecord.distanceKm ? `${formatNumber(detailRecord.distanceKm)} km` : '-' }}</strong></p>
+          <p><span>加油量</span><strong>{{ formatNumber(detailRecord.fuelVolume) }} L</strong></p>
+          <p><span>加油金额</span><strong>{{ formatCurrency(detailRecord.totalAmount) }}</strong></p>
+          <p><span>优惠后金额</span><strong>{{ formatCurrency(detailRecord.discountedAmount) }}</strong></p>
+          <p><span>优惠金额</span><strong>{{ formatCurrency(detailRecord.discountAmount) }}</strong></p>
+          <p><span>单价</span><strong>{{ formatUnitPrice(detailRecord.unitPrice) }}</strong></p>
+          <p><span>油号</span><strong>{{ formatFuelTypeText(detailRecord.fuelType) }}</strong></p>
+          <p><span>加油方式</span><strong>{{ formatFillTypeText(detailRecord.fillType) }}</strong></p>
+          <p><span>油站名称</span><strong>{{ detailRecord.stationName || '-' }}</strong></p>
+          <p class="wide"><span>备注</span><strong>{{ detailRecord.note || '-' }}</strong></p>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" class="ghost-btn" @click="closeDetailDialog">关闭</button>
+          <button type="button" class="action-btn" @click="openEditDialog(detailRecord)">编辑记录</button>
+        </div>
+      </div>
+    </div>
 
     <div v-if="showDialog" class="dialog-mask" @click.self="closeDialog">
       <div class="dialog">
@@ -553,8 +625,13 @@ export default {
     const recentRecords = ref([])
     const monthlyFuelReport = ref([])
     const yearlyCostReport = ref([])
+    const selectedVehicleName = ref('')
     const latestFuelPrices = reactive({
       publishDate: '',
+      nextAdjustTime: '',
+      adjustWindow: '',
+      priceChangeHint: '',
+      remark: '',
       prices: {
         '92': 0,
         '95': 0,
@@ -573,8 +650,10 @@ export default {
     })
 
     const showDialog = ref(false)
+    const showDetailDialog = ref(false)
     const dialogMode = ref('create')
     const editingId = ref('')
+    const detailRecord = ref(null)
 
     const query = reactive({
       pageNo: 1,
@@ -606,6 +685,46 @@ export default {
       {code: '95', label: '95 号汽油', priceText: latestFuelPrices.prices['95'] ? `¥${Number(latestFuelPrices.prices['95']).toFixed(2)}/L` : '-'},
       {code: '98', label: '98 号汽油', priceText: latestFuelPrices.prices['98'] ? `¥${Number(latestFuelPrices.prices['98']).toFixed(2)}/L` : '-'},
       {code: 'DIESEL', label: '柴油', priceText: latestFuelPrices.prices.DIESEL ? `¥${Number(latestFuelPrices.prices.DIESEL).toFixed(2)}/L` : '-'}
+    ]))
+    const consumptionSourceRecords = computed(() => {
+      const merged = [...recentRecords.value, ...pagedRecords.value]
+      const uniqueMap = new Map()
+      merged.forEach((item) => {
+        const normalized = normalizeRecord(item)
+        if (normalized.fuelConsumption == null || Number(normalized.fuelConsumption) <= 0 || !normalized.vehicleName) {
+          return
+        }
+        const key = normalized.id || `${normalized.vehicleName}-${normalized.fuelDate}-${normalized.odometerKm}`
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, normalized)
+        }
+      })
+      return Array.from(uniqueMap.values()).sort((prev, next) => (
+        `${next.fuelDate}-${next.odometerKm}`.localeCompare(`${prev.fuelDate}-${prev.odometerKm}`)
+      ))
+    })
+    const consumptionVehicleOptions = computed(() => Array.from(new Set(
+      consumptionSourceRecords.value.map((item) => item.vehicleName).filter(Boolean)
+    )))
+    const activeConsumptionVehicleName = computed(() => {
+      if (selectedVehicleName.value && consumptionVehicleOptions.value.includes(selectedVehicleName.value)) {
+        return selectedVehicleName.value
+      }
+      return consumptionVehicleOptions.value[0] || ''
+    })
+    const latestConsumptionRecord = computed(() => (
+      consumptionSourceRecords.value.find((item) => item.vehicleName === activeConsumptionVehicleName.value) || null
+    ))
+    const activeVehicleStat = computed(() => (
+      vehicleStats.value.find((item) => item.vehicleName === activeConsumptionVehicleName.value) || null
+    ))
+    const activeVehicleAverageConsumption = computed(() => (
+      Number(activeVehicleStat.value?.averageConsumption ?? summary.averageConsumption ?? 0)
+    ))
+    const fuelPriceExtraItems = computed(() => ([
+      {label: '下次调价时间', value: latestFuelPrices.nextAdjustTime || '待维护'},
+      {label: '调价窗口', value: latestFuelPrices.adjustWindow || '待维护'},
+      {label: '调价说明', value: latestFuelPrices.priceChangeHint || latestFuelPrices.remark || '暂无说明'}
     ]))
     const maxYearlyCost = computed(() => Math.max(1, ...yearlyCostReport.value.map((item) => Number(item.totalAmount || 0))))
     const monthlyTrendPoints = computed(() => {
@@ -679,10 +798,24 @@ export default {
 
     const applyLatestPrices = (payload = {}) => {
       latestFuelPrices.publishDate = payload.publishDate || payload.updateTime || ''
+      latestFuelPrices.nextAdjustTime = payload.nextAdjustTime || payload.nextAdjustDate || ''
+      latestFuelPrices.adjustWindow = payload.adjustWindow || payload.nextAdjustWindow || ''
+      latestFuelPrices.priceChangeHint = payload.priceChangeHint || payload.priceTrend || payload.trend || ''
+      latestFuelPrices.remark = payload.remark || payload.description || ''
       latestFuelPrices.prices['92'] = Number(payload.prices?.['92'] ?? payload.price92 ?? 0)
       latestFuelPrices.prices['95'] = Number(payload.prices?.['95'] ?? payload.price95 ?? 0)
       latestFuelPrices.prices['98'] = Number(payload.prices?.['98'] ?? payload.price98 ?? 0)
       latestFuelPrices.prices.DIESEL = Number(payload.prices?.DIESEL ?? payload.priceDiesel ?? 0)
+    }
+
+    const syncSelectedVehicle = () => {
+      if (!consumptionVehicleOptions.value.length) {
+        selectedVehicleName.value = ''
+        return
+      }
+      if (!consumptionVehicleOptions.value.includes(selectedVehicleName.value)) {
+        selectedVehicleName.value = consumptionVehicleOptions.value[0]
+      }
     }
 
     const applyReports = (payload = {}) => {
@@ -735,9 +868,11 @@ export default {
           recentRecords.value = Array.isArray(summaryPayload.recentRecords)
             ? summaryPayload.recentRecords.map((item) => normalizeRecord(item))
             : buildRecentRecords(normalizedList)
+          syncSelectedVehicle()
         } catch (error) {
           vehicleStats.value = buildVehicleStats(normalizedList)
           recentRecords.value = buildRecentRecords(normalizedList)
+          syncSelectedVehicle()
         }
 
         try {
@@ -761,6 +896,10 @@ export default {
         monthlyFuelReport.value = []
         yearlyCostReport.value = []
         latestFuelPrices.publishDate = ''
+        latestFuelPrices.nextAdjustTime = ''
+        latestFuelPrices.adjustWindow = ''
+        latestFuelPrices.priceChangeHint = ''
+        latestFuelPrices.remark = ''
         latestFuelPrices.prices['92'] = 0
         latestFuelPrices.prices['95'] = 0
         latestFuelPrices.prices['98'] = 0
@@ -813,10 +952,21 @@ export default {
     }
 
     const openEditDialog = (item) => {
+      showDetailDialog.value = false
       dialogMode.value = 'edit'
       editingId.value = item.id
       fillForm(item)
       showDialog.value = true
+    }
+
+    const openDetailDialog = (item) => {
+      detailRecord.value = item
+      showDetailDialog.value = true
+    }
+
+    const closeDetailDialog = () => {
+      showDetailDialog.value = false
+      detailRecord.value = null
     }
 
     const closeDialog = () => {
@@ -927,6 +1077,10 @@ export default {
       router.push('/home')
     }
 
+    const switchConsumptionVehicle = (vehicleName) => {
+      selectedVehicleName.value = vehicleName
+    }
+
     const getBarWidth = (value, maxValue) => {
       if (!value || !maxValue) {
         return 0
@@ -949,10 +1103,17 @@ export default {
       monthlyFuelReport,
       yearlyCostReport,
       latestFuelPrices,
+      latestConsumptionRecord,
+      consumptionVehicleOptions,
+      activeConsumptionVehicleName,
+      activeVehicleAverageConsumption,
+      fuelPriceExtraItems,
       query,
       form,
       showDialog,
+      showDetailDialog,
       dialogMode,
+      detailRecord,
       pageSizeOptions,
       fuelTypeOptions,
       fillTypeOptions,
@@ -973,10 +1134,13 @@ export default {
       formatFillTypeText,
       getConsumptionLevel,
       getBarWidth,
+      switchConsumptionVehicle,
       changePage,
       handlePageSizeChange,
       openCreateDialog,
+      openDetailDialog,
       openEditDialog,
+      closeDetailDialog,
       closeDialog,
       submitDialog,
       removeRecord,
@@ -1037,6 +1201,7 @@ export default {
 }
 
 .hero-panel,
+.headline-panel,
 .price-panel,
 .list-panel,
 .insight-panel,
@@ -1049,6 +1214,7 @@ export default {
 }
 
 .hero-panel,
+.headline-panel,
 .price-panel,
 .list-panel,
 .insight-panel,
@@ -1082,8 +1248,118 @@ export default {
 }
 
 .hero-panel,
+.headline-panel,
 .price-panel {
   margin-bottom: 14px;
+}
+
+.headline-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.headline-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.8fr);
+  gap: 0;
+  background:
+    radial-gradient(circle at top right, rgba(96, 192, 255, 0.22), transparent 28%),
+    linear-gradient(135deg, rgba(8, 29, 48, 0.96), rgba(14, 58, 87, 0.88));
+}
+
+.headline-copy,
+.headline-stats {
+  padding: 18px 20px;
+}
+
+.headline-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.headline-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.headline-label {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(175, 224, 255, 0.8);
+}
+
+.headline-switches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.headline-switch-btn {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.headline-switch-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(123, 211, 255, 0.42);
+}
+
+.headline-switch-btn.active {
+  border-color: rgba(123, 211, 255, 0.48);
+  background: linear-gradient(135deg, rgba(20, 150, 255, 0.26), rgba(39, 213, 164, 0.26));
+  color: #f4fbff;
+}
+
+.headline-value {
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.headline-meta {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.76);
+  line-height: 1.6;
+}
+
+.headline-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.headline-stat {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.headline-stat span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.headline-stat strong {
+  font-size: 20px;
+  line-height: 1.2;
 }
 
 .fuel-layout {
@@ -1155,7 +1431,7 @@ export default {
 }
 
 .price-layout {
-  grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(250px, 0.7fr) minmax(0, 1.5fr);
   align-items: stretch;
 }
 
@@ -1164,8 +1440,15 @@ export default {
 }
 
 .price-grid {
-  margin-top: 14px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.price-extra-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .report-grid {
@@ -1180,15 +1463,40 @@ export default {
 }
 
 .price-card {
-  padding: 14px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .price-card strong {
-  font-size: 22px;
-  line-height: 1.2;
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.price-card span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.price-extra-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.price-extra-item span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.price-extra-item strong {
+  line-height: 1.45;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.94);
 }
 
 .report-card {
@@ -1284,7 +1592,7 @@ export default {
 
 .record-table {
   width: 100%;
-  min-width: 1160px;
+  min-width: 820px;
   border-collapse: collapse;
 }
 
@@ -1294,6 +1602,13 @@ export default {
   text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   font-size: 13px;
+  white-space: nowrap;
+}
+
+.record-table td:nth-child(6) {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .record-table th {
@@ -1636,10 +1951,64 @@ export default {
   flex-wrap: wrap;
 }
 
+.detail-dialog {
+  width: min(840px, 100%);
+}
+
+.detail-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.detail-dialog-subtitle {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-grid p {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-grid span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.detail-grid strong {
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.detail-grid .wide {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 1100px) {
+  .headline-card,
   .price-layout,
   .fuel-layout {
     grid-template-columns: 1fr;
+  }
+
+  .headline-stats {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1656,6 +2025,7 @@ export default {
   }
 
   .hero-panel,
+  .headline-card,
   .price-panel,
   .toolbar,
   .pager,
@@ -1688,7 +2058,8 @@ export default {
   }
 
   .summary-grid,
-  .form-inline-grid {
+  .form-inline-grid,
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1699,6 +2070,8 @@ export default {
 
 @media (max-width: 560px) {
   .hero-panel,
+  .headline-copy,
+  .headline-stats,
   .price-panel,
   .list-panel,
   .insight-panel,
@@ -1714,6 +2087,18 @@ export default {
 
   .mobile-record-grid,
   .price-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .headline-topline {
+    align-items: stretch;
+  }
+
+  .headline-switches {
+    justify-content: flex-start;
+  }
+
+  .headline-stats {
     grid-template-columns: 1fr;
   }
 
