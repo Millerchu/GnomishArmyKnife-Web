@@ -14,14 +14,42 @@
           :disabled="loading"
         />
 
-        <input
-          v-model="form.password"
-          class="input"
-          type="password"
-          placeholder="密码"
-          autocomplete="current-password"
-          :disabled="loading"
-        />
+        <div class="password-field">
+          <input
+            v-model="form.password"
+            class="input password-input"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="密码"
+            autocomplete="current-password"
+            :disabled="loading"
+          />
+          <button
+            class="password-toggle"
+            type="button"
+            :disabled="loading"
+            aria-label="按住查看密码"
+            title="按住查看密码"
+            @mousedown.prevent="showPassword = true"
+            @mouseup.prevent="showPassword = false"
+            @mouseleave="showPassword = false"
+            @touchstart.prevent="showPassword = true"
+            @touchend.prevent="showPassword = false"
+            @touchcancel.prevent="showPassword = false"
+          >
+            <svg v-if="showPassword" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3 12s3.6-6 9-6 9 6 9 6-3.6 6-9 6-9-6-9-6Zm9 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"
+                fill="currentColor"
+              />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4.7 4.7 19.3 19.3l-1.4 1.4-2.8-2.8A10.6 10.6 0 0 1 12 18c-5.4 0-9-6-9-6a17.4 17.4 0 0 1 4.3-4.8L3.3 6.1l1.4-1.4Zm5.2 5.2a3.2 3.2 0 0 0 4.2 4.2l-4.2-4.2Zm2.1-3.9c5.4 0 9 6 9 6a17.7 17.7 0 0 1-4.4 4.8l-1.4-1.4A15.1 15.1 0 0 0 18.5 12c-.8-1.1-3.1-3.7-6.5-3.7-.8 0-1.5.1-2.2.4L8 7c1.2-.6 2.5-1 4-1Z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+        </div>
 
         <div class="captcha-row">
           <input
@@ -86,6 +114,7 @@ export default {
 
     const loading = ref(false)
     const initLoading = ref(false)
+    const showPassword = ref(false)
     const captchaText = ref('')
     const publicKey = ref('')
     const errorMessage = ref('')
@@ -233,6 +262,7 @@ export default {
       form,
       loading,
       initLoading,
+      showPassword,
       captchaText,
       errorMessage,
       refreshCaptcha,
@@ -288,6 +318,10 @@ export default {
   gap: 12px;
 }
 
+.password-field {
+  position: relative;
+}
+
 .input {
   width: 100%;
   padding: 10px 12px;
@@ -296,6 +330,38 @@ export default {
   font-size: 16px;
   text-align: center;
   outline: none;
+}
+
+.password-input {
+  padding-right: 46px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  color: rgba(32, 52, 86, 0.78);
+  background: rgba(79, 172, 254, 0.12);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.password-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .captcha-row {
