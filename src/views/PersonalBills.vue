@@ -15,7 +15,7 @@
       <div class="hero-tags">
         <span class="hero-tag">本月支出 {{ formatCurrency(summary.currentMonthExpense) }}</span>
         <span class="hero-tag">本月收入 {{ formatCurrency(summary.currentMonthIncome) }}</span>
-        <span class="hero-tag">{{ usingLocalData ? '本地演示数据' : '已接真实接口' }}</span>
+        <span class="hero-tag">已接真实接口</span>
       </div>
     </div>
 
@@ -96,7 +96,7 @@
           <span>分类</span>
           <select v-model="query.categoryName" class="input">
             <option value="">全部分类</option>
-            <option v-for="item in categoryOptions" :key="item" :value="item">{{ item }}</option>
+            <option v-for="item in billCategoryOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
           </select>
         </label>
 
@@ -134,7 +134,6 @@
           </div>
           <div class="toolbar-right">
             <span>共 {{ total }} 条</span>
-            <span v-if="usingLocalData" class="mock-tip">当前为演示数据（后端未联通）</span>
           </div>
         </div>
 
@@ -305,7 +304,9 @@
 
             <label class="form-field">
               <span>分类</span>
-              <input v-model.trim="billForm.categoryName" class="input" maxlength="32" placeholder="例如：餐饮 / 工资" required />
+              <select v-model="billForm.categoryName" class="input" required>
+                <option v-for="item in billCategoryOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
             </label>
           </div>
 
@@ -329,7 +330,10 @@
 
             <label class="form-field">
               <span>支付方式</span>
-              <input v-model.trim="billForm.paymentMethod" class="input" maxlength="32" placeholder="例如：支付宝 / 银行卡" />
+              <select v-model="billForm.paymentMethod" class="input">
+                <option value="">未填写</option>
+                <option v-for="item in paymentMethodOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
             </label>
           </div>
 
@@ -365,7 +369,9 @@
 
             <label class="form-field">
               <span>分类</span>
-              <input v-model.trim="budgetForm.categoryName" class="input" maxlength="32" placeholder="例如：餐饮" required />
+              <select v-model="budgetForm.categoryName" class="input" required>
+                <option v-for="item in budgetCategoryOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
             </label>
           </div>
 
@@ -412,35 +418,16 @@ import {
   updateAnnualBudget,
   updatePersonalBill
 } from '@/api/personalBills'
+import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 
-// 账单和预算都提供本地兜底，便于在后端未联通前完整预览联动效果。
-const LOCAL_BILL_KEY = 'personal_bills_records'
-const LOCAL_BUDGET_KEY = 'personal_budget_records'
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 const BILL_TYPE_OPTIONS = [
   {value: 'EXPENSE', label: '支出'},
   {value: 'INCOME', label: '收入'}
 ]
-const DEFAULT_BILLS = [
-  {id: 'bill-1', billType: 'EXPENSE', categoryName: '餐饮', amount: 68, accountName: '招商银行卡', paymentMethod: '支付宝', merchantName: '盒马鲜生', billDate: '2026-03-12', note: '晚餐和水果', updatedAt: '2026-03-12 20:13'},
-  {id: 'bill-2', billType: 'EXPENSE', categoryName: '交通', amount: 36, accountName: '微信零钱', paymentMethod: '微信支付', merchantName: '滴滴出行', billDate: '2026-03-11', note: '加班打车', updatedAt: '2026-03-11 22:08'},
-  {id: 'bill-3', billType: 'EXPENSE', categoryName: '数码', amount: 699, accountName: '招商银行卡', paymentMethod: '银行卡', merchantName: 'Apple', billDate: '2026-03-08', note: '配件补购', updatedAt: '2026-03-08 19:10'},
-  {id: 'bill-4', billType: 'INCOME', categoryName: '工资', amount: 18500, accountName: '招商银行卡', paymentMethod: '银行转账', merchantName: '工资入账', billDate: '2026-03-05', note: '3 月工资', updatedAt: '2026-03-05 10:02'},
-  {id: 'bill-5', billType: 'EXPENSE', categoryName: '居家', amount: 228, accountName: '招商银行卡', paymentMethod: '支付宝', merchantName: '京东', billDate: '2026-03-02', note: '清洁用品', updatedAt: '2026-03-02 15:46'},
-  {id: 'bill-6', billType: 'EXPENSE', categoryName: '娱乐', amount: 188, accountName: '微信零钱', paymentMethod: '微信支付', merchantName: 'Steam', billDate: '2026-02-26', note: '游戏购买', updatedAt: '2026-02-26 09:35'},
-  {id: 'bill-7', billType: 'INCOME', categoryName: '奖金', amount: 3200, accountName: '招商银行卡', paymentMethod: '银行转账', merchantName: '项目奖金', billDate: '2026-02-20', note: '', updatedAt: '2026-02-20 10:22'},
-  {id: 'bill-8', billType: 'EXPENSE', categoryName: '学习', amount: 399, accountName: '支付宝余额', paymentMethod: '支付宝', merchantName: '极客时间', billDate: '2026-01-18', note: '年度课程', updatedAt: '2026-01-18 16:21'},
-  {id: 'bill-9', billType: 'EXPENSE', categoryName: '旅行', amount: 1260, accountName: '招商银行卡', paymentMethod: '银行卡', merchantName: '携程', billDate: '2026-01-11', note: '春节返乡车票', updatedAt: '2026-01-11 11:08'}
-]
-const DEFAULT_BUDGETS = [
-  {id: 'budget-1', year: 2026, categoryName: '餐饮', annualLimit: 15000, alertThreshold: 0.8, note: '控制外食支出'},
-  {id: 'budget-2', year: 2026, categoryName: '交通', annualLimit: 6000, alertThreshold: 0.85, note: ''},
-  {id: 'budget-3', year: 2026, categoryName: '居家', annualLimit: 8000, alertThreshold: 0.8, note: ''},
-  {id: 'budget-4', year: 2026, categoryName: '娱乐', annualLimit: 5000, alertThreshold: 0.75, note: ''},
-  {id: 'budget-5', year: 2026, categoryName: '数码', annualLimit: 12000, alertThreshold: 0.7, note: '大件设备也放这里'}
-]
+const PERSONAL_BILLS_APP_CODE = 'APP_PERSONAL_BILLS'
+const PERSONAL_BILLS_MODULE_CODE = 'PERSONAL_BILLS'
 
-// 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -454,19 +441,40 @@ function getDefaultMonth() {
   return `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}`
 }
 
-function formatDateTime(date = new Date()) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  const hour = `${date.getHours()}`.padStart(2, '0')
-  const minute = `${date.getMinutes()}`.padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}`
+function extractErrorMessage(error, fallback) {
+  return error?.response?.data?.message || error?.message || fallback
 }
 
-// 流水字段先归一，后续月筛选、分页和统计都只基于这一层结构。
+function normalizeDictionaryOptions(payload) {
+  if (!Array.isArray(payload)) {
+    return []
+  }
+  return payload
+    .map((item) => ({
+      itemCode: item?.itemCode || item?.code || item?.value || '',
+      label: item?.itemLabel || item?.label || item?.itemValue || item?.value || '',
+      value: item?.itemValue || item?.value || item?.itemCode || item?.code || '',
+      isDefault: Boolean(item?.isDefault),
+      sortNo: Number(item?.sortNo ?? item?.sort ?? 0)
+    }))
+    .filter((item) => item.label && item.value)
+    .sort((prev, next) => prev.sortNo - next.sortNo || `${prev.label}`.localeCompare(`${next.label}`))
+}
+
+function normalizeSelectedValue(options, value, fallback = '') {
+  if (!options.length) {
+    return value || fallback
+  }
+  const matched = options.find((item) => item.value === value || item.label === value || item.itemCode === value)
+  if (matched) {
+    return matched.value
+  }
+  return fallback || options[0]?.value || ''
+}
+
 function normalizeBill(item = {}) {
   return {
-    id: item.id ?? item.billId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: item.id ?? item.billId ?? '',
     billType: item.billType || item.type || 'EXPENSE',
     categoryName: item.categoryName || item.category || '',
     amount: Number(item.amount ?? 0),
@@ -479,10 +487,9 @@ function normalizeBill(item = {}) {
   }
 }
 
-// 预算字段单独归一，方便与账单记录做年度联动统计。
 function normalizeBudget(item = {}) {
   return {
-    id: item.id ?? item.budgetId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: item.id ?? item.budgetId ?? '',
     year: Number(item.year ?? new Date().getFullYear()),
     categoryName: item.categoryName || item.category || '',
     annualLimit: Number(item.annualLimit ?? item.limitAmount ?? 0),
@@ -491,138 +498,34 @@ function normalizeBudget(item = {}) {
   }
 }
 
-function loadLocalBills() {
-  try {
-    const raw = localStorage.getItem(LOCAL_BILL_KEY)
-    if (!raw) {
-      localStorage.setItem(LOCAL_BILL_KEY, JSON.stringify(DEFAULT_BILLS))
-      return DEFAULT_BILLS.map((item) => normalizeBill(item))
-    }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return DEFAULT_BILLS.map((item) => normalizeBill(item))
-    }
-    return parsed.map((item) => normalizeBill(item))
-  } catch (error) {
-    return DEFAULT_BILLS.map((item) => normalizeBill(item))
+function normalizeCategoryDistribution(payload) {
+  if (!Array.isArray(payload)) {
+    return []
   }
+  return payload.map((item) => ({
+    categoryName: item?.categoryName || '',
+    amount: Number(item?.amount ?? 0),
+    ratio: Number(item?.ratio ?? 0)
+  }))
 }
 
-function loadLocalBudgets() {
-  try {
-    const raw = localStorage.getItem(LOCAL_BUDGET_KEY)
-    if (!raw) {
-      localStorage.setItem(LOCAL_BUDGET_KEY, JSON.stringify(DEFAULT_BUDGETS))
-      return DEFAULT_BUDGETS.map((item) => normalizeBudget(item))
-    }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return DEFAULT_BUDGETS.map((item) => normalizeBudget(item))
-    }
-    return parsed.map((item) => normalizeBudget(item))
-  } catch (error) {
-    return DEFAULT_BUDGETS.map((item) => normalizeBudget(item))
+function normalizeBudgetProgress(payload) {
+  if (!Array.isArray(payload)) {
+    return []
   }
-}
-
-function persistLocalBills(list) {
-  localStorage.setItem(LOCAL_BILL_KEY, JSON.stringify(list))
-}
-
-function persistLocalBudgets(list) {
-  localStorage.setItem(LOCAL_BUDGET_KEY, JSON.stringify(list))
-}
-
-function sortBills(list = []) {
-  return [...list].sort((prev, next) => `${next.billDate}-${next.id}`.localeCompare(`${prev.billDate}-${prev.id}`))
-}
-
-function buildBudgetStatus(usageRate = 0, alertThreshold = 0.8) {
-  if (usageRate >= 1) {
-    return {statusClass: 'danger', statusText: '已超预算'}
-  }
-  if (usageRate >= alertThreshold) {
-    return {statusClass: 'warning', statusText: '接近上限'}
-  }
-  return {statusClass: 'safe', statusText: '预算健康'}
-}
-
-// 饼图/分布卡片的数据都从当月支出分类汇总出来。
-function buildCategoryDistribution(records = []) {
-  const expenseRecords = records.filter((item) => item.billType === 'EXPENSE')
-  const total = expenseRecords.reduce((sum, item) => sum + Number(item.amount || 0), 0)
-  const categoryMap = expenseRecords.reduce((result, item) => {
-    const current = result[item.categoryName] || {categoryName: item.categoryName, amount: 0}
-    current.amount += Number(item.amount || 0)
-    result[item.categoryName] = current
-    return result
-  }, {})
-
-  return Object.values(categoryMap)
-    .map((item) => ({
-      ...item,
-      ratio: total > 0 ? item.amount / total : 0
-    }))
-    .sort((prev, next) => next.amount - prev.amount)
-}
-
-// 顶部收支概览、最近账单和预算执行率统一在这里计算，保持口径一致。
-function buildSummary(allBills = [], filteredBills = [], budgets = [], selectedMonth = getDefaultMonth()) {
-  const selectedYear = Number(selectedMonth.slice(0, 4))
-  const currentMonthBills = filteredBills.filter((item) => `${item.billDate || ''}`.startsWith(selectedMonth))
-  const currentYearBills = allBills.filter((item) => `${item.billDate || ''}`.startsWith(`${selectedYear}`))
-  const currentYearExpenseBills = currentYearBills.filter((item) => item.billType === 'EXPENSE')
-  const currentYearBudgets = budgets.filter((item) => Number(item.year) === selectedYear)
-
-  const currentMonthExpense = currentMonthBills
-    .filter((item) => item.billType === 'EXPENSE')
-    .reduce((sum, item) => sum + Number(item.amount || 0), 0)
-  const currentMonthIncome = currentMonthBills
-    .filter((item) => item.billType === 'INCOME')
-    .reduce((sum, item) => sum + Number(item.amount || 0), 0)
-  const currentYearExpense = currentYearExpenseBills.reduce((sum, item) => sum + Number(item.amount || 0), 0)
-  const annualBudgetAmount = currentYearBudgets.reduce((sum, item) => sum + Number(item.annualLimit || 0), 0)
-  const currentYearBudgetSpent = currentYearBudgets.reduce((sum, item) => {
-    const used = currentYearExpenseBills
-      .filter((bill) => bill.categoryName === item.categoryName)
-      .reduce((amountSum, bill) => amountSum + Number(bill.amount || 0), 0)
-    return sum + used
-  }, 0)
-
-  return {
-    currentMonthExpense,
-    currentMonthIncome,
-    currentMonthBalance: currentMonthIncome - currentMonthExpense,
-    currentYearExpense,
-    annualBudgetAmount,
-    annualBudgetUsed: currentYearBudgetSpent,
-    annualBudgetRemaining: Math.max(annualBudgetAmount - currentYearBudgetSpent, 0),
-    annualBudgetUsageRate: annualBudgetAmount > 0 ? currentYearBudgetSpent / annualBudgetAmount : 0,
-    categoryDistribution: buildCategoryDistribution(currentMonthBills),
-    recentBills: sortBills(filteredBills).slice(0, 5)
-  }
-}
-
-function buildBudgetViewList(budgets = [], bills = [], year) {
-  const yearExpenseBills = bills.filter((item) => item.billType === 'EXPENSE' && `${item.billDate || ''}`.startsWith(`${year}`))
-  return budgets
-    .filter((item) => Number(item.year) === Number(year))
-    .map((item) => {
-      const usedAmount = yearExpenseBills
-        .filter((bill) => bill.categoryName === item.categoryName)
-        .reduce((sum, bill) => sum + Number(bill.amount || 0), 0)
-      const annualLimit = Number(item.annualLimit || 0)
-      const usageRate = annualLimit > 0 ? usedAmount / annualLimit : 0
-      const status = buildBudgetStatus(usageRate, Number(item.alertThreshold || 0.8))
-      return {
-        ...item,
-        usedAmount,
-        remainingAmount: Math.max(annualLimit - usedAmount, 0),
-        usageRate: Number((usageRate * 100).toFixed(2)),
-        ...status
-      }
-    })
-    .sort((prev, next) => next.usageRate - prev.usageRate || prev.categoryName.localeCompare(next.categoryName))
+  return payload.map((item) => ({
+    id: item?.id ?? '',
+    year: Number(item?.year ?? new Date().getFullYear()),
+    categoryName: item?.categoryName || '',
+    annualLimit: Number(item?.annualLimit ?? 0),
+    alertThreshold: Number(item?.alertThreshold ?? 0),
+    note: item?.note || '',
+    usedAmount: Number(item?.usedAmount ?? 0),
+    remainingAmount: Number(item?.remainingAmount ?? 0),
+    usageRate: Number(item?.usageRate ?? 0),
+    statusClass: item?.statusClass || 'safe',
+    statusText: item?.statusText || '预算健康'
+  }))
 }
 
 export default {
@@ -630,18 +533,19 @@ export default {
   setup() {
     const router = useRouter()
 
-    // 页面同时管理账单流水和年度预算，两套弹窗共享同一份数据源。
     const loading = ref(false)
     const submitting = ref(false)
     const budgetSubmitting = ref(false)
-    const usingLocalData = ref(false)
+    const dictLoading = ref(false)
     const total = ref(0)
-    const allBills = ref([])
     const pagedBills = ref([])
     const budgets = ref([])
     const categoryDistribution = ref([])
     const recentBills = ref([])
     const currentYearBudgets = ref([])
+    const billCategoryOptions = ref([])
+    const budgetCategoryOptions = ref([])
+    const paymentMethodOptions = ref([])
     const showBillDialog = ref(false)
     const showBudgetDialog = ref(false)
     const billDialogMode = ref('create')
@@ -688,140 +592,87 @@ export default {
       note: ''
     })
 
-    const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
+    const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize || 1)))
     const pageSizeOptions = PAGE_SIZE_OPTIONS
     const billTypeOptions = BILL_TYPE_OPTIONS
     const selectedYear = computed(() => Number((query.month || getDefaultMonth()).slice(0, 4)))
-    const categoryOptions = computed(() => Array.from(new Set(allBills.value.map((item) => item.categoryName).filter(Boolean))))
-
-    const applySummary = (filteredBills) => {
-      const nextSummary = buildSummary(allBills.value, filteredBills, budgets.value, query.month || getDefaultMonth())
-      summary.currentMonthExpense = nextSummary.currentMonthExpense
-      summary.currentMonthIncome = nextSummary.currentMonthIncome
-      summary.currentMonthBalance = nextSummary.currentMonthBalance
-      summary.currentYearExpense = nextSummary.currentYearExpense
-      summary.annualBudgetAmount = nextSummary.annualBudgetAmount
-      summary.annualBudgetUsed = nextSummary.annualBudgetUsed
-      summary.annualBudgetRemaining = nextSummary.annualBudgetRemaining
-      summary.annualBudgetUsageRate = nextSummary.annualBudgetUsageRate
-      categoryDistribution.value = nextSummary.categoryDistribution
-      recentBills.value = nextSummary.recentBills
-      currentYearBudgets.value = buildBudgetViewList(budgets.value, allBills.value, selectedYear.value)
+    const applySummary = (payload = {}) => {
+      summary.currentMonthExpense = Number(payload?.currentMonthExpense ?? 0)
+      summary.currentMonthIncome = Number(payload?.currentMonthIncome ?? 0)
+      summary.currentMonthBalance = Number(payload?.currentMonthBalance ?? 0)
+      summary.currentYearExpense = Number(payload?.currentYearExpense ?? 0)
+      summary.annualBudgetAmount = Number(payload?.annualBudgetAmount ?? 0)
+      summary.annualBudgetUsed = Number(payload?.annualBudgetUsed ?? 0)
+      summary.annualBudgetRemaining = Number(payload?.annualBudgetRemaining ?? 0)
+      summary.annualBudgetUsageRate = Number(payload?.annualBudgetUsageRate ?? 0)
+      categoryDistribution.value = normalizeCategoryDistribution(payload?.categoryDistribution)
+      recentBills.value = Array.isArray(payload?.recentBills) ? payload.recentBills.map((item) => normalizeBill(item)) : []
+      currentYearBudgets.value = normalizeBudgetProgress(payload?.budgetProgressList)
     }
 
-    const matchesFilters = (item) => {
-      const keyword = query.keyword.trim().toLowerCase()
-      if (query.month && !`${item.billDate || ''}`.startsWith(query.month)) {
-        return false
+    const loadDictionaryOptions = async () => {
+      dictLoading.value = true
+      try {
+        const [billCategoryRes, budgetCategoryRes, paymentMethodRes] = await Promise.all([
+          listDataDictionaryOptionsByUsage({
+            appCode: PERSONAL_BILLS_APP_CODE,
+            moduleCode: PERSONAL_BILLS_MODULE_CODE,
+            bizFieldCode: 'categoryName'
+          }),
+          listDataDictionaryOptionsByUsage({
+            appCode: PERSONAL_BILLS_APP_CODE,
+            moduleCode: PERSONAL_BILLS_MODULE_CODE,
+            bizFieldCode: 'budgetCategoryName'
+          }),
+          listDataDictionaryOptionsByUsage({
+            appCode: PERSONAL_BILLS_APP_CODE,
+            moduleCode: PERSONAL_BILLS_MODULE_CODE,
+            bizFieldCode: 'paymentMethod'
+          })
+        ])
+        billCategoryOptions.value = normalizeDictionaryOptions(unwrapData(billCategoryRes))
+        budgetCategoryOptions.value = normalizeDictionaryOptions(unwrapData(budgetCategoryRes))
+        paymentMethodOptions.value = normalizeDictionaryOptions(unwrapData(paymentMethodRes))
+      } finally {
+        dictLoading.value = false
       }
-      if (query.billType && item.billType !== query.billType) {
-        return false
-      }
-      if (query.categoryName && item.categoryName !== query.categoryName) {
-        return false
-      }
-      if (keyword) {
-        const text = [
-          item.categoryName,
-          item.accountName,
-          item.paymentMethod,
-          item.merchantName,
-          item.note
-        ].filter(Boolean).join(' ').toLowerCase()
-        if (!text.includes(keyword)) {
-          return false
-        }
-      }
-      return true
-    }
-
-    const applyLocalFilterAndPaging = () => {
-      const filtered = sortBills(allBills.value.filter((item) => matchesFilters(item)))
-      total.value = filtered.length
-      const safePageNo = Math.min(query.pageNo, Math.max(1, Math.ceil(filtered.length / query.pageSize) || 1))
-      query.pageNo = safePageNo
-      const startIndex = (safePageNo - 1) * query.pageSize
-      pagedBills.value = filtered.slice(startIndex, startIndex + query.pageSize)
-      applySummary(filtered)
-    }
-
-    const syncLocalBills = (records) => {
-      const nextRecords = sortBills(records.map((item) => normalizeBill(item)))
-      allBills.value = nextRecords
-      persistLocalBills(nextRecords)
-      applyLocalFilterAndPaging()
-    }
-
-    const syncLocalBudgets = (records) => {
-      const nextRecords = records.map((item) => normalizeBudget(item))
-      budgets.value = nextRecords
-      persistLocalBudgets(nextRecords)
-      applyLocalFilterAndPaging()
     }
 
     const loadBills = async () => {
       loading.value = true
       try {
-        const billRes = await listPersonalBills({
-          pageNo: query.pageNo,
-          pageSize: query.pageSize,
-          month: query.month || undefined,
-          billType: query.billType || undefined,
-          categoryName: query.categoryName || undefined,
-          keyword: query.keyword || undefined
-        })
+        const [billRes, budgetRes, summaryRes] = await Promise.all([
+          listPersonalBills({
+            pageNo: query.pageNo,
+            pageSize: query.pageSize,
+            month: query.month || undefined,
+            billType: query.billType || undefined,
+            categoryName: query.categoryName || undefined,
+            keyword: query.keyword || undefined
+          }),
+          listAnnualBudgets({year: selectedYear.value}),
+          getPersonalBillSummary({
+            month: query.month || undefined,
+            year: selectedYear.value
+          })
+        ])
+
         const billPayload = unwrapData(billRes) || {}
         const billList = Array.isArray(billPayload)
           ? billPayload
           : (billPayload.list || billPayload.records || billPayload.rows || [])
-        const normalizedBills = sortBills(billList.map((item) => normalizeBill(item)))
-        allBills.value = normalizedBills
-        pagedBills.value = normalizedBills
-        total.value = Number(billPayload.total ?? billPayload.count ?? normalizedBills.length)
-        usingLocalData.value = false
+        pagedBills.value = billList.map((item) => normalizeBill(item))
+        total.value = Number(billPayload.total ?? billPayload.count ?? pagedBills.value.length)
 
-        try {
-          const budgetRes = await listAnnualBudgets({year: selectedYear.value})
-          const budgetPayload = unwrapData(budgetRes) || {}
-          const budgetList = Array.isArray(budgetPayload)
-            ? budgetPayload
-            : (budgetPayload.list || budgetPayload.records || budgetPayload.rows || [])
-          budgets.value = budgetList.map((item) => normalizeBudget(item))
-        } catch (error) {
-          budgets.value = loadLocalBudgets()
-        }
+        const budgetPayload = unwrapData(budgetRes) || {}
+        const budgetList = Array.isArray(budgetPayload)
+          ? budgetPayload
+          : (budgetPayload.list || budgetPayload.records || budgetPayload.rows || [])
+        budgets.value = budgetList.map((item) => normalizeBudget(item))
 
-        try {
-          const summaryRes = await getPersonalBillSummary({
-            month: query.month || undefined,
-            year: selectedYear.value
-          })
-          const summaryPayload = unwrapData(summaryRes) || {}
-          summary.currentMonthExpense = Number(summaryPayload.currentMonthExpense ?? 0)
-          summary.currentMonthIncome = Number(summaryPayload.currentMonthIncome ?? 0)
-          summary.currentMonthBalance = Number(summaryPayload.currentMonthBalance ?? 0)
-          summary.currentYearExpense = Number(summaryPayload.currentYearExpense ?? 0)
-          summary.annualBudgetAmount = Number(summaryPayload.annualBudgetAmount ?? 0)
-          summary.annualBudgetUsed = Number(summaryPayload.annualBudgetUsed ?? 0)
-          summary.annualBudgetRemaining = Number(summaryPayload.annualBudgetRemaining ?? 0)
-          summary.annualBudgetUsageRate = Number(summaryPayload.annualBudgetUsageRate ?? 0)
-          categoryDistribution.value = Array.isArray(summaryPayload.categoryDistribution)
-            ? summaryPayload.categoryDistribution
-            : buildSummary(allBills.value, allBills.value.filter((item) => matchesFilters(item)), budgets.value, query.month).categoryDistribution
-          recentBills.value = Array.isArray(summaryPayload.recentBills)
-            ? summaryPayload.recentBills.map((item) => normalizeBill(item))
-            : sortBills(allBills.value.filter((item) => matchesFilters(item))).slice(0, 5)
-          currentYearBudgets.value = Array.isArray(summaryPayload.budgetProgressList)
-            ? summaryPayload.budgetProgressList
-            : buildBudgetViewList(budgets.value, allBills.value, selectedYear.value)
-        } catch (error) {
-          applySummary(allBills.value.filter((item) => matchesFilters(item)))
-        }
+        applySummary(unwrapData(summaryRes) || {})
       } catch (error) {
-        allBills.value = sortBills(loadLocalBills())
-        budgets.value = loadLocalBudgets()
-        usingLocalData.value = true
-        applyLocalFilterAndPaging()
+        alert(extractErrorMessage(error, '加载个人账单数据失败'))
       } finally {
         loading.value = false
       }
@@ -829,7 +680,7 @@ export default {
 
     const resetBillForm = () => {
       billForm.billType = 'EXPENSE'
-      billForm.categoryName = ''
+      billForm.categoryName = billCategoryOptions.value[0]?.value || ''
       billForm.amount = 0
       billForm.accountName = ''
       billForm.paymentMethod = ''
@@ -840,10 +691,10 @@ export default {
 
     const fillBillForm = (record) => {
       billForm.billType = record.billType || 'EXPENSE'
-      billForm.categoryName = record.categoryName || ''
+      billForm.categoryName = normalizeSelectedValue(billCategoryOptions.value, record.categoryName)
       billForm.amount = Number(record.amount || 0)
       billForm.accountName = record.accountName || ''
-      billForm.paymentMethod = record.paymentMethod || ''
+      billForm.paymentMethod = normalizeSelectedValue(paymentMethodOptions.value, record.paymentMethod, '')
       billForm.merchantName = record.merchantName || ''
       billForm.billDate = record.billDate || ''
       billForm.note = record.note || ''
@@ -851,7 +702,7 @@ export default {
 
     const resetBudgetForm = () => {
       budgetForm.year = selectedYear.value
-      budgetForm.categoryName = ''
+      budgetForm.categoryName = budgetCategoryOptions.value[0]?.value || ''
       budgetForm.annualLimit = 0
       budgetForm.alertThreshold = 0.8
       budgetForm.note = ''
@@ -859,7 +710,7 @@ export default {
 
     const fillBudgetForm = (record) => {
       budgetForm.year = Number(record.year || selectedYear.value)
-      budgetForm.categoryName = record.categoryName || ''
+      budgetForm.categoryName = normalizeSelectedValue(budgetCategoryOptions.value, record.categoryName)
       budgetForm.annualLimit = Number(record.annualLimit || 0)
       budgetForm.alertThreshold = Number(record.alertThreshold || 0.8)
       budgetForm.note = record.note || ''
@@ -931,7 +782,7 @@ export default {
 
     const submitBillDialog = async () => {
       if (!billForm.categoryName) {
-        alert('请输入分类')
+        alert('请选择分类')
         return
       }
       if (!billForm.amount) {
@@ -958,30 +809,7 @@ export default {
         resetBillForm()
         await loadBills()
       } catch (error) {
-        const now = formatDateTime()
-        if (billDialogMode.value === 'create') {
-          syncLocalBills([
-            normalizeBill({
-              ...payload,
-              id: `bill-${Date.now()}`,
-              updatedAt: now
-            }),
-            ...loadLocalBills()
-          ])
-        } else {
-          syncLocalBills(loadLocalBills().map((item) => (
-            item.id === editingBillId.value
-              ? normalizeBill({
-                ...item,
-                ...payload,
-                updatedAt: now
-              })
-              : item
-          )))
-        }
-        usingLocalData.value = true
-        showBillDialog.value = false
-        resetBillForm()
+        alert(extractErrorMessage(error, billDialogMode.value === 'create' ? '新增账单失败' : '更新账单失败'))
       } finally {
         submitting.value = false
       }
@@ -989,7 +817,7 @@ export default {
 
     const submitBudgetDialog = async () => {
       if (!budgetForm.categoryName) {
-        alert('请输入预算分类')
+        alert('请选择预算分类')
         return
       }
       if (!budgetForm.annualLimit) {
@@ -1016,27 +844,7 @@ export default {
         resetBudgetForm()
         await loadBills()
       } catch (error) {
-        if (budgetDialogMode.value === 'create') {
-          syncLocalBudgets([
-            normalizeBudget({
-              ...payload,
-              id: `budget-${Date.now()}`
-            }),
-            ...loadLocalBudgets()
-          ])
-        } else {
-          syncLocalBudgets(loadLocalBudgets().map((item) => (
-            item.id === editingBudgetId.value
-              ? normalizeBudget({
-                ...item,
-                ...payload
-              })
-              : item
-          )))
-        }
-        usingLocalData.value = true
-        showBudgetDialog.value = false
-        resetBudgetForm()
+        alert(extractErrorMessage(error, budgetDialogMode.value === 'create' ? '新增预算失败' : '更新预算失败'))
       } finally {
         budgetSubmitting.value = false
       }
@@ -1050,8 +858,7 @@ export default {
         await deletePersonalBill(item.id)
         await loadBills()
       } catch (error) {
-        syncLocalBills(loadLocalBills().filter((record) => record.id !== item.id))
-        usingLocalData.value = true
+        alert(extractErrorMessage(error, '删除账单失败'))
       }
     }
 
@@ -1063,8 +870,7 @@ export default {
         await deleteAnnualBudget(item.id)
         await loadBills()
       } catch (error) {
-        syncLocalBudgets(loadLocalBudgets().filter((record) => record.id !== item.id))
-        usingLocalData.value = true
+        alert(extractErrorMessage(error, '删除预算失败'))
       }
     }
 
@@ -1105,15 +911,22 @@ export default {
     const formatPercent = (value) => `${(Number(value || 0) * 100).toFixed(0)}%`
     const formatBillTypeText = (value) => billTypeOptions.find((item) => item.value === value)?.label || value || '-'
 
-    onMounted(() => {
-      loadBills()
+    onMounted(async () => {
+      try {
+        await loadDictionaryOptions()
+        resetBillForm()
+        resetBudgetForm()
+        await loadBills()
+      } catch (error) {
+        alert(extractErrorMessage(error, '初始化个人账单页面失败'))
+      }
     })
 
     return {
       loading,
       submitting,
       budgetSubmitting,
-      usingLocalData,
+      dictLoading,
       total,
       pagedBills,
       currentYearBudgets,
@@ -1127,9 +940,11 @@ export default {
       showBudgetDialog,
       billDialogMode,
       budgetDialogMode,
+      billCategoryOptions,
+      budgetCategoryOptions,
+      paymentMethodOptions,
       pageSizeOptions,
       billTypeOptions,
-      categoryOptions,
       selectedYear,
       totalPages,
       handleSearch,

@@ -90,7 +90,7 @@
             @dragend="handleToolDragEnd"
             @click="openTool(tool)"
           >
-            <div class="tool-top">
+            <div class="tool-layout">
               <div class="icon-box" :style="tool.iconStyle">
                 <AppIconImage
                   v-if="usesImageIcon(tool.iconType) && tool.iconUrl"
@@ -102,10 +102,11 @@
                 <span v-else-if="tool.iconType === 'PRESET'" class="icon-svg" v-html="getPresetIconSvg(tool.iconPreset)"></span>
                 <span v-else class="icon-text">{{ tool.iconText }}</span>
               </div>
-            </div>
 
-            <div class="tool-content">
-              <p class="tool-name">{{ tool.name }}</p>
+              <div class="tool-content">
+                <p class="tool-name">{{ tool.name }}</p>
+                <p class="tool-desc">{{ tool.description || '应用简介待补充' }}</p>
+              </div>
             </div>
           </button>
         </div>
@@ -1194,12 +1195,11 @@ export default {
 .tool-item {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  padding: 14px;
+  min-height: 126px;
+  padding: 16px;
   border-radius: 16px;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 14px;
+  align-items: center;
   cursor: pointer;
   color: #fff;
   text-align: left;
@@ -1227,11 +1227,11 @@ export default {
     linear-gradient(160deg, rgba(96, 204, 255, 0.18), rgba(255, 255, 255, 0.08));
 }
 
-.tool-top {
+.tool-layout {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
 }
 
 .icon-box {
@@ -1242,6 +1242,7 @@ export default {
   justify-content: center;
   align-items: center;
   overflow: hidden;
+  flex: 0 0 64px;
 }
 
 .icon-image {
@@ -1265,13 +1266,27 @@ export default {
 .tool-content {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .tool-name {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  line-height: 1.2;
+}
+
+.tool-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.76);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .dialog-mask {
