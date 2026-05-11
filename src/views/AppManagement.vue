@@ -102,7 +102,12 @@
             <article v-for="item in apps" :key="item.id" class="table-row">
               <div class="cell app-cell">
                 <div class="app-icon" :class="previewClassName(item.iconType)">
-                  <img v-if="usesImageIcon(item.iconType) && item.iconUrl" :src="item.iconUrl" :alt="item.name"/>
+                  <AppIconImage
+                    v-if="usesImageIcon(item.iconType) && item.iconUrl"
+                    :src="item.iconUrl"
+                    :alt="item.name"
+                    :chroma-key="item.iconChromaKey"
+                  />
                   <span
                     v-else-if="item.iconType === 'PRESET'"
                     class="preset-svg"
@@ -199,7 +204,12 @@
 
         <div class="preview-card">
           <div class="preview-icon" :class="previewClassName(form.iconType)">
-            <img v-if="usesImageIcon(form.iconType) && form.iconUrl" :src="form.iconUrl" :alt="form.name || '应用图标'"/>
+            <AppIconImage
+              v-if="usesImageIcon(form.iconType) && form.iconUrl"
+              :src="form.iconUrl"
+              :alt="form.name || '应用图标'"
+              :chroma-key="form.iconChromaKey"
+            />
             <span
               v-else-if="form.iconType === 'PRESET'"
               class="preset-svg"
@@ -361,6 +371,7 @@
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import AppIconImage from '@/components/AppIconImage.vue'
 import {
   createSystemApp,
   listSystemApps,
@@ -368,6 +379,7 @@ import {
   updateSystemAppStatus,
   uploadSystemAppIcon
 } from '@/api/appManagement'
+import {resolveGenericAppIcon} from '@/constants/appIconAssets'
 import {APP_PRESET_ICONS, getPresetIconSvg} from '@/constants/appIconLibrary'
 import {
   APP_DATA_SOURCE_OPTIONS,
@@ -417,6 +429,7 @@ function extractErrorMessage(error, fallback) {
 }
 
 function createEmptyForm() {
+  const genericIcon = resolveGenericAppIcon()
   return {
     id: '',
     name: '',
@@ -426,12 +439,13 @@ function createEmptyForm() {
     dataSourceMode: 'REAL',
     securityLevel: 'INTERNAL',
     encryptionMode: 'NONE',
-    iconType: 'PRESET',
-    iconPreset: APP_PRESET_ICONS[0]?.key || 'grid',
+    iconType: genericIcon.iconType,
+    iconPreset: '',
     iconText: '',
-    iconUrl: '',
-    iconStorageType: '',
-    iconFileName: '',
+    iconUrl: genericIcon.iconUrl,
+    iconStorageType: genericIcon.iconStorageType,
+    iconFileName: genericIcon.iconFileName,
+    iconChromaKey: genericIcon.iconChromaKey,
     sortNo: 10,
     status: 'ENABLED',
     description: '',
@@ -467,8 +481,9 @@ function normalizeFormPayload(form) {
     iconPreset: iconType === 'PRESET' ? form.iconPreset : '',
     iconText: iconType === 'TEXT' ? (`${form.iconText || ''}`.trim() || buildAppIconText(form.name)) : '',
     iconUrl: ['UPLOAD', 'URL'].includes(iconType) ? `${form.iconUrl || ''}`.trim() : '',
-    iconStorageType: iconType === 'UPLOAD' ? (form.iconStorageType || 'LOCAL_DRAFT') : '',
-    iconFileName: iconType === 'UPLOAD' ? `${form.iconFileName || ''}`.trim() : '',
+    iconStorageType: ['UPLOAD', 'URL'].includes(iconType) ? `${form.iconStorageType || (iconType === 'UPLOAD' ? 'LOCAL_DRAFT' : '')}`.trim() : '',
+    iconFileName: ['UPLOAD', 'URL'].includes(iconType) ? `${form.iconFileName || ''}`.trim() : '',
+    iconChromaKey: ['UPLOAD', 'URL'].includes(iconType) ? `${form.iconChromaKey || ''}`.trim() : '',
     enabled: form.status === 'ENABLED',
     status: form.status,
     sortNo: Number(form.sortNo || 10),
@@ -483,6 +498,9 @@ function normalizeFormPayload(form) {
 
 export default {
   name: 'AppManagement',
+  components: {
+    AppIconImage
+  },
   setup() {
     const router = useRouter()
 
@@ -568,6 +586,7 @@ export default {
       form.iconUrl = normalized.iconUrl || ''
       form.iconStorageType = normalized.iconStorageType || ''
       form.iconFileName = normalized.iconFileName || ''
+      form.iconChromaKey = normalized.iconChromaKey || ''
       form.sortNo = normalized.sortNo || 10
       form.status = normalized.enabled ? 'ENABLED' : 'DISABLED'
       form.description = normalized.description || ''
@@ -681,12 +700,14 @@ export default {
       form.iconUrl = ''
       form.iconStorageType = ''
       form.iconFileName = ''
+      form.iconChromaKey = ''
     }
 
     const clearUploadedIcon = () => {
       form.iconUrl = ''
       form.iconStorageType = ''
       form.iconFileName = ''
+      form.iconChromaKey = ''
     }
 
     const handleIconFileChange = async (event) => {
@@ -712,6 +733,7 @@ export default {
         form.iconUrl = iconUrl
         form.iconStorageType = payload.iconStorageType || payload.storageType || 'FILE_SERVER'
         form.iconFileName = payload.iconFileName || payload.fileName || file.name
+        form.iconChromaKey = payload.iconChromaKey || ''
       } catch (error) {
         const backendMessage = error?.response?.data?.message || error?.response?.data?.msg || ''
         if (backendMessage) {
@@ -723,6 +745,7 @@ export default {
         form.iconUrl = `${dataUrl}`
         form.iconStorageType = 'LOCAL_DRAFT'
         form.iconFileName = file.name
+        form.iconChromaKey = ''
         alert(extractErrorMessage(error, '后端上传接口暂未接通，已保存本地预览草稿'))
       } finally {
         uploadLoading.value = false
@@ -749,8 +772,8 @@ export default {
       if (form.iconType === 'UPLOAD' && !form.iconUrl) {
         return '请先上传一个本地图标'
       }
-      if (form.iconType === 'URL' && !/^https?:\/\//.test(form.iconUrl || '')) {
-        return '图片地址需为 http 或 https'
+      if (form.iconType === 'URL' && !/^(https?:\/\/|\/)/.test(form.iconUrl || '')) {
+        return '图片地址需为 http、https 或站内绝对路径'
       }
       return ''
     }

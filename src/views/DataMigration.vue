@@ -156,14 +156,28 @@
                       @change="toggleBusinessApp(item.featureCode, $event.target.checked)"
                     />
                     <div class="selector-main">
-                      <div class="selector-title-row">
-                        <strong>{{ item.name }}</strong>
-                        <div class="tag-group">
-                          <span class="mini-tag">{{ item.featureCode }}</span>
-                          <span class="mini-tag soft">{{ formatSecurityLevel(item.securityLevel) }}</span>
+                      <div class="business-app-row">
+                        <div class="business-app-icon" :class="{ 'is-image': usesImageIcon(item.iconType), 'is-preset': item.iconType === 'PRESET' }">
+                          <AppIconImage
+                            v-if="usesImageIcon(item.iconType) && item.iconUrl"
+                            :src="item.iconUrl"
+                            :alt="item.name"
+                            :chroma-key="item.iconChromaKey"
+                          />
+                          <span v-else-if="item.iconType === 'PRESET'" class="preset-svg" v-html="getPresetIconSvg(item.iconPreset)"></span>
+                          <span v-else>{{ item.iconText || buildAppShortText(item.name) }}</span>
+                        </div>
+                        <div class="selector-main-text">
+                          <div class="selector-title-row">
+                            <strong>{{ item.name }}</strong>
+                            <div class="tag-group">
+                              <span class="mini-tag">{{ item.featureCode }}</span>
+                              <span class="mini-tag soft">{{ formatSecurityLevel(item.securityLevel) }}</span>
+                            </div>
+                          </div>
+                          <p>{{ item.description || '业务数据包按应用编码独立归档，便于目标环境按模块导入。' }}</p>
                         </div>
                       </div>
-                      <p>{{ item.description || '业务数据包按应用编码独立归档，便于目标环境按模块导入。' }}</p>
                     </div>
                   </label>
                 </div>
@@ -527,6 +541,7 @@
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import AppIconImage from '@/components/AppIconImage.vue'
 import {
   createDataMigrationExport,
   createDataMigrationImport,
@@ -536,6 +551,7 @@ import {
   getDataMigrationTaskDetail,
   listDataMigrationTasks
 } from '@/api/dataMigration'
+import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {mergeAppCatalogList, normalizeSystemApp, resolveAppCatalogList} from '@/utils/appCatalogDraft'
 
 const EXPORT_SCOPE_MODES = [
@@ -883,7 +899,14 @@ function filterTaskHistory(list, filters = {}) {
 }
 
 export default {
+  components: {
+    AppIconImage
+  },
   setup() {
+    const usesImageIcon = (iconType) => ['UPLOAD', 'URL'].includes(iconType)
+
+    const buildAppShortText = (text) => Array.from((text || '').replace(/\s+/g, '')).slice(0, 2).join('') || '应'
+
     const router = useRouter()
     const user = ref(normalizeCurrentUser(readCurrentUser()))
     const activeTab = ref('export')
@@ -1405,6 +1428,7 @@ export default {
       formatSecurityLevel,
       formatTaskStatus,
       formatTaskType,
+      getPresetIconSvg,
       goBackHome,
       handleFileChange,
       handleFileDrop,
@@ -1437,6 +1461,8 @@ export default {
       tasksLoading,
       changeHistoryPage,
       changeHistoryPageSize,
+      usesImageIcon,
+      buildAppShortText,
       toggleAllBusinessApps,
       toggleAllSystemResources,
       toggleBusinessApp,
@@ -1733,6 +1759,47 @@ export default {
 
 .selector-main {
   min-width: 0;
+}
+
+.business-app-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.business-app-icon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #0f766e, #2563eb);
+  overflow: hidden;
+}
+
+.business-app-icon.is-image {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.business-app-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.business-app-icon .preset-svg :deep(svg) {
+  width: 26px;
+  height: 26px;
+}
+
+.selector-main-text {
+  min-width: 0;
+  flex: 1;
 }
 
 .selector-title-row {

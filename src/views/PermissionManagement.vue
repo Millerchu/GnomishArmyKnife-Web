@@ -164,7 +164,16 @@
               :class="{granted: isGranted(app.featureCode)}"
             >
               <div class="app-card-head">
-                <div class="app-icon">{{ buildShortText(app.name) }}</div>
+                <div class="app-icon" :class="{ 'is-image': usesImageIcon(app.iconType), 'is-preset': app.iconType === 'PRESET' }">
+                  <AppIconImage
+                    v-if="usesImageIcon(app.iconType) && app.iconUrl"
+                    :src="app.iconUrl"
+                    :alt="app.name"
+                    :chroma-key="app.iconChromaKey"
+                  />
+                  <span v-else-if="app.iconType === 'PRESET'" class="preset-svg" v-html="getPresetIconSvg(app.iconPreset)"></span>
+                  <span v-else>{{ app.iconText || buildShortText(app.name) }}</span>
+                </div>
                 <div class="app-head-main">
                   <strong>{{ app.name }}</strong>
                   <span>{{ app.category || '应用分类待维护' }}</span>
@@ -274,6 +283,8 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {listSystemApps} from '@/api/appManagement'
+import AppIconImage from '@/components/AppIconImage.vue'
+import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {listSystemUsers} from '@/api/systemUser'
 import {
   getUserAppPermissions,
@@ -289,7 +300,7 @@ import {
   getDraftFeatureCodesForUser,
   saveDraftFeatureCodesForUser
 } from '@/utils/permissionDraft'
-import {mergeAppCatalogList, persistAppCatalogDraftList, resolveAppCatalogList} from '@/utils/appCatalogDraft'
+import {mergeAppCatalogList, normalizeSystemApp, persistAppCatalogDraftList, resolveAppCatalogList} from '@/utils/appCatalogDraft'
 
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 
@@ -343,26 +354,15 @@ function normalizeUser(source = {}) {
   }
 }
 
-function normalizeApp(source = {}) {
-  return {
-    key: source.key || source.appKey || source.featureCode || source.code || '',
-    name: source.name || source.appName || source.displayName || '',
-    featureCode: source.featureCode || source.code || source.appCode || '',
-    route: source.route || source.path || '',
-    category: source.category || source.groupName || '',
-    securityLevel: source.securityLevel || source.appSecurityLevel || 'INTERNAL',
-    encryptionMode: source.encryptionMode || source.encryptMode || 'NONE',
-    description: source.description || source.remark || '',
-    enabled: typeof source.enabled === 'boolean' ? source.enabled : true
-  }
-}
-
 function buildShortText(text) {
   return Array.from((text || '').replace(/\s+/g, '')).slice(0, 2).join('') || '应'
 }
 
 export default {
   name: 'PermissionManagement',
+  components: {
+    AppIconImage
+  },
   setup() {
     const router = useRouter()
 
@@ -371,7 +371,7 @@ export default {
     const saving = ref(false)
 
     const users = ref([])
-    const appCatalog = ref(resolveAppCatalogList().map((item) => normalizeApp(item)))
+    const appCatalog = ref(resolveAppCatalogList().map((item, index) => normalizeSystemApp(item, index)))
     const selectedUserId = ref('')
     const selectedFeatureCodes = ref([])
     const permissionSource = ref('draft')
@@ -424,6 +424,8 @@ export default {
       return '无额外加密'
     }
 
+    const usesImageIcon = (iconType) => ['UPLOAD', 'URL'].includes(iconType)
+
     const isGranted = (featureCode) => selectedFeatureCodes.value.includes(featureCode)
 
     const applyLocalUserPermissionSummary = (list) => {
@@ -443,7 +445,7 @@ export default {
           const payload = unwrapData(res) || {}
           const {list} = parseListPayload(payload)
           if (list.length) {
-            appCatalog.value = list.map((item) => normalizeApp(item)).filter((item) => item.featureCode)
+            appCatalog.value = list.map((item, index) => normalizeSystemApp(item, index)).filter((item) => item.featureCode)
             persistAppCatalogDraftList(mergeAppCatalogList(resolveAppCatalogList(), appCatalog.value))
             return
           }
@@ -453,14 +455,14 @@ export default {
         const payload = unwrapData(res) || {}
         const rawList = Array.isArray(payload) ? payload : (payload.list || payload.items || payload.apps || [])
         if (Array.isArray(rawList) && rawList.length) {
-          appCatalog.value = rawList.map((item) => normalizeApp(item)).filter((item) => item.featureCode)
+          appCatalog.value = rawList.map((item, index) => normalizeSystemApp(item, index)).filter((item) => item.featureCode)
           persistAppCatalogDraftList(mergeAppCatalogList(resolveAppCatalogList(), appCatalog.value))
           return
         }
 
-        appCatalog.value = resolveAppCatalogList().map((item) => normalizeApp(item))
+        appCatalog.value = resolveAppCatalogList().map((item, index) => normalizeSystemApp(item, index))
       } catch (error) {
-        appCatalog.value = resolveAppCatalogList().map((item) => normalizeApp(item))
+        appCatalog.value = resolveAppCatalogList().map((item, index) => normalizeSystemApp(item, index))
       }
     }
 
@@ -663,9 +665,11 @@ export default {
       pageSizeOptions,
       totalPages,
       buildShortText,
+      getPresetIconSvg,
       formatRoleText,
       formatSecurityLevel,
       formatEncryptionMode,
+      usesImageIcon,
       isGranted,
       searchUsers,
       resetFilters,
@@ -996,6 +1000,26 @@ export default {
   justify-content: center;
   font-weight: 700;
   background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
+  overflow: hidden;
+}
+
+.app-icon.is-image {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.app-icon.is-preset {
+  color: #fff;
+}
+
+.app-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preset-svg :deep(svg) {
+  width: 28px;
+  height: 28px;
 }
 
 .app-head-main {

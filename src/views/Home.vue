@@ -92,7 +92,13 @@
           >
             <div class="tool-top">
               <div class="icon-box" :style="tool.iconStyle">
-                <img v-if="usesImageIcon(tool.iconType) && tool.iconUrl" class="icon-image" :src="tool.iconUrl" :alt="tool.name"/>
+                <AppIconImage
+                  v-if="usesImageIcon(tool.iconType) && tool.iconUrl"
+                  :img-class="'icon-image'"
+                  :src="tool.iconUrl"
+                  :alt="tool.name"
+                  :chroma-key="tool.iconChromaKey"
+                />
                 <span v-else-if="tool.iconType === 'PRESET'" class="icon-svg" v-html="getPresetIconSvg(tool.iconPreset)"></span>
                 <span v-else class="icon-text">{{ tool.iconText }}</span>
               </div>
@@ -218,6 +224,7 @@
 import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {changePasswordApi, getPasswordPublicKeyApi} from '@/api/auth'
+import AppIconImage from '@/components/AppIconImage.vue'
 import {getCurrentUserAccessibleApps} from '@/api/permission'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
@@ -406,6 +413,9 @@ function persistCustomOrder(order) {
 }
 
 export default {
+  components: {
+    AppIconImage
+  },
   setup() {
     const router = useRouter()
     const user = ref(normalizeCurrentUser(JSON.parse(localStorage.getItem('user') || '{}')))

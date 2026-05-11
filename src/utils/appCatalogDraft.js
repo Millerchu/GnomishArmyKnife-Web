@@ -1,4 +1,5 @@
 import {USER_APP_DEFINITIONS} from '@/constants/appCatalog'
+import {inferIconChromaKey, isLegacyTextIconSeed, resolveFeatureAppIcon} from '@/constants/appIconAssets'
 
 const APP_CATALOG_DRAFT_STORAGE_KEY = 'system_app_catalog_draft'
 
@@ -11,14 +12,31 @@ export function normalizeSystemApp(source = {}, index = 0) {
   const name = `${source.name || source.appName || source.displayName || ''}`.trim() || '未命名应用'
   const route = source.route || source.routePath || source.path || ''
   const category = source.category || source.groupName || '未分类'
-  const resolvedIconType = source.iconType
-    || (source.iconPreset ? 'PRESET' : '')
-    || (source.iconStorageType || source.uploadedIconUrl ? 'UPLOAD' : '')
-    || (source.iconUrl ? 'URL' : 'TEXT')
+  const sourceIconType = `${source.iconType || ''}`.trim().toUpperCase()
+  const defaultIconAsset = resolveFeatureAppIcon(featureCode)
+  const sourceIconText = `${source.iconText || ''}`.trim()
+  const defaultIconText = buildAppIconText(name)
+  const hasConfiguredImage = Boolean(source.iconUrl || source.iconFileName || source.uploadedIconUrl)
+  const hasConfiguredPreset = Boolean(source.iconPreset || source.iconKey)
+  const isLegacyTextSeed = isLegacyTextIconSeed(featureCode, sourceIconText)
+  const hasConfiguredCustomText = sourceIconType === 'TEXT' && sourceIconText && sourceIconText !== defaultIconText
+  const shouldUseDefaultIconAsset = Boolean(defaultIconAsset)
+    && !hasConfiguredImage
+    && !hasConfiguredPreset
+    && (!hasConfiguredCustomText || isLegacyTextSeed)
+  const resolvedIconType = shouldUseDefaultIconAsset
+    ? defaultIconAsset.iconType
+    : sourceIconType
+      || (source.iconPreset ? 'PRESET' : '')
+      || (source.iconStorageType || source.uploadedIconUrl ? 'UPLOAD' : '')
+      || (source.iconUrl ? 'URL' : 'TEXT')
   const enabled = typeof source.enabled === 'boolean'
     ? source.enabled
     : `${source.status || ''}`.toUpperCase() !== 'DISABLED'
   const sortNo = Number(source.sortNo ?? source.sort ?? (index + 1) * 10)
+  const resolvedIconUrl = `${source.iconUrl || ''}`.trim() || defaultIconAsset?.iconUrl || ''
+  const resolvedIconStorageType = `${source.iconStorageType || ''}`.trim() || defaultIconAsset?.iconStorageType || ''
+  const resolvedIconFileName = `${source.iconFileName || source.fileName || ''}`.trim() || defaultIconAsset?.iconFileName || ''
 
   return {
     id: source.id ?? source.appId ?? `draft-${featureCode || index + 1}`,
@@ -33,10 +51,11 @@ export function normalizeSystemApp(source = {}, index = 0) {
     encryptionMode: source.encryptionMode || source.encryptMode || 'NONE',
     iconType: resolvedIconType,
     iconPreset: source.iconPreset || source.iconKey || '',
-    iconText: source.iconText || buildAppIconText(name),
-    iconUrl: source.iconUrl || '',
-    iconStorageType: source.iconStorageType || '',
-    iconFileName: source.iconFileName || source.fileName || '',
+    iconText: sourceIconText || defaultIconText,
+    iconUrl: resolvedIconUrl,
+    iconStorageType: resolvedIconStorageType,
+    iconFileName: resolvedIconFileName,
+    iconChromaKey: `${source.iconChromaKey || ''}`.trim() || inferIconChromaKey(resolvedIconUrl),
     enabled,
     sortNo: Number.isNaN(sortNo) ? (index + 1) * 10 : sortNo,
     description: source.description || source.remark || '',
@@ -57,9 +76,6 @@ export function buildDefaultAppCatalog() {
     ...item,
     id: index + 1,
     appCode: item.featureCode,
-    iconType: 'PRESET',
-    iconPreset: ['grid', 'spark', 'shield', 'grid', 'chart', 'spark', 'wallet', 'book', 'folder', 'heart'][index] || 'grid',
-    iconText: buildAppIconText(item.name),
     enabled: true,
     sortNo: (index + 1) * 10
   }, index)))
