@@ -1,0 +1,55 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="brass" x1="104" y1="108" x2="364" y2="404" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5D48A"/>
+      <stop offset="0.45" stop-color="#C69643"/>
+      <stop offset="1" stop-color="#8B5A1D"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="68" y1="128" x2="430" y2="344" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E9EEF4"/>
+      <stop offset="0.55" stop-color="#7F8C9A"/>
+      <stop offset="1" stop-color="#4A5563"/>
+    </linearGradient>
+    <linearGradient id="body" x1="164" y1="114" x2="322" y2="404" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B4350"/>
+      <stop offset="1" stop-color="#171C24"/>
+    </linearGradient>
+    <radialGradient id="core" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(254 236) rotate(90) scale(62)">
+      <stop stop-color="#B4F3FF"/>
+      <stop offset="0.38" stop-color="#35B6FF"/>
+      <stop offset="0.72" stop-color="#1959D3"/>
+      <stop offset="1" stop-color="#0B1A45"/>
+    </radialGradient>
+    <filter id="shadow" x="28" y="28" width="456" height="456" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.26"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <path d="M196 168L112 120L84 146L112 162L100 188L68 190L66 226L98 228L112 254L86 274L108 304L136 294L156 314L150 344L186 354L198 326L232 324L244 354L280 344L274 312L290 298L314 306L334 274L314 256L320 228L354 222L350 186L316 184L304 158L328 132L302 106L274 118L250 106L236 74L202 86L206 116L196 168Z" fill="url(#steel)" stroke="#243142" stroke-width="10" stroke-linejoin="round"/>
+
+    <path d="M236 86L262 38L306 58L284 108L236 86Z" fill="url(#steel)" stroke="#243142" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M286 62L364 20L392 56L330 118L286 62Z" fill="url(#steel)" stroke="#243142" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M380 146L450 116L468 158L410 188L380 146Z" fill="url(#steel)" stroke="#243142" stroke-width="10" stroke-linejoin="round"/>
+
+    <rect x="160" y="96" width="180" height="304" rx="84" fill="url(#body)" stroke="url(#brass)" stroke-width="18"/>
+    <circle cx="194" cy="134" r="11" fill="url(#brass)" stroke="#6F4518" stroke-width="4"/>
+    <circle cx="224" cy="128" r="11" fill="url(#brass)" stroke="#6F4518" stroke-width="4"/>
+    <circle cx="318" cy="164" r="11" fill="url(#brass)" stroke="#6F4518" stroke-width="4"/>
+    <circle cx="312" cy="322" r="11" fill="url(#brass)" stroke="#6F4518" stroke-width="4"/>
+
+    <circle cx="254" cy="236" r="76" fill="#152238" stroke="url(#brass)" stroke-width="18"/>
+    <circle cx="254" cy="236" r="50" fill="url(#core)" stroke="#5FD8FF" stroke-width="4"/>
+    <path d="M254 188L280 220L268 270L228 280L208 234L228 198L254 188Z" fill="#C4F6FF" fill-opacity="0.82" stroke="#7CE7FF" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M254 188V280M208 234H300M228 198L286 252M280 220L228 280" stroke="#8BEAFF" stroke-width="3" stroke-linecap="round"/>
+
+    <circle cx="254" cy="236" r="92" stroke="url(#brass)" stroke-width="12" stroke-dasharray="12 18"/>
+    <path d="M246 340H300L316 380L254 410L192 380L208 340H230" fill="#C49343" fill-opacity="0.16"/>
+    <path d="M210 334H298L314 378L254 402L194 378L210 334Z" fill="#202838" stroke="url(#brass)" stroke-width="12" stroke-linejoin="round"/>
+    <path d="M248 350H274L286 374L254 388L222 374L234 350H246Z" fill="url(#brass)" stroke="#6F4518" stroke-width="4" stroke-linejoin="round"/>
+
+    <path d="M372 148L446 122" stroke="#E6ECF3" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+    <path d="M292 68L360 30" stroke="#E6ECF3" stroke-width="6" stroke-linecap="round" opacity="0.45"/>
+    <path d="M132 134L112 150" stroke="#E6ECF3" stroke-width="6" stroke-linecap="round" opacity="0.35"/>
+  </g>
+</svg>

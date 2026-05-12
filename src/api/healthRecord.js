@@ -41,6 +41,22 @@ export function deleteHealthReport(id) {
   return request.delete(`/health-records/reports/${id}`)
 }
 
+export function listHealthVisits(params) {
+  return request.get('/health-records/visits', {params})
+}
+
+export function createHealthVisit(data) {
+  return request.post('/health-records/visits', data)
+}
+
+export function updateHealthVisit(id, data) {
+  return request.put(`/health-records/visits/${id}`, data)
+}
+
+export function deleteHealthVisit(id) {
+  return request.delete(`/health-records/visits/${id}`)
+}
+
 // 体检报告文件单独上传，业务表单只保存文件名和可访问地址。
 export function uploadHealthReportFile(file) {
   const formData = new FormData()

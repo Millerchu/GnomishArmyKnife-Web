@@ -10,287 +10,351 @@
     <div class="hero-panel">
       <div>
         <h1 class="page-title">健康</h1>
-        <p class="page-subtitle">参考苹果健康应用的信息结构，把全部指标、趋势变化和体检报告放在统一入口里，先看状态，再看某项指标的历史。</p>
+        <p class="page-subtitle">把健康指标、医院就诊和报告单放在一个入口里，先看总体状态，再回看每次复查与病历记录。</p>
       </div>
       <div class="hero-tags">
         <span class="hero-tag">最近测量 {{ summary.latestMeasureDate || '暂无' }}</span>
-        <span class="hero-tag">上次体检 {{ summary.lastExamDate || '暂无' }}</span>
-        <span class="hero-tag">{{ usingLocalData ? '本地演示数据' : '已接真实接口' }}</span>
+        <span class="hero-tag">最近就诊 {{ summary.lastVisitDate || '暂无' }}</span>
+        <span class="hero-tag">最近报告 {{ summary.lastExamDate || '暂无' }}</span>
       </div>
     </div>
 
-    <div class="top-layout">
-      <section class="overview-panel">
-        <div class="panel-head overview-head">
-          <div>
-            <h2 class="panel-title">健康概览</h2>
-            <p class="panel-tip">所有指标都以最新值展示，点击可查看历史，桌面端支持像主页应用一样直接拖动排序。</p>
-          </div>
-          <div class="toolbar-left">
-            <button class="action-btn" :disabled="submitting" @click="openCreateRecordDialog(activeMetricKey)">新增{{ activeMetricMeta.label }}记录</button>
-            <button class="ghost-btn" :disabled="submitting" @click="showMetricCustomizer = !showMetricCustomizer">
-              {{ showMetricCustomizer ? '收起自定义' : '自定义展示' }}
-            </button>
-          </div>
-        </div>
+    <section class="summary-grid">
+      <article class="summary-card">
+        <span>指标记录</span>
+        <strong>{{ summary.recordCount || 0 }}</strong>
+      </article>
+      <article class="summary-card">
+        <span>医院就诊</span>
+        <strong>{{ summary.visitCount || 0 }}</strong>
+      </article>
+      <article class="summary-card">
+        <span>报告单</span>
+        <strong>{{ summary.reportCount || 0 }}</strong>
+      </article>
+      <article class="summary-card">
+        <span>最新体重</span>
+        <strong>{{ latestMetricText('weightKg', latestRecord?.weightKg) }}</strong>
+      </article>
+    </section>
 
-        <div v-if="showMetricCustomizer" class="metric-customizer">
-          <div class="customizer-head">
-            <strong>选择概览中要展示的指标，展示后的顺序可直接拖动调整</strong>
-            <div class="customizer-actions">
-              <button class="mini-btn" type="button" @click="selectAllMetrics">显示全部</button>
-              <button class="mini-btn" type="button" @click="resetMetricSelection">恢复默认</button>
-            </div>
-          </div>
-          <div class="customizer-grid">
-            <label
-              v-for="item in metricDefinitions"
-              :key="item.key"
-              class="customizer-chip"
-              :class="{ active: selectedOverviewMetricKeys.includes(item.key) }"
-            >
-              <input
-                class="hidden-checkbox"
-                type="checkbox"
-                :checked="selectedOverviewMetricKeys.includes(item.key)"
-                @change="toggleOverviewMetric(item.key)"
-              />
-              <span>{{ item.label }}</span>
-            </label>
-          </div>
+    <section class="panel-section">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">指标概览</h2>
+          <p class="panel-tip">展示最近一次记录的核心指标，并支持切换趋势指标查看最近变化。</p>
         </div>
+        <div class="toolbar-left">
+          <button class="action-btn" :disabled="loading || submitting" @click="openCreateRecordDialog">新增指标记录</button>
+        </div>
+      </div>
 
-        <div class="overview-grid">
-          <article
-            v-for="item in visibleMetricCards"
-            :key="item.key"
-            class="metric-card"
-            :class="[item.accentClass, { active: activeMetricKey === item.key, dragging: draggingMetricKey === item.key, 'drag-over': dragOverMetricKey === item.key && draggingMetricKey !== item.key }]"
-            :draggable="!isMobileViewport"
-            @dragstart="handleMetricDragStart(item, $event)"
-            @dragenter.prevent="handleMetricDragEnter(item)"
-            @dragover.prevent
-            @drop.prevent="handleMetricDrop(item)"
-            @dragend="handleMetricDragEnd"
-            @click="handleMetricCardClick(item.key)"
-          >
-            <div class="metric-card-head compact">
-              <div class="metric-icon-box compact" :style="item.iconStyle">
-                <span class="metric-icon-text compact">{{ item.iconText }}</span>
-              </div>
-              <div class="metric-copy compact">
-                <span class="metric-label">{{ item.label }}</span>
-                <strong class="metric-value compact">{{ item.displayValue }}</strong>
-                <span class="metric-date compact">{{ item.measureDateText }}</span>
-              </div>
-            </div>
+      <div v-if="loading && !records.length" class="empty-state">加载中...</div>
+
+      <template v-else>
+        <div class="metric-grid">
+          <article v-for="item in metricCards" :key="item.key" class="metric-card">
+            <span class="metric-label">{{ item.label }}</span>
+            <strong class="metric-value">{{ item.value }}</strong>
+            <small class="metric-date">{{ latestRecord?.measureDate || '暂无记录' }}</small>
           </article>
         </div>
-      </section>
 
-      <section class="trend-panel">
-        <div class="panel-head trend-head">
-          <div>
-            <h2 class="panel-title">指标趋势</h2>
-            <p class="panel-tip">缩成侧栏视图，固定比例显示，避免桌面端被横向拉得过大。</p>
+        <div class="trend-panel">
+          <div class="trend-head">
+            <div class="trend-switch">
+              <button
+                v-for="item in metricOptions"
+                :key="item.key"
+                class="trend-chip"
+                :class="{ active: trendMetricKey === item.key }"
+                type="button"
+                @click="selectTrendMetric(item.key)"
+              >
+                {{ item.label }}
+              </button>
+            </div>
           </div>
-          <div class="trend-switch">
-            <button
-              v-for="item in trendMetricOptions"
-              :key="item.key"
-              class="trend-chip"
-              :class="{ active: selectedTrendMetric === item.key }"
-              type="button"
-              @click="selectTrendMetric(item.key)"
-            >
-              {{ item.label }}
-            </button>
+
+          <div v-if="trendPoints.length" class="trend-list">
+            <article v-for="item in trendPoints" :key="`${item.measureDate}-${item.value}`" class="trend-item">
+              <span>{{ item.measureDate }}</span>
+              <strong>{{ latestMetricText(trendMetricKey, item.value) }}</strong>
+            </article>
           </div>
+          <div v-else class="empty-state compact">当前指标还没有足够的趋势数据</div>
         </div>
+      </template>
+    </section>
 
-        <div v-if="chartSeries.length" class="trend-chart-card compact">
-          <div class="trend-chart-top">
+    <section class="panel-section">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">指标历史</h2>
+          <p class="panel-tip">保留每次测量的原始指标值，方便回看体重、血脂、血糖和肝功能变化。</p>
+        </div>
+      </div>
+
+      <div v-if="records.length" class="record-list">
+        <article v-for="item in records" :key="item.id" class="record-card">
+          <div class="record-head">
             <div>
-              <strong class="trend-chart-title">{{ selectedTrendMeta.label }}</strong>
-              <p class="trend-chart-subtitle">最近 {{ chartSeries.length }} 次</p>
+              <strong>{{ item.measureDate }}</strong>
+              <p>{{ buildRecordSummary(item) }}</p>
             </div>
-            <div class="trend-current">
-              <span>最新值</span>
-              <strong>{{ formatMetricValue(selectedTrendMeta.key, chartSeries[chartSeries.length - 1]?.value) }}</strong>
-            </div>
-          </div>
-
-          <div class="trend-visual compact">
-            <svg class="trend-svg compact" viewBox="0 0 360 200" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              <polyline class="trend-grid" points="34,24 34,168 336,168" />
-              <polyline class="trend-path" :style="{ stroke: selectedTrendMeta.color }" :points="trendPolyline" />
-              <circle
-                v-for="point in trendChartPoints"
-                :key="point.measureDate"
-                class="trend-dot"
-                :style="{ fill: selectedTrendMeta.color }"
-                :cx="point.x"
-                :cy="point.y"
-                r="3"
-              />
-            </svg>
-
-            <div class="trend-labels compact">
-              <div v-for="point in trendChartPoints" :key="`${point.measureDate}-label`" class="trend-label-card compact">
-                <span>{{ point.label }}</span>
-                <strong>{{ formatMetricValue(selectedTrendMeta.key, point.value) }}</strong>
-              </div>
+            <div class="mobile-card-actions">
+              <button class="mini-btn" @click="openEditRecordDialog(item)">编辑</button>
+              <button class="mini-btn danger" @click="removeRecord(item)">删除</button>
             </div>
           </div>
-        </div>
-        <div v-else class="subtle-empty trend-empty">当前没有足够的趋势数据</div>
-      </section>
-    </div>
+        </article>
+      </div>
+      <div v-else class="empty-state">暂无健康指标记录</div>
+    </section>
 
-    <div class="health-layout">
-      <section class="history-panel">
+    <div class="split-layout">
+      <section class="panel-section">
         <div class="panel-head">
           <div>
-            <h2 class="panel-title">{{ activeMetricMeta.label }}历史记录</h2>
-            <p class="panel-tip">仅展示指标值、记录日期和相对上次的趋势变化。</p>
+            <h2 class="panel-title">医院就诊</h2>
+            <p class="panel-tip">按每次医院就诊维护病历摘要、医生建议和病历附件。</p>
           </div>
           <div class="toolbar-left">
-            <button class="action-btn" :disabled="submitting" @click="openCreateRecordDialog(activeMetricKey)">新增{{ activeMetricMeta.label }}</button>
+            <button class="action-btn" :disabled="submitting" @click="openCreateVisitDialog">新增就诊</button>
           </div>
         </div>
 
-        <div v-if="metricHistoryItems.length" class="history-list">
-          <article v-for="item in metricHistoryItems" :key="item.id" class="history-card">
-            <div class="history-card-head">
-              <div class="history-cell">
-                <span>指标</span>
-                <strong class="history-primary">{{ item.primaryText }}</strong>
+        <div v-if="visits.length" class="visit-list">
+          <article v-for="item in visits" :key="item.id" class="visit-card">
+            <div class="visit-card-head">
+              <div>
+                <strong>{{ item.visitDate }} · {{ item.hospitalName }}</strong>
+                <p>{{ [item.departmentName, item.doctorName, item.visitType].filter(Boolean).join(' · ') || '未补充科室与医生' }}</p>
               </div>
-              <div class="history-cell">
-                <span>记录日期</span>
-                <strong>{{ item.measureDate }}</strong>
-              </div>
-              <div class="history-cell">
-                <span>趋势</span>
-                <strong class="history-trend" :class="item.trendClass">{{ item.trendText }}</strong>
-              </div>
-              <div class="history-actions">
-                <button class="mini-btn" @click="openEditRecordDialog(item.rawRecord)">编辑</button>
-                <button class="mini-btn danger" @click="removeRecord(item.rawRecord)">删除</button>
-              </div>
+              <span class="visit-count-chip">{{ item.reportCount || 0 }} 份报告</span>
+            </div>
+            <div class="visit-body">
+              <p><span>主诉</span><strong>{{ item.chiefComplaint || '-' }}</strong></p>
+              <p><span>诊断</span><strong>{{ item.diagnosisSummary || '-' }}</strong></p>
+              <p><span>处置</span><strong>{{ item.treatmentPlan || '-' }}</strong></p>
+              <p><span>建议</span><strong>{{ item.doctorAdvice || '-' }}</strong></p>
+            </div>
+            <div class="mobile-card-actions">
+              <button class="mini-btn" :disabled="!item.caseRecordUrl" @click="openFile(item.caseRecordUrl)">病历附件</button>
+              <button class="mini-btn" @click="openEditVisitDialog(item)">编辑</button>
+              <button class="mini-btn danger" @click="removeVisit(item)">删除</button>
             </div>
           </article>
         </div>
-        <div v-else class="subtle-empty history-empty">当前指标还没有历史记录，可以直接新增。</div>
+        <div v-else class="empty-state">暂无医院就诊记录</div>
       </section>
 
-      <aside class="report-panel">
+      <section class="panel-section">
         <div class="panel-head">
           <div>
-            <h2 class="panel-title">体检报告</h2>
-            <p class="panel-tip">记录上次体检时间与报告文件，移动端优先保留摘要信息，不展开过多详情。</p>
+            <h2 class="panel-title">报告单</h2>
+            <p class="panel-tip">保存年度体检、化验单和影像报告，并可挂到某次就诊记录下。</p>
           </div>
           <div class="toolbar-left">
             <button class="action-btn" :disabled="submitting" @click="openCreateReportDialog">新增报告</button>
           </div>
         </div>
 
-        <div class="report-summary-grid">
-          <article class="summary-card">
-            <span>上次体检</span>
-            <strong>{{ summary.lastExamDate || '暂无' }}</strong>
-          </article>
-          <article class="summary-card">
-            <span>报告总数</span>
-            <strong>{{ reports.length }}</strong>
-          </article>
-          <article class="summary-card">
-            <span>最近测量</span>
-            <strong>{{ summary.latestMeasureDate || '暂无' }}</strong>
-          </article>
-        </div>
-
         <div v-if="reports.length" class="report-list">
-          <article v-for="item in displayReports" :key="item.id" class="report-card">
-            <div class="report-card-head">
+          <article v-for="item in reports" :key="item.id" class="report-card">
+            <div class="visit-card-head">
               <div>
                 <strong>{{ item.reportTitle }}</strong>
                 <p>{{ item.examDate }} · {{ item.hospitalName || '未填写机构' }}</p>
               </div>
-              <span class="report-date-chip">体检</span>
+              <span class="visit-count-chip">{{ resolveVisitName(item.visitId) }}</span>
             </div>
-
-            <div class="report-body compact">
-              <p>
-                <span>文件</span>
-                <strong>{{ item.reportFileName || '未上传文件' }}</strong>
-              </p>
-              <p v-if="!isMobileViewport">
-                <span>摘要</span>
-                <strong>{{ item.summary || '暂无摘要' }}</strong>
-              </p>
-              <p v-if="!isMobileViewport && item.doctorAdvice">
-                <span>医生建议</span>
-                <strong>{{ item.doctorAdvice }}</strong>
-              </p>
+            <div class="visit-body">
+              <p><span>摘要</span><strong>{{ item.summary || '-' }}</strong></p>
+              <p><span>医生建议</span><strong>{{ item.doctorAdvice || '-' }}</strong></p>
+              <p><span>文件</span><strong>{{ item.reportFileName || '未上传文件' }}</strong></p>
             </div>
-
             <div class="mobile-card-actions">
-              <button class="mini-btn" @click="viewReport(item)">查看文件</button>
+              <button class="mini-btn" :disabled="!item.reportUrl" @click="openFile(item.reportUrl)">查看文件</button>
               <button class="mini-btn" @click="openEditReportDialog(item)">编辑</button>
               <button class="mini-btn danger" @click="removeReport(item)">删除</button>
             </div>
           </article>
         </div>
-        <div v-else class="subtle-empty report-empty">当前还没有体检报告记录</div>
-      </aside>
+        <div v-else class="empty-state">暂无报告单记录</div>
+      </section>
     </div>
 
     <div v-if="showRecordDialog" class="dialog-mask" @click.self="closeRecordDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ recordDialogMode === 'create' ? '新增健康记录' : '编辑健康记录' }}</h3>
-        <p class="dialog-subtitle">{{ recordDialogHintText }}</p>
-
+      <div class="dialog large-dialog">
+        <h3 class="dialog-title">{{ recordDialogMode === 'create' ? '新增健康指标记录' : '编辑健康指标记录' }}</h3>
         <form class="dialog-form" @submit.prevent="submitRecordDialog">
-          <div class="form-inline-grid single-date-row">
+          <div class="form-inline-grid">
             <label class="form-field">
               <span>记录日期</span>
               <input v-model="recordForm.measureDate" class="input" type="date" required />
             </label>
+            <label class="form-field">
+              <span>身高(cm)</span>
+              <input v-model="recordForm.heightCm" class="input" type="number" min="0" step="0.1" />
+            </label>
+            <label class="form-field">
+              <span>体重(kg)</span>
+              <input v-model="recordForm.weightKg" class="input" type="number" min="0" step="0.1" />
+            </label>
           </div>
 
-          <div
-            v-for="(row, rowIndex) in visibleRecordFieldRows"
-            :key="`field-row-${rowIndex}`"
-            class="form-inline-grid"
-          >
-            <label
-              v-for="field in row"
-              :key="field.key"
-              class="form-field"
-            >
-              <span>{{ field.label }}</span>
-              <input
-                v-model="recordForm[field.key]"
-                class="input"
-                :type="field.type"
-                :min="field.min"
-                :step="field.step"
-                :placeholder="field.placeholder"
-              />
+          <div class="form-inline-grid">
+            <label class="form-field">
+              <span>体脂率(%)</span>
+              <input v-model="recordForm.bodyFatRate" class="input" type="number" min="0" step="0.1" />
+            </label>
+            <label class="form-field">
+              <span>收缩压</span>
+              <input v-model="recordForm.systolicPressure" class="input" type="number" min="0" step="1" />
+            </label>
+            <label class="form-field">
+              <span>舒张压</span>
+              <input v-model="recordForm.diastolicPressure" class="input" type="number" min="0" step="1" />
+            </label>
+          </div>
+
+          <div class="form-inline-grid">
+            <label class="form-field">
+              <span>总胆固醇</span>
+              <input v-model="recordForm.totalCholesterol" class="input" type="number" min="0" step="0.01" />
+            </label>
+            <label class="form-field">
+              <span>甘油三酯</span>
+              <input v-model="recordForm.triglycerides" class="input" type="number" min="0" step="0.01" />
+            </label>
+            <label class="form-field">
+              <span>高密度脂蛋白</span>
+              <input v-model="recordForm.hdlCholesterol" class="input" type="number" min="0" step="0.01" />
+            </label>
+          </div>
+
+          <div class="form-inline-grid">
+            <label class="form-field">
+              <span>低密度脂蛋白</span>
+              <input v-model="recordForm.ldlCholesterol" class="input" type="number" min="0" step="0.01" />
+            </label>
+            <label class="form-field">
+              <span>空腹血糖</span>
+              <input v-model="recordForm.fastingGlucose" class="input" type="number" min="0" step="0.01" />
+            </label>
+            <label class="form-field">
+              <span>静息心率</span>
+              <input v-model="recordForm.heartRate" class="input" type="number" min="0" step="1" />
+            </label>
+          </div>
+
+          <div class="form-inline-grid">
+            <label class="form-field">
+              <span>尿酸</span>
+              <input v-model="recordForm.uricAcid" class="input" type="number" min="0" step="1" />
+            </label>
+            <label class="form-field">
+              <span>谷丙转氨酶</span>
+              <input v-model="recordForm.alanineAminotransferase" class="input" type="number" min="0" step="1" />
+            </label>
+            <label class="form-field">
+              <span>谷草转氨酶</span>
+              <input v-model="recordForm.aspartateAminotransferase" class="input" type="number" min="0" step="1" />
+            </label>
+          </div>
+
+          <div class="form-inline-grid">
+            <label class="form-field">
+              <span>γ-GT</span>
+              <input v-model="recordForm.gammaGlutamylTransferase" class="input" type="number" min="0" step="1" />
             </label>
           </div>
 
           <label class="form-field">
             <span>备注</span>
-            <textarea v-model.trim="recordForm.note" class="input textarea" rows="3" maxlength="200" placeholder="例如：晨起空腹、健身后测量等" />
+            <textarea v-model.trim="recordForm.note" class="input textarea" rows="3" maxlength="255" placeholder="例如：晨起空腹、体检前一周作息规律" />
           </label>
 
           <div class="dialog-actions">
             <button type="button" class="ghost-btn" :disabled="submitting" @click="closeRecordDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (recordDialogMode === 'create' ? '保存记录' : '更新记录') }}
-            </button>
+            <button type="submit" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存记录' }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="showVisitDialog" class="dialog-mask" @click.self="closeVisitDialog">
+      <div class="dialog large-dialog">
+        <h3 class="dialog-title">{{ visitDialogMode === 'create' ? '新增医院就诊' : '编辑医院就诊' }}</h3>
+        <form class="dialog-form" @submit.prevent="submitVisitDialog">
+          <div class="form-inline-grid">
+            <label class="form-field">
+              <span>就诊日期</span>
+              <input v-model="visitForm.visitDate" class="input" type="date" required />
+            </label>
+            <label class="form-field">
+              <span>医院</span>
+              <input v-model.trim="visitForm.hospitalName" class="input" maxlength="64" required />
+            </label>
+            <label class="form-field">
+              <span>科室</span>
+              <input v-model.trim="visitForm.departmentName" class="input" maxlength="64" />
+            </label>
+          </div>
+
+          <div class="form-inline-grid">
+            <label class="form-field">
+              <span>医生</span>
+              <input v-model.trim="visitForm.doctorName" class="input" maxlength="64" />
+            </label>
+            <label class="form-field">
+              <span>就诊类型</span>
+              <select v-model="visitForm.visitType" class="input">
+                <option value="">请选择</option>
+                <option v-for="item in visitTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="form-field">
+            <span>主诉</span>
+            <textarea v-model.trim="visitForm.chiefComplaint" class="input textarea" rows="2" maxlength="240" />
+          </label>
+
+          <label class="form-field">
+            <span>诊断摘要</span>
+            <textarea v-model.trim="visitForm.diagnosisSummary" class="input textarea" rows="3" maxlength="500" />
+          </label>
+
+          <label class="form-field">
+            <span>处置方案</span>
+            <textarea v-model.trim="visitForm.treatmentPlan" class="input textarea" rows="3" maxlength="500" />
+          </label>
+
+          <label class="form-field">
+            <span>医生建议</span>
+            <textarea v-model.trim="visitForm.doctorAdvice" class="input textarea" rows="3" maxlength="500" />
+          </label>
+
+          <label class="form-field">
+            <span>病历附件</span>
+            <div class="upload-row">
+              <input :value="visitForm.caseRecordFileName" class="input upload-display" placeholder="未上传病历附件" readonly />
+              <button type="button" class="ghost-btn upload-btn" :disabled="submitting" @click="openVisitUploadPicker">选择文件</button>
+              <button v-if="visitForm.caseRecordFileName" type="button" class="mini-btn" :disabled="submitting" @click="clearVisitFile">清除</button>
+            </div>
+            <input ref="visitUploadInputRef" class="hidden-input" type="file" accept=".pdf,image/*,.doc,.docx" @change="handleVisitFileSelected" />
+          </label>
+
+          <label class="form-field">
+            <span>备注</span>
+            <textarea v-model.trim="visitForm.note" class="input textarea" rows="2" maxlength="255" />
+          </label>
+
+          <div class="dialog-actions">
+            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeVisitDialog">取消</button>
+            <button type="submit" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存就诊' }}</button>
           </div>
         </form>
       </div>
@@ -298,58 +362,55 @@
 
     <div v-if="showReportDialog" class="dialog-mask" @click.self="closeReportDialog">
       <div class="dialog">
-        <h3 class="dialog-title">{{ reportDialogMode === 'create' ? '新增体检报告' : '编辑体检报告' }}</h3>
+        <h3 class="dialog-title">{{ reportDialogMode === 'create' ? '新增报告单' : '编辑报告单' }}</h3>
         <form class="dialog-form" @submit.prevent="submitReportDialog">
           <div class="form-inline-grid">
             <label class="form-field">
-              <span>体检日期</span>
+              <span>报告日期</span>
               <input v-model="reportForm.examDate" class="input" type="date" required />
             </label>
             <label class="form-field">
-              <span>体检机构</span>
-              <input v-model.trim="reportForm.hospitalName" class="input" maxlength="64" placeholder="例如：市体检中心" />
+              <span>机构</span>
+              <input v-model.trim="reportForm.hospitalName" class="input" maxlength="64" />
             </label>
           </div>
 
           <label class="form-field">
-            <span>报告标题</span>
-            <input v-model.trim="reportForm.reportTitle" class="input" maxlength="64" placeholder="例如：2026年度体检报告" required />
+            <span>关联就诊</span>
+            <select v-model="reportForm.visitId" class="input">
+              <option value="">不关联</option>
+              <option v-for="item in visits" :key="item.id" :value="String(item.id)">{{ item.visitDate }} · {{ item.hospitalName }}</option>
+            </select>
           </label>
 
           <label class="form-field">
-            <span>报告文件</span>
+            <span>报告标题</span>
+            <input v-model.trim="reportForm.reportTitle" class="input" maxlength="64" required />
+          </label>
+
+          <label class="form-field">
+            <span>报告附件</span>
             <div class="upload-row">
-              <input :value="reportForm.reportFileName" class="input upload-display" placeholder="未上传体检报告" readonly />
+              <input :value="reportForm.reportFileName" class="input upload-display" placeholder="未上传报告附件" readonly />
               <button type="button" class="ghost-btn upload-btn" :disabled="submitting" @click="openReportUploadPicker">选择文件</button>
-              <button
-                v-if="reportForm.reportFileName"
-                type="button"
-                class="mini-btn"
-                :disabled="submitting"
-                @click="clearUploadedReportFile"
-              >
-                清除
-              </button>
+              <button v-if="reportForm.reportFileName" type="button" class="mini-btn" :disabled="submitting" @click="clearReportFile">清除</button>
             </div>
             <input ref="reportUploadInputRef" class="hidden-input" type="file" accept=".pdf,image/*,.doc,.docx" @change="handleReportFileSelected" />
-            <small class="field-tip">支持 PDF、图片和 Office 文档；后端未联通时会临时保留当前会话访问地址。</small>
           </label>
 
           <label class="form-field">
             <span>报告摘要</span>
-            <textarea v-model.trim="reportForm.summary" class="input textarea" rows="3" maxlength="240" placeholder="记录异常项、重点关注指标等" />
+            <textarea v-model.trim="reportForm.summary" class="input textarea" rows="3" maxlength="240" />
           </label>
 
           <label class="form-field">
             <span>医生建议</span>
-            <textarea v-model.trim="reportForm.doctorAdvice" class="input textarea" rows="3" maxlength="240" placeholder="例如：控制体重、复查血脂等" />
+            <textarea v-model.trim="reportForm.doctorAdvice" class="input textarea" rows="3" maxlength="240" />
           </label>
 
           <div class="dialog-actions">
             <button type="button" class="ghost-btn" :disabled="submitting" @click="closeReportDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (reportDialogMode === 'create' ? '保存报告' : '更新报告') }}
-            </button>
+            <button type="submit" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存报告' }}</button>
           </div>
         </form>
       </div>
@@ -358,146 +419,44 @@
 </template>
 
 <script>
-import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
-import {useRouter} from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   createHealthRecord,
   createHealthReport,
+  createHealthVisit,
   deleteHealthRecord,
   deleteHealthReport,
+  deleteHealthVisit,
   getHealthSummary,
   getHealthTrends,
   listHealthRecords,
   listHealthReports,
+  listHealthVisits,
   updateHealthRecord,
   updateHealthReport,
+  updateHealthVisit,
   uploadHealthReportFile
 } from '@/api/healthRecord'
 
-const HEALTH_RECORD_FETCH_SIZE = 200
-// 健康页同时维护指标记录、体检报告和概览自定义结果，三类数据各自独立持久化。
-const LOCAL_RECORD_KEY = 'health_record_entries'
-const LOCAL_REPORT_KEY = 'health_report_entries'
-const OVERVIEW_METRIC_STORAGE_KEY = 'health_overview_metric_keys'
-const OVERVIEW_METRIC_VERSION_STORAGE_KEY = 'health_overview_metric_version'
-const CURRENT_OVERVIEW_METRIC_VERSION = 2
-const NEW_LIVER_METRIC_KEYS = ['uricAcid', 'alanineAminotransferase', 'aspartateAminotransferase', 'gammaGlutamylTransferase']
-const DEFAULT_RECORDS = [
-  {id: 'health-1', measureDate: '2025-11-12', heightCm: 175, weightKg: 78.6, bodyFatRate: 22.8, systolicPressure: 128, diastolicPressure: 84, totalCholesterol: 5.48, triglycerides: 1.92, hdlCholesterol: 1.08, ldlCholesterol: 3.46, fastingGlucose: 5.3, heartRate: 76, uricAcid: 468, alanineAminotransferase: 52, aspartateAminotransferase: 39, gammaGlutamylTransferase: 78, note: '年末应酬较多，状态一般'},
-  {id: 'health-2', measureDate: '2025-12-18', heightCm: 175, weightKg: 77.9, bodyFatRate: 22.1, systolicPressure: 124, diastolicPressure: 82, totalCholesterol: 5.32, triglycerides: 1.76, hdlCholesterol: 1.12, ldlCholesterol: 3.31, fastingGlucose: 5.2, heartRate: 74, uricAcid: 452, alanineAminotransferase: 46, aspartateAminotransferase: 35, gammaGlutamylTransferase: 71, note: '恢复规律作息'},
-  {id: 'health-3', measureDate: '2026-01-22', heightCm: 175, weightKg: 77.1, bodyFatRate: 21.4, systolicPressure: 122, diastolicPressure: 80, totalCholesterol: 5.18, triglycerides: 1.63, hdlCholesterol: 1.16, ldlCholesterol: 3.18, fastingGlucose: 5.1, heartRate: 72, uricAcid: 438, alanineAminotransferase: 38, aspartateAminotransferase: 31, gammaGlutamylTransferase: 63, note: '增加有氧训练'},
-  {id: 'health-4', measureDate: '2026-02-19', heightCm: 175, weightKg: 76.3, bodyFatRate: 20.9, systolicPressure: 120, diastolicPressure: 79, totalCholesterol: 5.02, triglycerides: 1.41, hdlCholesterol: 1.19, ldlCholesterol: 3.06, fastingGlucose: 4.9, heartRate: 70, uricAcid: 421, alanineAminotransferase: 34, aspartateAminotransferase: 29, gammaGlutamylTransferase: 55, note: '体检前一周控制饮食'},
-  {id: 'health-5', measureDate: '2026-03-10', heightCm: 175, weightKg: 75.8, bodyFatRate: 20.4, systolicPressure: 118, diastolicPressure: 78, totalCholesterol: 4.86, triglycerides: 1.28, hdlCholesterol: 1.23, ldlCholesterol: 2.98, fastingGlucose: 4.9, heartRate: 69, uricAcid: 398, alanineAminotransferase: 28, aspartateAminotransferase: 26, gammaGlutamylTransferase: 48, note: '晨起空腹测量'}
+const METRIC_OPTIONS = [
+  { key: 'weightKg', label: '体重', unit: 'kg', decimals: 1 },
+  { key: 'bodyFatRate', label: '体脂率', unit: '%', decimals: 1 },
+  { key: 'systolicPressure', label: '收缩压', unit: 'mmHg', decimals: 0 },
+  { key: 'diastolicPressure', label: '舒张压', unit: 'mmHg', decimals: 0 },
+  { key: 'totalCholesterol', label: '总胆固醇', unit: 'mmol/L', decimals: 2 },
+  { key: 'fastingGlucose', label: '空腹血糖', unit: 'mmol/L', decimals: 2 },
+  { key: 'uricAcid', label: '尿酸', unit: 'umol/L', decimals: 0 },
+  { key: 'alanineAminotransferase', label: '谷丙转氨酶', unit: 'U/L', decimals: 0 }
 ]
-const DEFAULT_REPORTS = [
-  {
-    id: 'report-1',
-    examDate: '2025-06-08',
-    hospitalName: '市体检中心',
-    reportTitle: '2025年度体检报告',
-    summary: '总胆固醇略高，建议控制饮食并规律运动。',
-    doctorAdvice: '每周至少 3 次中等强度运动，3 个月后复查血脂。',
-    reportFileName: '2025-health-checkup.pdf',
-    reportUrl: 'http://127.0.0.1:9000/health-reports/2025-health-checkup.pdf'
-  },
-  {
-    id: 'report-2',
-    examDate: '2026-02-18',
-    hospitalName: '市体检中心',
-    reportTitle: '2026年度体检报告',
-    summary: '体重和血脂较上年改善，建议继续保持。',
-    doctorAdvice: '维持目前运动频率，半年后复查血压和血脂。',
-    reportFileName: '2026-health-checkup.pdf',
-    reportUrl: 'http://127.0.0.1:9000/health-reports/2026-health-checkup.pdf'
-  }
-]
-// 概览卡片、历史记录和指标选择器都共享这一份指标定义。
-const METRIC_DEFINITIONS = [
-  {key: 'heightCm', label: '身高', unit: 'cm', decimals: 0, accentClass: 'accent-pink', color: '#ff5f8f'},
-  {key: 'weightKg', label: '体重', unit: 'kg', decimals: 1, accentClass: 'accent-rose', color: '#ff4778'},
-  {key: 'bmi', label: 'BMI', unit: '', decimals: 1, accentClass: 'accent-orange', color: '#fb7185'},
-  {key: 'bodyFatRate', label: '体脂率', unit: '%', decimals: 1, accentClass: 'accent-cyan', color: '#22d3ee'},
-  {key: 'bloodPressure', label: '血压', unit: 'mmHg', decimals: 0, accentClass: 'accent-red', color: '#ef4444'},
-  {key: 'totalCholesterol', label: '总胆固醇', unit: 'mmol/L', decimals: 2, accentClass: 'accent-purple', color: '#8b5cf6'},
-  {key: 'triglycerides', label: '甘油三酯', unit: 'mmol/L', decimals: 2, accentClass: 'accent-gold', color: '#f59e0b'},
-  {key: 'hdlCholesterol', label: '高密度脂蛋白', unit: 'mmol/L', decimals: 2, accentClass: 'accent-green', color: '#22c55e'},
-  {key: 'ldlCholesterol', label: '低密度脂蛋白', unit: 'mmol/L', decimals: 2, accentClass: 'accent-blue', color: '#38bdf8'},
-  {key: 'fastingGlucose', label: '空腹血糖', unit: 'mmol/L', decimals: 2, accentClass: 'accent-indigo', color: '#6366f1'},
-  {key: 'heartRate', label: '静息心率', unit: 'bpm', decimals: 0, accentClass: 'accent-teal', color: '#14b8a6'},
-  {key: 'uricAcid', label: '尿酸', unit: 'umol/L', decimals: 0, accentClass: 'accent-purple', color: '#a855f7'},
-  {key: 'alanineAminotransferase', label: '谷丙转氨酶', unit: 'U/L', decimals: 0, accentClass: 'accent-green', color: '#84cc16'},
-  {key: 'aspartateAminotransferase', label: '谷草转氨酶', unit: 'U/L', decimals: 0, accentClass: 'accent-gold', color: '#f59e0b'},
-  {key: 'gammaGlutamylTransferase', label: 'γ-GT', unit: 'U/L', decimals: 0, accentClass: 'accent-teal', color: '#06b6d4'}
-]
-// 趋势图展示的是可对比的单值指标，复合指标如血压会拆成收缩压/舒张压。
-const TREND_METRIC_OPTIONS = [
-  {key: 'weightKg', label: '体重', unit: 'kg', color: '#ff4778', decimals: 1},
-  {key: 'bodyFatRate', label: '体脂率', unit: '%', color: '#22d3ee', decimals: 1},
-  {key: 'systolicPressure', label: '收缩压', unit: 'mmHg', color: '#ef4444', decimals: 0},
-  {key: 'diastolicPressure', label: '舒张压', unit: 'mmHg', color: '#fb7185', decimals: 0},
-  {key: 'totalCholesterol', label: '总胆固醇', unit: 'mmol/L', color: '#8b5cf6', decimals: 2},
-  {key: 'ldlCholesterol', label: '低密度脂蛋白', unit: 'mmol/L', color: '#38bdf8', decimals: 2},
-  {key: 'fastingGlucose', label: '空腹血糖', unit: 'mmol/L', color: '#6366f1', decimals: 2},
-  {key: 'uricAcid', label: '尿酸', unit: 'umol/L', color: '#a855f7', decimals: 0},
-  {key: 'alanineAminotransferase', label: '谷丙转氨酶', unit: 'U/L', color: '#84cc16', decimals: 0},
-  {key: 'aspartateAminotransferase', label: '谷草转氨酶', unit: 'U/L', color: '#f59e0b', decimals: 0},
-  {key: 'gammaGlutamylTransferase', label: 'γ-GT', unit: 'U/L', color: '#06b6d4', decimals: 0}
-]
-// 新增记录弹窗会按当前指标只显示必要字段，这里定义指标到表单字段的映射关系。
-const RECORD_FIELD_CONFIGS = {
-  heightCm: {key: 'heightCm', label: '身高(cm)', type: 'number', min: '0', step: '0.1', placeholder: ''},
-  weightKg: {key: 'weightKg', label: '体重(kg)', type: 'number', min: '0', step: '0.1', placeholder: ''},
-  bodyFatRate: {key: 'bodyFatRate', label: '体脂率(%)', type: 'number', min: '0', step: '0.1', placeholder: ''},
-  systolicPressure: {key: 'systolicPressure', label: '收缩压(mmHg)', type: 'number', min: '0', step: '1', placeholder: ''},
-  diastolicPressure: {key: 'diastolicPressure', label: '舒张压(mmHg)', type: 'number', min: '0', step: '1', placeholder: ''},
-  totalCholesterol: {key: 'totalCholesterol', label: '总胆固醇', type: 'number', min: '0', step: '0.01', placeholder: 'mmol/L'},
-  triglycerides: {key: 'triglycerides', label: '甘油三酯', type: 'number', min: '0', step: '0.01', placeholder: 'mmol/L'},
-  hdlCholesterol: {key: 'hdlCholesterol', label: '高密度脂蛋白', type: 'number', min: '0', step: '0.01', placeholder: 'mmol/L'},
-  ldlCholesterol: {key: 'ldlCholesterol', label: '低密度脂蛋白', type: 'number', min: '0', step: '0.01', placeholder: 'mmol/L'},
-  fastingGlucose: {key: 'fastingGlucose', label: '空腹血糖', type: 'number', min: '0', step: '0.01', placeholder: 'mmol/L'},
-  heartRate: {key: 'heartRate', label: '静息心率', type: 'number', min: '0', step: '1', placeholder: 'bpm'},
-  uricAcid: {key: 'uricAcid', label: '尿酸', type: 'number', min: '0', step: '1', placeholder: 'umol/L'},
-  alanineAminotransferase: {key: 'alanineAminotransferase', label: '谷丙转氨酶', type: 'number', min: '0', step: '1', placeholder: 'U/L'},
-  aspartateAminotransferase: {key: 'aspartateAminotransferase', label: '谷草转氨酶', type: 'number', min: '0', step: '1', placeholder: 'U/L'},
-  gammaGlutamylTransferase: {key: 'gammaGlutamylTransferase', label: 'γ-GT', type: 'number', min: '0', step: '1', placeholder: 'U/L'}
-}
-const METRIC_FORM_FIELD_KEYS = {
-  heightCm: ['heightCm'],
-  weightKg: ['weightKg'],
-  bmi: ['heightCm', 'weightKg'],
-  bodyFatRate: ['bodyFatRate'],
-  bloodPressure: ['systolicPressure', 'diastolicPressure'],
-  totalCholesterol: ['totalCholesterol'],
-  triglycerides: ['triglycerides'],
-  hdlCholesterol: ['hdlCholesterol'],
-  ldlCholesterol: ['ldlCholesterol'],
-  fastingGlucose: ['fastingGlucose'],
-  heartRate: ['heartRate'],
-  uricAcid: ['uricAcid'],
-  alanineAminotransferase: ['alanineAminotransferase'],
-  aspartateAminotransferase: ['aspartateAminotransferase'],
-  gammaGlutamylTransferase: ['gammaGlutamylTransferase']
-}
-const METRIC_TREND_MAP = {
-  heightCm: 'weightKg',
-  weightKg: 'weightKg',
-  bmi: 'weightKg',
-  bodyFatRate: 'bodyFatRate',
-  bloodPressure: 'systolicPressure',
-  totalCholesterol: 'totalCholesterol',
-  triglycerides: 'totalCholesterol',
-  hdlCholesterol: 'ldlCholesterol',
-  ldlCholesterol: 'ldlCholesterol',
-  fastingGlucose: 'fastingGlucose',
-  heartRate: 'weightKg',
-  uricAcid: 'uricAcid',
-  alanineAminotransferase: 'alanineAminotransferase',
-  aspartateAminotransferase: 'aspartateAminotransferase',
-  gammaGlutamylTransferase: 'gammaGlutamylTransferase'
-}
-const DEFAULT_OVERVIEW_METRIC_KEYS = METRIC_DEFINITIONS.map((item) => item.key)
 
-// 兼容统一响应包装与直接返回数据的两种接口形态。
+const VISIT_TYPE_OPTIONS = [
+  { value: 'OUTPATIENT', label: '门诊' },
+  { value: 'EMERGENCY', label: '急诊' },
+  { value: 'INPATIENT', label: '住院' },
+  { value: 'FOLLOW_UP', label: '复诊' }
+]
+
 function unwrapData(res) {
   const payload = res?.data
   if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -506,606 +465,38 @@ function unwrapData(res) {
   return payload
 }
 
-function toNumber(value) {
+function formatNumber(value, decimals = 0) {
+  if (value === null || value === undefined || value === '') {
+    return '暂无'
+  }
+  const number = Number(value)
+  if (!Number.isFinite(number)) {
+    return '暂无'
+  }
+  return number.toFixed(decimals)
+}
+
+function normalizeListPayload(payload) {
+  if (Array.isArray(payload)) {
+    return payload
+  }
+  return payload?.list || payload?.records || payload?.rows || payload?.items || []
+}
+
+function normalizeId(value) {
   if (value === '' || value === null || value === undefined) {
     return null
   }
-  const number = Number(value)
-  return Number.isFinite(number) ? number : null
+  return Number(value)
 }
 
-function computeBmi(heightCm, weightKg) {
-  const height = toNumber(heightCm)
-  const weight = toNumber(weightKg)
-  if (!height || !weight) {
-    return null
-  }
-  const meter = height / 100
-  if (!meter) {
-    return null
-  }
-  return weight / (meter * meter)
-}
-
-function formatDateLabel(date) {
-  if (!date) {
-    return '-'
-  }
-  return date.slice(5).replace('-', '/')
-}
-
-function hexToRgba(hex, alpha) {
-  const value = `${hex || ''}`.replace('#', '')
-  const normalized = value.length === 3
-    ? value.split('').map((item) => item + item).join('')
-    : value
-  const red = parseInt(normalized.slice(0, 2), 16)
-  const green = parseInt(normalized.slice(2, 4), 16)
-  const blue = parseInt(normalized.slice(4, 6), 16)
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
-}
-
-function buildMetricIconText(text) {
-  const normalized = `${text || ''}`.replace(/[^A-Za-z0-9\u4e00-\u9fa5]+/g, '')
-  if (!normalized) {
-    return '健康'
-  }
-  if (/^[A-Za-z0-9]+$/.test(normalized)) {
-    return normalized.length <= 3 ? normalized.toUpperCase() : normalized.slice(0, 2).toUpperCase()
-  }
-  return Array.from(normalized).slice(0, 2).join('')
-}
-
-function buildMetricIconStyle(color) {
-  return {
-    background: `linear-gradient(135deg, ${hexToRgba(color, 0.96)}, ${hexToRgba(color, 0.62)})`,
-    boxShadow: `0 14px 28px ${hexToRgba(color, 0.28)}`
-  }
-}
-
-function getMetricDefinition(metricKey) {
-  return METRIC_DEFINITIONS.find((item) => item.key === metricKey) || METRIC_DEFINITIONS[0]
-}
-
-function getMetricDisplayConfig(metricKey) {
-  return METRIC_DEFINITIONS.find((item) => item.key === metricKey)
-    || TREND_METRIC_OPTIONS.find((item) => item.key === metricKey)
-    || {key: metricKey, unit: '', decimals: 0}
-}
-
-// 以下状态判定只用于前端可视化提示，不替代医学诊断结论。
-function buildPressureStatus(record = {}) {
-  const systolic = toNumber(record.systolicPressure)
-  const diastolic = toNumber(record.diastolicPressure)
-  if (systolic === null || diastolic === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (systolic < 120 && diastolic < 80) {
-    return {text: '血压正常', className: 'status-good'}
-  }
-  if (systolic < 140 && diastolic < 90) {
-    return {text: '血压偏高', className: 'status-warning'}
-  }
-  return {text: '需关注血压', className: 'status-alert'}
-}
-
-function buildBmiStatus(value) {
-  const bmi = toNumber(value)
-  if (bmi === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (bmi < 18.5) {
-    return {text: '偏轻', className: 'status-warning'}
-  }
-  if (bmi < 24) {
-    return {text: '正常', className: 'status-good'}
-  }
-  if (bmi < 28) {
-    return {text: '偏高', className: 'status-warning'}
-  }
-  return {text: '肥胖', className: 'status-alert'}
-}
-
-function buildCholesterolStatus(value) {
-  const number = toNumber(value)
-  if (number === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (number < 5.2) {
-    return {text: '理想范围', className: 'status-good'}
-  }
-  if (number < 6.2) {
-    return {text: '轻度偏高', className: 'status-warning'}
-  }
-  return {text: '需关注血脂', className: 'status-alert'}
-}
-
-function buildTriglycerideStatus(value) {
-  const number = toNumber(value)
-  if (number === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (number < 1.7) {
-    return {text: '理想范围', className: 'status-good'}
-  }
-  if (number < 2.3) {
-    return {text: '偏高', className: 'status-warning'}
-  }
-  return {text: '需关注甘油三酯', className: 'status-alert'}
-}
-
-function buildHdlStatus(value) {
-  const number = toNumber(value)
-  if (number === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (number >= 1.04) {
-    return {text: '保护性较好', className: 'status-good'}
-  }
-  return {text: '偏低', className: 'status-warning'}
-}
-
-function buildLdlStatus(value) {
-  const number = toNumber(value)
-  if (number === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (number < 3.4) {
-    return {text: '理想范围', className: 'status-good'}
-  }
-  if (number < 4.1) {
-    return {text: '偏高', className: 'status-warning'}
-  }
-  return {text: '需关注 LDL', className: 'status-alert'}
-}
-
-function buildGlucoseStatus(value) {
-  const number = toNumber(value)
-  if (number === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (number < 6.1) {
-    return {text: '空腹血糖正常', className: 'status-good'}
-  }
-  if (number < 7) {
-    return {text: '血糖偏高', className: 'status-warning'}
-  }
-  return {text: '需关注血糖', className: 'status-alert'}
-}
-
-function buildHeartRateStatus(value) {
-  const number = toNumber(value)
-  if (number === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (number >= 60 && number <= 100) {
-    return {text: '静息心率正常', className: 'status-good'}
-  }
-  if (number < 60) {
-    return {text: '偏低', className: 'status-warning'}
-  }
-  return {text: '偏高', className: 'status-warning'}
-}
-
-function buildUricAcidStatus(value) {
-  const number = toNumber(value)
-  if (number === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (number <= 420) {
-    return {text: '当前正常', className: 'status-good'}
-  }
-  if (number <= 540) {
-    return {text: '偏高', className: 'status-warning'}
-  }
-  return {text: '需关注尿酸', className: 'status-alert'}
-}
-
-function buildTransaminaseStatus(value, label) {
-  const number = toNumber(value)
-  if (number === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (number <= 40) {
-    return {text: '当前正常', className: 'status-good'}
-  }
-  if (number <= 80) {
-    return {text: '轻度偏高', className: 'status-warning'}
-  }
-  return {text: `需关注${label}`, className: 'status-alert'}
-}
-
-function buildGgtStatus(value) {
-  const number = toNumber(value)
-  if (number === null) {
-    return {text: '暂无判定', className: ''}
-  }
-  if (number <= 60) {
-    return {text: '当前正常', className: 'status-good'}
-  }
-  if (number <= 120) {
-    return {text: '轻度偏高', className: 'status-warning'}
-  }
-  return {text: '需关注 γ-GT', className: 'status-alert'}
-}
-
-function normalizeRecord(item = {}) {
-  return {
-    id: item.id ?? `health-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    measureDate: item.measureDate || item.recordDate || '',
-    heightCm: toNumber(item.heightCm),
-    weightKg: toNumber(item.weightKg),
-    bodyFatRate: toNumber(item.bodyFatRate),
-    systolicPressure: toNumber(item.systolicPressure),
-    diastolicPressure: toNumber(item.diastolicPressure),
-    totalCholesterol: toNumber(item.totalCholesterol),
-    triglycerides: toNumber(item.triglycerides),
-    hdlCholesterol: toNumber(item.hdlCholesterol),
-    ldlCholesterol: toNumber(item.ldlCholesterol),
-    fastingGlucose: toNumber(item.fastingGlucose),
-    heartRate: toNumber(item.heartRate),
-    uricAcid: toNumber(item.uricAcid),
-    alanineAminotransferase: toNumber(item.alanineAminotransferase),
-    aspartateAminotransferase: toNumber(item.aspartateAminotransferase),
-    gammaGlutamylTransferase: toNumber(item.gammaGlutamylTransferase),
-    note: item.note || ''
-  }
-}
-
-function normalizeReport(item = {}) {
-  return {
-    id: item.id ?? `report-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    examDate: item.examDate || '',
-    hospitalName: item.hospitalName || '',
-    reportTitle: item.reportTitle || '',
-    summary: item.summary || '',
-    doctorAdvice: item.doctorAdvice || '',
-    reportFileName: item.reportFileName || '',
-    reportUrl: item.reportUrl || ''
-  }
-}
-
-function sortRecordsDesc(list = []) {
-  return [...list].sort((prev, next) => `${next.measureDate}-${next.id}`.localeCompare(`${prev.measureDate}-${prev.id}`))
-}
-
-function sortRecordsAsc(list = []) {
-  return [...list].sort((prev, next) => `${prev.measureDate}-${prev.id}`.localeCompare(`${next.measureDate}-${next.id}`))
-}
-
-function sortReportsDesc(list = []) {
-  return [...list].sort((prev, next) => `${next.examDate}-${next.id}`.localeCompare(`${prev.examDate}-${prev.id}`))
-}
-
-// 概览支持用户自定义展示指标，并在版本升级时自动补上新增指标。
-function loadOverviewMetricKeys() {
-  try {
-    const raw = localStorage.getItem(OVERVIEW_METRIC_STORAGE_KEY)
-    if (!raw) {
-      localStorage.setItem(OVERVIEW_METRIC_VERSION_STORAGE_KEY, String(CURRENT_OVERVIEW_METRIC_VERSION))
-      return [...DEFAULT_OVERVIEW_METRIC_KEYS]
-    }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      localStorage.setItem(OVERVIEW_METRIC_VERSION_STORAGE_KEY, String(CURRENT_OVERVIEW_METRIC_VERSION))
-      return [...DEFAULT_OVERVIEW_METRIC_KEYS]
-    }
-    let validKeys = parsed.filter((item) => DEFAULT_OVERVIEW_METRIC_KEYS.includes(item))
-    const storedVersion = Number(localStorage.getItem(OVERVIEW_METRIC_VERSION_STORAGE_KEY) || 1)
-    if (storedVersion < CURRENT_OVERVIEW_METRIC_VERSION) {
-      NEW_LIVER_METRIC_KEYS.forEach((item) => {
-        if (!validKeys.includes(item)) {
-          validKeys.push(item)
-        }
-      })
-      localStorage.setItem(OVERVIEW_METRIC_STORAGE_KEY, JSON.stringify(validKeys))
-    }
-    localStorage.setItem(OVERVIEW_METRIC_VERSION_STORAGE_KEY, String(CURRENT_OVERVIEW_METRIC_VERSION))
-    return validKeys.length ? validKeys : [...DEFAULT_OVERVIEW_METRIC_KEYS]
-  } catch (error) {
-    return [...DEFAULT_OVERVIEW_METRIC_KEYS]
-  }
-}
-
-function persistOverviewMetricKeys(keys) {
-  localStorage.setItem(OVERVIEW_METRIC_STORAGE_KEY, JSON.stringify(keys))
-  localStorage.setItem(OVERVIEW_METRIC_VERSION_STORAGE_KEY, String(CURRENT_OVERVIEW_METRIC_VERSION))
-}
-
-function loadLocalRecords() {
-  try {
-    const raw = localStorage.getItem(LOCAL_RECORD_KEY)
-    if (!raw) {
-      localStorage.setItem(LOCAL_RECORD_KEY, JSON.stringify(DEFAULT_RECORDS))
-      return DEFAULT_RECORDS.map((item) => normalizeRecord(item))
-    }
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.map((item) => normalizeRecord(item)) : DEFAULT_RECORDS.map((item) => normalizeRecord(item))
-  } catch (error) {
-    return DEFAULT_RECORDS.map((item) => normalizeRecord(item))
-  }
-}
-
-function loadLocalReports() {
-  try {
-    const raw = localStorage.getItem(LOCAL_REPORT_KEY)
-    if (!raw) {
-      localStorage.setItem(LOCAL_REPORT_KEY, JSON.stringify(DEFAULT_REPORTS))
-      return DEFAULT_REPORTS.map((item) => normalizeReport(item))
-    }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return DEFAULT_REPORTS.map((item) => normalizeReport(item))
-    }
-    return parsed.map((item) => {
-      const nextItem = normalizeReport(item)
-      nextItem.reportUrl = `${nextItem.reportUrl || ''}`.startsWith('blob:') ? '' : nextItem.reportUrl
-      return nextItem
-    })
-  } catch (error) {
-    return DEFAULT_REPORTS.map((item) => normalizeReport(item))
-  }
-}
-
-function persistLocalRecords(list) {
-  localStorage.setItem(LOCAL_RECORD_KEY, JSON.stringify(list))
-}
-
-function persistLocalReports(list) {
-  localStorage.setItem(LOCAL_REPORT_KEY, JSON.stringify(list))
-}
-
-// 所有指标取值先统一走这里，复合指标和计算指标都能复用同一套展示逻辑。
-function extractMetricValue(record, metricKey) {
-  if (!record) {
-    return null
-  }
-  if (metricKey === 'bmi') {
-    return computeBmi(record.heightCm, record.weightKg)
-  }
-  if (metricKey === 'bloodPressure') {
-    const systolic = toNumber(record.systolicPressure)
-    const diastolic = toNumber(record.diastolicPressure)
-    return systolic === null || diastolic === null
-      ? null
-      : {systolic, diastolic}
-  }
-  return toNumber(record[metricKey])
-}
-
-function formatMetricValue(metricKey, value) {
-  if (value === null || value === undefined) {
-    return '-'
-  }
-  if (metricKey === 'bloodPressure') {
-    return value?.systolic !== undefined && value?.diastolic !== undefined
-      ? `${value.systolic}/${value.diastolic} mmHg`
-      : '-'
-  }
-  const definition = getMetricDisplayConfig(metricKey)
-  const number = toNumber(value)
-  if (number === null) {
-    return '-'
-  }
-  if (!definition.unit) {
-    return number.toFixed(definition.decimals)
-  }
-  return `${number.toFixed(definition.decimals)} ${definition.unit}`
-}
-
-function formatMetricHistoryNote(note) {
-  return note || '无备注'
-}
-
-function findLatestRecordForMetric(records, metricKey) {
-  return sortRecordsDesc(records).find((item) => extractMetricValue(item, metricKey) !== null) || null
-}
-
-function findPreviousRecordForMetric(records, metricKey, currentRecordId) {
-  return sortRecordsDesc(records)
-    .filter((item) => item.id !== currentRecordId && extractMetricValue(item, metricKey) !== null)[0] || null
-}
-
-function buildMetricStatus(metricKey, record, value) {
-  switch (metricKey) {
-    case 'bmi':
-      return buildBmiStatus(value)
-    case 'bloodPressure':
-      return buildPressureStatus(record)
-    case 'totalCholesterol':
-      return buildCholesterolStatus(value)
-    case 'triglycerides':
-      return buildTriglycerideStatus(value)
-    case 'hdlCholesterol':
-      return buildHdlStatus(value)
-    case 'ldlCholesterol':
-      return buildLdlStatus(value)
-    case 'fastingGlucose':
-      return buildGlucoseStatus(value)
-    case 'heartRate':
-      return buildHeartRateStatus(value)
-    case 'uricAcid':
-      return buildUricAcidStatus(value)
-    case 'alanineAminotransferase':
-      return buildTransaminaseStatus(value, '谷丙转氨酶')
-    case 'aspartateAminotransferase':
-      return buildTransaminaseStatus(value, '谷草转氨酶')
-    case 'gammaGlutamylTransferase':
-      return buildGgtStatus(value)
-    default:
-      return {text: '最近一次记录', className: ''}
-  }
-}
-
-// 概览卡片只关心最近一次记录，因此在这里统一拼装图标、值和日期。
-function buildMetricCard(records, metricKey) {
-  const definition = getMetricDefinition(metricKey)
-  const iconText = buildMetricIconText(definition.label)
-  const iconStyle = buildMetricIconStyle(definition.color)
-  const latestRecord = findLatestRecordForMetric(records, metricKey)
-  if (!latestRecord) {
-    return {
-      key: metricKey,
-      label: definition.label,
-      accentClass: definition.accentClass,
-      iconText,
-      iconStyle,
-      displayValue: '-',
-      measureDateText: '暂无记录'
-    }
-  }
-
-  const value = extractMetricValue(latestRecord, metricKey)
-
-  return {
-    key: metricKey,
-    label: definition.label,
-    accentClass: definition.accentClass,
-    iconText,
-    iconStyle,
-    displayValue: formatMetricValue(metricKey, value),
-    measureDateText: latestRecord.measureDate
-  }
-}
-
-function buildMetricTrendInfo(metricKey, currentValue, previousValue) {
-  if (previousValue === null || previousValue === undefined) {
-    return {text: '首条记录', className: 'trend-flat'}
-  }
-
-  if (metricKey === 'bloodPressure') {
-    const currentSystolic = toNumber(currentValue?.systolic)
-    const currentDiastolic = toNumber(currentValue?.diastolic)
-    const previousSystolic = toNumber(previousValue?.systolic)
-    const previousDiastolic = toNumber(previousValue?.diastolic)
-    if (
-      currentSystolic === null || currentDiastolic === null
-      || previousSystolic === null || previousDiastolic === null
-    ) {
-      return {text: '无对比', className: 'trend-flat'}
-    }
-    const systolicDiff = currentSystolic - previousSystolic
-    const diastolicDiff = currentDiastolic - previousDiastolic
-    if (systolicDiff === 0 && diastolicDiff === 0) {
-      return {text: '与上次持平', className: 'trend-flat'}
-    }
-    return {
-      text: `${systolicDiff >= 0 ? '+' : ''}${systolicDiff}/${diastolicDiff >= 0 ? '+' : ''}${diastolicDiff} mmHg`,
-      className: systolicDiff > 0 || diastolicDiff > 0 ? 'trend-up' : 'trend-down'
-    }
-  }
-
-  const currentNumber = toNumber(currentValue)
-  const previousNumber = toNumber(previousValue)
-  if (currentNumber === null || previousNumber === null) {
-    return {text: '无对比', className: 'trend-flat'}
-  }
-  const diff = currentNumber - previousNumber
-  if (diff === 0) {
-    return {text: '与上次持平', className: 'trend-flat'}
-  }
-  const config = getMetricDisplayConfig(metricKey)
-  const suffix = config.unit ? ` ${config.unit}` : ''
-  return {
-    text: `${diff > 0 ? '+' : ''}${diff.toFixed(config.decimals)}${suffix}`,
-    className: diff > 0 ? 'trend-up' : 'trend-down'
-  }
-}
-
-// 历史列表统一输出“指标值 + 记录日期 + 与上次趋势”，页面只负责渲染。
-function buildMetricHistoryItems(records, metricKey) {
-  const filteredRecords = sortRecordsDesc(records)
-    .filter((item) => extractMetricValue(item, metricKey) !== null)
-  return filteredRecords.map((item, index) => {
-      const value = extractMetricValue(item, metricKey)
-      const previousRecord = filteredRecords[index + 1]
-      const previousValue = previousRecord ? extractMetricValue(previousRecord, metricKey) : null
-      const trendInfo = buildMetricTrendInfo(metricKey, value, previousValue)
-      return {
-        id: `${metricKey}-${item.id}`,
-        measureDate: item.measureDate,
-        primaryText: formatMetricValue(metricKey, value),
-        trendText: trendInfo.text,
-        trendClass: trendInfo.className,
-        rawRecord: item
-      }
-    })
-}
-
-function buildLocalSummary(records = [], reports = []) {
-  const sortedRecords = sortRecordsDesc(records)
-  const sortedReports = sortReportsDesc(reports)
-  const latestRecord = sortedRecords[0]
-  const latestWeightRecord = findLatestRecordForMetric(records, 'weightKg')
-  const previousWeightRecord = latestWeightRecord ? findPreviousRecordForMetric(records, 'weightKg', latestWeightRecord.id) : null
-  const latestBmi = latestRecord ? computeBmi(latestRecord.heightCm, latestRecord.weightKg) : null
-  const weightChange = latestWeightRecord && previousWeightRecord
-    ? (toNumber(latestWeightRecord.weightKg) || 0) - (toNumber(previousWeightRecord.weightKg) || 0)
-    : null
-
-  return {
-    latestMeasureDate: latestRecord?.measureDate || '',
-    latestWeight: latestWeightRecord?.weightKg ?? null,
-    weightChange,
-    latestBmi,
-    latestBodyFatRate: findLatestRecordForMetric(records, 'bodyFatRate')?.bodyFatRate ?? null,
-    latestPressureText: formatMetricValue('bloodPressure', extractMetricValue(findLatestRecordForMetric(records, 'bloodPressure'), 'bloodPressure')),
-    latestTotalCholesterol: findLatestRecordForMetric(records, 'totalCholesterol')?.totalCholesterol ?? null,
-    lastExamDate: sortedReports[0]?.examDate || '',
-    totalRecords: sortedRecords.length,
-    reportCount: sortedReports.length
-  }
-}
-
-function buildLocalTrendData(records = []) {
-  const sortedRecords = sortRecordsAsc(records)
-  return TREND_METRIC_OPTIONS.reduce((result, metric) => {
-    result[metric.key] = sortedRecords
-      .map((item) => ({
-        label: formatDateLabel(item.measureDate),
-        value: toNumber(item[metric.key]),
-        measureDate: item.measureDate
-      }))
-      .filter((item) => item.value !== null)
-    return result
-  }, {})
-}
-
-function normalizeTrendData(payload = {}) {
-  const metrics = payload.metrics || payload
-  return TREND_METRIC_OPTIONS.reduce((result, metric) => {
-    const rawList = Array.isArray(metrics?.[metric.key]) ? metrics[metric.key] : []
-    result[metric.key] = rawList
-      .map((item) => ({
-        label: item.label || formatDateLabel(item.measureDate || ''),
-        value: toNumber(item.value),
-        measureDate: item.measureDate || ''
-      }))
-      .filter((item) => item.value !== null)
-    return result
-  }, {})
-}
-
-function prefillRecordFromLatest(record = {}) {
-  return {
-    measureDate: new Date().toISOString().slice(0, 10),
-    heightCm: record.heightCm ?? '',
-    weightKg: record.weightKg ?? '',
-    bodyFatRate: record.bodyFatRate ?? '',
-    systolicPressure: record.systolicPressure ?? '',
-    diastolicPressure: record.diastolicPressure ?? '',
-    totalCholesterol: record.totalCholesterol ?? '',
-    triglycerides: record.triglycerides ?? '',
-    hdlCholesterol: record.hdlCholesterol ?? '',
-    ldlCholesterol: record.ldlCholesterol ?? '',
-    fastingGlucose: record.fastingGlucose ?? '',
-    heartRate: record.heartRate ?? '',
-    uricAcid: record.uricAcid ?? '',
-    alanineAminotransferase: record.alanineAminotransferase ?? '',
-    aspartateAminotransferase: record.aspartateAminotransferase ?? '',
-    gammaGlutamylTransferase: record.gammaGlutamylTransferase ?? '',
-    note: ''
-  }
+function buildNumericPayload(rawForm, fieldConfigs) {
+  const payload = {}
+  fieldConfigs.forEach((item) => {
+    const value = rawForm[item]
+    payload[item] = value === '' || value === null || value === undefined ? null : Number(value)
+  })
+  return payload
 }
 
 export default {
@@ -1113,51 +504,71 @@ export default {
   setup() {
     const router = useRouter()
 
-    // 页面同时维护概览、趋势、历史记录和体检报告四块区域，状态集中在 setup 顶部统一管理。
     const loading = ref(false)
     const submitting = ref(false)
-    const usingLocalData = ref(false)
-    const allRecords = ref([])
+    const records = ref([])
     const reports = ref([])
-    const showRecordDialog = ref(false)
-    const showReportDialog = ref(false)
-    const showMetricCustomizer = ref(false)
-    const recordDialogMode = ref('create')
-    const reportDialogMode = ref('create')
-    const editingRecordId = ref('')
-    const editingReportId = ref('')
-    const selectedOverviewMetricKeys = ref(loadOverviewMetricKeys())
-    const selectedTrendMetric = ref(TREND_METRIC_OPTIONS[0].key)
-    const activeMetricKey = ref(selectedOverviewMetricKeys.value.includes(METRIC_DEFINITIONS[1].key) ? METRIC_DEFINITIONS[1].key : selectedOverviewMetricKeys.value[0])
-    const recordDialogSourceMetric = ref('')
-    const isMobileViewport = ref(window.innerWidth <= 720)
-    const reportUploadInputRef = ref(null)
-    const draggingMetricKey = ref('')
-    const dragOverMetricKey = ref('')
-    const suppressNextMetricOpen = ref(false)
-    const trendData = reactive({})
-    const tempReportUrls = []
-
-    // 趋势图数据按指标 key 分桶缓存，切换指标时只需要切换引用。
-    TREND_METRIC_OPTIONS.forEach((item) => {
-      trendData[item.key] = []
-    })
-
-    const summary = reactive({
+    const visits = ref([])
+    const trendMetricKey = ref(METRIC_OPTIONS[0].key)
+    const trendPoints = ref([])
+    const summary = ref({
       latestMeasureDate: '',
-      latestWeight: null,
-      weightChange: null,
-      latestBmi: null,
-      latestBodyFatRate: null,
-      latestPressureText: '',
-      latestTotalCholesterol: null,
       lastExamDate: '',
-      totalRecords: 0,
-      reportCount: 0
+      lastVisitDate: '',
+      recordCount: 0,
+      reportCount: 0,
+      visitCount: 0
     })
 
-    const recordForm = reactive(prefillRecordFromLatest())
+    const showRecordDialog = ref(false)
+    const showVisitDialog = ref(false)
+    const showReportDialog = ref(false)
+    const recordDialogMode = ref('create')
+    const visitDialogMode = ref('create')
+    const reportDialogMode = ref('create')
+    const editingRecordId = ref(null)
+    const editingVisitId = ref(null)
+    const editingReportId = ref(null)
+    const reportUploadInputRef = ref(null)
+    const visitUploadInputRef = ref(null)
+
+    const recordForm = reactive({
+      measureDate: '',
+      heightCm: '',
+      weightKg: '',
+      bodyFatRate: '',
+      systolicPressure: '',
+      diastolicPressure: '',
+      totalCholesterol: '',
+      triglycerides: '',
+      hdlCholesterol: '',
+      ldlCholesterol: '',
+      fastingGlucose: '',
+      heartRate: '',
+      uricAcid: '',
+      alanineAminotransferase: '',
+      aspartateAminotransferase: '',
+      gammaGlutamylTransferase: '',
+      note: ''
+    })
+
+    const visitForm = reactive({
+      visitDate: '',
+      hospitalName: '',
+      departmentName: '',
+      doctorName: '',
+      visitType: '',
+      chiefComplaint: '',
+      diagnosisSummary: '',
+      treatmentPlan: '',
+      doctorAdvice: '',
+      caseRecordFileName: '',
+      caseRecordUrl: '',
+      note: ''
+    })
+
     const reportForm = reactive({
+      visitId: '',
       examDate: '',
       hospitalName: '',
       reportTitle: '',
@@ -1167,342 +578,138 @@ export default {
       reportUrl: ''
     })
 
-    const metricDefinitions = METRIC_DEFINITIONS
-    const trendMetricOptions = TREND_METRIC_OPTIONS
-    const metricDefinitionMap = new Map(metricDefinitions.map((item) => [item.key, item]))
-    const selectedTrendMeta = computed(() => trendMetricOptions.find((item) => item.key === selectedTrendMetric.value) || trendMetricOptions[0])
-    const visibleMetricCards = computed(() => selectedOverviewMetricKeys.value
-      .map((item) => metricDefinitionMap.get(item))
-      .filter(Boolean)
-      .map((item) => buildMetricCard(allRecords.value, item.key)))
-    const activeMetricMeta = computed(() => getMetricDefinition(activeMetricKey.value))
-    const recordDialogMetricKey = computed(() => {
-      if (recordDialogSourceMetric.value) {
-        return recordDialogSourceMetric.value
-      }
-      return activeMetricKey.value
-    })
-    const recordDialogMetricMeta = computed(() => getMetricDefinition(recordDialogMetricKey.value))
-    const visibleRecordFieldRows = computed(() => {
-      const fieldKeys = METRIC_FORM_FIELD_KEYS[recordDialogMetricKey.value] || ['weightKg']
-      const fields = fieldKeys.map((item) => RECORD_FIELD_CONFIGS[item]).filter(Boolean)
-      const rows = []
-      for (let index = 0; index < fields.length; index += 2) {
-        rows.push(fields.slice(index, index + 2))
-      }
-      return rows
-    })
-    const metricHistoryItems = computed(() => buildMetricHistoryItems(allRecords.value, activeMetricKey.value))
-    // 移动端图表只截取最近几条记录，避免在窄屏上显示过于拥挤。
-    const chartSeries = computed(() => {
-      const list = trendData[selectedTrendMetric.value] || []
-      return isMobileViewport.value ? list.slice(-6) : list
-    })
-    const displayReports = computed(() => isMobileViewport.value ? reports.value.slice(0, 3) : reports.value)
-    const recordDialogHintText = computed(() => {
-      if (recordDialogMode.value === 'edit') {
-        return '编辑当前这次测量快照，所有指标仍使用同一组后端接口。'
-      }
-      if (!recordDialogSourceMetric.value) {
-        return `当前将按「${recordDialogMetricMeta.value.label}」新增，只展示这一项指标对应的输入字段。`
-      }
-      return `当前从「${recordDialogMetricMeta.value.label}」历史进入，新增后会自动出现在该指标历史列表中。`
+    const latestRecord = computed(() => records.value[0] || null)
+
+    const metricCards = computed(() => {
+      const source = latestRecord.value || {}
+      return [
+        { key: 'weightKg', label: '体重', value: latestMetricText('weightKg', source.weightKg) },
+        { key: 'bodyFatRate', label: '体脂率', value: latestMetricText('bodyFatRate', source.bodyFatRate) },
+        {
+          key: 'bloodPressure',
+          label: '血压',
+          value: source.systolicPressure && source.diastolicPressure
+            ? `${source.systolicPressure}/${source.diastolicPressure} mmHg`
+            : '暂无'
+        },
+        { key: 'totalCholesterol', label: '总胆固醇', value: latestMetricText('totalCholesterol', source.totalCholesterol) },
+        { key: 'fastingGlucose', label: '空腹血糖', value: latestMetricText('fastingGlucose', source.fastingGlucose) },
+        { key: 'uricAcid', label: '尿酸', value: latestMetricText('uricAcid', source.uricAcid) }
+      ]
     })
 
-    const trendChartPoints = computed(() => {
-      const list = chartSeries.value
-      if (!list.length) {
-        return []
-      }
-      const values = list.map((item) => Number(item.value || 0))
-      const minValue = Math.min(...values)
-      const maxValue = Math.max(...values)
-      const rawRange = maxValue - minValue
-      const basePadding = selectedTrendMeta.value.decimals === 0 ? 2 : 0.2
-      const padding = Math.max(rawRange * 0.2, Math.abs(maxValue) * 0.06, basePadding)
-      const chartMin = Math.max(0, minValue - padding)
-      const chartMax = maxValue + padding
-      const range = chartMax - chartMin || 1
-      const offsetX = 34
-      const offsetY = 24
-      const chartWidth = 302
-      const chartHeight = 144
+    const metricOptions = METRIC_OPTIONS
+    const visitTypeOptions = VISIT_TYPE_OPTIONS
 
-      return list.map((item, index) => {
-        const x = list.length === 1
-          ? offsetX + chartWidth / 2
-          : offsetX + (chartWidth / (list.length - 1)) * index
-        const y = offsetY + chartHeight - ((Number(item.value || 0) - chartMin) / range) * chartHeight
-        return {
-          ...item,
-          x: Number(x.toFixed(2)),
-          y: Number(y.toFixed(2))
-        }
+    const loadSummary = async () => {
+      const res = await getHealthSummary()
+      summary.value = unwrapData(res) || summary.value
+    }
+
+    const loadRecords = async () => {
+      const res = await listHealthRecords({ pageNo: 1, pageSize: 200 })
+      records.value = normalizeListPayload(unwrapData(res))
+    }
+
+    const loadReports = async () => {
+      const res = await listHealthReports({ pageNo: 1, pageSize: 100 })
+      reports.value = normalizeListPayload(unwrapData(res))
+    }
+
+    const loadVisits = async () => {
+      const res = await listHealthVisits({ pageNo: 1, pageSize: 100 })
+      visits.value = normalizeListPayload(unwrapData(res))
+    }
+
+    const loadTrend = async () => {
+      const res = await getHealthTrends({
+        metricKey: trendMetricKey.value,
+        limit: 8
       })
-    })
-    const trendPolyline = computed(() => trendChartPoints.value.map((item) => `${item.x},${item.y}`).join(' '))
-
-    const syncViewport = () => {
-      isMobileViewport.value = window.innerWidth <= 720
+      const payload = unwrapData(res) || {}
+      trendPoints.value = payload.points || []
     }
 
-    const applySummaryData = (payload, records, reportList) => {
-      const localSummary = buildLocalSummary(records, reportList)
-      summary.latestMeasureDate = payload?.latestMeasureDate || localSummary.latestMeasureDate
-      summary.latestWeight = toNumber(payload?.latestWeight)
-      if (summary.latestWeight === null) {
-        summary.latestWeight = localSummary.latestWeight
-      }
-      summary.weightChange = toNumber(payload?.weightChange)
-      if (summary.weightChange === null) {
-        summary.weightChange = localSummary.weightChange
-      }
-      summary.latestBmi = toNumber(payload?.latestBmi)
-      if (summary.latestBmi === null) {
-        summary.latestBmi = localSummary.latestBmi
-      }
-      summary.latestBodyFatRate = toNumber(payload?.latestBodyFatRate)
-      if (summary.latestBodyFatRate === null) {
-        summary.latestBodyFatRate = localSummary.latestBodyFatRate
-      }
-      summary.latestPressureText = payload?.latestPressureText || localSummary.latestPressureText
-      summary.latestTotalCholesterol = toNumber(payload?.latestTotalCholesterol)
-      if (summary.latestTotalCholesterol === null) {
-        summary.latestTotalCholesterol = localSummary.latestTotalCholesterol
-      }
-      summary.lastExamDate = payload?.lastExamDate || localSummary.lastExamDate
-      summary.totalRecords = Number(payload?.totalRecords || localSummary.totalRecords)
-      summary.reportCount = Number(payload?.reportCount || localSummary.reportCount)
-    }
-
-    const applyTrendData = (payload, records) => {
-      const nextTrendData = payload && Object.keys(payload).length
-        ? normalizeTrendData(payload)
-        : buildLocalTrendData(records)
-
-      trendMetricOptions.forEach((item) => {
-        trendData[item.key] = nextTrendData[item.key] || []
-      })
-    }
-
-    const applyLocalData = (recordList = loadLocalRecords(), reportList = loadLocalReports()) => {
-      const nextRecords = sortRecordsDesc(recordList.map((item) => normalizeRecord(item)))
-      const nextReports = sortReportsDesc(reportList.map((item) => normalizeReport(item)))
-      allRecords.value = nextRecords
-      reports.value = nextReports
-      applySummaryData(null, nextRecords, nextReports)
-      applyTrendData(null, nextRecords)
-    }
-
-    const loadHealthData = async () => {
+    const loadPage = async () => {
       loading.value = true
       try {
-        const [recordRes, summaryRes, trendRes, reportRes] = await Promise.all([
-          listHealthRecords({
-            pageNo: 1,
-            pageSize: HEALTH_RECORD_FETCH_SIZE
-          }),
-          getHealthSummary(),
-          getHealthTrends(),
-          listHealthReports({
-            pageNo: 1,
-            pageSize: 50
-          })
-        ])
-
-        const recordPayload = unwrapData(recordRes) || {}
-        const reportPayload = unwrapData(reportRes) || {}
-        const rawRecordList = Array.isArray(recordPayload)
-          ? recordPayload
-          : (recordPayload.list || recordPayload.records || recordPayload.rows || [])
-        const rawReportList = Array.isArray(reportPayload)
-          ? reportPayload
-          : (reportPayload.list || reportPayload.records || reportPayload.rows || [])
-
-        allRecords.value = sortRecordsDesc(rawRecordList.map((item) => normalizeRecord(item)))
-        reports.value = sortReportsDesc(rawReportList.map((item) => normalizeReport(item)))
-        applySummaryData(unwrapData(summaryRes) || {}, allRecords.value, reports.value)
-        applyTrendData(unwrapData(trendRes) || {}, allRecords.value)
-        usingLocalData.value = false
+        await Promise.all([loadSummary(), loadRecords(), loadReports(), loadVisits(), loadTrend()])
       } catch (error) {
-        usingLocalData.value = true
-        applyLocalData()
+        console.error(error)
+        alert('健康数据加载失败，请稍后重试')
       } finally {
         loading.value = false
       }
     }
 
-    const buildRecordPayload = () => ({
-      measureDate: recordForm.measureDate,
-      heightCm: toNumber(recordForm.heightCm),
-      weightKg: toNumber(recordForm.weightKg),
-      bodyFatRate: toNumber(recordForm.bodyFatRate),
-      systolicPressure: toNumber(recordForm.systolicPressure),
-      diastolicPressure: toNumber(recordForm.diastolicPressure),
-      totalCholesterol: toNumber(recordForm.totalCholesterol),
-      triglycerides: toNumber(recordForm.triglycerides),
-      hdlCholesterol: toNumber(recordForm.hdlCholesterol),
-      ldlCholesterol: toNumber(recordForm.ldlCholesterol),
-      fastingGlucose: toNumber(recordForm.fastingGlucose),
-      heartRate: toNumber(recordForm.heartRate),
-      uricAcid: toNumber(recordForm.uricAcid),
-      alanineAminotransferase: toNumber(recordForm.alanineAminotransferase),
-      aspartateAminotransferase: toNumber(recordForm.aspartateAminotransferase),
-      gammaGlutamylTransferase: toNumber(recordForm.gammaGlutamylTransferase),
-      note: recordForm.note
-    })
-
-    const buildReportPayload = () => ({
-      examDate: reportForm.examDate,
-      hospitalName: reportForm.hospitalName,
-      reportTitle: reportForm.reportTitle,
-      summary: reportForm.summary,
-      doctorAdvice: reportForm.doctorAdvice,
-      reportFileName: reportForm.reportFileName,
-      reportUrl: reportForm.reportUrl
-    })
-
-    const resetRecordForm = () => {
-      Object.assign(recordForm, prefillRecordFromLatest({}))
+    const selectTrendMetric = async (metricKey) => {
+      if (trendMetricKey.value === metricKey) {
+        return
+      }
+      trendMetricKey.value = metricKey
+      try {
+        await loadTrend()
+      } catch (error) {
+        console.error(error)
+        alert('趋势数据加载失败')
+      }
     }
 
-    const fillRecordForm = (item) => {
-      recordForm.measureDate = item.measureDate || ''
-      recordForm.heightCm = item.heightCm ?? ''
-      recordForm.weightKg = item.weightKg ?? ''
-      recordForm.bodyFatRate = item.bodyFatRate ?? ''
-      recordForm.systolicPressure = item.systolicPressure ?? ''
-      recordForm.diastolicPressure = item.diastolicPressure ?? ''
-      recordForm.totalCholesterol = item.totalCholesterol ?? ''
-      recordForm.triglycerides = item.triglycerides ?? ''
-      recordForm.hdlCholesterol = item.hdlCholesterol ?? ''
-      recordForm.ldlCholesterol = item.ldlCholesterol ?? ''
-      recordForm.fastingGlucose = item.fastingGlucose ?? ''
-      recordForm.heartRate = item.heartRate ?? ''
-      recordForm.uricAcid = item.uricAcid ?? ''
-      recordForm.alanineAminotransferase = item.alanineAminotransferase ?? ''
-      recordForm.aspartateAminotransferase = item.aspartateAminotransferase ?? ''
-      recordForm.gammaGlutamylTransferase = item.gammaGlutamylTransferase ?? ''
-      recordForm.note = item.note || ''
+    const resetRecordForm = () => {
+      Object.assign(recordForm, {
+        measureDate: '',
+        heightCm: '',
+        weightKg: '',
+        bodyFatRate: '',
+        systolicPressure: '',
+        diastolicPressure: '',
+        totalCholesterol: '',
+        triglycerides: '',
+        hdlCholesterol: '',
+        ldlCholesterol: '',
+        fastingGlucose: '',
+        heartRate: '',
+        uricAcid: '',
+        alanineAminotransferase: '',
+        aspartateAminotransferase: '',
+        gammaGlutamylTransferase: '',
+        note: ''
+      })
+    }
+
+    const resetVisitForm = () => {
+      Object.assign(visitForm, {
+        visitDate: '',
+        hospitalName: '',
+        departmentName: '',
+        doctorName: '',
+        visitType: '',
+        chiefComplaint: '',
+        diagnosisSummary: '',
+        treatmentPlan: '',
+        doctorAdvice: '',
+        caseRecordFileName: '',
+        caseRecordUrl: '',
+        note: ''
+      })
     }
 
     const resetReportForm = () => {
-      reportForm.examDate = ''
-      reportForm.hospitalName = ''
-      reportForm.reportTitle = ''
-      reportForm.summary = ''
-      reportForm.doctorAdvice = ''
-      reportForm.reportFileName = ''
-      reportForm.reportUrl = ''
+      Object.assign(reportForm, {
+        visitId: '',
+        examDate: '',
+        hospitalName: '',
+        reportTitle: '',
+        summary: '',
+        doctorAdvice: '',
+        reportFileName: '',
+        reportUrl: ''
+      })
     }
 
-    const fillReportForm = (item) => {
-      reportForm.examDate = item.examDate || ''
-      reportForm.hospitalName = item.hospitalName || ''
-      reportForm.reportTitle = item.reportTitle || ''
-      reportForm.summary = item.summary || ''
-      reportForm.doctorAdvice = item.doctorAdvice || ''
-      reportForm.reportFileName = item.reportFileName || ''
-      reportForm.reportUrl = item.reportUrl || ''
-    }
-
-    const openMetricHistory = (metricKey) => {
-      activeMetricKey.value = metricKey
-      const mappedTrendMetric = METRIC_TREND_MAP[metricKey]
-      if (mappedTrendMetric && trendMetricOptions.some((item) => item.key === mappedTrendMetric)) {
-        selectedTrendMetric.value = mappedTrendMetric
-      }
-    }
-
-    const selectTrendMetric = (metricKey) => {
-      selectedTrendMetric.value = metricKey
-    }
-
-    const handleMetricCardClick = (metricKey) => {
-      if (suppressNextMetricOpen.value) {
-        suppressNextMetricOpen.value = false
-        return
-      }
-      openMetricHistory(metricKey)
-    }
-
-    const selectAllMetrics = () => {
-      selectedOverviewMetricKeys.value = [...DEFAULT_OVERVIEW_METRIC_KEYS]
-      persistOverviewMetricKeys(selectedOverviewMetricKeys.value)
-    }
-
-    const resetMetricSelection = () => {
-      selectedOverviewMetricKeys.value = [...DEFAULT_OVERVIEW_METRIC_KEYS]
-      persistOverviewMetricKeys(selectedOverviewMetricKeys.value)
-    }
-
-    const toggleOverviewMetric = (metricKey) => {
-      const exists = selectedOverviewMetricKeys.value.includes(metricKey)
-      if (exists && selectedOverviewMetricKeys.value.length === 1) {
-        return
-      }
-      selectedOverviewMetricKeys.value = exists
-        ? selectedOverviewMetricKeys.value.filter((item) => item !== metricKey)
-        : [...selectedOverviewMetricKeys.value, metricKey]
-      persistOverviewMetricKeys(selectedOverviewMetricKeys.value)
-      if (!selectedOverviewMetricKeys.value.includes(activeMetricKey.value)) {
-        activeMetricKey.value = selectedOverviewMetricKeys.value[0]
-      }
-    }
-
-    const handleMetricDragStart = (item, event) => {
-      if (isMobileViewport.value) {
-        return
-      }
-      draggingMetricKey.value = item.key
-      dragOverMetricKey.value = item.key
-      if (event?.dataTransfer) {
-        event.dataTransfer.effectAllowed = 'move'
-        event.dataTransfer.setData('text/plain', item.key)
-      }
-    }
-
-    const handleMetricDragEnter = (item) => {
-      if (!draggingMetricKey.value || draggingMetricKey.value === item.key) {
-        return
-      }
-      dragOverMetricKey.value = item.key
-    }
-
-    const handleMetricDrop = (item) => {
-      const fromKey = draggingMetricKey.value
-      const toKey = item.key
-      if (!fromKey || fromKey === toKey) {
-        handleMetricDragEnd()
-        return
-      }
-
-      const currentOrder = [...selectedOverviewMetricKeys.value]
-      const fromIndex = currentOrder.indexOf(fromKey)
-      const toIndex = currentOrder.indexOf(toKey)
-      if (fromIndex === -1 || toIndex === -1) {
-        handleMetricDragEnd()
-        return
-      }
-
-      const nextOrder = [...currentOrder]
-      nextOrder.splice(fromIndex, 1)
-      nextOrder.splice(toIndex, 0, fromKey)
-      selectedOverviewMetricKeys.value = nextOrder
-      persistOverviewMetricKeys(nextOrder)
-      suppressNextMetricOpen.value = true
-      handleMetricDragEnd()
-    }
-
-    const handleMetricDragEnd = () => {
-      draggingMetricKey.value = ''
-      dragOverMetricKey.value = ''
-    }
-
-    const openCreateRecordDialog = (metricKey = '') => {
+    const openCreateRecordDialog = () => {
       recordDialogMode.value = 'create'
-      editingRecordId.value = ''
-      recordDialogSourceMetric.value = metricKey || activeMetricKey.value
+      editingRecordId.value = null
       resetRecordForm()
       showRecordDialog.value = true
     }
@@ -1510,8 +717,25 @@ export default {
     const openEditRecordDialog = (item) => {
       recordDialogMode.value = 'edit'
       editingRecordId.value = item.id
-      recordDialogSourceMetric.value = ''
-      fillRecordForm(item)
+      Object.assign(recordForm, {
+        measureDate: item.measureDate || '',
+        heightCm: item.heightCm ?? '',
+        weightKg: item.weightKg ?? '',
+        bodyFatRate: item.bodyFatRate ?? '',
+        systolicPressure: item.systolicPressure ?? '',
+        diastolicPressure: item.diastolicPressure ?? '',
+        totalCholesterol: item.totalCholesterol ?? '',
+        triglycerides: item.triglycerides ?? '',
+        hdlCholesterol: item.hdlCholesterol ?? '',
+        ldlCholesterol: item.ldlCholesterol ?? '',
+        fastingGlucose: item.fastingGlucose ?? '',
+        heartRate: item.heartRate ?? '',
+        uricAcid: item.uricAcid ?? '',
+        alanineAminotransferase: item.alanineAminotransferase ?? '',
+        aspartateAminotransferase: item.aspartateAminotransferase ?? '',
+        gammaGlutamylTransferase: item.gammaGlutamylTransferase ?? '',
+        note: item.note || ''
+      })
       showRecordDialog.value = true
     }
 
@@ -1520,28 +744,34 @@ export default {
         return
       }
       showRecordDialog.value = false
-      recordDialogSourceMetric.value = ''
+      resetRecordForm()
     }
 
     const submitRecordDialog = async () => {
-      if (!recordForm.measureDate) {
-        alert('请选择记录日期')
-        return
-      }
-      const requiredFields = METRIC_FORM_FIELD_KEYS[recordDialogMetricKey.value] || []
-      const missingField = requiredFields.find((fieldKey) => {
-        const value = recordForm[fieldKey]
-        return value === '' || value === null || value === undefined
-      })
-      if (missingField) {
-        alert(`请填写${RECORD_FIELD_CONFIGS[missingField]?.label || '当前指标数据'}`)
-        return
-      }
       if (submitting.value) {
         return
       }
-
-      const payload = buildRecordPayload()
+      const payload = {
+        measureDate: recordForm.measureDate,
+        ...buildNumericPayload(recordForm, [
+          'heightCm',
+          'weightKg',
+          'bodyFatRate',
+          'systolicPressure',
+          'diastolicPressure',
+          'totalCholesterol',
+          'triglycerides',
+          'hdlCholesterol',
+          'ldlCholesterol',
+          'fastingGlucose',
+          'heartRate',
+          'uricAcid',
+          'alanineAminotransferase',
+          'aspartateAminotransferase',
+          'gammaGlutamylTransferase'
+        ]),
+        note: recordForm.note || null
+      }
       submitting.value = true
       try {
         if (recordDialogMode.value === 'create') {
@@ -1549,51 +779,132 @@ export default {
         } else {
           await updateHealthRecord(editingRecordId.value, payload)
         }
-        showRecordDialog.value = false
-        recordDialogSourceMetric.value = ''
-        await loadHealthData()
+        closeRecordDialog()
+        await loadPage()
       } catch (error) {
-        const currentRecords = loadLocalRecords()
-        const nextRecords = recordDialogMode.value === 'create'
-          ? [{id: `health-${Date.now()}`, ...payload}, ...currentRecords]
-          : currentRecords.map((item) => (item.id === editingRecordId.value ? {id: item.id, ...payload} : item))
-        persistLocalRecords(sortRecordsDesc(nextRecords.map((item) => normalizeRecord(item))))
-        usingLocalData.value = true
-        showRecordDialog.value = false
-        recordDialogSourceMetric.value = ''
-        applyLocalData(nextRecords, loadLocalReports())
+        console.error(error)
+        alert('保存健康指标记录失败')
       } finally {
         submitting.value = false
       }
     }
 
     const removeRecord = async (item) => {
-      if (!window.confirm(`确认删除 ${item.measureDate} 的健康记录吗？`)) {
+      if (!window.confirm(`确认删除 ${item.measureDate} 的健康指标记录吗？`)) {
         return
       }
       try {
         await deleteHealthRecord(item.id)
-        await loadHealthData()
+        await loadPage()
       } catch (error) {
-        const nextRecords = loadLocalRecords().filter((record) => record.id !== item.id)
-        persistLocalRecords(nextRecords)
-        usingLocalData.value = true
-        applyLocalData(nextRecords, loadLocalReports())
+        console.error(error)
+        alert('删除健康指标记录失败')
+      }
+    }
+
+    const openCreateVisitDialog = () => {
+      visitDialogMode.value = 'create'
+      editingVisitId.value = null
+      resetVisitForm()
+      showVisitDialog.value = true
+    }
+
+    const openEditVisitDialog = (item) => {
+      visitDialogMode.value = 'edit'
+      editingVisitId.value = item.id
+      Object.assign(visitForm, {
+        visitDate: item.visitDate || '',
+        hospitalName: item.hospitalName || '',
+        departmentName: item.departmentName || '',
+        doctorName: item.doctorName || '',
+        visitType: item.visitType || '',
+        chiefComplaint: item.chiefComplaint || '',
+        diagnosisSummary: item.diagnosisSummary || '',
+        treatmentPlan: item.treatmentPlan || '',
+        doctorAdvice: item.doctorAdvice || '',
+        caseRecordFileName: item.caseRecordFileName || '',
+        caseRecordUrl: item.caseRecordUrl || '',
+        note: item.note || ''
+      })
+      showVisitDialog.value = true
+    }
+
+    const closeVisitDialog = () => {
+      if (submitting.value) {
+        return
+      }
+      showVisitDialog.value = false
+      resetVisitForm()
+    }
+
+    const submitVisitDialog = async () => {
+      if (submitting.value) {
+        return
+      }
+      const payload = {
+        visitDate: visitForm.visitDate,
+        hospitalName: visitForm.hospitalName,
+        departmentName: visitForm.departmentName || null,
+        doctorName: visitForm.doctorName || null,
+        visitType: visitForm.visitType || null,
+        chiefComplaint: visitForm.chiefComplaint || null,
+        diagnosisSummary: visitForm.diagnosisSummary || null,
+        treatmentPlan: visitForm.treatmentPlan || null,
+        doctorAdvice: visitForm.doctorAdvice || null,
+        caseRecordFileName: visitForm.caseRecordFileName || null,
+        caseRecordUrl: visitForm.caseRecordUrl || null,
+        note: visitForm.note || null
+      }
+      submitting.value = true
+      try {
+        if (visitDialogMode.value === 'create') {
+          await createHealthVisit(payload)
+        } else {
+          await updateHealthVisit(editingVisitId.value, payload)
+        }
+        closeVisitDialog()
+        await loadPage()
+      } catch (error) {
+        console.error(error)
+        alert('保存医院就诊记录失败')
+      } finally {
+        submitting.value = false
+      }
+    }
+
+    const removeVisit = async (item) => {
+      if (!window.confirm(`确认删除 ${item.visitDate} 的医院就诊记录吗？`)) {
+        return
+      }
+      try {
+        await deleteHealthVisit(item.id)
+        await loadPage()
+      } catch (error) {
+        console.error(error)
+        alert('删除医院就诊记录失败')
       }
     }
 
     const openCreateReportDialog = () => {
       reportDialogMode.value = 'create'
-      editingReportId.value = ''
+      editingReportId.value = null
       resetReportForm()
-      reportForm.examDate = new Date().toISOString().slice(0, 10)
       showReportDialog.value = true
     }
 
     const openEditReportDialog = (item) => {
       reportDialogMode.value = 'edit'
       editingReportId.value = item.id
-      fillReportForm(item)
+      Object.assign(reportForm, {
+        visitId: item.visitId ? String(item.visitId) : '',
+        examDate: item.examDate || '',
+        hospitalName: item.hospitalName || '',
+        reportTitle: item.reportTitle || '',
+        summary: item.summary || '',
+        doctorAdvice: item.doctorAdvice || '',
+        reportFileName: item.reportFileName || '',
+        reportUrl: item.reportUrl || ''
+      })
       showReportDialog.value = true
     }
 
@@ -1605,60 +916,20 @@ export default {
       resetReportForm()
     }
 
-    const openReportUploadPicker = () => {
-      reportUploadInputRef.value?.click()
-    }
-
-    const clearReportUploadInput = () => {
-      if (reportUploadInputRef.value) {
-        reportUploadInputRef.value.value = ''
-      }
-    }
-
-    const clearUploadedReportFile = () => {
-      reportForm.reportFileName = ''
-      reportForm.reportUrl = ''
-      clearReportUploadInput()
-    }
-
-    const handleReportFileSelected = async (event) => {
-      const file = event.target?.files?.[0]
-      if (!file) {
-        return
-      }
-
-      try {
-        const uploadRes = await uploadHealthReportFile(file)
-        const payload = unwrapData(uploadRes) || {}
-        reportForm.reportFileName = payload.fileName || payload.name || file.name
-        reportForm.reportUrl = payload.fileUrl || payload.downloadUrl || ''
-        if (!reportForm.reportUrl) {
-          throw new Error('missing url')
-        }
-      } catch (error) {
-        const objectUrl = URL.createObjectURL(file)
-        tempReportUrls.push(objectUrl)
-        reportForm.reportFileName = file.name
-        reportForm.reportUrl = objectUrl
-      } finally {
-        clearReportUploadInput()
-      }
-    }
-
     const submitReportDialog = async () => {
-      if (!reportForm.examDate) {
-        alert('请选择体检日期')
-        return
-      }
-      if (!reportForm.reportTitle) {
-        alert('请输入报告标题')
-        return
-      }
       if (submitting.value) {
         return
       }
-
-      const payload = buildReportPayload()
+      const payload = {
+        visitId: normalizeId(reportForm.visitId),
+        examDate: reportForm.examDate,
+        hospitalName: reportForm.hospitalName || null,
+        reportTitle: reportForm.reportTitle,
+        summary: reportForm.summary || null,
+        doctorAdvice: reportForm.doctorAdvice || null,
+        reportFileName: reportForm.reportFileName || null,
+        reportUrl: reportForm.reportUrl || null
+      }
       submitting.value = true
       try {
         if (reportDialogMode.value === 'create') {
@@ -1666,45 +937,116 @@ export default {
         } else {
           await updateHealthReport(editingReportId.value, payload)
         }
-        showReportDialog.value = false
-        resetReportForm()
-        await loadHealthData()
+        closeReportDialog()
+        await loadPage()
       } catch (error) {
-        const currentReports = loadLocalReports()
-        const nextReports = reportDialogMode.value === 'create'
-          ? [{id: `report-${Date.now()}`, ...payload}, ...currentReports]
-          : currentReports.map((item) => (item.id === editingReportId.value ? {id: item.id, ...payload} : item))
-        persistLocalReports(sortReportsDesc(nextReports.map((item) => normalizeReport(item))))
-        usingLocalData.value = true
-        showReportDialog.value = false
-        resetReportForm()
-        applyLocalData(loadLocalRecords(), nextReports)
+        console.error(error)
+        alert('保存健康报告失败')
       } finally {
         submitting.value = false
       }
     }
 
     const removeReport = async (item) => {
-      if (!window.confirm(`确认删除报告【${item.reportTitle}】吗？`)) {
+      if (!window.confirm(`确认删除【${item.reportTitle}】吗？`)) {
         return
       }
       try {
         await deleteHealthReport(item.id)
-        await loadHealthData()
+        await loadPage()
       } catch (error) {
-        const nextReports = loadLocalReports().filter((report) => report.id !== item.id)
-        persistLocalReports(nextReports)
-        usingLocalData.value = true
-        applyLocalData(loadLocalRecords(), nextReports)
+        console.error(error)
+        alert('删除健康报告失败')
       }
     }
 
-    const viewReport = (item) => {
-      if (!item.reportUrl) {
-        alert('当前报告未上传文件')
+    const uploadSingleFile = async (file) => {
+      const res = await uploadHealthReportFile(file)
+      return unwrapData(res) || {}
+    }
+
+    const openReportUploadPicker = () => {
+      reportUploadInputRef.value?.click()
+    }
+
+    const openVisitUploadPicker = () => {
+      visitUploadInputRef.value?.click()
+    }
+
+    const handleReportFileSelected = async (event) => {
+      const file = event.target.files?.[0]
+      event.target.value = ''
+      if (!file) {
         return
       }
-      window.open(item.reportUrl, '_blank', 'noopener,noreferrer')
+      try {
+        const result = await uploadSingleFile(file)
+        reportForm.reportFileName = result.fileName || ''
+        reportForm.reportUrl = result.fileUrl || ''
+      } catch (error) {
+        console.error(error)
+        alert('报告附件上传失败')
+      }
+    }
+
+    const handleVisitFileSelected = async (event) => {
+      const file = event.target.files?.[0]
+      event.target.value = ''
+      if (!file) {
+        return
+      }
+      try {
+        const result = await uploadSingleFile(file)
+        visitForm.caseRecordFileName = result.fileName || ''
+        visitForm.caseRecordUrl = result.fileUrl || ''
+      } catch (error) {
+        console.error(error)
+        alert('病历附件上传失败')
+      }
+    }
+
+    const clearReportFile = () => {
+      reportForm.reportFileName = ''
+      reportForm.reportUrl = ''
+    }
+
+    const clearVisitFile = () => {
+      visitForm.caseRecordFileName = ''
+      visitForm.caseRecordUrl = ''
+    }
+
+    const latestMetricText = (metricKey, value) => {
+      const config = METRIC_OPTIONS.find((item) => item.key === metricKey)
+      if (!config) {
+        return value || '暂无'
+      }
+      const numberText = formatNumber(value, config.decimals)
+      return numberText === '暂无' ? numberText : `${numberText} ${config.unit}`.trim()
+    }
+
+    const buildRecordSummary = (item) => {
+      return [
+        item.weightKg ? `体重 ${latestMetricText('weightKg', item.weightKg)}` : null,
+        item.bodyFatRate ? `体脂率 ${latestMetricText('bodyFatRate', item.bodyFatRate)}` : null,
+        item.systolicPressure && item.diastolicPressure ? `血压 ${item.systolicPressure}/${item.diastolicPressure} mmHg` : null,
+        item.totalCholesterol ? `总胆固醇 ${latestMetricText('totalCholesterol', item.totalCholesterol)}` : null,
+        item.fastingGlucose ? `血糖 ${latestMetricText('fastingGlucose', item.fastingGlucose)}` : null
+      ].filter(Boolean).join(' · ') || '本次记录未形成可展示摘要'
+    }
+
+    const resolveVisitName = (visitId) => {
+      if (!visitId) {
+        return '独立报告'
+      }
+      const matched = visits.value.find((item) => item.id === visitId)
+      return matched ? `${matched.visitDate} 就诊` : '关联就诊'
+    }
+
+    const openFile = (url) => {
+      if (!url) {
+        return
+      }
+      window.open(url, '_blank', 'noopener')
     }
 
     const goBack = () => {
@@ -1712,76 +1054,60 @@ export default {
     }
 
     onMounted(() => {
-      syncViewport()
-      window.addEventListener('resize', syncViewport)
-      loadHealthData()
-    })
-
-    onBeforeUnmount(() => {
-      window.removeEventListener('resize', syncViewport)
-      tempReportUrls.forEach((item) => URL.revokeObjectURL(item))
+      loadPage()
     })
 
     return {
       loading,
       submitting,
-      usingLocalData,
       summary,
-      allRecords,
+      records,
       reports,
-      metricDefinitions,
-      visibleMetricCards,
-      activeMetricKey,
-      activeMetricMeta,
-      draggingMetricKey,
-      dragOverMetricKey,
-      metricHistoryItems,
-      trendMetricOptions,
-      selectedTrendMetric,
-      selectedTrendMeta,
-      chartSeries,
-      trendChartPoints,
-      trendPolyline,
-      showMetricCustomizer,
-      selectedOverviewMetricKeys,
+      visits,
+      latestRecord,
+      metricCards,
+      metricOptions,
+      visitTypeOptions,
+      trendMetricKey,
+      trendPoints,
       showRecordDialog,
+      showVisitDialog,
       showReportDialog,
       recordDialogMode,
+      visitDialogMode,
       reportDialogMode,
-      recordDialogHintText,
       recordForm,
+      visitForm,
       reportForm,
-      isMobileViewport,
-      displayReports,
-      visibleRecordFieldRows,
       reportUploadInputRef,
-      formatMetricValue,
-      loadHealthData,
-      openMetricHistory,
-      handleMetricCardClick,
-      handleMetricDragStart,
-      handleMetricDragEnter,
-      handleMetricDrop,
-      handleMetricDragEnd,
+      visitUploadInputRef,
+      goBack,
       selectTrendMetric,
-      selectAllMetrics,
-      resetMetricSelection,
-      toggleOverviewMetric,
       openCreateRecordDialog,
       openEditRecordDialog,
       closeRecordDialog,
       submitRecordDialog,
       removeRecord,
+      openCreateVisitDialog,
+      openEditVisitDialog,
+      closeVisitDialog,
+      submitVisitDialog,
+      removeVisit,
       openCreateReportDialog,
       openEditReportDialog,
       closeReportDialog,
-      openReportUploadPicker,
-      clearUploadedReportFile,
-      handleReportFileSelected,
       submitReportDialog,
       removeReport,
-      viewReport,
-      goBack
+      openReportUploadPicker,
+      openVisitUploadPicker,
+      handleReportFileSelected,
+      handleVisitFileSelected,
+      clearReportFile,
+      clearVisitFile,
+      latestMetricText,
+      buildRecordSummary,
+      resolveVisitName,
+      openFile
     }
   }
 }
@@ -1790,699 +1116,316 @@ export default {
 <style scoped>
 .health-page {
   min-height: 100vh;
-  height: 100%;
-  padding: 18px 22px 26px;
-  color: #fff;
-  overflow: auto;
+  padding: 28px 20px 40px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 227, 235, 0.92), transparent 26%),
+    linear-gradient(180deg, #f8f4f1 0%, #eef6f2 100%);
+  color: #1f2937;
 }
 
 .page-nav {
-  display: flex;
-  justify-content: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: 18px;
 }
 
 .back-home-btn {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 16px 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  gap: 8px;
+  border: none;
   border-radius: 999px;
-  color: #fff;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 12px 30px rgba(31, 41, 55, 0.08);
   cursor: pointer;
-  background: rgba(12, 32, 52, 0.58);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(12px);
-  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
-}
-
-.back-home-btn:hover {
-  transform: translateY(-1px);
-  background: rgba(16, 40, 64, 0.76);
-  border-color: rgba(255, 255, 255, 0.28);
 }
 
 .back-home-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  font-size: 15px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.14);
+  font-size: 18px;
 }
 
 .hero-panel,
-.overview-panel,
-.trend-panel,
-.history-panel,
-.report-panel,
-.dialog {
-  border-radius: 18px;
-  padding: 16px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(135deg, rgba(26, 16, 31, 0.88), rgba(18, 45, 54, 0.78));
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(16px);
+.panel-section {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 24px;
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.08);
 }
 
-.hero-panel,
-.overview-panel,
-.trend-panel {
-  margin-bottom: 14px;
-}
-
-.top-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
-  gap: 14px;
-  align-items: start;
-  margin-bottom: 14px;
-}
-
-.top-layout .overview-panel,
-.top-layout .trend-panel {
-  margin-bottom: 0;
-}
-
-.hero-panel,
-.panel-head,
-.toolbar-left,
-.toolbar-right,
-.dialog-actions,
-.mobile-card-actions,
-.report-card-head,
-.history-card-head,
-.trend-chart-top,
-.customizer-head {
+.hero-panel {
   display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.hero-panel,
-.panel-head,
-.trend-chart-top,
-.customizer-head,
-.report-card-head,
-.history-card-head {
   justify-content: space-between;
-}
-
-.page-title,
-.panel-title,
-.dialog-title,
-.trend-chart-title,
-.history-primary {
-  margin: 0;
+  gap: 20px;
+  padding: 24px;
+  margin-bottom: 20px;
 }
 
 .page-title {
-  font-size: 28px;
+  margin: 0;
+  font-size: 34px;
 }
 
 .page-subtitle,
-.panel-tip,
-.dialog-subtitle,
-.field-tip,
-.subtle-empty,
-.report-card-head p,
-.history-date,
-.trend-chart-subtitle,
-.customizer-head strong {
-  margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.74);
+.panel-tip {
+  margin: 8px 0 0;
+  color: #5b6576;
+  line-height: 1.6;
 }
 
 .hero-tags,
 .toolbar-left,
-.toolbar-right,
 .trend-switch,
-.report-summary-grid,
-.customizer-actions {
+.mobile-card-actions,
+.dialog-actions,
+.upload-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .hero-tag,
+.visit-count-chip,
 .trend-chip,
-.status-chip,
-.report-date-chip,
-.metric-date {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding: 0 10px;
+.mini-btn,
+.ghost-btn,
+.action-btn {
   border-radius: 999px;
-  font-size: 12px;
+  border: none;
 }
 
-.hero-tag {
-  background: rgba(255, 255, 255, 0.14);
-  color: #ffe4ef;
-}
-
-.overview-head {
-  align-items: flex-start;
-}
-
-.metric-customizer {
-  margin-top: 14px;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.customizer-grid {
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.customizer-chip {
+.hero-tag,
+.visit-count-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 0 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
-  transition: background 0.18s ease, border-color 0.18s ease;
+  padding: 8px 14px;
+  background: #eef3ff;
+  color: #3553a4;
+  font-size: 13px;
 }
 
-.customizer-chip.active {
-  border-color: rgba(255, 255, 255, 0.24);
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.hidden-checkbox {
-  display: none;
-}
-
-.overview-grid {
-  margin-top: 14px;
+.summary-grid,
+.metric-grid,
+.split-layout,
+.form-inline-grid {
   display: grid;
+  gap: 16px;
+}
+
+.summary-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  margin-bottom: 20px;
 }
 
-.metric-card,
 .summary-card,
-.history-card,
-.report-card,
-.trend-label-card {
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
-}
-
 .metric-card,
-.summary-card,
-.history-card,
+.trend-item,
+.record-card,
+.visit-card,
 .report-card {
-  padding: 12px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(225, 232, 240, 0.9);
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.summary-card {
+  padding: 18px 20px;
+}
+
+.summary-card span,
+.metric-label,
+.visit-body span,
+.record-head p,
+.visit-card-head p,
+.empty-state {
+  color: #627084;
+}
+
+.summary-card strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 28px;
+}
+
+.panel-section {
+  padding: 22px;
+  margin-bottom: 20px;
+}
+
+.panel-head,
+.visit-card-head,
+.record-head,
+.trend-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel-head {
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18px;
 }
 
 .metric-card {
-  position: relative;
-  overflow: hidden;
-  cursor: grab;
-  user-select: none;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  padding: 18px 20px;
 }
 
-.metric-card:hover,
-.metric-card.active,
-.metric-card.drag-over {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.24);
-  background: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.16);
-}
-
-.metric-card.dragging {
-  opacity: 0.66;
-  transform: scale(0.98);
-}
-
-.metric-card:active {
-  cursor: grabbing;
-}
-
-.metric-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-}
-
-.accent-pink::before {
-  background: linear-gradient(180deg, #ff6ea6, #ff3d71);
-}
-
-.accent-rose::before {
-  background: linear-gradient(180deg, #ff4778, #fb7185);
-}
-
-.accent-orange::before {
-  background: linear-gradient(180deg, #fb7185, #f59e0b);
-}
-
-.accent-cyan::before {
-  background: linear-gradient(180deg, #22d3ee, #0ea5e9);
-}
-
-.accent-red::before {
-  background: linear-gradient(180deg, #ef4444, #f97316);
-}
-
-.accent-purple::before {
-  background: linear-gradient(180deg, #8b5cf6, #6366f1);
-}
-
-.accent-gold::before {
-  background: linear-gradient(180deg, #f59e0b, #fbbf24);
-}
-
-.accent-green::before {
-  background: linear-gradient(180deg, #22c55e, #14b8a6);
-}
-
-.accent-blue::before {
-  background: linear-gradient(180deg, #38bdf8, #2563eb);
-}
-
-.accent-indigo::before {
-  background: linear-gradient(180deg, #818cf8, #6366f1);
-}
-
-.accent-teal::before {
-  background: linear-gradient(180deg, #14b8a6, #0f766e);
-}
-
-.metric-icon-box {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #fff;
-}
-
-.metric-icon-text {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.metric-card-head {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.metric-card-head.compact {
-  gap: 12px;
-}
-
-.metric-copy {
-  min-width: 0;
-}
-
-.metric-copy.compact {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.metric-label,
-.trend-label-card span,
-.summary-card span,
-.history-meta-grid span,
-.report-body span {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.metric-value,
-.summary-card strong,
-.trend-current strong {
+.metric-value {
   display: block;
-  margin-top: 8px;
+  margin-top: 12px;
   font-size: 24px;
-  line-height: 1.18;
 }
 
 .metric-date {
-  flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.74);
-  background: rgba(255, 255, 255, 0.08);
+  display: block;
+  margin-top: 12px;
+  color: #8090a7;
 }
 
-.metric-value.compact {
-  margin-top: 0;
-  font-size: 18px;
-  line-height: 1.15;
-}
-
-.metric-date.compact {
-  min-height: auto;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  font-size: 12px;
-  line-height: 1.3;
-}
-
-.metric-icon-box.compact {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  flex-shrink: 0;
-}
-
-.metric-icon-text.compact {
-  font-size: 11px;
-}
-
-.status-good {
-  color: #86efac;
-}
-
-.status-warning {
-  color: #fde68a;
-}
-
-.status-alert {
-  color: #fca5a5;
-}
-
-.trend-head {
-  align-items: flex-start;
+.trend-panel {
+  border-radius: 20px;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(241, 245, 255, 0.78), rgba(255, 255, 255, 0.82));
 }
 
 .trend-chip {
-  border: none;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #4b5563;
   cursor: pointer;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
 }
 
 .trend-chip.active {
-  background: rgba(255, 255, 255, 0.22);
+  background: #1f3f7b;
+  color: #fff;
 }
 
-.trend-chart-card {
-  margin-top: 14px;
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.trend-current {
-  text-align: right;
-}
-
-.trend-visual {
-  max-width: 920px;
-  margin: 0 auto;
-}
-
-.trend-visual.compact {
-  max-width: 100%;
-}
-
-.trend-svg {
-  display: block;
-  width: 100%;
-  height: 220px;
-  margin-top: 12px;
-  overflow: visible;
-}
-
-.trend-grid {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.16);
-  stroke-width: 1.4;
-}
-
-.trend-path {
-  fill: none;
-  stroke-width: 2.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.trend-dot {
-  stroke: rgba(255, 255, 255, 0.5);
-  stroke-width: 1.8;
-}
-
-.trend-labels {
-  margin-top: 10px;
+.trend-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-  gap: 10px;
-}
-
-.trend-labels.compact {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.trend-label-card {
-  padding: 10px 12px;
-}
-
-.trend-label-card.compact {
-  padding: 8px 10px;
-}
-
-.trend-label-card strong {
-  display: block;
-  margin-top: 6px;
-}
-
-.health-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.92fr);
-  gap: 14px;
-}
-
-.history-list,
-.report-list {
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
-.history-primary {
+.trend-item {
+  padding: 14px 16px;
+}
+
+.trend-item strong {
+  display: block;
+  margin-top: 8px;
   font-size: 18px;
 }
 
-.status-chip,
-.report-date-chip {
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.history-card {
-  padding: 12px 14px;
-}
-
-.history-card-head {
+.record-list,
+.visit-list,
+.report-list {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(140px, 0.82fr) minmax(160px, 0.9fr) auto;
-  gap: 10px;
-  align-items: center;
+  gap: 14px;
 }
 
-.history-cell,
-.report-body p {
+.record-card,
+.visit-card,
+.report-card {
+  padding: 18px 20px;
+}
+
+.record-head strong,
+.visit-card-head strong {
+  font-size: 18px;
+}
+
+.visit-body {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.visit-body p {
   margin: 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
-.history-cell span {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.68);
+.visit-body strong {
+  display: block;
+  margin-top: 4px;
+  color: #1f2937;
+  line-height: 1.6;
 }
 
-.history-cell strong {
-  font-size: 15px;
-  line-height: 1.3;
+.split-layout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.history-trend {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
+.empty-state {
+  padding: 18px 0;
 }
 
-.history-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.trend-up {
-  color: #fda4af;
-}
-
-.trend-down {
-  color: #86efac;
-}
-
-.trend-flat {
-  color: rgba(255, 255, 255, 0.76);
-}
-
-.report-summary-grid {
-  margin-top: 14px;
-}
-
-.report-summary-grid .summary-card {
-  flex: 1 1 calc(33.333% - 6px);
-}
-
-.report-body {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.report-body.compact p {
-  padding: 10px 12px;
-}
-
-.report-empty,
-.history-empty,
-.trend-empty {
-  min-height: 160px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.action-btn,
-.ghost-btn,
-.mini-btn {
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  cursor: pointer;
-}
-
-.action-btn,
-.ghost-btn {
-  min-height: 38px;
-  padding: 0 14px;
-}
-
-.action-btn {
-  background: linear-gradient(135deg, #ff5f8f, #ff8a34);
-}
-
-.ghost-btn {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.mini-btn {
-  min-height: 30px;
-  padding: 0 10px;
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.mini-btn.danger {
-  background: rgba(239, 68, 68, 0.68);
+.empty-state.compact {
+  padding-bottom: 0;
 }
 
 .dialog-mask {
   position: fixed;
   inset: 0;
-  z-index: 40;
-  padding: 18px;
   display: flex;
-  justify-content: center;
   align-items: center;
-  background: rgba(4, 10, 18, 0.56);
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
+  z-index: 90;
 }
 
 .dialog {
-  width: min(820px, 100%);
-  max-height: calc(100vh - 36px);
+  width: min(720px, 100%);
+  max-height: 92vh;
   overflow: auto;
-  padding: 20px;
-  border-radius: 20px;
+  border-radius: 24px;
+  padding: 24px;
+  background: #fdfdfc;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+}
+
+.large-dialog {
+  width: min(980px, 100%);
+}
+
+.dialog-title {
+  margin: 0 0 18px;
+  font-size: 24px;
 }
 
 .dialog-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display: grid;
+  gap: 16px;
 }
 
 .form-inline-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.single-date-row {
-  grid-template-columns: minmax(0, 220px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .form-field {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 8px;
-}
-
-.form-field span {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.dialog-actions {
-  justify-content: flex-end;
-  flex-wrap: wrap;
+  font-size: 14px;
+  color: #3b4556;
 }
 
 .input {
   width: 100%;
-  min-height: 40px;
-  padding: 9px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  outline: none;
-}
-
-.input::placeholder {
-  color: rgba(255, 255, 255, 0.48);
+  border: 1px solid #d4dce8;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  color: #1f2937;
 }
 
 .textarea {
@@ -2490,10 +1433,8 @@ export default {
   min-height: 92px;
 }
 
-.upload-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.hidden-input {
+  display: none;
 }
 
 .upload-display {
@@ -2501,179 +1442,77 @@ export default {
 }
 
 .upload-btn {
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.hidden-input {
-  display: none;
+.ghost-btn,
+.action-btn,
+.mini-btn {
+  padding: 10px 16px;
+  cursor: pointer;
 }
 
-@media (max-width: 1180px) {
-  .overview-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .customizer-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .top-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .health-layout {
-    grid-template-columns: 1fr;
-  }
+.ghost-btn {
+  background: #eef2f7;
+  color: #344155;
 }
 
-@media (max-width: 860px) {
-  .overview-grid,
-  .customizer-grid {
+.action-btn {
+  background: #193a73;
+  color: #fff;
+}
+
+.mini-btn {
+  padding: 8px 14px;
+  background: #eef2f8;
+  color: #2d3748;
+}
+
+.mini-btn.danger {
+  background: #fee2e2;
+  color: #b42318;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1100px) {
+  .summary-grid,
+  .metric-grid,
+  .split-layout,
+  .trend-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .trend-svg,
-  .trend-svg.compact {
-    height: 180px;
-  }
-
-  .history-card-head {
+  .form-inline-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .health-page {
-    padding: 12px;
+    padding: 18px 14px 28px;
   }
 
   .hero-panel,
   .panel-head,
-  .dialog-actions,
-  .trend-chart-top,
-  .upload-row,
-  .customizer-head {
+  .visit-card-head,
+  .record-head {
     flex-direction: column;
-    align-items: stretch;
   }
 
-  .overview-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .customizer-grid,
+  .summary-grid,
+  .metric-grid,
+  .split-layout,
+  .trend-list,
   .form-inline-grid {
     grid-template-columns: 1fr;
   }
 
-  .history-card-head {
-    grid-template-columns: 1fr;
-  }
-
-  .history-actions {
-    justify-content: flex-start;
-  }
-
-  .single-date-row {
-    grid-template-columns: 1fr;
-  }
-
-  .report-summary-grid .summary-card {
-    flex: 1 1 calc(50% - 6px);
-  }
-
-  .metric-card,
-  .history-card,
-  .report-card,
-  .summary-card {
-    padding: 12px;
-  }
-
-  .metric-card {
-    cursor: pointer;
-  }
-
-  .metric-icon-box {
-    width: 46px;
-    height: 46px;
-    border-radius: 14px;
-  }
-
-  .metric-icon-box.compact {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
-  }
-
-  .metric-card-head.compact {
-    gap: 10px;
-  }
-
-  .metric-value,
-  .summary-card strong {
-    font-size: 20px;
-  }
-
-  .metric-value.compact {
-    font-size: 17px;
-  }
-
-  .trend-labels {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .trend-svg {
-    height: 190px;
-  }
-
-  .trend-svg.compact {
-    height: 170px;
-  }
-
-  .mobile-card-actions,
-  .toolbar-left,
-  .customizer-actions {
-    width: 100%;
-  }
-}
-
-@media (max-width: 560px) {
-  .hero-panel,
-  .overview-panel,
-  .trend-panel,
-  .history-panel,
-  .report-panel,
   .dialog {
-    padding: 14px;
-    border-radius: 16px;
-  }
-
-  .page-title {
-    font-size: 24px;
-  }
-
-  .overview-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .trend-labels.compact {
-    grid-template-columns: 1fr;
-  }
-
-  .metric-date {
-    padding: 0 9px;
-  }
-
-  .dialog-mask {
-    padding: 10px;
-  }
-
-  .trend-svg {
-    height: 170px;
-  }
-
-  .trend-svg.compact {
-    height: 150px;
+    padding: 18px;
   }
 }
 </style>

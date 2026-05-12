@@ -1,6 +1,12 @@
 <template>
   <div class="login-page">
-    <h1 class="system-name">侏儒军刀</h1>
+    <div class="brand-hero">
+      <img class="brand-mark" src="/brand/gnomish-army-knife-mark.svg" alt="侏儒军刀" />
+      <div class="brand-copy">
+        <h1 class="system-name">侏儒军刀</h1>
+        <p class="system-subtitle">像一把幻想工程多功能军刀，把常用个人工具集中到一个系统里。</p>
+      </div>
+    </div>
 
     <div class="glass-box">
       <h2 class="title">登录</h2>
@@ -285,12 +291,39 @@ export default {
   position: relative;
 }
 
+.brand-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.brand-mark {
+  width: 88px;
+  height: 88px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 10px 24px rgba(2, 12, 33, 0.28));
+}
+
+.brand-copy {
+  text-align: left;
+}
+
 .system-name {
+  margin: 0;
   font-size: 32px;
   font-weight: 700;
-  margin-bottom: 20px;
   color: #fff;
   text-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+}
+
+.system-subtitle {
+  margin: 8px 0 0;
+  max-width: 320px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .glass-box {
@@ -412,5 +445,21 @@ export default {
   margin-top: 10px;
   font-size: 14px;
   color: #fff;
+}
+
+@media (max-width: 640px) {
+  .brand-hero {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .brand-copy {
+    text-align: center;
+  }
+
+  .system-subtitle {
+    max-width: 100%;
+  }
 }
 </style>
