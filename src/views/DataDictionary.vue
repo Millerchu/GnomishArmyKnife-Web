@@ -37,6 +37,14 @@
           </select>
         </label>
         <label class="field-item">
+          <span>作用范围</span>
+          <select v-model="filters.dictScope" :disabled="loading">
+            <option value="">全部</option>
+            <option value="PUBLIC">公共</option>
+            <option value="PERSONAL">个人</option>
+          </select>
+        </label>
+        <label class="field-item">
           <span>引用应用</span>
           <select v-model="filters.referenceApp" :disabled="loading">
             <option value="">全部</option>
@@ -67,6 +75,7 @@
           <tr>
             <th>字典编号</th>
             <th>字典名称</th>
+            <th>作用范围</th>
             <th>状态</th>
             <th>创建人</th>
             <th>引用应用</th>
@@ -77,10 +86,10 @@
           </thead>
           <tbody>
           <tr v-if="loading && !dictionaries.length">
-            <td colspan="8" class="empty-cell">加载中...</td>
+            <td colspan="9" class="empty-cell">加载中...</td>
           </tr>
           <tr v-else-if="!dictionaries.length">
-            <td colspan="8" class="empty-cell">暂无字典数据</td>
+            <td colspan="9" class="empty-cell">暂无字典数据</td>
           </tr>
           <tr
             v-for="item in dictionaries"
@@ -91,6 +100,7 @@
           >
             <td>{{ item.dictCode }}</td>
             <td>{{ item.dictName }}</td>
+            <td>{{ formatDictScope(item.dictScope) }}</td>
             <td>
               <span class="status-tag" :class="item.status === 'ENABLED' ? 'on' : 'off'">
                 {{ item.status === 'ENABLED' ? '启用' : '禁用' }}
@@ -135,6 +145,7 @@
           </div>
 
           <div class="mobile-card-grid">
+            <p><span>作用范围</span><strong>{{ formatDictScope(item.dictScope) }}</strong></p>
             <p><span>创建人</span><strong>{{ item.creatorName || '-' }}</strong></p>
             <p><span>引用应用</span><strong>{{ formatApps(item.referenceApps) }}</strong></p>
             <p><span>字典项数</span><strong>{{ item.itemCount }}</strong></p>
@@ -297,6 +308,13 @@
             <select v-model="dictionaryForm.status" :disabled="submitting">
               <option value="ENABLED">启用</option>
               <option value="DISABLED">禁用</option>
+            </select>
+          </label>
+          <label class="field-item">
+            <span>作用范围</span>
+            <select v-model="dictionaryForm.dictScope" :disabled="submitting">
+              <option value="PUBLIC">公共</option>
+              <option value="PERSONAL">个人</option>
             </select>
           </label>
           <label class="field-item">
@@ -504,6 +522,7 @@ function normalizeDictionary(item) {
     id: source.id ?? source.dictionaryId ?? source.dictId,
     dictCode: source.dictCode || source.code || source.dictionaryCode || '',
     dictName: source.dictName || source.name || source.dictionaryName || '',
+    dictScope: `${source.dictScope || source.scope || source.rangeScope || 'PUBLIC'}`.toUpperCase(),
     status: normalizeStatus(source.status ?? source.enabled),
     creatorName: source.creatorName || source.createBy || source.creator || '',
     referenceApps: normalizeReferenceApps(source.referenceApps || source.referenceApp || source.applications),
@@ -555,6 +574,7 @@ export default {
     const filters = reactive({
       keyword: '',
       status: '',
+      dictScope: '',
       referenceApp: ''
     })
 
@@ -570,6 +590,7 @@ export default {
       id: null,
       dictCode: '',
       dictName: '',
+      dictScope: 'PUBLIC',
       status: 'ENABLED',
       referenceAppsText: '',
       description: ''
@@ -609,6 +630,10 @@ export default {
       return apps && apps.length ? apps.join('、') : '-'
     }
 
+    const formatDictScope = (dictScope) => {
+      return dictScope === 'PERSONAL' ? '个人' : '公共'
+    }
+
     const fetchDictionaryItems = async () => {
       if (!selectedDictionaryId.value) {
         dictionaryItems.value = []
@@ -644,6 +669,9 @@ export default {
         }
         if (filters.status) {
           params.status = filters.status
+        }
+        if (filters.dictScope) {
+          params.dictScope = filters.dictScope
         }
         if (filters.referenceApp) {
           params.referenceApp = filters.referenceApp
@@ -690,6 +718,7 @@ export default {
     const resetFilters = () => {
       filters.keyword = ''
       filters.status = ''
+      filters.dictScope = ''
       filters.referenceApp = ''
       pagination.pageNo = 1
       fetchDictionaries()
@@ -722,6 +751,7 @@ export default {
       dictionaryForm.id = null
       dictionaryForm.dictCode = ''
       dictionaryForm.dictName = ''
+      dictionaryForm.dictScope = 'PUBLIC'
       dictionaryForm.status = 'ENABLED'
       dictionaryForm.referenceAppsText = ''
       dictionaryForm.description = ''
@@ -736,6 +766,7 @@ export default {
       dictionaryForm.id = item.id
       dictionaryForm.dictCode = item.dictCode
       dictionaryForm.dictName = item.dictName
+      dictionaryForm.dictScope = item.dictScope || 'PUBLIC'
       dictionaryForm.status = item.status
       dictionaryForm.referenceAppsText = item.referenceApps.join(', ')
       dictionaryForm.description = item.description
@@ -762,6 +793,7 @@ export default {
       const payload = {
         dictCode: dictionaryForm.dictCode,
         dictName: dictionaryForm.dictName,
+        dictScope: dictionaryForm.dictScope,
         status: dictionaryForm.status,
         enabled: dictionaryForm.status === 'ENABLED',
         referenceApps: normalizeReferenceApps(dictionaryForm.referenceAppsText),
@@ -974,6 +1006,7 @@ export default {
       pagination,
       pageCount,
       referenceAppOptions,
+      formatDictScope,
       showDictionaryDialog,
       dictionaryDialogMode,
       dictionaryForm,
