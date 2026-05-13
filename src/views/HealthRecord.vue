@@ -1116,26 +1116,28 @@ export default {
 <style scoped>
 .health-page {
   min-height: 100vh;
-  padding: 28px 20px 40px;
-  background:
-    radial-gradient(circle at top left, rgba(255, 227, 235, 0.92), transparent 26%),
-    linear-gradient(180deg, #f8f4f1 0%, #eef6f2 100%);
-  color: #1f2937;
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 14px 18px 20px;
+  color: #edf4ff;
 }
 
 .page-nav {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .back-home-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 12px 30px rgba(31, 41, 55, 0.08);
+  color: #f8fbff;
+  background: rgba(12, 32, 52, 0.58);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
   cursor: pointer;
 }
 
@@ -1145,29 +1147,30 @@ export default {
 
 .hero-panel,
 .panel-section {
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 24px;
-  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
 }
 
 .hero-panel {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  padding: 24px;
-  margin-bottom: 20px;
+  gap: 16px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 34px;
+  font-size: 30px;
 }
 
 .page-subtitle,
 .panel-tip {
   margin: 8px 0 0;
-  color: #5b6576;
+  color: #9db3c8;
   line-height: 1.6;
 }
 
@@ -1198,8 +1201,8 @@ export default {
   align-items: center;
   justify-content: center;
   padding: 8px 14px;
-  background: #eef3ff;
-  color: #3553a4;
+  background: rgba(56, 189, 248, 0.16);
+  color: #bfe8ff;
   font-size: 13px;
 }
 
@@ -1213,7 +1216,7 @@ export default {
 
 .summary-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .summary-card,
@@ -1222,14 +1225,14 @@ export default {
 .record-card,
 .visit-card,
 .report-card {
-  background: rgba(255, 255, 255, 0.76);
-  border: 1px solid rgba(225, 232, 240, 0.9);
+  background: rgba(10, 26, 42, 0.74);
+  border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 20px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .summary-card {
-  padding: 18px 20px;
+  padding: 14px 16px;
 }
 
 .summary-card span,
@@ -1238,18 +1241,18 @@ export default {
 .record-head p,
 .visit-card-head p,
 .empty-state {
-  color: #627084;
+  color: #8ea6bf;
 }
 
 .summary-card strong {
   display: block;
-  margin-top: 10px;
-  font-size: 28px;
+  margin-top: 8px;
+  font-size: 24px;
 }
 
 .panel-section {
-  padding: 22px;
-  margin-bottom: 20px;
+  padding: 18px;
+  margin-bottom: 14px;
 }
 
 .panel-head,
@@ -1263,50 +1266,50 @@ export default {
 
 .panel-head {
   align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .panel-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .metric-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .metric-card {
-  padding: 18px 20px;
+  padding: 14px 16px;
 }
 
 .metric-value {
   display: block;
-  margin-top: 12px;
-  font-size: 24px;
+  margin-top: 8px;
+  font-size: 22px;
 }
 
 .metric-date {
   display: block;
-  margin-top: 12px;
-  color: #8090a7;
+  margin-top: 8px;
+  color: #89a1ba;
 }
 
 .trend-panel {
   border-radius: 20px;
-  padding: 18px;
-  background: linear-gradient(180deg, rgba(241, 245, 255, 0.78), rgba(255, 255, 255, 0.82));
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(9, 23, 38, 0.72), rgba(14, 35, 55, 0.82));
 }
 
 .trend-chip {
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #4b5563;
+  background: rgba(255, 255, 255, 0.08);
+  color: #c7d6e5;
   cursor: pointer;
 }
 
 .trend-chip.active {
-  background: #1f3f7b;
+  background: linear-gradient(135deg, #1996ff, #27d5a4);
   color: #fff;
 }
 
@@ -1317,13 +1320,13 @@ export default {
 }
 
 .trend-item {
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
 .trend-item strong {
   display: block;
-  margin-top: 8px;
-  font-size: 18px;
+  margin-top: 6px;
+  font-size: 16px;
 }
 
 .record-list,
@@ -1336,18 +1339,18 @@ export default {
 .record-card,
 .visit-card,
 .report-card {
-  padding: 18px 20px;
+  padding: 14px 16px;
 }
 
 .record-head strong,
 .visit-card-head strong {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .visit-body {
   display: grid;
-  gap: 10px;
-  margin: 14px 0;
+  gap: 8px;
+  margin: 10px 0;
 }
 
 .visit-body p {
@@ -1357,7 +1360,7 @@ export default {
 .visit-body strong {
   display: block;
   margin-top: 4px;
-  color: #1f2937;
+  color: #f3f8ff;
   line-height: 1.6;
 }
 
@@ -1389,9 +1392,11 @@ export default {
   max-height: 92vh;
   overflow: auto;
   border-radius: 24px;
-  padding: 24px;
-  background: #fdfdfc;
-  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+  padding: 20px;
+  color: #edf4ff;
+  background: linear-gradient(135deg, rgba(8, 20, 34, 0.96), rgba(15, 37, 58, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
 }
 
 .large-dialog {
@@ -1399,13 +1404,13 @@ export default {
 }
 
 .dialog-title {
-  margin: 0 0 18px;
-  font-size: 24px;
+  margin: 0 0 14px;
+  font-size: 22px;
 }
 
 .dialog-form {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .form-inline-grid {
@@ -1416,16 +1421,16 @@ export default {
   display: grid;
   gap: 8px;
   font-size: 14px;
-  color: #3b4556;
+  color: #c9d8e8;
 }
 
 .input {
   width: 100%;
-  border: 1px solid #d4dce8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 14px;
-  padding: 12px 14px;
-  background: #fff;
-  color: #1f2937;
+  padding: 10px 12px;
+  background: rgba(8, 21, 35, 0.82);
+  color: #edf4ff;
 }
 
 .textarea {
@@ -1448,24 +1453,24 @@ export default {
 .ghost-btn,
 .action-btn,
 .mini-btn {
-  padding: 10px 16px;
+  padding: 9px 14px;
   cursor: pointer;
 }
 
 .ghost-btn {
-  background: #eef2f7;
-  color: #344155;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dbe8f5;
 }
 
 .action-btn {
-  background: #193a73;
+  background: linear-gradient(135deg, #1996ff, #27d5a4);
   color: #fff;
 }
 
 .mini-btn {
-  padding: 8px 14px;
-  background: #eef2f8;
-  color: #2d3748;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dbe8f5;
 }
 
 .mini-btn.danger {
@@ -1493,7 +1498,7 @@ button:disabled {
 
 @media (max-width: 768px) {
   .health-page {
-    padding: 18px 14px 28px;
+    padding: 14px 12px 20px;
   }
 
   .hero-panel,

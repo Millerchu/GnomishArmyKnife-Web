@@ -589,26 +589,28 @@ export default {
 <style scoped>
 .knowledge-base-page {
   min-height: 100vh;
-  padding: 28px 20px 40px;
-  background:
-    radial-gradient(circle at top left, rgba(255, 236, 208, 0.9), transparent 22%),
-    linear-gradient(180deg, #f7f2ec 0%, #edf5ef 100%);
-  color: #1f2937;
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 14px 18px 20px;
+  color: #edf4ff;
 }
 
 .page-nav {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .back-home-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.84);
-  box-shadow: 0 12px 30px rgba(31, 41, 55, 0.08);
+  color: #f8fbff;
+  background: rgba(12, 32, 52, 0.58);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
   cursor: pointer;
 }
 
@@ -618,23 +620,24 @@ export default {
 
 .hero-panel,
 .panel-section {
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 24px;
-  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
 }
 
 .hero-panel {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  padding: 24px;
-  margin-bottom: 20px;
+  gap: 16px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 34px;
+  font-size: 30px;
 }
 
 .page-subtitle,
@@ -644,7 +647,7 @@ export default {
 .mobile-card-summary,
 .title-cell p {
   margin: 8px 0 0;
-  color: #5b6576;
+  color: #9db3c8;
   line-height: 1.6;
 }
 
@@ -683,28 +686,28 @@ export default {
 }
 
 .hero-tag {
-  background: #eef3ff;
-  color: #3553a4;
+  background: rgba(56, 189, 248, 0.16);
+  color: #bfe8ff;
 }
 
 .category-chip {
-  background: #eaf1ff;
-  color: #2d4f98;
+  background: rgba(250, 204, 21, 0.14);
+  color: #fde68a;
 }
 
 .category-chip.subtle {
-  background: #eef2f7;
-  color: #465468;
+  background: rgba(255, 255, 255, 0.08);
+  color: #c9d8e8;
 }
 
 .tag-chip {
-  background: #f0f7ef;
-  color: #39624a;
+  background: rgba(16, 185, 129, 0.14);
+  color: #a7f3d0;
 }
 
 .panel-section {
-  padding: 22px;
-  margin-bottom: 20px;
+  padding: 18px;
+  margin-bottom: 14px;
 }
 
 .panel-head,
@@ -720,38 +723,38 @@ export default {
 
 .panel-head {
   align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .panel-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .banner-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .banner-card,
 .mobile-card,
 .dialog {
-  background: rgba(255, 255, 255, 0.76);
-  border: 1px solid rgba(225, 232, 240, 0.9);
+  background: rgba(10, 26, 42, 0.74);
+  border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 22px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .banner-card {
-  padding: 20px;
+  padding: 16px;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .banner-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 35px rgba(30, 41, 59, 0.09);
+  box-shadow: 0 18px 35px rgba(0, 0, 0, 0.18);
 }
 
 .banner-date,
@@ -759,19 +762,19 @@ export default {
 .empty-state,
 .mobile-card-grid span,
 .detail-meta span {
-  color: #627084;
+  color: #8ea6bf;
 }
 
 .banner-title,
 .mobile-card-title,
 .detail-title {
-  margin: 14px 0 10px;
-  font-size: 22px;
+  margin: 10px 0 8px;
+  font-size: 20px;
 }
 
 .banner-foot {
   align-items: center;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .desktop-table {
@@ -785,14 +788,14 @@ export default {
 
 .entry-table th,
 .entry-table td {
-  padding: 16px 12px;
-  border-bottom: 1px solid #e5ebf3;
+  padding: 12px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
   text-align: left;
   vertical-align: top;
 }
 
 .entry-table th {
-  color: #5b6576;
+  color: #9db3c8;
   font-weight: 600;
 }
 
@@ -806,15 +809,15 @@ export default {
 }
 
 .mobile-card {
-  padding: 18px 20px;
-  margin-bottom: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
 }
 
 .mobile-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin: 14px 0;
+  gap: 10px;
+  margin: 10px 0;
 }
 
 .mobile-card-grid p,
@@ -826,7 +829,7 @@ export default {
 .detail-meta strong {
   display: block;
   margin-top: 4px;
-  color: #1f2937;
+  color: #f3f8ff;
 }
 
 .mobile-card-grid .wide {
@@ -836,39 +839,39 @@ export default {
 .pager {
   align-items: center;
   justify-content: space-between;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .pager-select,
 .input {
-  border: 1px solid #d4dce8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 14px;
-  padding: 12px 14px;
-  background: #fff;
-  color: #1f2937;
+  padding: 10px 12px;
+  background: rgba(8, 21, 35, 0.82);
+  color: #edf4ff;
 }
 
 .ghost-btn,
 .action-btn,
 .mini-btn {
-  padding: 10px 16px;
+  padding: 9px 14px;
   cursor: pointer;
 }
 
 .ghost-btn {
-  background: #eef2f7;
-  color: #344155;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dbe8f5;
 }
 
 .action-btn {
-  background: #193a73;
+  background: linear-gradient(135deg, #1996ff, #27d5a4);
   color: #fff;
 }
 
 .mini-btn {
-  padding: 8px 14px;
-  background: #eef2f8;
-  color: #2d3748;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dbe8f5;
 }
 
 .mini-btn.danger {
@@ -891,9 +894,11 @@ export default {
   width: min(820px, 100%);
   max-height: 92vh;
   overflow: auto;
-  padding: 24px;
-  background: #fdfdfc;
-  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+  padding: 20px;
+  color: #edf4ff;
+  background: linear-gradient(135deg, rgba(8, 20, 34, 0.96), rgba(15, 37, 58, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
 }
 
 .detail-dialog {
@@ -902,26 +907,26 @@ export default {
 
 .dialog-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
 }
 
 .dialog-form {
   display: grid;
-  gap: 16px;
-  margin-top: 16px;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .form-inline-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .form-field {
   display: grid;
   gap: 8px;
   font-size: 14px;
-  color: #3b4556;
+  color: #c9d8e8;
 }
 
 .textarea {
@@ -931,18 +936,18 @@ export default {
 
 .detail-content {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .detail-tag-row {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .detail-summary {
   margin: 0;
   font-size: 16px;
   line-height: 1.8;
-  color: #4b5563;
+  color: #d6e4f2;
 }
 
 .detail-meta {
@@ -952,9 +957,9 @@ export default {
 }
 
 .detail-body {
-  padding: 18px 20px;
+  padding: 14px 16px;
   border-radius: 18px;
-  background: #f5f7fb;
+  background: rgba(7, 18, 31, 0.76);
 }
 
 .detail-body h4 {
@@ -970,7 +975,7 @@ export default {
 .dialog-close {
   border: none;
   background: transparent;
-  color: #6b7280;
+  color: #c9d8e8;
   font-size: 22px;
   cursor: pointer;
 }
@@ -992,7 +997,7 @@ button:disabled {
 
 @media (max-width: 768px) {
   .knowledge-base-page {
-    padding: 18px 14px 28px;
+    padding: 14px 12px 20px;
   }
 
   .hero-panel,
