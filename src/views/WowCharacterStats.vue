@@ -10,12 +10,13 @@
     <div class="hero-panel">
       <div>
         <h1 class="page-title">WoW角色统计</h1>
-        <p class="page-subtitle">记录魔兽世界正式服角色信息，优先展示装等最高的 2 个常用角色，并按职业色呈现角色数据。</p>
+        <p class="page-subtitle">维护正式服角色装等、当前钥匙、8 本赛季分数和每周低保进度，主角色卡片由你手工指定。</p>
       </div>
       <div class="hero-tags">
         <span class="hero-tag">已接真实接口</span>
         <span class="hero-tag">角色总数 {{ overview.totalCharacters }}</span>
-        <span class="hero-tag">最高装等 {{ overview.highestItemLevel || 0 }}</span>
+        <span class="hero-tag">最高装等 {{ formatDecimal(overview.highestItemLevel) }}</span>
+        <span class="hero-tag">最高评分 {{ formatDecimal(overview.highestMythicScore) }}</span>
       </div>
     </div>
 
@@ -23,7 +24,7 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">主角色名片</h2>
-          <p class="panel-tip">按装等排序展示最常用的 2 个主角色，卡面信息参考 Battle.net 风格并融入阵营水印。</p>
+          <p class="panel-tip">仅展示手工勾选的主角色，最多 4 个，联盟和部落使用不同特色背景。</p>
         </div>
       </div>
 
@@ -36,7 +37,6 @@
         >
           <div class="character-card-inner">
             <div class="character-watermark">{{ item.faction === 'HORDE' ? 'H' : 'A' }}</div>
-
             <div class="card-top">
               <div class="avatar-badge" :style="buildAvatarStyle(item)">
                 <span>{{ buildAvatarText(item.characterName) }}</span>
@@ -55,34 +55,34 @@
             <div class="card-stats">
               <div class="card-stat">
                 <span>装等</span>
-                <strong>{{ item.itemLevel || 0 }}</strong>
+                <strong>{{ formatDecimal(item.itemLevel) }}</strong>
               </div>
               <div class="card-stat">
-                <span>M+ 评分</span>
-                <strong>{{ item.mythicScore || 0 }}</strong>
+                <span>M+ 总分</span>
+                <strong>{{ formatScore(item.mythicScore) }}</strong>
               </div>
               <div class="card-stat">
-                <span>钥石副本</span>
-                <strong>{{ formatMythicDungeonText(item) }}</strong>
+                <span>当前钥匙</span>
+                <strong>{{ formatCurrentKey(item) }}</strong>
               </div>
             </div>
 
             <div class="card-meta">
               <span>等级 {{ item.level }}</span>
               <span>{{ formatProfessionText(item) }}</span>
-              <span>{{ classMetaMap[item.className]?.label || item.className }}</span>
+              <span>{{ item.isFeatured ? '主角色' : '普通角色' }}</span>
             </div>
           </div>
         </article>
 
         <article
-          v-for="placeholder in Math.max(0, 2 - featuredCharacters.length)"
+          v-for="placeholder in Math.max(0, 4 - featuredCharacters.length)"
           :key="`placeholder-${placeholder}`"
           class="character-card empty-card"
         >
           <div class="empty-card-content">
             <strong>暂无更多主角色</strong>
-            <span>新增角色后会按装等自动进入主角色展示位</span>
+            <span>勾选“作为主角色展示”后会出现在这里</span>
           </div>
         </article>
       </div>
@@ -129,14 +129,14 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">角色列表</h2>
-            <p class="panel-tip">主列表保留正式服角色核心信息，颜色按 13 职业色和联盟 / 部落色区分。</p>
+            <p class="panel-tip">列表展示核心资料、8 本进度和最近一周低保，适合快速维护账号常用角色。</p>
           </div>
         </div>
 
         <div class="toolbar">
           <div class="toolbar-left">
             <button class="action-btn" :disabled="loading || submitting" @click="openCreateDialog">新增角色</button>
-            <button class="ghost-btn" :disabled="loading || submitting" @click="loadCharacters">刷新列表</button>
+            <button class="ghost-btn" :disabled="loading || submitting" @click="loadPageData">刷新列表</button>
           </div>
           <div class="toolbar-right">
             <span>共 {{ total }} 条</span>
@@ -152,13 +152,13 @@
               <tr>
                 <th>角色名</th>
                 <th>职业 / 专精</th>
-                <th>种族</th>
                 <th>服务器</th>
                 <th>阵营</th>
-                <th>等级</th>
                 <th>装等</th>
-                <th>大秘境副本</th>
-                <th>大秘境评分</th>
+                <th>主角色</th>
+                <th>当前钥匙</th>
+                <th>M+ 总分</th>
+                <th>最近低保</th>
                 <th>专业</th>
                 <th>操作</th>
               </tr>
@@ -166,10 +166,7 @@
               <tbody>
               <tr v-for="item in pagedRecords" :key="item.id">
                 <td>
-                  <span
-                    class="name-badge"
-                    :style="buildNameBadgeStyle(item)"
-                  >
+                  <span class="name-badge" :style="buildNameBadgeStyle(item)">
                     {{ item.characterName }}
                   </span>
                 </td>
@@ -180,17 +177,17 @@
                     <span class="cell-muted">{{ formatSpecText(item.specName) || '-' }}</span>
                   </div>
                 </td>
-                <td>{{ formatRaceText(item.raceName) }}</td>
                 <td>{{ item.realmName || '-' }}</td>
                 <td>
                   <span class="faction-chip" :class="item.faction === 'HORDE' ? 'horde' : 'alliance'">
                     {{ formatFactionText(item.faction) }}
                   </span>
                 </td>
-                <td>{{ item.level || 0 }}</td>
-                <td>{{ item.itemLevel || 0 }}</td>
-                <td>{{ formatMythicDungeonText(item) }}</td>
-                <td>{{ item.mythicScore || 0 }}</td>
+                <td>{{ formatDecimal(item.itemLevel) }}</td>
+                <td>{{ item.isFeatured ? '是' : '否' }}</td>
+                <td>{{ formatCurrentKey(item) }}</td>
+                <td>{{ formatScore(item.mythicScore) }}</td>
+                <td>{{ formatLatestVaultText(item.weeklyVaults) }}</td>
                 <td>{{ formatProfessionText(item) }}</td>
                 <td>
                   <div class="row-actions">
@@ -221,11 +218,12 @@
               </div>
 
               <div class="mobile-card-grid">
-                <p><span>装等</span><strong>{{ item.itemLevel || 0 }}</strong></p>
-                <p><span>评分</span><strong>{{ item.mythicScore || 0 }}</strong></p>
-                <p><span>副本</span><strong>{{ formatMythicDungeonText(item) }}</strong></p>
-                <p><span>等级</span><strong>{{ item.level || 0 }}</strong></p>
+                <p><span>装等</span><strong>{{ formatDecimal(item.itemLevel) }}</strong></p>
+                <p><span>评分</span><strong>{{ formatScore(item.mythicScore) }}</strong></p>
+                <p><span>当前钥匙</span><strong>{{ formatCurrentKey(item) }}</strong></p>
+                <p><span>最近低保</span><strong>{{ formatLatestVaultText(item.weeklyVaults) }}</strong></p>
                 <p><span>种族</span><strong>{{ formatRaceText(item.raceName) }}</strong></p>
+                <p><span>主角色</span><strong>{{ item.isFeatured ? '是' : '否' }}</strong></p>
                 <p class="wide"><span>专业</span><strong>{{ formatProfessionText(item) }}</strong></p>
               </div>
 
@@ -257,7 +255,7 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">角色概览</h2>
-            <p class="panel-tip">快速查看当前账号的角色规模、阵营分布、职业分布和活跃服务器。</p>
+            <p class="panel-tip">快速查看阵营分布、职业分布和高装等服务器。</p>
           </div>
         </div>
 
@@ -268,11 +266,11 @@
           </article>
           <article class="summary-card">
             <span>平均装等</span>
-            <strong>{{ overview.averageItemLevel }}</strong>
+            <strong>{{ formatDecimal(overview.averageItemLevel) }}</strong>
           </article>
           <article class="summary-card">
             <span>最高大秘境评分</span>
-            <strong>{{ overview.highestMythicScore }}</strong>
+            <strong>{{ formatDecimal(overview.highestMythicScore) }}</strong>
           </article>
           <article class="summary-card">
             <span>服务器数量</span>
@@ -309,7 +307,7 @@
               :style="buildClassStatStyle(item.className)"
             >
               <strong>{{ item.className }}</strong>
-              <span>{{ item.count }} 个角色 · 平均装等 {{ item.averageItemLevel }}</span>
+              <span>{{ item.count }} 个角色 · 平均装等 {{ formatDecimal(item.averageItemLevel) }}</span>
             </div>
           </div>
         </div>
@@ -325,7 +323,7 @@
                 <strong>{{ item.realmName }}</strong>
                 <span>{{ item.count }} 个角色</span>
               </div>
-              <b>最高 {{ item.highestItemLevel }}</b>
+              <b>最高 {{ formatDecimal(item.highestItemLevel) }}</b>
             </div>
           </div>
         </div>
@@ -386,33 +384,134 @@
             </label>
             <label class="form-field">
               <span>装等</span>
-              <input v-model.number="form.itemLevel" class="input" type="number" min="0" max="999" required />
+              <input v-model.number="form.itemLevel" class="input" type="number" min="0" max="999" step="0.01" required />
             </label>
           </div>
 
           <div class="form-inline-grid">
-            <label class="form-field">
-              <span>钥石层数</span>
-              <input v-model.number="form.mythicBestLevel" class="input" type="number" min="0" max="40" placeholder="例如：12" />
+            <label class="form-field switch-field">
+              <span>作为主角色展示</span>
+              <input v-model="form.isFeatured" class="checkbox-input" type="checkbox" />
             </label>
-            <label class="form-field">
-              <span>大秘境副本</span>
-              <select v-model="form.mythicDungeonName" class="input">
-                <option value="">未设置</option>
-                <option v-for="item in mythicDungeonOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select>
-            </label>
+            <div class="form-inline-grid two-field-nested">
+              <label class="form-field">
+                <span>当前钥匙层数</span>
+                <input v-model.number="form.mythicBestLevel" class="input" type="number" min="0" max="40" step="1" />
+              </label>
+              <label class="form-field">
+                <span>当前钥匙副本</span>
+                <select v-model="form.mythicDungeonName" class="input">
+                  <option value="">未设置</option>
+                  <option v-for="item in mythicDungeonOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+                </select>
+              </label>
+            </div>
           </div>
 
-          <div class="form-inline-grid">
-            <label class="form-field">
-              <span>大秘境评分</span>
-              <input v-model.number="form.mythicScore" class="input" type="number" min="0" max="9999" placeholder="例如：3125" />
-            </label>
-            <label class="form-field">
-              <span>&nbsp;</span>
-            </label>
-          </div>
+          <section class="dialog-block">
+            <div class="dialog-block-head">
+              <div>
+                <h4 class="dialog-block-title">每周低保</h4>
+                <p class="dialog-block-tip">记录每周三条轨道完成数量，九宫格解锁状态由系统自动计算。</p>
+              </div>
+              <button type="button" class="ghost-btn" @click="appendWeeklyVault">新增一周</button>
+            </div>
+
+            <div v-if="form.weeklyVaults.length" class="weekly-vault-list">
+              <div v-for="(item, index) in form.weeklyVaults" :key="item.localKey" class="weekly-vault-card">
+                <div class="weekly-vault-head">
+                  <label class="form-field compact-field">
+                    <span>周起始日</span>
+                    <input v-model="item.weekStartDate" class="input compact-input" type="date" />
+                  </label>
+                  <button type="button" class="mini-btn danger" @click="removeWeeklyVault(index)">删除</button>
+                </div>
+
+                <div class="weekly-vault-grid">
+                  <label class="mini-field">
+                    <span>团本击杀</span>
+                    <input v-model.number="item.raidProgressCount" class="input compact-input" type="number" min="0" max="99" step="1" />
+                  </label>
+                  <label class="mini-field">
+                    <span>大秘境次数</span>
+                    <input v-model.number="item.mythicProgressCount" class="input compact-input" type="number" min="0" max="99" step="1" />
+                  </label>
+                  <label class="mini-field">
+                    <span>世界任务 / 地下堡</span>
+                    <input v-model.number="item.worldProgressCount" class="input compact-input" type="number" min="0" max="99" step="1" />
+                  </label>
+                </div>
+
+                <div class="vault-board">
+                  <div class="vault-track">
+                    <strong>团本</strong>
+                    <div class="vault-slot-grid">
+                      <div
+                        v-for="threshold in RAID_THRESHOLDS"
+                        :key="`raid-${item.localKey}-${threshold}`"
+                        class="vault-slot"
+                        :class="{ unlocked: item.raidProgressCount >= threshold }"
+                      >
+                        {{ threshold }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="vault-track">
+                    <strong>M+</strong>
+                    <div class="vault-slot-grid">
+                      <div
+                        v-for="threshold in MYTHIC_THRESHOLDS"
+                        :key="`mythic-${item.localKey}-${threshold}`"
+                        class="vault-slot"
+                        :class="{ unlocked: item.mythicProgressCount >= threshold }"
+                      >
+                        {{ threshold }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="vault-track">
+                    <strong>世界 / 地下堡</strong>
+                    <div class="vault-slot-grid">
+                      <div
+                        v-for="threshold in WORLD_THRESHOLDS"
+                        :key="`world-${item.localKey}-${threshold}`"
+                        class="vault-slot"
+                        :class="{ unlocked: item.worldProgressCount >= threshold }"
+                      >
+                        {{ threshold }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <label class="form-field">
+                  <span>备注</span>
+                  <textarea v-model.trim="item.note" class="input textarea compact-textarea" rows="2" maxlength="160" placeholder="例如：本周团本只打到 4，M+ 已满 8。" />
+                </label>
+              </div>
+            </div>
+
+            <div v-else class="empty-inline">当前还没有周低保记录</div>
+          </section>
+
+          <section class="dialog-block">
+            <div class="dialog-block-head">
+              <div>
+                <h4 class="dialog-block-title">大秘境赛季记录</h4>
+                <p class="dialog-block-tip">维护 8 个副本的赛季分数，单本只录整数，M+ 总分自动求和。</p>
+              </div>
+              <span class="hero-tag">总分 {{ formatScore(formMythicScore) }}</span>
+            </div>
+            <div class="mythic-run-list compact-mythic-list">
+              <div v-for="item in form.mythicRuns" :key="item.dungeonName" class="mythic-run-row compact-row">
+                <div class="mythic-run-title">{{ item.dungeonLabel }}</div>
+                <label class="mini-field score-field">
+                  <span>分数</span>
+                  <input v-model.number="item.score" class="input compact-input" type="number" min="0" max="9999" step="1" />
+                </label>
+              </div>
+            </div>
+          </section>
 
           <div class="form-inline-grid">
             <label class="form-field">
@@ -476,6 +575,9 @@ const SPEC_NAME_FIELD_CODE = 'specName'
 const MYTHIC_DUNGEON_FIELD_CODE = 'mythicDungeonName'
 const PROFESSION_PRIMARY_FIELD_CODE = 'professionPrimary'
 const DEFAULT_FACTION_VALUE = 'ALLIANCE'
+const RAID_THRESHOLDS = [2, 4, 6]
+const MYTHIC_THRESHOLDS = [1, 4, 8]
+const WORLD_THRESHOLDS = [2, 4, 8]
 
 function unwrapData(res) {
   const payload = res?.data
@@ -546,11 +648,48 @@ function toNumber(value, defaultValue = 0) {
   return Number.isFinite(nextValue) ? nextValue : defaultValue
 }
 
-function normalizeStatList(list, mapper) {
-  return Array.isArray(list) ? list.map((item) => mapper(item || {})) : []
+function formatDecimal(value) {
+  return toNumber(value, 0).toFixed(2)
 }
 
-function normalizeCharacter(item = {}) {
+function formatScore(value) {
+  return String(Math.round(toNumber(value, 0)))
+}
+
+function createWeeklyVaultDraft(source = {}) {
+  return {
+    id: source.id || null,
+    localKey: source.localKey || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    weekStartDate: source.weekStartDate || '',
+    raidProgressCount: toNumber(source.raidProgressCount, 0),
+    mythicProgressCount: toNumber(source.mythicProgressCount, 0),
+    worldProgressCount: toNumber(source.worldProgressCount, 0),
+    note: source.note || ''
+  }
+}
+
+function normalizeMythicRunList(rawRuns, dungeonOptions) {
+  const runMap = new Map()
+  if (Array.isArray(rawRuns)) {
+    rawRuns.forEach((item) => {
+      const normalizedValue = findOptionByAny(dungeonOptions, item?.dungeonName)?.value || item?.dungeonName || ''
+      if (!normalizedValue) {
+        return
+      }
+      runMap.set(normalizedValue, {
+        dungeonName: normalizedValue,
+        score: toNumber(item?.score, 0)
+      })
+    })
+  }
+  return dungeonOptions.map((option) => ({
+    dungeonName: option.value,
+    dungeonLabel: option.label,
+    score: runMap.get(option.value)?.score || 0
+  }))
+}
+
+function normalizeCharacter(item = {}, dungeonOptions = []) {
   return {
     id: item.id ?? item.characterId ?? '',
     characterName: item.characterName || item.name || '',
@@ -561,9 +700,15 @@ function normalizeCharacter(item = {}) {
     faction: item.faction || DEFAULT_FACTION_VALUE,
     level: toNumber(item.level, 90),
     itemLevel: toNumber(item.itemLevel ?? item.gearLevel, 0),
+    isFeatured: Boolean(item.isFeatured),
     mythicDungeonName: item.mythicDungeonName || item.mythicDungeon || item.bestDungeonName || item.keystoneName || '',
     mythicBestLevel: toNumber(item.mythicBestLevel ?? item.mythicLevel, 0),
     mythicScore: toNumber(item.mythicScore ?? item.mythicRating, 0),
+    mythicCompletedDungeonCount: toNumber(item.mythicCompletedDungeonCount, 0),
+    mythicRuns: normalizeMythicRunList(item.mythicRuns || item.mythicRunList || [], dungeonOptions),
+    weeklyVaults: Array.isArray(item.weeklyVaults)
+      ? item.weeklyVaults.map((vault) => createWeeklyVaultDraft(vault))
+      : [],
     professionPrimary: item.professionPrimary || item.profession1 || '',
     professionSecondary: item.professionSecondary || item.profession2 || '',
     note: item.note || item.remark || '',
@@ -579,29 +724,37 @@ function sortCharacters(list = []) {
   ))
 }
 
-function normalizeOverview(payload = {}) {
+function normalizeOverview(payload = {}, dungeonOptions = []) {
   return {
     totalCharacters: toNumber(payload.totalCharacters, 0),
     totalRealms: toNumber(payload.totalRealms, 0),
     highestItemLevel: toNumber(payload.highestItemLevel, 0),
     highestMythicScore: toNumber(payload.highestMythicScore, 0),
     averageItemLevel: toNumber(payload.averageItemLevel, 0),
-    featuredCharacters: normalizeStatList(payload.featuredCharacters, normalizeCharacter),
-    factionStats: normalizeStatList(payload.factionStats, (item) => ({
-      label: item.label || item.name || '-',
-      count: toNumber(item.count, 0),
-      ratio: item.ratio || '0%'
-    })),
-    classStats: normalizeStatList(payload.classStats, (item) => ({
-      className: item.className || '-',
-      count: toNumber(item.count, 0),
-      averageItemLevel: toNumber(item.averageItemLevel, 0)
-    })),
-    realmStats: normalizeStatList(payload.realmStats, (item) => ({
-      realmName: item.realmName || '-',
-      count: toNumber(item.count, 0),
-      highestItemLevel: toNumber(item.highestItemLevel, 0)
-    }))
+    featuredCharacters: Array.isArray(payload.featuredCharacters)
+      ? payload.featuredCharacters.map((item) => normalizeCharacter(item, dungeonOptions))
+      : [],
+    factionStats: Array.isArray(payload.factionStats)
+      ? payload.factionStats.map((item) => ({
+        label: item.label || item.name || '-',
+        count: toNumber(item.count, 0),
+        ratio: item.ratio || '0%'
+      }))
+      : [],
+    classStats: Array.isArray(payload.classStats)
+      ? payload.classStats.map((item) => ({
+        className: item.className || '-',
+        count: toNumber(item.count, 0),
+        averageItemLevel: toNumber(item.averageItemLevel, 0)
+      }))
+      : [],
+    realmStats: Array.isArray(payload.realmStats)
+      ? payload.realmStats.map((item) => ({
+        realmName: item.realmName || '-',
+        count: toNumber(item.count, 0),
+        highestItemLevel: toNumber(item.highestItemLevel, 0)
+      }))
+      : []
   }
 }
 
@@ -645,9 +798,11 @@ export default {
       faction: DEFAULT_FACTION_VALUE,
       level: 90,
       itemLevel: 0,
-      mythicDungeonName: '',
+      isFeatured: false,
       mythicBestLevel: 0,
-      mythicScore: 0,
+      mythicDungeonName: '',
+      mythicRuns: [],
+      weeklyVaults: [],
       professionPrimary: '',
       professionSecondary: '',
       note: ''
@@ -703,6 +858,7 @@ export default {
     })
     const availablePrimaryProfessionOptions = computed(() => professionOptions.value.filter((item) => item.value !== form.professionSecondary))
     const availableSecondaryProfessionOptions = computed(() => professionOptions.value.filter((item) => item.value !== form.professionPrimary))
+    const formMythicScore = computed(() => form.mythicRuns.reduce((totalScore, item) => totalScore + toNumber(item.score, 0), 0))
 
     const getDefaultFactionValue = () => {
       const matched = factionOptions.value.find((item) => item.value === DEFAULT_FACTION_VALUE)
@@ -711,11 +867,14 @@ export default {
 
     const getDefaultClassValue = () => classOptions.value.find((item) => item.isDefault)?.value || classOptions.value[0]?.value || ''
 
+    const createDefaultMythicRuns = () => normalizeMythicRunList([], mythicDungeonOptions.value)
+
     const normalizeFormSelections = () => {
       form.className = normalizeSelectedValue(classOptions.value, form.className, getDefaultClassValue())
       form.faction = normalizeSelectedValue(factionOptions.value, form.faction, getDefaultFactionValue())
       form.raceName = normalizeSelectedValue(raceOptions.value, form.raceName, '')
       form.specName = normalizeSelectedValue(specOptions.value, form.specName, '')
+      form.mythicDungeonName = normalizeSelectedValue(mythicDungeonOptions.value, form.mythicDungeonName, '')
       form.professionPrimary = normalizeSelectedValue(professionOptions.value, form.professionPrimary, '')
       form.professionSecondary = normalizeSelectedValue(professionOptions.value, form.professionSecondary, '')
       if (!formFactionOptions.value.some((item) => item.value === form.faction)) {
@@ -775,6 +934,11 @@ export default {
         specOptions.value = normalizeDictionaryOptions(unwrapData(specRes))
         professionOptions.value = normalizeDictionaryOptions(unwrapData(professionRes))
         mythicDungeonOptions.value = normalizeDictionaryOptions(unwrapData(mythicDungeonRes))
+        if (!form.mythicRuns.length) {
+          form.mythicRuns = createDefaultMythicRuns()
+        } else {
+          form.mythicRuns = normalizeMythicRunList(form.mythicRuns, mythicDungeonOptions.value)
+        }
         normalizeFormSelections()
       } catch (error) {
         factionOptions.value = []
@@ -800,7 +964,7 @@ export default {
     }
 
     const applyOverview = (payload = {}) => {
-      const nextOverview = normalizeOverview(payload)
+      const nextOverview = normalizeOverview(payload, mythicDungeonOptions.value)
       overview.totalCharacters = nextOverview.totalCharacters
       overview.totalRealms = nextOverview.totalRealms
       overview.highestItemLevel = nextOverview.highestItemLevel
@@ -836,15 +1000,13 @@ export default {
         const rawList = Array.isArray(payload)
           ? payload
           : (payload.list || payload.records || payload.rows || [])
-        const normalizedList = sortCharacters(rawList.map((item) => normalizeCharacter(item)))
+        const normalizedList = sortCharacters(rawList.map((item) => normalizeCharacter(item, mythicDungeonOptions.value)))
         pagedRecords.value = normalizedList
         total.value = toNumber(payload.total ?? payload.count, normalizedList.length)
       } catch (error) {
         pagedRecords.value = []
         total.value = 0
         alert(getErrorMessage(error, 'WoW角色数据加载失败'))
-        loading.value = false
-        return
       } finally {
         loading.value = false
       }
@@ -864,9 +1026,11 @@ export default {
       form.faction = getDefaultFactionValue()
       form.level = 90
       form.itemLevel = 0
-      form.mythicDungeonName = ''
+      form.isFeatured = false
       form.mythicBestLevel = 0
-      form.mythicScore = 0
+      form.mythicDungeonName = ''
+      form.mythicRuns = createDefaultMythicRuns()
+      form.weeklyVaults = []
       form.professionPrimary = ''
       form.professionSecondary = ''
       form.note = ''
@@ -881,13 +1045,25 @@ export default {
       form.faction = normalizeSelectedValue(factionOptions.value, record.faction, getDefaultFactionValue())
       form.level = Number(record.level || 90)
       form.itemLevel = Number(record.itemLevel || 0)
-      form.mythicDungeonName = normalizeSelectedValue(mythicDungeonOptions.value, record.mythicDungeonName, '')
+      form.isFeatured = Boolean(record.isFeatured)
       form.mythicBestLevel = Number(record.mythicBestLevel || 0)
-      form.mythicScore = Number(record.mythicScore || 0)
+      form.mythicDungeonName = normalizeSelectedValue(mythicDungeonOptions.value, record.mythicDungeonName, '')
+      form.mythicRuns = normalizeMythicRunList(record.mythicRuns || [], mythicDungeonOptions.value)
+      form.weeklyVaults = Array.isArray(record.weeklyVaults)
+        ? record.weeklyVaults.map((item) => createWeeklyVaultDraft(item))
+        : []
       form.professionPrimary = normalizeSelectedValue(professionOptions.value, record.professionPrimary, '')
       form.professionSecondary = normalizeSelectedValue(professionOptions.value, record.professionSecondary, '')
       form.note = record.note || ''
       normalizeFormSelections()
+    }
+
+    const appendWeeklyVault = () => {
+      form.weeklyVaults.push(createWeeklyVaultDraft())
+    }
+
+    const removeWeeklyVault = (index) => {
+      form.weeklyVaults.splice(index, 1)
     }
 
     const openCreateDialog = () => {
@@ -921,11 +1097,21 @@ export default {
       faction: form.faction,
       level: Number(form.level || 0),
       itemLevel: Number(form.itemLevel || 0),
-      mythicDungeonName: form.mythicDungeonName || null,
-      mythicDungeon: form.mythicDungeonName || null,
-      bestDungeonName: form.mythicDungeonName || null,
+      isFeatured: Boolean(form.isFeatured),
       mythicBestLevel: Number(form.mythicBestLevel || 0),
-      mythicScore: Number(form.mythicScore || 0),
+      mythicDungeonName: form.mythicDungeonName || null,
+      mythicRuns: form.mythicRuns.map((item) => ({
+        dungeonName: item.dungeonName,
+        score: Number(item.score || 0)
+      })),
+      weeklyVaults: form.weeklyVaults.map((item) => ({
+        id: item.id || null,
+        weekStartDate: item.weekStartDate || null,
+        raidProgressCount: Number(item.raidProgressCount || 0),
+        mythicProgressCount: Number(item.mythicProgressCount || 0),
+        worldProgressCount: Number(item.worldProgressCount || 0),
+        note: item.note || ''
+      })),
       professionPrimary: form.professionPrimary || null,
       professionSecondary: form.professionSecondary || null,
       note: form.note
@@ -976,12 +1162,24 @@ export default {
         return
       }
       if (form.mythicBestLevel > 0 && !form.mythicDungeonName) {
-        alert('请输入大秘境副本')
+        alert('当前钥匙层数大于 0 时，请选择当前钥匙副本')
         return
       }
-      if (!form.mythicBestLevel && form.mythicDungeonName) {
-        alert('请输入钥石层数')
+      if (form.mythicDungeonName && toNumber(form.mythicBestLevel, 0) <= 0) {
+        alert('选择当前钥匙副本后，请填写大于 0 的当前钥匙层数')
         return
+      }
+      const weekSet = new Set()
+      for (const item of form.weeklyVaults) {
+        if (!item.weekStartDate) {
+          alert('请完整填写每周低保的周起始日')
+          return
+        }
+        if (weekSet.has(item.weekStartDate)) {
+          alert('每周低保存在重复周起始日')
+          return
+        }
+        weekSet.add(item.weekStartDate)
       }
       if (submitting.value) {
         return
@@ -1053,26 +1251,38 @@ export default {
     const formatSpecText = (value) => value ? getOptionLabel(specOptions.value, value, value) : ''
     const formatRaceText = (value) => value ? getOptionLabel(raceOptions.value, value, value) : '-'
     const formatProfessionValue = (value) => value ? getOptionLabel(professionOptions.value, value, value) : ''
-    const formatMythicDungeonText = (item) => {
+    const formatProfessionText = (item) => [formatProfessionValue(item.professionPrimary), formatProfessionValue(item.professionSecondary)].filter(Boolean).join(' / ') || '-'
+    const formatMythicSummary = (item) => {
       const dungeonName = getOptionLabel(mythicDungeonOptions.value, item?.mythicDungeonName, item?.mythicDungeonName || '')
       const bestLevel = Number(item?.mythicBestLevel || 0)
-      if (dungeonName && bestLevel > 0) {
+      if (bestLevel > 0 && dungeonName) {
         return `+${bestLevel} ${dungeonName}`
       }
-      if (dungeonName) {
-        return dungeonName
-      }
-      return bestLevel > 0 ? `+${bestLevel}` : '-'
+      return '未设置'
     }
-    const formatProfessionText = (item) => [formatProfessionValue(item.professionPrimary), formatProfessionValue(item.professionSecondary)].filter(Boolean).join(' / ') || '-'
+    const formatCurrentKey = (item) => formatMythicSummary(item)
+    const formatLatestVaultText = (weeklyVaults = []) => {
+      if (!Array.isArray(weeklyVaults) || !weeklyVaults.length) {
+        return '-'
+      }
+      const latest = weeklyVaults[0]
+      const unlocked = [latest.raidProgressCount >= 2 ? 1 : 0, latest.raidProgressCount >= 4 ? 1 : 0, latest.raidProgressCount >= 6 ? 1 : 0].filter(Boolean).length
+        + [latest.mythicProgressCount >= 1 ? 1 : 0, latest.mythicProgressCount >= 4 ? 1 : 0, latest.mythicProgressCount >= 8 ? 1 : 0].filter(Boolean).length
+        + [latest.worldProgressCount >= 2 ? 1 : 0, latest.worldProgressCount >= 4 ? 1 : 0, latest.worldProgressCount >= 8 ? 1 : 0].filter(Boolean).length
+      return `${latest.weekStartDate || '未设日期'} · ${unlocked}/9`
+    }
     const buildAvatarText = (name) => `${name || '角'}`.slice(0, 2)
     const getClassMeta = (className) => getClassMetaByName(classMetaMap.value, className)
 
     const buildCardStyle = (item) => {
       const classMeta = getClassMeta(item.className)
+      const backgroundImage = item.faction === 'HORDE'
+        ? 'url(/brand/wow-horde-card-bg.png)'
+        : 'url(/brand/wow-alliance-card-bg.png)'
       return {
         '--card-accent': classMeta.color,
-        '--card-accent-soft': classColorToRgba(classMeta.color, 0.24)
+        '--card-accent-soft': classColorToRgba(classMeta.color, 0.22),
+        '--card-bg-image': backgroundImage
       }
     }
 
@@ -1184,6 +1394,7 @@ export default {
 
     onMounted(async () => {
       await loadDictionaryOptions()
+      resetForm()
       await loadPageData()
     })
 
@@ -1215,6 +1426,12 @@ export default {
       availablePrimaryProfessionOptions,
       availableSecondaryProfessionOptions,
       totalPages,
+      formMythicScore,
+      RAID_THRESHOLDS,
+      MYTHIC_THRESHOLDS,
+      WORLD_THRESHOLDS,
+      formatDecimal,
+      formatScore,
       handleSearch,
       resetQuery,
       changePage,
@@ -1224,13 +1441,16 @@ export default {
       closeDialog,
       submitDialog,
       removeCharacter,
-      loadCharacters,
-      loadOverview,
+      loadPageData,
+      appendWeeklyVault,
+      removeWeeklyVault,
       goBack,
       formatFactionText,
       formatSpecText,
       formatRaceText,
-      formatMythicDungeonText,
+      formatCurrentKey,
+      formatMythicSummary,
+      formatLatestVaultText,
       formatProfessionText,
       buildAvatarText,
       getClassMeta,
@@ -1248,7 +1468,7 @@ export default {
 .wow-page {
   min-height: 100vh;
   height: 100%;
-  padding: 18px 22px 26px;
+  padding: 16px 20px 24px;
   color: #fff;
   overflow: auto;
 }
@@ -1320,7 +1540,9 @@ export default {
 .insight-head,
 .stats-row,
 .dialog-actions,
-.mobile-card-actions {
+.mobile-card-actions,
+.weekly-vault-head,
+.dialog-block-head {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1331,7 +1553,9 @@ export default {
 .panel-head,
 .pager,
 .insight-head,
-.stats-row {
+.stats-row,
+.weekly-vault-head,
+.dialog-block-head {
   justify-content: space-between;
 }
 
@@ -1339,6 +1563,7 @@ export default {
 .panel-title,
 .dialog-title,
 .insight-title,
+.dialog-block-title,
 .mobile-card-title,
 .character-name {
   margin: 0;
@@ -1351,7 +1576,8 @@ export default {
 .page-subtitle,
 .panel-tip,
 .mobile-card-subtitle,
-.empty-card-content span {
+.empty-card-content span,
+.dialog-block-tip {
   margin: 6px 0 0;
   color: rgba(255, 255, 255, 0.74);
 }
@@ -1387,24 +1613,27 @@ export default {
 .summary-grid,
 .mobile-card-grid,
 .form-inline-grid,
-.filter-grid {
+.filter-grid,
+.weekly-vault-grid {
   display: grid;
   gap: 12px;
 }
 
 .spotlight-grid {
   margin-top: 14px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .character-card {
   position: relative;
-  min-height: 240px;
+  min-height: 190px;
   overflow: hidden;
-  border-radius: 24px;
+  border-radius: 22px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background:
+    linear-gradient(140deg, rgba(5, 16, 29, 0.88), rgba(5, 16, 29, 0.4)),
     radial-gradient(circle at top left, var(--card-accent-soft, rgba(255, 255, 255, 0.16)), transparent 48%),
+    var(--card-bg-image) center/cover no-repeat,
     linear-gradient(135deg, rgba(8, 19, 38, 0.96), rgba(18, 45, 79, 0.9));
 }
 
@@ -1413,7 +1642,7 @@ export default {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(125deg, rgba(255, 255, 255, 0.06), transparent 30%),
+    linear-gradient(125deg, rgba(255, 255, 255, 0.05), transparent 30%),
     radial-gradient(circle at 92% 22%, rgba(255, 255, 255, 0.08), transparent 24%);
   pointer-events: none;
 }
@@ -1423,38 +1652,38 @@ export default {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
   height: 100%;
-  padding: 22px;
+  padding: 16px;
 }
 
 .character-watermark {
   position: absolute;
-  right: 14px;
-  bottom: -10px;
-  font-size: 180px;
+  right: 10px;
+  bottom: -8px;
+  font-size: 122px;
   line-height: 1;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.08);
   pointer-events: none;
 }
 
 .card-top {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .avatar-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 78px;
-  height: 78px;
+  width: 58px;
+  height: 58px;
   border-radius: 999px;
   border: 2px solid rgba(255, 255, 255, 0.28);
   box-shadow: inset 0 2px 8px rgba(255, 255, 255, 0.16), 0 10px 18px rgba(0, 0, 0, 0.22);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -1466,12 +1695,12 @@ export default {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .character-name {
-  font-size: 40px;
-  letter-spacing: 1px;
+  font-size: 22px;
+  letter-spacing: 0.4px;
 }
 
 .spec-chip {
@@ -1480,21 +1709,21 @@ export default {
 }
 
 .card-subtitle {
-  margin: 8px 0 0;
-  font-size: 15px;
+  margin: 6px 0 0;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.74);
 }
 
 .card-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .card-stat {
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(4, 14, 28, 0.38);
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(4, 14, 28, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -1506,15 +1735,16 @@ export default {
 .summary-card span,
 .class-stat-item span,
 .stats-row span,
-.cell-muted {
+.cell-muted,
+.mini-field span {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.72);
 }
 
 .card-stat strong {
   display: block;
-  margin-top: 8px;
-  font-size: 30px;
+  margin-top: 6px;
+  font-size: 20px;
   line-height: 1.15;
   word-break: break-word;
   color: #ffd76e;
@@ -1523,11 +1753,11 @@ export default {
 .card-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .card-meta span {
-  padding: 8px 10px;
+  padding: 7px 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
 }
@@ -1557,7 +1787,8 @@ export default {
 }
 
 .field,
-.form-field {
+.form-field,
+.mini-field {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1571,7 +1802,7 @@ export default {
 
 .content-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 1.72fr) minmax(320px, 0.98fr);
   gap: 14px;
 }
 
@@ -1583,7 +1814,9 @@ export default {
 .summary-card,
 .class-stat-item,
 .stats-row,
-.mobile-card {
+.mobile-card,
+.dialog-block,
+.weekly-vault-card {
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.08);
@@ -1606,7 +1839,9 @@ export default {
 }
 
 .stats-list,
-.class-stat-list {
+.class-stat-list,
+.weekly-vault-list,
+.mythic-run-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1673,7 +1908,7 @@ export default {
 
 .character-table {
   width: 100%;
-  min-width: 1280px;
+  min-width: 1180px;
   border-collapse: collapse;
 }
 
@@ -1820,7 +2055,7 @@ export default {
 }
 
 .dialog {
-  width: min(760px, 100%);
+  width: min(980px, 100%);
   max-height: calc(100vh - 36px);
   overflow: auto;
   padding: 20px;
@@ -1837,6 +2072,145 @@ export default {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.dialog-block {
+  padding: 14px;
+}
+
+.dialog-block-title {
+  font-size: 16px;
+}
+
+.switch-field {
+  justify-content: center;
+  min-height: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: #38bdf8;
+}
+
+.two-field-nested {
+  gap: 10px;
+}
+
+.mythic-run-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(120px, 0.7fr) 92px;
+  gap: 10px;
+  align-items: end;
+}
+
+.compact-mythic-list {
+  gap: 8px;
+}
+
+.compact-row {
+  grid-template-columns: minmax(0, 1fr) 126px;
+  gap: 8px;
+  align-items: center;
+}
+
+.mythic-run-title {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mythic-run-score {
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.mythic-run-score strong {
+  color: #ffd76e;
+}
+
+.weekly-vault-card {
+  padding: 12px;
+}
+
+.weekly-vault-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.score-field {
+  gap: 6px;
+}
+
+.compact-input {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.compact-textarea {
+  min-height: 72px;
+}
+
+.vault-board {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.vault-track {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vault-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vault-slot {
+  min-height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 600;
+}
+
+.vault-slot.unlocked {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.32), rgba(234, 179, 8, 0.18));
+  color: #fff4c2;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.empty-inline {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+}
+
 .dialog-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -1850,7 +2224,12 @@ export default {
   color: rgba(255, 255, 255, 0.68);
 }
 
-@media (max-width: 1360px) {
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1400px) {
   .spotlight-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1862,9 +2241,15 @@ export default {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .filter-grid,
-  .summary-grid {
+  .summary-grid,
+  .vault-board,
+  .weekly-vault-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mythic-run-row {
     grid-template-columns: 1fr;
   }
 }
@@ -1878,7 +2263,9 @@ export default {
   .filter-panel,
   .toolbar,
   .pager,
-  .dialog-actions {
+  .dialog-actions,
+  .dialog-block-head,
+  .weekly-vault-head {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1910,15 +2297,8 @@ export default {
   }
 
   .form-inline-grid,
-  .mobile-card-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .character-name {
-    font-size: 28px;
-  }
-
-  .card-stats {
+  .mobile-card-grid,
+  .spotlight-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1936,14 +2316,6 @@ export default {
 
   .page-title {
     font-size: 24px;
-  }
-
-  .filter-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .dialog-mask {
-    padding: 10px;
   }
 }
 </style>
