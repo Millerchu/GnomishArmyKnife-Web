@@ -57,7 +57,7 @@
                 <span>装等</span>
                 <strong>{{ formatDecimal(item.itemLevel) }}</strong>
               </div>
-              <div class="card-stat">
+              <div class="card-stat score-stat" @dblclick="showFeaturedScorePopover($event, item)">
                 <span>M+ 总分</span>
                 <strong>{{ formatScore(item.mythicScore) }}</strong>
               </div>
@@ -544,6 +544,25 @@
         </form>
       </div>
     </div>
+
+    <div
+      v-if="activeFeaturedScoreItem"
+      class="score-popover floating-score-popover"
+      :style="featuredScorePopoverStyle"
+      @mouseleave="hideFeaturedScorePopover"
+    >
+      <div class="score-popover-title">单本分数</div>
+      <div class="score-popover-list">
+        <div
+          v-for="run in buildFeaturedScoreDetails(activeFeaturedScoreItem)"
+          :key="`${activeFeaturedScoreItem.id}-${run.dungeonName}`"
+          class="score-popover-row"
+        >
+          <span>{{ run.dungeonLabel }}</span>
+          <strong>{{ formatScore(run.score) }}</strong>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -768,6 +787,7 @@ export default {
     const total = ref(0)
     const pagedRecords = ref([])
     const featuredCharacters = ref([])
+    const activeFeaturedScoreItem = ref(null)
     const factionStats = ref([])
     const classStats = ref([])
     const realmStats = ref([])
@@ -815,8 +835,16 @@ export default {
       highestMythicScore: 0,
       averageItemLevel: 0
     })
+    const featuredScorePopoverPosition = reactive({
+      left: 0,
+      top: 0
+    })
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
+    const featuredScorePopoverStyle = computed(() => ({
+      left: `${featuredScorePopoverPosition.left}px`,
+      top: `${featuredScorePopoverPosition.top}px`
+    }))
     const pageSizeOptions = PAGE_SIZE_OPTIONS
     const classMetaMap = computed(() => classOptions.value.reduce((result, item) => {
       const style = WOW_CLASS_RULES[item.itemCode]?.style || {color: '#64748b', textColor: '#ffffff'}
@@ -958,6 +986,7 @@ export default {
       overview.highestMythicScore = 0
       overview.averageItemLevel = 0
       featuredCharacters.value = []
+      activeFeaturedScoreItem.value = null
       factionStats.value = []
       classStats.value = []
       realmStats.value = []
@@ -971,6 +1000,7 @@ export default {
       overview.highestMythicScore = nextOverview.highestMythicScore
       overview.averageItemLevel = nextOverview.averageItemLevel
       featuredCharacters.value = nextOverview.featuredCharacters
+      activeFeaturedScoreItem.value = null
       factionStats.value = nextOverview.factionStats
       classStats.value = nextOverview.classStats
       realmStats.value = nextOverview.realmStats
@@ -1272,6 +1302,35 @@ export default {
       return `${latest.weekStartDate || '未设日期'} · ${unlocked}/9`
     }
     const buildAvatarText = (name) => `${name || '角'}`.slice(0, 2)
+    const buildFeaturedScoreDetails = (item) => Array.isArray(item?.mythicRuns)
+      ? item.mythicRuns.map((run) => ({
+        dungeonName: run.dungeonName,
+        dungeonLabel: getOptionLabel(mythicDungeonOptions.value, run.dungeonName, run.dungeonName || '-'),
+        score: toNumber(run.score, 0)
+      }))
+      : []
+    const showFeaturedScorePopover = (event, item) => {
+      if (activeFeaturedScoreItem.value?.id === item.id) {
+        activeFeaturedScoreItem.value = null
+        return
+      }
+      const popoverWidth = 240
+      const popoverHeight = 320
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+      featuredScorePopoverPosition.left = Math.min(
+        Math.max(12, event.clientX + 12),
+        Math.max(12, viewportWidth - popoverWidth - 12)
+      )
+      featuredScorePopoverPosition.top = Math.min(
+        Math.max(12, event.clientY + 12),
+        Math.max(12, viewportHeight - popoverHeight - 12)
+      )
+      activeFeaturedScoreItem.value = item
+    }
+    const hideFeaturedScorePopover = () => {
+      activeFeaturedScoreItem.value = null
+    }
     const getClassMeta = (className) => getClassMetaByName(classMetaMap.value, className)
 
     const buildCardStyle = (item) => {
@@ -1404,6 +1463,8 @@ export default {
       total,
       pagedRecords,
       featuredCharacters,
+      activeFeaturedScoreItem,
+      featuredScorePopoverStyle,
       factionStats,
       classStats,
       realmStats,
@@ -1453,6 +1514,9 @@ export default {
       formatLatestVaultText,
       formatProfessionText,
       buildAvatarText,
+      buildFeaturedScoreDetails,
+      showFeaturedScorePopover,
+      hideFeaturedScorePopover,
       getClassMeta,
       buildCardStyle,
       buildAvatarStyle,
@@ -1721,10 +1785,62 @@ export default {
 }
 
 .card-stat {
+  position: relative;
   padding: 10px 12px;
   border-radius: 14px;
   background: rgba(4, 14, 28, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.score-stat {
+  cursor: pointer;
+}
+
+.score-popover {
+  width: 220px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, rgba(5, 18, 33, 0.96), rgba(15, 40, 66, 0.94));
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+}
+
+.floating-score-popover {
+  position: fixed;
+  z-index: 60;
+  width: 240px;
+}
+
+.score-popover-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #d7f0ff;
+}
+
+.score-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.score-popover-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.score-popover-row:last-child {
+  border-bottom: none;
+}
+
+.score-popover-row strong {
+  color: #ffd76e;
+  font-size: 13px;
 }
 
 .card-stat span,
