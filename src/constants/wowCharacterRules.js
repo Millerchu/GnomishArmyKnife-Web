@@ -119,7 +119,7 @@ export const WOW_SPEC_PRESETS = [
   {itemCode: 'blood_death_knight', itemLabel: '鲜血', itemValue: 'blood_death_knight', sortNo: 1, classCode: 'death_knight'},
   {itemCode: 'frost_death_knight', itemLabel: '冰霜', itemValue: 'frost_death_knight', sortNo: 2, classCode: 'death_knight'},
   {itemCode: 'unholy_death_knight', itemLabel: '邪恶', itemValue: 'unholy_death_knight', sortNo: 3, classCode: 'death_knight'},
-  {itemCode: 'devourer', itemLabel: 'Devourer', itemValue: 'devourer', sortNo: 4, classCode: 'demon_hunter'},
+  {itemCode: 'devourer', itemLabel: '噬灭', itemValue: 'devourer', sortNo: 4, classCode: 'demon_hunter'},
   {itemCode: 'havoc', itemLabel: '浩劫', itemValue: 'havoc', sortNo: 5, classCode: 'demon_hunter'},
   {itemCode: 'vengeance', itemLabel: '复仇', itemValue: 'vengeance', sortNo: 6, classCode: 'demon_hunter'},
   {itemCode: 'balance', itemLabel: '平衡', itemValue: 'balance', sortNo: 7, classCode: 'druid'},

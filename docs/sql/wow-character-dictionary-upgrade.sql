@@ -89,7 +89,7 @@ insert into seed_wow_dictionary_items (
   (6019001, 'WOW_CLASS_SPEC', 'blood_death_knight', '鲜血', 'blood_death_knight', 1, 'ENABLED', true, 'WoW 职业专精', '{"classCode":"death_knight"}'),
   (6019002, 'WOW_CLASS_SPEC', 'frost_death_knight', '冰霜', 'frost_death_knight', 2, 'ENABLED', false, 'WoW 职业专精', '{"classCode":"death_knight"}'),
   (6019003, 'WOW_CLASS_SPEC', 'unholy_death_knight', '邪恶', 'unholy_death_knight', 3, 'ENABLED', false, 'WoW 职业专精', '{"classCode":"death_knight"}'),
-  (6019004, 'WOW_CLASS_SPEC', 'devourer', 'Devourer', 'devourer', 4, 'ENABLED', false, 'WoW 职业专精', '{"classCode":"demon_hunter"}'),
+  (6019004, 'WOW_CLASS_SPEC', 'devourer', '噬灭', 'devourer', 4, 'ENABLED', false, 'WoW 职业专精', '{"classCode":"demon_hunter"}'),
   (6019005, 'WOW_CLASS_SPEC', 'havoc', '浩劫', 'havoc', 5, 'ENABLED', false, 'WoW 职业专精', '{"classCode":"demon_hunter"}'),
   (6019006, 'WOW_CLASS_SPEC', 'vengeance', '复仇', 'vengeance', 6, 'ENABLED', false, 'WoW 职业专精', '{"classCode":"demon_hunter"}'),
   (6019007, 'WOW_CLASS_SPEC', 'balance', '平衡', 'balance', 7, 'ENABLED', false, 'WoW 职业专精', '{"classCode":"druid"}'),
