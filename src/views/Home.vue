@@ -66,7 +66,15 @@
             <h1 class="home-title">侏儒军刀</h1>
             <p class="home-subtitle">{{ permissionHintText }}</p>
           </div>
-          <span class="app-count">{{ appPermissionStatusText }}</span>
+          <span class="app-count" :class="permissionBadgeClass">{{ appPermissionStatusText }}</span>
+        </div>
+
+        <div v-if="surfaceNotice.message" ref="surfaceNoticeRef" class="surface-notice" :class="surfaceNotice.type">
+          <div>
+            <strong>{{ surfaceNotice.title }}</strong>
+            <p>{{ surfaceNotice.message }}</p>
+          </div>
+          <button type="button" class="notice-close" @click="clearSurfaceNotice">关闭</button>
         </div>
 
         <div v-if="appPermissionLoading" class="home-state">
@@ -111,10 +119,26 @@
           </button>
         </div>
         <div v-else class="home-state">
-          当前账号暂无可见应用，请先在权限管理中完成授权。
+          {{ appPermissionSource === 'unavailable'
+            ? '应用权限接口当前不可用，请先恢复后端权限服务。'
+            : '当前账号暂无可见应用，请先在权限管理中完成授权。' }}
         </div>
       </section>
     </main>
+
+    <div v-if="logoutPending" class="confirm-mask" @click.self="cancelLogoutRequest">
+      <div ref="logoutDialogRef" class="confirm-dialog">
+        <div class="confirm-head">
+          <strong>确认退出当前账号？</strong>
+          <button type="button" class="notice-close" @click="cancelLogoutRequest">关闭</button>
+        </div>
+        <p class="confirm-copy">退出后会返回登录页，本地登录态会被清理。</p>
+        <div class="notice-actions">
+          <button type="button" class="ghost-btn" @click="cancelLogoutRequest">取消</button>
+          <button type="button" class="action-btn" @click="confirmLogout">确认退出</button>
+        </div>
+      </div>
+    </div>
 
     <div v-if="showUserDialog" class="dialog-mask" @click.self="closeUserDialog">
       <div class="user-dialog">
@@ -229,9 +253,10 @@ import AppIconImage from '@/components/AppIconImage.vue'
 import {getCurrentUserAccessibleApps} from '@/api/permission'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
-import {mergeAppCatalogList, normalizeSystemApp, resolveAppCatalogList} from '@/utils/appCatalogDraft'
+import {buildDefaultAppCatalog, mergeAppCatalogList, normalizeSystemApp} from '@/utils/appCatalogDraft'
+import {clearAuthState, readAuthState, writeAuthState} from '@/utils/authStorage'
+import {resolvePermissionViewState} from '@/utils/permissionAccess'
 import {encryptPasswordByPublicKey} from '@/utils/rsaEncrypt'
-import {readPermissionDraftMap} from '@/utils/permissionDraft'
 
 const WEEK_LABELS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
 const APP_COLOR_PALETTE = [
@@ -334,29 +359,6 @@ function isSystemMenuOnlyRoute(route = '') {
   ].includes(normalized)
 }
 
-function extractAccessibleFeatureCodes(payload) {
-  if (!payload) {
-    return []
-  }
-  if (Array.isArray(payload)) {
-    return Array.from(new Set(payload
-      .map((item) => (typeof item === 'string' ? item : item?.featureCode || item?.code || item?.appCode))
-      .filter(Boolean)))
-  }
-
-  const rawCodes = payload.featureCodes || payload.grantedFeatureCodes || payload.appCodes || payload.grantedAppCodes
-  if (Array.isArray(rawCodes)) {
-    return Array.from(new Set(rawCodes.filter(Boolean)))
-  }
-
-  const rawApps = payload.apps || payload.list || payload.items || []
-  if (Array.isArray(rawApps)) {
-    return Array.from(new Set(rawApps.map((item) => item?.featureCode || item?.code || item?.appCode).filter(Boolean)))
-  }
-
-  return []
-}
-
 function extractAccessibleApps(payload) {
   if (!payload) {
     return []
@@ -413,13 +415,17 @@ function persistCustomOrder(order) {
   localStorage.setItem(TOOL_CUSTOM_ORDER_STORAGE_KEY, JSON.stringify(order))
 }
 
+function buildNotice(type = '', title = '', message = '') {
+  return {type, title, message}
+}
+
 export default {
   components: {
     AppIconImage
   },
   setup() {
     const router = useRouter()
-    const user = ref(normalizeCurrentUser(JSON.parse(localStorage.getItem('user') || '{}')))
+    const user = ref(normalizeCurrentUser(readAuthState(localStorage).user || {}))
     const currentTime = ref(new Date())
 
     const showUserDialog = ref(false)
@@ -427,17 +433,22 @@ export default {
     const activeDialogTab = ref('profile')
     const dialogLoading = ref(false)
     const appPermissionLoading = ref(false)
-    const accessibleFeatureCodes = ref(null)
-    const appPermissionSource = ref('catalog')
-    const toolCatalog = ref(resolveAppCatalogList())
+    const accessibleFeatureCodes = ref([])
+    const appPermissionSource = ref('unavailable')
+    const surfaceNotice = reactive(buildNotice())
+    const toolCatalog = ref(buildDefaultAppCatalog())
     const toolUsageMap = ref(readUsageMap())
     const customToolOrder = ref(readCustomOrder())
     const draggingToolKey = ref('')
     const dragOverToolKey = ref('')
     const suppressNextToolOpen = ref(false)
     const systemMenuRef = ref(null)
+    const surfaceNoticeRef = ref(null)
+    const logoutDialogRef = ref(null)
     const easterEggClickCount = ref(0)
+    const logoutPending = ref(false)
     let easterEggTimer = null
+    let surfaceNoticeTimer = null
 
     // 顶部个人中心的资料与密码修改共用一个弹框，按 tab 切换表单。
     const profileForm = reactive({
@@ -464,19 +475,37 @@ export default {
       if (appPermissionSource.value === 'backend') {
         return `已授权 ${tools.value.length} 个应用`
       }
-      if (appPermissionSource.value === 'draft') {
-        return `草稿权限 ${tools.value.length} 个应用`
+      if (appPermissionSource.value === 'admin-fallback') {
+        return `管理员兜底 ${tools.value.length} 个应用`
       }
-      return `应用总数 ${tools.value.length}`
+      if (appPermissionSource.value === 'unavailable') {
+        return '权限不可用'
+      }
+      return `已授权 ${tools.value.length} 个应用`
     })
     const permissionHintText = computed(() => {
       if (appPermissionSource.value === 'backend') {
         return '主页已优先按当前用户授权显示应用入口，桌面排序仍支持使用频率与拖拽自定义。'
       }
-      if (appPermissionSource.value === 'draft') {
-        return '主页当前按本地权限草稿显示应用入口，待后端接口接通后将自动切换为真实授权。'
+      if (appPermissionSource.value === 'admin-fallback') {
+        return '当前账号尚未写入正式授权，主页按管理员兜底目录展示。建议尽快在权限管理中补齐授权。'
       }
-      return '主页会优先读取当前用户应用权限；在权限接口未接通前，默认展示应用目录并支持桌面排序。'
+      if (appPermissionSource.value === 'unavailable') {
+        return '当前无法读取应用权限，主页已停止使用本地草稿回退，请恢复权限接口后再访问应用入口。'
+      }
+      return '主页已优先按当前用户授权显示应用入口。'
+    })
+    const permissionBadgeClass = computed(() => {
+      if (appPermissionSource.value === 'backend') {
+        return 'is-success'
+      }
+      if (appPermissionSource.value === 'admin-fallback') {
+        return 'is-warning'
+      }
+      if (appPermissionSource.value === 'unavailable') {
+        return 'is-error'
+      }
+      return 'is-neutral'
     })
 
     const systemMenus = [
@@ -547,7 +576,36 @@ export default {
         ...(user.value || {}),
         ...nextUserPatch
       })
-      localStorage.setItem('user', JSON.stringify(user.value))
+      writeAuthState(localStorage, {
+        token: readAuthState(localStorage).token,
+        user: user.value
+      })
+    }
+
+    const showSurfaceNotice = (type, title, message) => {
+      if (surfaceNoticeTimer) {
+        clearTimeout(surfaceNoticeTimer)
+        surfaceNoticeTimer = null
+      }
+      logoutPending.value = false
+      surfaceNotice.type = type
+      surfaceNotice.title = title
+      surfaceNotice.message = message
+      if (type !== 'error') {
+        surfaceNoticeTimer = setTimeout(() => {
+          clearSurfaceNotice()
+        }, 3200)
+      }
+    }
+
+    const clearSurfaceNotice = () => {
+      if (surfaceNoticeTimer) {
+        clearTimeout(surfaceNoticeTimer)
+        surfaceNoticeTimer = null
+      }
+      surfaceNotice.type = ''
+      surfaceNotice.title = ''
+      surfaceNotice.message = ''
     }
 
     const loadCurrentUserProfile = async () => {
@@ -576,6 +634,7 @@ export default {
       }
       persistUser(profile)
       syncProfileForm()
+      clearSurfaceNotice()
     }
 
     const loadCurrentUserAccessibleApps = async () => {
@@ -583,40 +642,41 @@ export default {
       try {
         const res = await getCurrentUserAccessibleApps()
         const payload = unwrapData(res)
-        accessibleFeatureCodes.value = extractAccessibleFeatureCodes(payload)
+        const permissionState = resolvePermissionViewState(payload)
+        accessibleFeatureCodes.value = permissionState.accessibleFeatureCodes
         const accessibleApps = extractAccessibleApps(payload)
         toolCatalog.value = accessibleApps.length
-          ? mergeAppCatalogList(resolveAppCatalogList(), accessibleApps)
-          : resolveAppCatalogList()
-        appPermissionSource.value = 'backend'
+          ? mergeAppCatalogList(buildDefaultAppCatalog(), accessibleApps)
+          : buildDefaultAppCatalog()
+        appPermissionSource.value = permissionState.appPermissionSource
       } catch (error) {
-        const currentUser = normalizeCurrentUser(user.value || {})
-        const draftMap = readPermissionDraftMap()
-        const draftUserId = currentUser.id !== null && currentUser.id !== undefined ? `${currentUser.id}` : ''
-        if (draftUserId && Object.prototype.hasOwnProperty.call(draftMap, draftUserId)) {
-          accessibleFeatureCodes.value = draftMap[draftUserId]
-          appPermissionSource.value = 'draft'
-        } else {
-          accessibleFeatureCodes.value = null
-          appPermissionSource.value = 'catalog'
-        }
-        toolCatalog.value = resolveAppCatalogList()
+        const permissionState = resolvePermissionViewState(null, error)
+        accessibleFeatureCodes.value = permissionState.accessibleFeatureCodes
+        appPermissionSource.value = permissionState.appPermissionSource
+        toolCatalog.value = buildDefaultAppCatalog()
       } finally {
         appPermissionLoading.value = false
       }
     }
 
     const logout = () => {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      sessionStorage.removeItem('currentUserPlainPassword')
+      clearAuthState(localStorage)
       router.push('/login')
     }
 
     const requestLogout = () => {
-      if (!window.confirm('确定要退出登录吗？')) {
-        return
+      clearSurfaceNotice()
+      if (window.confirm('确定要退出登录吗？')) {
+        logout()
       }
+    }
+
+    const cancelLogoutRequest = () => {
+      logoutPending.value = false
+    }
+
+    const confirmLogout = () => {
+      logoutPending.value = false
       logout()
     }
 
@@ -678,7 +738,7 @@ export default {
         requestLogout()
         return
       }
-      alert(`菜单【${menu.name}】待接入具体功能`)
+      showSurfaceNotice('info', '菜单待接入', `菜单【${menu.name}】已登记，后续会在系统管理能力中继续接入。`)
     }
 
     const closeSystemMenu = () => {
@@ -695,13 +755,26 @@ export default {
     }
 
     const handleDocumentClick = (event) => {
-      if (!showSystemMenu.value) {
-        return
-      }
       const container = systemMenuRef.value
-      if (container && !container.contains(event.target)) {
+      const notice = surfaceNoticeRef.value
+      const logoutDialog = logoutDialogRef.value
+      if (showSystemMenu.value && container && !container.contains(event.target)) {
         closeSystemMenu()
       }
+      if (logoutPending.value && logoutDialog && !logoutDialog.contains(event.target)) {
+        cancelLogoutRequest()
+      }
+    }
+
+    const handleEscapeKey = (event) => {
+      if (event.key !== 'Escape') {
+        return
+      }
+      if (logoutPending.value) {
+        cancelLogoutRequest()
+      }
+      clearSurfaceNotice()
+      closeSystemMenu()
     }
 
     const openTool = (tool) => {
@@ -714,7 +787,7 @@ export default {
         router.push(tool.route)
         return
       }
-      alert(`应用【${tool.name}】已登记，后续在权限管理中维护权限和接入能力`)
+      showSurfaceNotice('info', '应用暂未开放', `应用【${tool.name}】已登记，后续会在权限管理中维护入口与接入能力。`)
     }
 
     // 拖拽排序只调整展示顺序，不直接修改使用频率，避免两个规则互相污染。
@@ -778,6 +851,7 @@ export default {
         await loadCurrentUserProfile()
       } catch (error) {
         console.warn('加载当前用户资料失败，继续使用本地缓存数据', error)
+        showSurfaceNotice('warning', '资料同步失败', '个人中心暂时无法刷新最新资料，当前先展示本地登录信息。')
       } finally {
         dialogLoading.value = false
       }
@@ -826,11 +900,11 @@ export default {
           phone: savedUser.phone || profileForm.phone,
           email: savedUser.email || profileForm.email
         })
-        alert('个人信息已更新')
+        showSurfaceNotice('success', '资料已更新', '个人中心资料已经写回后端并同步到当前登录态。')
         showUserDialog.value = false
       } catch (error) {
         console.error(error)
-        alert(extractErrorMessage(error, '更新失败，请稍后重试'))
+        showSurfaceNotice('error', '资料更新失败', extractErrorMessage(error, '更新失败，请稍后重试'))
       } finally {
         dialogLoading.value = false
       }
@@ -838,22 +912,22 @@ export default {
 
     const submitPassword = async () => {
       if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-        alert('请完整填写密码信息')
+        showSurfaceNotice('warning', '密码信息不完整', '请完整填写当前密码、新密码和确认密码。')
         return
       }
 
       if (passwordForm.newPassword.length < 6) {
-        alert('新密码长度不能少于 6 位')
+        showSurfaceNotice('warning', '新密码过短', '新密码长度不能少于 6 位。')
         return
       }
 
       if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-        alert('两次输入的新密码不一致')
+        showSurfaceNotice('warning', '两次输入不一致', '请确认两次输入的新密码保持一致。')
         return
       }
 
       if (passwordForm.oldPassword === passwordForm.newPassword) {
-        alert('新密码不能与当前密码相同')
+        showSurfaceNotice('warning', '密码未变化', '新密码不能与当前密码相同。')
         return
       }
 
@@ -880,11 +954,14 @@ export default {
           newEncryptedPassword
         })
 
-        alert('密码修改成功，请重新登录')
-        logout()
+        showUserDialog.value = false
+        showSurfaceNotice('success', '密码修改成功', '当前账号即将退出，请使用新密码重新登录。')
+        window.setTimeout(() => {
+          logout()
+        }, 800)
       } catch (error) {
         console.error(error)
-        alert(extractErrorMessage(error, '密码修改失败，请稍后重试'))
+        showSurfaceNotice('error', '密码修改失败', extractErrorMessage(error, '密码修改失败，请稍后重试'))
       } finally {
         dialogLoading.value = false
       }
@@ -895,6 +972,7 @@ export default {
         currentTime.value = new Date()
       }, 60 * 1000)
       document.addEventListener('click', handleDocumentClick)
+      document.addEventListener('keydown', handleEscapeKey)
       loadCurrentUserAccessibleApps()
     })
 
@@ -902,19 +980,26 @@ export default {
       if (timer) {
         clearInterval(timer)
       }
+      if (surfaceNoticeTimer) {
+        clearTimeout(surfaceNoticeTimer)
+      }
       resetEasterEggProgress()
       document.removeEventListener('click', handleDocumentClick)
+      document.removeEventListener('keydown', handleEscapeKey)
     })
 
     return {
       user,
       showSystemMenu,
       systemMenuRef,
+      surfaceNoticeRef,
+      logoutDialogRef,
       currentDateText,
       currentUserRole,
       appPermissionLoading,
       appPermissionStatusText,
       permissionHintText,
+      permissionBadgeClass,
       getPresetIconSvg,
       systemMenus,
       visibleSystemMenus,
@@ -927,8 +1012,13 @@ export default {
       dialogLoading,
       profileForm,
       passwordForm,
+      surfaceNotice,
+      logoutPending,
       logout,
       requestLogout,
+      cancelLogoutRequest,
+      confirmLogout,
+      clearSurfaceNotice,
       goToStarInteractive,
       handleEasterEggTrigger,
       onSystemMenuClick,
@@ -1172,6 +1262,115 @@ export default {
   border-radius: 999px;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.app-count.is-success,
+.surface-notice.success {
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.22);
+}
+
+.app-count.is-warning,
+.surface-notice.warning {
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.28);
+}
+
+.app-count.is-error,
+.surface-notice.error {
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.26);
+}
+
+.surface-notice {
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, rgba(13, 30, 52, 0.8), rgba(10, 24, 42, 0.72));
+  margin-bottom: 18px;
+}
+
+.surface-notice p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.surface-notice strong {
+  font-size: 16px;
+}
+
+.surface-notice p,
+.surface-notice strong {
+  margin: 0;
+}
+
+.surface-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.surface-notice.success {
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.surface-notice.warning {
+  border-color: rgba(245, 158, 11, 0.26);
+}
+
+.surface-notice.error {
+  border-color: rgba(248, 113, 113, 0.24);
+}
+
+.confirm-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.confirm-dialog {
+  width: min(420px, 100%);
+  border-radius: 18px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(135deg, rgba(13, 30, 52, 0.94), rgba(11, 25, 42, 0.92));
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(18px);
+}
+
+.confirm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.confirm-head strong,
+.confirm-copy {
+  margin: 0;
+}
+
+.confirm-copy {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.notice-close {
+  border: none;
+  min-width: 64px;
+  height: 34px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #fff;
   background: rgba(255, 255, 255, 0.14);
 }
 
@@ -1444,6 +1643,11 @@ export default {
   }
 
   .panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .surface-notice {
     flex-direction: column;
     align-items: flex-start;
   }

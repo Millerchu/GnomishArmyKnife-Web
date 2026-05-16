@@ -71,7 +71,6 @@
           </div>
           <div class="toolbar-right">
             <span>共 {{ total }} 条</span>
-            <span v-if="usingLocalData" class="mock-tip">当前为演示数据（后端未联通）</span>
           </div>
         </div>
 
@@ -406,8 +405,6 @@ import {
   updateSoftwareVersion
 } from '@/api/softwareRepo'
 
-// 软件仓库默认走本地数据，便于先验证上传、版本管理和本地下载优先策略。
-const LOCAL_SOFTWARE_KEY = 'software_repo_packages'
 const PAGE_SIZE_OPTIONS = [6, 10, 16]
 const PLATFORM_OPTIONS = [
   {value: 'WINDOWS', label: 'Windows'},
@@ -515,34 +512,6 @@ function normalizePackage(item = {}) {
   }
 }
 
-function loadLocalPackages() {
-  try {
-    const raw = localStorage.getItem(LOCAL_SOFTWARE_KEY)
-    if (!raw) {
-      localStorage.setItem(LOCAL_SOFTWARE_KEY, JSON.stringify(DEFAULT_PACKAGES))
-      return DEFAULT_PACKAGES.map((item) => normalizePackage(item))
-    }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return DEFAULT_PACKAGES.map((item) => normalizePackage(item))
-    }
-    return parsed.map((item) => {
-      const nextItem = normalizePackage(item)
-      nextItem.versions = nextItem.versions.map((version) => ({
-        ...version,
-        localFileUrl: `${version.localFileUrl || ''}`.startsWith('blob:') ? '' : version.localFileUrl
-      }))
-      return nextItem
-    })
-  } catch (error) {
-    return DEFAULT_PACKAGES.map((item) => normalizePackage(item))
-  }
-}
-
-function persistLocalPackages(list) {
-  localStorage.setItem(LOCAL_SOFTWARE_KEY, JSON.stringify(list))
-}
-
 // 版本先按推荐标记，再按发布日期排序，保证用户优先看到可下载安装的主版本。
 function sortVersions(list = []) {
   return [...list].sort((prev, next) => Number(next.isRecommended) - Number(prev.isRecommended) || `${next.releaseDate}-${next.versionName}`.localeCompare(`${prev.releaseDate}-${prev.versionName}`))
@@ -589,7 +558,6 @@ export default {
     // 页面状态包含仓库列表、概览统计、软件弹窗、版本弹窗和上传临时文件引用。
     const loading = ref(false)
     const submitting = ref(false)
-    const usingLocalData = ref(false)
     const total = ref(0)
     const allPackages = ref([])
     const pagedPackages = ref([])
@@ -687,26 +655,6 @@ export default {
       return text.includes(keyword)
     }
 
-    const applyLocalFilterAndPaging = () => {
-      const filtered = sortPackages(allPackages.value.filter((item) => matchesFilters(item)))
-      total.value = filtered.length
-      const safePageNo = Math.min(query.pageNo, Math.max(1, Math.ceil(filtered.length / query.pageSize) || 1))
-      query.pageNo = safePageNo
-      const startIndex = (safePageNo - 1) * query.pageSize
-      pagedPackages.value = filtered.slice(startIndex, startIndex + query.pageSize)
-      applySummary(filtered)
-    }
-
-    const syncLocalPackages = (records) => {
-      const nextRecords = sortPackages(records.map((item) => ({
-        ...normalizePackage(item),
-        versions: sortVersions(normalizePackage(item).versions)
-      })))
-      allPackages.value = nextRecords
-      persistLocalPackages(nextRecords)
-      applyLocalFilterAndPaging()
-    }
-
     const loadPackages = async () => {
       loading.value = true
       try {
@@ -729,7 +677,6 @@ export default {
         allPackages.value = normalized
         pagedPackages.value = normalized
         total.value = Number(payload.total ?? payload.count ?? normalized.length)
-        usingLocalData.value = false
 
         try {
           const summaryRes = await getSoftwareRepoSummary({
@@ -747,9 +694,11 @@ export default {
           applySummary(normalized)
         }
       } catch (error) {
-        allPackages.value = sortPackages(loadLocalPackages())
-        usingLocalData.value = true
-        applyLocalFilterAndPaging()
+        allPackages.value = []
+        pagedPackages.value = []
+        total.value = 0
+        applySummary([])
+        alert('软件仓库列表加载失败，请检查后端服务后重试')
       } finally {
         loading.value = false
       }
@@ -941,29 +890,7 @@ export default {
         resetSoftwareForm()
         await loadPackages()
       } catch (error) {
-        if (softwareDialogMode.value === 'create') {
-          syncLocalPackages([
-            normalizePackage({
-              ...payload,
-              id: `software-${Date.now()}`,
-              versions: []
-            }),
-            ...loadLocalPackages()
-          ])
-        } else {
-          syncLocalPackages(loadLocalPackages().map((item) => (
-            item.id === editingSoftwareId.value
-              ? normalizePackage({
-                ...item,
-                ...payload,
-                versions: item.versions
-              })
-              : item
-          )))
-        }
-        usingLocalData.value = true
-        showSoftwareDialog.value = false
-        resetSoftwareForm()
+        alert(softwareDialogMode.value === 'create' ? '新增软件失败，请稍后重试' : '更新软件失败，请稍后重试')
       } finally {
         submitting.value = false
       }
@@ -990,38 +917,7 @@ export default {
         resetVersionForm()
         await loadPackages()
       } catch (error) {
-        const localPackages = loadLocalPackages()
-        const nextPackages = localPackages.map((item) => {
-          if (item.id !== activeVersionPackageId.value) {
-            return item
-          }
-          const nextVersions = item.versions.map((version) => buildVersionEntry(version))
-          const normalizedPayload = buildVersionEntry({
-            ...payload,
-            id: versionDialogMode.value === 'create' ? `version-${Date.now()}` : editingVersionId.value
-          })
-          if (normalizedPayload.isRecommended) {
-            nextVersions.forEach((version) => {
-              version.isRecommended = false
-            })
-          }
-          if (versionDialogMode.value === 'create') {
-            nextVersions.push(normalizedPayload)
-          } else {
-            const versionIndex = nextVersions.findIndex((version) => version.id === editingVersionId.value)
-            if (versionIndex >= 0) {
-              nextVersions.splice(versionIndex, 1, normalizedPayload)
-            }
-          }
-          return {
-            ...item,
-            versions: sortVersions(nextVersions)
-          }
-        })
-        syncLocalPackages(nextPackages)
-        usingLocalData.value = true
-        showVersionDialog.value = false
-        resetVersionForm()
+        alert(versionDialogMode.value === 'create' ? '新增版本失败，请稍后重试' : '更新版本失败，请稍后重试')
       } finally {
         submitting.value = false
       }
@@ -1035,8 +931,7 @@ export default {
         await deleteSoftwarePackage(item.id)
         await loadPackages()
       } catch (error) {
-        syncLocalPackages(loadLocalPackages().filter((record) => record.id !== item.id))
-        usingLocalData.value = true
+        alert('删除软件失败，请稍后重试')
       }
     }
 
@@ -1048,16 +943,7 @@ export default {
         await deleteSoftwareVersion(version.id)
         await loadPackages()
       } catch (error) {
-        const nextPackages = loadLocalPackages().map((record) => (
-          record.id === item.id
-            ? {
-              ...record,
-              versions: record.versions.filter((currentVersion) => currentVersion.id !== version.id)
-            }
-            : record
-        ))
-        syncLocalPackages(nextPackages)
-        usingLocalData.value = true
+        alert('删除版本失败，请稍后重试')
       }
     }
 
@@ -1145,7 +1031,6 @@ export default {
     return {
       loading,
       submitting,
-      usingLocalData,
       total,
       pagedPackages,
       expandedPackageIds,

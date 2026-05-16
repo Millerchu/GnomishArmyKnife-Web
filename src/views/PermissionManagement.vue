@@ -11,7 +11,7 @@
       <div>
         <h1 class="page-title">权限管理</h1>
         <p class="page-subtitle">
-          以“用户 - 应用授权”为核心设计。当前重点控制每个用户可进入哪些应用；应用管理已接入前端，系统日志继续预留。
+          以“用户 - 应用授权”为核心设计。当前页面只认后端真实数据，不再使用本地草稿回退。
         </p>
       </div>
       <div class="hero-tags">
@@ -20,6 +20,32 @@
         <span class="hero-tag">已授权 {{ grantedCount }} 项</span>
         <span class="hero-tag">{{ permissionSourceLabel }}</span>
       </div>
+    </div>
+
+    <section class="status-ribbon">
+      <article class="status-card" :class="statusToneClass(catalogSource)">
+        <span>应用目录</span>
+        <strong>{{ catalogSourceLabel }}</strong>
+        <p>{{ catalogHintText }}</p>
+      </article>
+      <article class="status-card" :class="statusToneClass(userSource)">
+        <span>用户清单</span>
+        <strong>{{ userSourceLabel }}</strong>
+        <p>{{ userHintText }}</p>
+      </article>
+      <article class="status-card" :class="statusToneClass(permissionSource)">
+        <span>当前授权</span>
+        <strong>{{ permissionSourceLabel }}</strong>
+        <p>{{ permissionHintText }}</p>
+      </article>
+    </section>
+
+    <div v-if="pageNotice.message" class="page-notice" :class="pageNotice.type">
+      <div>
+        <strong>{{ pageNotice.title }}</strong>
+        <p>{{ pageNotice.message }}</p>
+      </div>
+      <button type="button" class="notice-close" @click="clearPageNotice">关闭</button>
     </div>
 
     <section class="filter-panel">
@@ -96,7 +122,9 @@
               </div>
             </button>
           </div>
-          <div v-else class="empty-state">暂无用户数据</div>
+          <div v-else class="empty-state">
+            {{ userSource === 'unavailable' ? '用户权限接口不可用，请先恢复后端服务。' : '暂无用户数据' }}
+          </div>
         </template>
 
         <div class="pager">
@@ -156,6 +184,9 @@
           </div>
 
           <div v-if="permissionLoading" class="empty-state">正在读取授权信息...</div>
+          <div v-else-if="!appCatalog.length" class="empty-state grant-empty">
+            {{ catalogSource === 'unavailable' ? '应用目录接口不可用，请先恢复后端服务。' : '当前没有可授权应用。' }}
+          </div>
           <div v-else class="app-grid">
             <article
               v-for="app in appCatalog"
@@ -243,6 +274,9 @@
             </span>
           </div>
           <div v-else class="subtle-empty">当前用户尚未分配应用权限</div>
+          <div v-if="selectedUserAdminFallbackHint" class="inline-note">
+            {{ selectedUserAdminFallbackHint }}
+          </div>
         </div>
 
         <div class="insight-block">
@@ -282,10 +316,8 @@
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
-import {listSystemApps} from '@/api/appManagement'
 import AppIconImage from '@/components/AppIconImage.vue'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
-import {listSystemUsers} from '@/api/systemUser'
 import {
   getUserAppPermissions,
   listPermissionApps,
@@ -296,11 +328,8 @@ import {
   APP_SECURITY_LEVEL_OPTIONS,
   RESERVED_SYSTEM_CAPABILITIES
 } from '@/constants/appCatalog'
-import {
-  getDraftFeatureCodesForUser,
-  saveDraftFeatureCodesForUser
-} from '@/utils/permissionDraft'
-import {mergeAppCatalogList, normalizeSystemApp, persistAppCatalogDraftList, resolveAppCatalogList} from '@/utils/appCatalogDraft'
+import {normalizeSystemApp} from '@/utils/appCatalogDraft'
+import {resolvePermissionViewState} from '@/utils/permissionAccess'
 
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 
@@ -358,6 +387,14 @@ function buildShortText(text) {
   return Array.from((text || '').replace(/\s+/g, '')).slice(0, 2).join('') || '应'
 }
 
+function buildNotice(type, title, message) {
+  return {
+    type,
+    title,
+    message
+  }
+}
+
 export default {
   name: 'PermissionManagement',
   components: {
@@ -366,15 +403,19 @@ export default {
   setup() {
     const router = useRouter()
 
+    const catalogLoading = ref(false)
     const userLoading = ref(false)
     const permissionLoading = ref(false)
     const saving = ref(false)
 
     const users = ref([])
-    const appCatalog = ref(resolveAppCatalogList().map((item, index) => normalizeSystemApp(item, index)))
+    const appCatalog = ref([])
     const selectedUserId = ref('')
     const selectedFeatureCodes = ref([])
-    const permissionSource = ref('draft')
+    const permissionSource = ref('unavailable')
+    const catalogSource = ref('loading')
+    const userSource = ref('loading')
+    const pageNotice = reactive(buildNotice('', '', ''))
 
     const filters = reactive({
       keyword: '',
@@ -398,7 +439,41 @@ export default {
     const confidentialGrantedCount = computed(() => (
       selectedGrantedApps.value.filter((item) => item.securityLevel === 'CONFIDENTIAL').length
     ))
-    const permissionSourceLabel = computed(() => permissionSource.value === 'backend' ? '真实接口' : '本地草稿')
+    const permissionSourceLabel = computed(() => {
+      if (permissionSource.value === 'backend') {
+        return '真实授权'
+      }
+      if (permissionSource.value === 'admin-fallback') {
+        return '管理员兜底'
+      }
+      if (permissionSource.value === 'loading') {
+        return '读取中'
+      }
+      return '接口不可用'
+    })
+    const catalogSourceLabel = computed(() => catalogSource.value === 'unavailable' ? '接口不可用' : (catalogLoading.value ? '读取中' : '系统应用目录'))
+    const userSourceLabel = computed(() => userSource.value === 'unavailable' ? '接口不可用' : (userLoading.value ? '读取中' : '权限用户接口'))
+    const catalogHintText = computed(() => catalogSource.value === 'unavailable'
+      ? '权限页不再回退本地应用目录，需恢复后端后才能授权。'
+      : '应用卡片直接来自系统应用目录，避免前后端各自维护一份。')
+    const userHintText = computed(() => userSource.value === 'unavailable'
+      ? '当前无法读取用户权限列表。'
+      : '左侧用户清单按权限接口分页返回。')
+    const permissionHintText = computed(() => {
+      if (permissionSource.value === 'admin-fallback') {
+        return '该状态只用于首页兜底提示，不代表授权表已真正写入。'
+      }
+      if (permissionSource.value === 'unavailable') {
+        return '当前用户授权读取失败，请先检查后端权限服务。'
+      }
+      return '应用授权保存为整包覆盖，页面展示与保存都以真实接口为准。'
+    })
+    const selectedUserAdminFallbackHint = computed(() => {
+      if (!selectedUser.value || selectedUser.value.roleCode !== 'ADMIN' || grantedCount.value > 0 || permissionSource.value === 'unavailable') {
+        return ''
+      }
+      return '管理员当前在主页可能还能看到兜底应用入口，但这不代表授权表已经落库。建议在此页完成正式授权。'
+    })
 
     const formatRoleText = (roleCode) => {
       if (roleCode === 'ADMIN') {
@@ -428,41 +503,47 @@ export default {
 
     const isGranted = (featureCode) => selectedFeatureCodes.value.includes(featureCode)
 
-    const applyLocalUserPermissionSummary = (list) => {
-      return list.map((item) => ({
-        ...item,
-        permissionCount: getDraftFeatureCodesForUser(item.id).length
-      }))
+    const showPageNotice = (type, title, message) => {
+      pageNotice.type = type
+      pageNotice.title = title
+      pageNotice.message = message
+    }
+
+    const clearPageNotice = () => {
+      pageNotice.type = ''
+      pageNotice.title = ''
+      pageNotice.message = ''
+    }
+
+    const statusToneClass = (source) => {
+      if (source === 'unavailable') {
+        return 'is-error'
+      }
+      if (source === 'admin-fallback') {
+        return 'is-warning'
+      }
+      if (source === 'loading') {
+        return 'is-neutral'
+      }
+      return 'is-success'
     }
 
     const loadAppCatalog = async () => {
+      catalogLoading.value = true
       try {
-        try {
-          const res = await listSystemApps({
-            pageNo: 1,
-            pageSize: 200
-          })
-          const payload = unwrapData(res) || {}
-          const {list} = parseListPayload(payload)
-          if (list.length) {
-            appCatalog.value = list.map((item, index) => normalizeSystemApp(item, index)).filter((item) => item.featureCode)
-            persistAppCatalogDraftList(mergeAppCatalogList(resolveAppCatalogList(), appCatalog.value))
-            return
-          }
-        } catch (appError) {}
-
         const res = await listPermissionApps()
         const payload = unwrapData(res) || {}
         const rawList = Array.isArray(payload) ? payload : (payload.list || payload.items || payload.apps || [])
-        if (Array.isArray(rawList) && rawList.length) {
-          appCatalog.value = rawList.map((item, index) => normalizeSystemApp(item, index)).filter((item) => item.featureCode)
-          persistAppCatalogDraftList(mergeAppCatalogList(resolveAppCatalogList(), appCatalog.value))
-          return
-        }
-
-        appCatalog.value = resolveAppCatalogList().map((item, index) => normalizeSystemApp(item, index))
+        appCatalog.value = Array.isArray(rawList)
+          ? rawList.map((item, index) => normalizeSystemApp(item, index)).filter((item) => item.featureCode)
+          : []
+        catalogSource.value = 'backend'
       } catch (error) {
-        appCatalog.value = resolveAppCatalogList().map((item, index) => normalizeSystemApp(item, index))
+        appCatalog.value = []
+        catalogSource.value = 'unavailable'
+        showPageNotice('error', '应用目录不可用', extractErrorMessage(error, '读取应用目录失败，请先恢复权限服务。'))
+      } finally {
+        catalogLoading.value = false
       }
     }
 
@@ -483,24 +564,18 @@ export default {
           params.roleCode = filters.roleCode
         }
 
-        try {
-          const res = await listPermissionUsers(params)
-          const payload = unwrapData(res) || {}
-          const {list, total} = parseListPayload(payload)
-          users.value = list.map((item) => normalizeUser(item)).filter((item) => item.id !== null && item.id !== undefined)
-          pagination.total = total
-        } catch (permissionError) {
-          const res = await listSystemUsers(params)
-          const payload = unwrapData(res) || {}
-          const {list, total} = parseListPayload(payload)
-          users.value = applyLocalUserPermissionSummary(
-            list.map((item) => normalizeUser(item)).filter((item) => item.id !== null && item.id !== undefined)
-          )
-          pagination.total = total
-        }
+        const res = await listPermissionUsers(params)
+        const payload = unwrapData(res) || {}
+        const {list, total} = parseListPayload(payload)
+        users.value = list.map((item) => normalizeUser(item)).filter((item) => item.id !== null && item.id !== undefined)
+        pagination.total = total
+        userSource.value = 'backend'
 
         if (!selectedUserId.value && users.value.length) {
           selectedUserId.value = `${users.value[0].id}`
+        }
+        if (selectedUserId.value && !users.value.some((item) => `${item.id}` === `${selectedUserId.value}`)) {
+          selectedUserId.value = users.value.length ? `${users.value[0].id}` : ''
         }
         if (selectedUserId.value) {
           await loadUserPermissions(selectedUserId.value)
@@ -510,7 +585,9 @@ export default {
         pagination.total = 0
         selectedUserId.value = ''
         selectedFeatureCodes.value = []
-        alert(extractErrorMessage(error, '加载权限用户列表失败'))
+        userSource.value = 'unavailable'
+        permissionSource.value = 'unavailable'
+        showPageNotice('error', '用户清单不可用', extractErrorMessage(error, '加载权限用户列表失败，请检查后端权限接口。'))
       } finally {
         userLoading.value = false
       }
@@ -519,7 +596,7 @@ export default {
     const loadUserPermissions = async (userId) => {
       if (!userId) {
         selectedFeatureCodes.value = []
-        permissionSource.value = 'draft'
+        permissionSource.value = 'loading'
         return
       }
 
@@ -527,16 +604,13 @@ export default {
       try {
         const res = await getUserAppPermissions(userId)
         const payload = unwrapData(res) || {}
-        const featureCodes = payload.grantedFeatureCodes
-          || payload.grantedAppCodes
-          || payload.featureCodes
-          || payload.appCodes
-          || []
-        selectedFeatureCodes.value = Array.isArray(featureCodes) ? Array.from(new Set(featureCodes.filter(Boolean))) : []
-        permissionSource.value = 'backend'
+        const permissionState = resolvePermissionViewState(payload)
+        selectedFeatureCodes.value = permissionState.accessibleFeatureCodes
+        permissionSource.value = permissionState.appPermissionSource
       } catch (error) {
-        selectedFeatureCodes.value = getDraftFeatureCodesForUser(userId)
-        permissionSource.value = 'draft'
+        selectedFeatureCodes.value = []
+        permissionSource.value = 'unavailable'
+        showPageNotice('error', '授权读取失败', extractErrorMessage(error, '读取当前用户授权失败，请检查后端权限服务。'))
       } finally {
         permissionLoading.value = false
       }
@@ -584,23 +658,15 @@ export default {
       saving.value = true
       try {
         await saveUserAppPermissions(selectedUserId.value, payload)
-        saveDraftFeatureCodesForUser(selectedUserId.value, selectedFeatureCodes.value)
         permissionSource.value = 'backend'
         users.value = users.value.map((item) => (
           `${item.id}` === `${selectedUserId.value}`
             ? {...item, permissionCount: selectedFeatureCodes.value.length}
             : item
         ))
-        alert('授权已保存')
+        showPageNotice('success', '授权已保存', '当前用户的应用授权已经写入后端，主页会按最新授权显示应用入口。')
       } catch (error) {
-        saveDraftFeatureCodesForUser(selectedUserId.value, selectedFeatureCodes.value)
-        users.value = users.value.map((item) => (
-          `${item.id}` === `${selectedUserId.value}`
-            ? {...item, permissionCount: selectedFeatureCodes.value.length}
-            : item
-        ))
-        permissionSource.value = 'draft'
-        alert(extractErrorMessage(error, '后端接口暂未接通，已保存到本地草稿'))
+        showPageNotice('error', '授权保存失败', extractErrorMessage(error, '当前授权未写入后端，请先修复接口后再重试。'))
       } finally {
         saving.value = false
       }
@@ -648,6 +714,7 @@ export default {
 
     return {
       userLoading,
+      catalogLoading,
       permissionLoading,
       saving,
       users,
@@ -659,11 +726,22 @@ export default {
       grantedCount,
       confidentialGrantedCount,
       permissionSourceLabel,
+      catalogSource,
+      userSource,
+      catalogSourceLabel,
+      userSourceLabel,
+      catalogHintText,
+      userHintText,
+      permissionHintText,
+      selectedUserAdminFallbackHint,
+      pageNotice,
       reservedCapabilities,
       filters,
       pagination,
       pageSizeOptions,
       totalPages,
+      clearPageNotice,
+      statusToneClass,
       buildShortText,
       getPresetIconSvg,
       formatRoleText,
@@ -745,6 +823,86 @@ export default {
 .hero-panel,
 .filter-panel {
   margin-bottom: 14px;
+}
+
+.status-ribbon {
+  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.status-card,
+.page-notice {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, rgba(13, 27, 42, 0.88), rgba(17, 43, 62, 0.82));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+}
+
+.status-card {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-card span,
+.page-notice p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.status-card strong {
+  font-size: 18px;
+}
+
+.status-card p,
+.page-notice p,
+.page-notice strong {
+  margin: 0;
+}
+
+.status-card.is-success {
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.2), 0 14px 30px rgba(0, 0, 0, 0.18);
+}
+
+.status-card.is-warning {
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.24), 0 14px 30px rgba(0, 0, 0, 0.18);
+}
+
+.status-card.is-error {
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.24), 0 14px 30px rgba(0, 0, 0, 0.18);
+}
+
+.status-card.is-neutral {
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.16), 0 14px 30px rgba(0, 0, 0, 0.18);
+}
+
+.page-notice {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.page-notice.success {
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.page-notice.error {
+  border-color: rgba(248, 113, 113, 0.24);
+}
+
+.notice-close {
+  min-height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .hero-panel,
@@ -1093,6 +1251,15 @@ export default {
   color: rgba(255, 255, 255, 0.8);
 }
 
+.inline-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+}
+
 .ghost-link {
   width: 100%;
   margin-top: 12px;
@@ -1105,6 +1272,7 @@ export default {
 }
 
 @media (max-width: 1200px) {
+  .status-ribbon,
   .permission-layout {
     grid-template-columns: 1fr;
   }
@@ -1119,12 +1287,14 @@ export default {
     grid-template-columns: 1fr;
   }
 
+  .status-ribbon,
   .filter-grid,
   .summary-grid,
   .app-grid {
     grid-template-columns: 1fr;
   }
 
+  .page-notice,
   .panel-head,
   .selected-user-bar {
     flex-direction: column;

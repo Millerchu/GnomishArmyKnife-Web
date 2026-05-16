@@ -98,6 +98,7 @@ import {
   getPasswordPublicKeyApi,
   loginApi
 } from '@/api/auth'
+import { writeAuthState } from '@/utils/authStorage'
 import { encryptPasswordByPublicKey } from '@/utils/rsaEncrypt'
 
 function unwrapData(res) {
@@ -245,9 +246,7 @@ export default {
         })
 
         const { token, user } = unwrapData(res) || {}
-        localStorage.setItem('token', token || '')
-        localStorage.setItem('user', JSON.stringify(user || {}))
-        sessionStorage.setItem('currentUserPlainPassword', form.password)
+        writeAuthState(localStorage, { token, user })
 
         router.push('/home')
       } catch (error) {

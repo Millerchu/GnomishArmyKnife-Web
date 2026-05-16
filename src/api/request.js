@@ -1,14 +1,9 @@
 import axios from 'axios'
+import {clearAuthState} from '@/utils/authStorage'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
 const PUBLIC_AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/captcha', '/auth/password-public-key']
 let authRedirecting = false
-
-function clearAuthState() {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
-  sessionStorage.removeItem('currentUserPlainPassword')
-}
 
 function isPublicAuthRequest(url = '') {
   return PUBLIC_AUTH_PATHS.some((path) => url.includes(path))
@@ -49,7 +44,7 @@ function redirectToLogin() {
     return
   }
   authRedirecting = true
-  clearAuthState()
+  clearAuthState(localStorage)
   if (window.location.pathname !== '/login') {
     window.location.replace('/login')
     return
