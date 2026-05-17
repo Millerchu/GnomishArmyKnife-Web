@@ -1,6 +1,6 @@
 import request from '@/api/request'
 
-// 经验库模块：列表、详情、增删改和首页随机 Banner 推荐。
+// 经验库模块：公共经验、投稿审核和登录页推荐短句。
 export function listKnowledgeEntries(params) {
   return request.get('/knowledge-base/entries', {params})
 }
@@ -21,6 +21,18 @@ export function deleteKnowledgeEntry(id) {
   return request.delete(`/knowledge-base/entries/${id}`)
 }
 
+export function publishKnowledgeEntry(id, data) {
+  return request.put(`/knowledge-base/entries/${id}/publish`, data)
+}
+
+export function rejectKnowledgeEntry(id, data) {
+  return request.put(`/knowledge-base/entries/${id}/reject`, data)
+}
+
 export function getKnowledgeHighlights(params) {
   return request.get('/knowledge-base/highlights', {params})
+}
+
+export function getPublicKnowledgeHighlights(params) {
+  return request.get('/knowledge-base/public-highlights', {params})
 }

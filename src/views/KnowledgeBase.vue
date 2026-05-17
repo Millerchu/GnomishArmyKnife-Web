@@ -7,154 +7,193 @@
       </button>
     </div>
 
-    <div class="hero-panel">
-      <div>
+    <section class="hero-panel">
+      <div class="hero-copy">
+        <p class="eyebrow">Public Knowledge Desk</p>
         <h1 class="page-title">经验库</h1>
-        <p class="page-subtitle">沉淀工作与生活中被反复验证过的方法、边界和踩坑结论，进入页面时会随机抽几条作为灵感横幅。</p>
+        <p class="page-subtitle">
+          已发布经验默认对所有登录用户可见。普通用户提交后进入待审核队列，管理员审核通过后才会进入公共经验库。
+        </p>
       </div>
-      <div class="hero-tags">
-        <span class="hero-tag">总计 {{ total }} 条</span>
-        <span class="hero-tag">推荐 {{ featuredEntries.length }} 条</span>
-        <span class="hero-tag">真实接口</span>
+      <div class="hero-stats">
+        <span class="hero-chip">公共条目 {{ publishedTotal }}</span>
+        <span class="hero-chip">推荐 {{ highlightEntries.length }}</span>
+        <span class="hero-chip" :class="isAdmin ? 'hero-chip-admin' : 'hero-chip-user'">
+          {{ isAdmin ? '管理员审核视图' : '投稿审核制' }}
+        </span>
       </div>
-    </div>
+    </section>
+
+    <p v-if="pageMessage.text" class="page-message" :class="`page-message-${pageMessage.tone}`">
+      {{ pageMessage.text }}
+    </p>
 
     <section class="panel-section">
       <div class="panel-head">
         <div>
-          <h2 class="panel-title">随机经验推荐</h2>
-          <p class="panel-tip">每次刷新都会随机抽取一组经验卡片，用于快速回看过去积累的做法。</p>
+          <h2 class="panel-title">今日精选经验</h2>
+          <p class="panel-tip">登录页短句会从这里随机抽取已发布经验，所以这组内容会直接影响系统第一印象。</p>
         </div>
-        <div class="toolbar-left">
-          <button class="ghost-btn" :disabled="loading" @click="refreshHighlights">换一组</button>
-        </div>
+        <button class="ghost-btn" :disabled="highlightLoading" @click="loadHighlights">
+          {{ highlightLoading ? '切换中...' : '换一组' }}
+        </button>
       </div>
 
-      <div v-if="loading && !featuredEntries.length" class="empty-state">加载中...</div>
-
-      <div v-else-if="featuredEntries.length" class="banner-grid">
+      <div v-if="highlightLoading && !highlightEntries.length" class="empty-state">加载推荐中...</div>
+      <div v-else-if="highlightEntries.length" class="highlight-grid">
         <article
-          v-for="item in featuredEntries"
+          v-for="item in highlightEntries"
           :key="item.id"
-          class="banner-card"
+          class="highlight-card"
           @click="openDetailDialog(item)"
         >
-          <div class="banner-card-top">
-            <span class="category-chip">{{ item.category }}</span>
-            <span class="banner-date">{{ formatDate(item.updatedAt || item.createdAt) }}</span>
+          <div class="highlight-head">
+            <span class="status-chip status-chip-published">已发布</span>
+            <span class="date-text">{{ formatDate(item.updatedAt || item.createdAt) }}</span>
           </div>
-          <h3 class="banner-title">{{ item.title }}</h3>
-          <p class="banner-summary">{{ shortText(item.summary, 96) }}</p>
-          <div class="tag-row">
-            <span v-for="tag in (item.tags || []).slice(0, 3)" :key="`${item.id}-${tag}`" class="tag-chip">{{ tag }}</span>
-          </div>
-          <div class="banner-foot">
-            <span class="banner-scene">{{ item.scenario || '通用经验' }}</span>
-            <button class="mini-btn" type="button" @click.stop="openDetailDialog(item)">查看详情</button>
+          <h3 class="highlight-title">{{ item.title }}</h3>
+          <p class="highlight-summary">{{ shortText(item.summary, 82) }}</p>
+          <div class="meta-row">
+            <span class="meta-chip">{{ item.category || '未分类' }}</span>
+            <span class="meta-chip">{{ item.scenario || '通用场景' }}</span>
           </div>
         </article>
       </div>
-
-      <div v-else class="empty-state">暂无经验记录，先新增几条再回来抽取灵感。</div>
+      <div v-else class="empty-state">暂无已发布经验，登录页暂不会展示经验短句。</div>
     </section>
 
     <section class="panel-section">
       <div class="panel-head">
         <div>
-          <h2 class="panel-title">经验列表</h2>
-          <p class="panel-tip">列表保留标题、分类、适用场景和标签，详细内容在弹窗中查看和编辑。</p>
+          <h2 class="panel-title">公共经验库</h2>
+          <p class="panel-tip">所有登录用户都能浏览这里的已发布条目。普通用户的新增会先进入待审核队列。</p>
         </div>
-        <div class="toolbar-left">
-          <button class="action-btn" :disabled="loading || submitting" @click="openCreateDialog">新增经验</button>
-          <button class="ghost-btn" :disabled="loading" @click="loadEntries">刷新列表</button>
+        <div class="panel-actions">
+          <button class="action-btn" :disabled="submitting" @click="openCreateDialog">
+            {{ isAdmin ? '新增并发布' : '投稿经验' }}
+          </button>
+          <button class="ghost-btn" :disabled="publishedLoading" @click="loadPublishedEntries">
+            {{ publishedLoading ? '刷新中...' : '刷新公共库' }}
+          </button>
         </div>
       </div>
 
-      <div v-if="loading && !pagedRecords.length" class="empty-state">加载中...</div>
-
+      <div v-if="publishedLoading && !publishedEntries.length" class="empty-state">公共经验加载中...</div>
       <template v-else>
-        <div v-if="pagedRecords.length" class="desktop-table">
-          <table class="entry-table">
-            <thead>
-              <tr>
-                <th>标题</th>
-                <th>分类</th>
-                <th>适用场景</th>
-                <th>标签</th>
-                <th>更新时间</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in pagedRecords" :key="item.id">
-                <td class="title-cell">
-                  <strong>{{ item.title }}</strong>
-                  <p>{{ shortText(item.summary, 70) }}</p>
-                </td>
-                <td><span class="category-chip subtle">{{ item.category }}</span></td>
-                <td>{{ item.scenario || '-' }}</td>
-                <td>{{ buildTagText(item.tags) }}</td>
-                <td>{{ formatDate(item.updatedAt || item.createdAt) }}</td>
-                <td>
-                  <div class="row-actions">
-                    <button class="mini-btn" @click="openDetailDialog(item)">详情</button>
-                    <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
-                    <button class="mini-btn danger" @click="removeEntry(item)">删除</button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div v-if="pagedRecords.length" class="mobile-list">
-          <article v-for="item in pagedRecords" :key="item.id" class="mobile-card">
-            <div class="mobile-card-head">
+        <div v-if="publishedEntries.length" class="entry-grid">
+          <article v-for="item in publishedEntries" :key="item.id" class="entry-card">
+            <div class="entry-card-head">
               <div>
-                <h3 class="mobile-card-title">{{ item.title }}</h3>
-                <p class="mobile-card-summary">{{ shortText(item.summary, 80) }}</p>
+                <h3 class="entry-title">{{ item.title }}</h3>
+                <p class="entry-summary">{{ shortText(item.summary, 92) }}</p>
               </div>
-              <span class="category-chip subtle">{{ item.category }}</span>
+              <span class="status-chip status-chip-published">已发布</span>
             </div>
-
-            <div class="mobile-card-grid">
-              <p><span>适用场景</span><strong>{{ item.scenario || '-' }}</strong></p>
+            <div class="entry-meta-grid">
+              <p><span>分类</span><strong>{{ item.category || '-' }}</strong></p>
+              <p><span>场景</span><strong>{{ item.scenario || '-' }}</strong></p>
               <p><span>来源</span><strong>{{ item.source || '-' }}</strong></p>
-              <p class="wide"><span>标签</span><strong>{{ buildTagText(item.tags) }}</strong></p>
-              <p class="wide"><span>更新时间</span><strong>{{ formatDate(item.updatedAt || item.createdAt) }}</strong></p>
+              <p><span>更新时间</span><strong>{{ formatDate(item.updatedAt || item.createdAt) }}</strong></p>
             </div>
-
+            <div class="tag-row">
+              <span v-for="tag in item.tags" :key="`${item.id}-${tag}`" class="tag-chip">{{ tag }}</span>
+            </div>
             <div class="row-actions">
-              <button class="mini-btn" @click="openDetailDialog(item)">详情</button>
-              <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
-              <button class="mini-btn danger" @click="removeEntry(item)">删除</button>
+              <button class="mini-btn" @click="openDetailDialog(item)">查看详情</button>
+              <button v-if="canEdit(item)" class="mini-btn" @click="openEditDialog(item)">编辑</button>
+              <button v-if="canDelete(item)" class="mini-btn danger" @click="removeEntry(item)">删除</button>
             </div>
           </article>
         </div>
-
-        <div v-else class="empty-state">暂无经验记录</div>
+        <div v-else class="empty-state">当前还没有已发布经验。</div>
       </template>
+    </section>
 
-      <div class="pager">
-        <div class="pager-left">
-          <span>第 {{ query.pageNo }} / {{ totalPages }} 页</span>
-          <select v-model.number="query.pageSize" class="pager-select" :disabled="loading" @change="handlePageSizeChange">
-            <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} 条/页</option>
-          </select>
+    <section class="panel-section">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">我的投稿</h2>
+          <p class="panel-tip">这里会保留你提交过的待审核、已驳回和已发布条目，方便继续补充和修改。</p>
         </div>
-        <div class="pager-right">
-          <button class="ghost-btn" :disabled="query.pageNo <= 1 || loading" @click="changePage(-1)">上一页</button>
-          <button class="ghost-btn" :disabled="query.pageNo >= totalPages || loading" @click="changePage(1)">下一页</button>
-        </div>
+        <button class="ghost-btn" :disabled="submissionLoading" @click="loadMySubmissions">
+          {{ submissionLoading ? '刷新中...' : '刷新投稿' }}
+        </button>
       </div>
+
+      <div v-if="submissionLoading && !mySubmissionEntries.length" class="empty-state">投稿记录加载中...</div>
+      <div v-else-if="mySubmissionEntries.length" class="submission-list">
+        <article v-for="item in mySubmissionEntries" :key="item.id" class="submission-card">
+          <div class="submission-head">
+            <div>
+              <h3 class="entry-title">{{ item.title }}</h3>
+              <p class="entry-summary">{{ shortText(item.summary, 86) }}</p>
+            </div>
+            <span class="status-chip" :class="`status-chip-${statusMeta(item.status).tone}`">
+              {{ statusMeta(item.status).label }}
+            </span>
+          </div>
+          <div class="entry-meta-grid">
+            <p><span>分类</span><strong>{{ item.category || '-' }}</strong></p>
+            <p><span>场景</span><strong>{{ item.scenario || '-' }}</strong></p>
+            <p><span>更新时间</span><strong>{{ formatDate(item.updatedAt || item.createdAt) }}</strong></p>
+            <p><span>审核备注</span><strong>{{ item.reviewRemark || '暂无' }}</strong></p>
+          </div>
+          <div class="row-actions">
+            <button class="mini-btn" @click="openDetailDialog(item)">查看详情</button>
+            <button v-if="canEdit(item)" class="mini-btn" @click="openEditDialog(item)">继续修改</button>
+            <button v-if="canDelete(item)" class="mini-btn danger" @click="removeEntry(item)">删除投稿</button>
+          </div>
+        </article>
+      </div>
+      <div v-else class="empty-state">你还没有提交过经验。</div>
+    </section>
+
+    <section v-if="isAdmin" class="panel-section admin-panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">待审核投稿</h2>
+          <p class="panel-tip">管理员可以在这里快速看待审核内容，审核动作也支持在详情弹层中处理。</p>
+        </div>
+        <button class="ghost-btn" :disabled="pendingLoading" @click="loadPendingReview">
+          {{ pendingLoading ? '刷新中...' : '刷新待审核' }}
+        </button>
+      </div>
+
+      <div v-if="pendingLoading && !pendingEntries.length" class="empty-state">待审核列表加载中...</div>
+      <div v-else-if="pendingEntries.length" class="pending-grid">
+        <article v-for="item in pendingEntries" :key="item.id" class="pending-card">
+          <div class="submission-head">
+            <div>
+              <p class="owner-label">投稿人 ID · {{ item.ownerUserId || '-' }}</p>
+              <h3 class="entry-title">{{ item.title }}</h3>
+            </div>
+            <span class="status-chip status-chip-pending">待审核</span>
+          </div>
+          <p class="entry-summary">{{ shortText(item.summary, 96) }}</p>
+          <div class="row-actions">
+            <button class="mini-btn" @click="openDetailDialog(item)">查看详情</button>
+            <button class="mini-btn approve" :disabled="reviewSubmitting" @click="reviewEntry(item, 'publish')">通过发布</button>
+            <button class="mini-btn danger" :disabled="reviewSubmitting" @click="reviewEntry(item, 'reject')">驳回</button>
+          </div>
+        </article>
+      </div>
+      <div v-else class="empty-state">当前没有待审核投稿。</div>
     </section>
 
     <div v-if="showEditDialog" class="dialog-mask" @click.self="closeEditDialog">
       <div class="dialog">
-        <h3 class="dialog-title">{{ editMode === 'create' ? '新增经验' : '编辑经验' }}</h3>
-        <p class="dialog-subtitle">建议记录背景、做法、适用边界和踩坑点，后续回看才有复用价值。</p>
+        <div class="dialog-head">
+          <div>
+            <h3 class="dialog-title">{{ editMode === 'create' ? (isAdmin ? '新增公共经验' : '投稿经验') : '编辑经验' }}</h3>
+            <p class="dialog-subtitle">
+              {{ isAdmin ? '管理员新增后会直接发布。' : '普通用户提交后会进入待审核队列。' }}
+            </p>
+          </div>
+          <button class="dialog-close" @click="closeEditDialog">×</button>
+        </div>
+
         <form class="dialog-form" @submit.prevent="submitEditDialog">
-          <div class="form-inline-grid">
+          <div class="form-grid">
             <label class="form-field">
               <span>标题</span>
               <input v-model.trim="form.title" class="input" maxlength="64" required />
@@ -167,7 +206,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-grid">
             <label class="form-field">
               <span>适用场景</span>
               <input v-model.trim="form.scenario" class="input" maxlength="80" required />
@@ -184,18 +223,20 @@
           </label>
 
           <label class="form-field">
-            <span>经验摘要</span>
+            <span>摘要</span>
             <textarea v-model.trim="form.summary" class="input textarea" rows="3" maxlength="180" required />
           </label>
 
           <label class="form-field">
             <span>详细内容</span>
-            <textarea v-model.trim="form.content" class="input textarea content-textarea" rows="8" maxlength="2000" required />
+            <textarea v-model.trim="form.content" class="input textarea content-textarea" rows="9" maxlength="2000" required />
           </label>
 
           <div class="dialog-actions">
             <button type="button" class="ghost-btn" :disabled="submitting" @click="closeEditDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存经验' }}</button>
+            <button type="submit" class="action-btn" :disabled="submitting">
+              {{ submitting ? '提交中...' : (editMode === 'create' ? (isAdmin ? '保存并发布' : '提交投稿') : '保存修改') }}
+            </button>
           </div>
         </form>
       </div>
@@ -203,31 +244,35 @@
 
     <div v-if="showDetailDialog" class="dialog-mask" @click.self="closeDetailDialog">
       <div class="dialog detail-dialog">
-        <div class="detail-head">
+        <div class="dialog-head">
           <div>
             <h3 class="dialog-title">经验详情</h3>
-            <p class="dialog-subtitle">这里展示完整经验内容，便于后续检索和复用。</p>
+            <p class="dialog-subtitle">公共库、投稿状态和审核备注都在这里完整展示。</p>
           </div>
-          <button class="dialog-close" @click="closeDetailDialog">x</button>
+          <button class="dialog-close" @click="closeDetailDialog">×</button>
         </div>
 
         <div v-if="detailLoading" class="empty-state">详情加载中...</div>
-
         <div v-else-if="activeDetail" class="detail-content">
           <div class="detail-hero">
-            <div>
-              <div class="tag-row detail-tag-row">
-                <span class="category-chip">{{ activeDetail.category }}</span>
-                <span v-for="tag in activeDetail.tags || []" :key="`detail-${tag}`" class="tag-chip">{{ tag }}</span>
+            <div class="detail-main">
+              <div class="tag-row">
+                <span class="status-chip" :class="`status-chip-${statusMeta(activeDetail.status).tone}`">
+                  {{ statusMeta(activeDetail.status).label }}
+                </span>
+                <span class="meta-chip">{{ activeDetail.category || '未分类' }}</span>
+                <span v-for="tag in activeDetail.tags" :key="`detail-${tag}`" class="tag-chip">{{ tag }}</span>
               </div>
               <h3 class="detail-title">{{ activeDetail.title }}</h3>
               <p class="detail-summary">{{ activeDetail.summary }}</p>
             </div>
             <div class="detail-meta">
+              <p><span>投稿人 ID</span><strong>{{ activeDetail.ownerUserId || '-' }}</strong></p>
               <p><span>适用场景</span><strong>{{ activeDetail.scenario || '-' }}</strong></p>
               <p><span>来源</span><strong>{{ activeDetail.source || '-' }}</strong></p>
               <p><span>创建时间</span><strong>{{ formatDate(activeDetail.createdAt) }}</strong></p>
               <p><span>更新时间</span><strong>{{ formatDate(activeDetail.updatedAt || activeDetail.createdAt) }}</strong></p>
+              <p><span>审核备注</span><strong>{{ activeDetail.reviewRemark || '暂无' }}</strong></p>
             </div>
           </div>
 
@@ -236,13 +281,27 @@
             <p>{{ activeDetail.content || '-' }}</p>
           </div>
 
+          <div v-if="isAdmin && activeDetail.status === 'PENDING'" class="review-box">
+            <label class="form-field">
+              <span>审核备注</span>
+              <textarea v-model.trim="reviewForm.reviewRemark" class="input textarea" rows="3" maxlength="200" placeholder="可选，给投稿人留下审核意见" />
+            </label>
+            <div class="dialog-actions">
+              <button class="mini-btn approve" :disabled="reviewSubmitting" @click="reviewEntry(activeDetail, 'publish')">
+                {{ reviewSubmitting ? '处理中...' : '通过发布' }}
+              </button>
+              <button class="mini-btn danger" :disabled="reviewSubmitting" @click="reviewEntry(activeDetail, 'reject')">
+                {{ reviewSubmitting ? '处理中...' : '驳回投稿' }}
+              </button>
+            </div>
+          </div>
+
           <div class="dialog-actions">
             <button type="button" class="ghost-btn" @click="closeDetailDialog">关闭</button>
-            <button type="button" class="action-btn" @click="openEditDialog(activeDetail)">编辑当前经验</button>
+            <button v-if="canEdit(activeDetail)" type="button" class="action-btn" @click="openEditDialog(activeDetail)">编辑当前条目</button>
           </div>
         </div>
-
-        <div v-else class="empty-state">未找到经验详情</div>
+        <div v-else class="empty-state">未找到经验详情。</div>
       </div>
     </div>
   </div>
@@ -257,12 +316,27 @@ import {
   getKnowledgeEntryDetail,
   getKnowledgeHighlights,
   listKnowledgeEntries,
+  publishKnowledgeEntry,
+  rejectKnowledgeEntry,
   updateKnowledgeEntry
 } from '@/api/knowledgeBase'
+import { readAuthState } from '@/utils/authStorage'
+import {
+  canDeleteKnowledgeEntry,
+  canEditKnowledgeEntry,
+  getKnowledgeStatusMeta,
+  isKnowledgeAdmin,
+  KNOWLEDGE_VIEW,
+  normalizeCurrentUser,
+  normalizeKnowledgeEntry,
+  normalizeKnowledgeTags
+} from '@/utils/knowledgeBaseAccess'
 
-const PAGE_SIZE_OPTIONS = [6, 10, 16]
-const HIGHLIGHT_SIZE = 3
 const CATEGORY_OPTIONS = ['工作', '生活', '学习', '工具', '健康', '财务', '其他']
+const HIGHLIGHT_SIZE = 4
+const PUBLIC_PAGE_SIZE = 12
+const SUBMISSION_PAGE_SIZE = 20
+const REVIEW_PAGE_SIZE = 20
 
 function unwrapData(res) {
   const payload = res?.data
@@ -270,34 +344,6 @@ function unwrapData(res) {
     return payload.data
   }
   return payload
-}
-
-function normalizeTags(value) {
-  if (Array.isArray(value)) {
-    return value.map((item) => `${item || ''}`.trim()).filter(Boolean)
-  }
-  if (!value) {
-    return []
-  }
-  return `${value}`
-    .split(/[，,、/\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
-function normalizeEntry(item = {}) {
-  return {
-    id: item.id,
-    title: item.title || '',
-    category: item.category || item.categoryName || '',
-    scenario: item.scenario || '',
-    source: item.source || item.sourceName || '',
-    tags: normalizeTags(item.tags || item.tagsText),
-    summary: item.summary || '',
-    content: item.content || '',
-    createdAt: item.createdAt || '',
-    updatedAt: item.updatedAt || ''
-  }
 }
 
 function shortText(text, maxLength = 60) {
@@ -312,23 +358,33 @@ export default {
   name: 'KnowledgeBase',
   setup() {
     const router = useRouter()
+    const currentUser = ref(normalizeCurrentUser(readAuthState(localStorage).user || {}))
+    const isAdmin = computed(() => isKnowledgeAdmin(currentUser.value))
 
-    const loading = ref(false)
-    const submitting = ref(false)
+    const pageMessage = reactive({
+      text: '',
+      tone: 'info'
+    })
+
+    const publishedLoading = ref(false)
+    const highlightLoading = ref(false)
+    const submissionLoading = ref(false)
+    const pendingLoading = ref(false)
     const detailLoading = ref(false)
-    const total = ref(0)
-    const pagedRecords = ref([])
-    const featuredEntries = ref([])
+    const submitting = ref(false)
+    const reviewSubmitting = ref(false)
+
+    const publishedEntries = ref([])
+    const mySubmissionEntries = ref([])
+    const pendingEntries = ref([])
+    const highlightEntries = ref([])
+    const publishedTotal = ref(0)
+
     const showEditDialog = ref(false)
     const showDetailDialog = ref(false)
-    const activeDetail = ref(null)
     const editMode = ref('create')
     const editingId = ref(null)
-
-    const query = reactive({
-      pageNo: 1,
-      pageSize: PAGE_SIZE_OPTIONS[0]
-    })
+    const activeDetail = ref(null)
 
     const form = reactive({
       title: '',
@@ -340,10 +396,11 @@ export default {
       content: ''
     })
 
-    const pageSizeOptions = PAGE_SIZE_OPTIONS
-    const categoryOptions = CATEGORY_OPTIONS
+    const reviewForm = reactive({
+      reviewRemark: ''
+    })
 
-    const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
+    const categoryOptions = CATEGORY_OPTIONS
 
     const formatDate = (value) => {
       if (!value) {
@@ -352,77 +409,9 @@ export default {
       return `${value}`.replace('T', ' ').slice(0, 16)
     }
 
-    const buildTagText = (tags) => {
-      return (tags || []).length ? tags.join(' / ') : '-'
-    }
-
-    const loadEntries = async () => {
-      loading.value = true
-      try {
-        const res = await listKnowledgeEntries({
-          pageNo: query.pageNo,
-          pageSize: query.pageSize
-        })
-        const payload = unwrapData(res) || {}
-        const list = Array.isArray(payload) ? payload : (payload.list || [])
-        pagedRecords.value = list.map((item) => normalizeEntry(item))
-        total.value = Number(payload.total ?? pagedRecords.value.length ?? 0)
-      } catch (error) {
-        console.error(error)
-        alert('经验列表加载失败')
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const refreshHighlights = async () => {
-      try {
-        const res = await getKnowledgeHighlights({ size: HIGHLIGHT_SIZE })
-        const payload = unwrapData(res) || []
-        featuredEntries.value = (Array.isArray(payload) ? payload : (payload.list || [])).map((item) => normalizeEntry(item))
-      } catch (error) {
-        console.error(error)
-        alert('推荐经验加载失败')
-      }
-    }
-
-    const loadPage = async () => {
-      loading.value = true
-      try {
-        const [listRes, highlightRes] = await Promise.all([
-          listKnowledgeEntries({
-            pageNo: query.pageNo,
-            pageSize: query.pageSize
-          }),
-          getKnowledgeHighlights({ size: HIGHLIGHT_SIZE })
-        ])
-        const listPayload = unwrapData(listRes) || {}
-        const list = Array.isArray(listPayload) ? listPayload : (listPayload.list || [])
-        pagedRecords.value = list.map((item) => normalizeEntry(item))
-        total.value = Number(listPayload.total ?? pagedRecords.value.length ?? 0)
-        const highlightPayload = unwrapData(highlightRes) || []
-        featuredEntries.value = (Array.isArray(highlightPayload) ? highlightPayload : (highlightPayload.list || []))
-          .map((item) => normalizeEntry(item))
-      } catch (error) {
-        console.error(error)
-        alert('经验库数据加载失败')
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const handlePageSizeChange = () => {
-      query.pageNo = 1
-      loadEntries()
-    }
-
-    const changePage = (offset) => {
-      const nextPage = query.pageNo + offset
-      if (nextPage < 1 || nextPage > totalPages.value) {
-        return
-      }
-      query.pageNo = nextPage
-      loadEntries()
+    const showMessage = (text, tone = 'info') => {
+      pageMessage.text = text
+      pageMessage.tone = tone
     }
 
     const resetForm = () => {
@@ -447,6 +436,93 @@ export default {
         summary: item.summary || '',
         content: item.content || ''
       })
+    }
+
+    const loadPublishedEntries = async () => {
+      publishedLoading.value = true
+      try {
+        const res = await listKnowledgeEntries({
+          view: KNOWLEDGE_VIEW.PUBLISHED,
+          pageNo: 1,
+          pageSize: PUBLIC_PAGE_SIZE
+        })
+        const payload = unwrapData(res) || {}
+        const list = Array.isArray(payload) ? payload : (payload.list || [])
+        publishedEntries.value = list.map((item) => normalizeKnowledgeEntry(item))
+        publishedTotal.value = Number(payload.total ?? publishedEntries.value.length ?? 0)
+      } catch (error) {
+        console.error(error)
+        showMessage('公共经验库加载失败，请稍后重试', 'danger')
+      } finally {
+        publishedLoading.value = false
+      }
+    }
+
+    const loadHighlights = async () => {
+      highlightLoading.value = true
+      try {
+        const res = await getKnowledgeHighlights({ size: HIGHLIGHT_SIZE })
+        const payload = unwrapData(res) || []
+        const list = Array.isArray(payload) ? payload : (payload.list || [])
+        highlightEntries.value = list.map((item) => normalizeKnowledgeEntry(item))
+      } catch (error) {
+        console.error(error)
+        highlightEntries.value = []
+        showMessage('经验推荐加载失败，登录页将暂时不展示经验短句', 'warning')
+      } finally {
+        highlightLoading.value = false
+      }
+    }
+
+    const loadMySubmissions = async () => {
+      submissionLoading.value = true
+      try {
+        const res = await listKnowledgeEntries({
+          view: KNOWLEDGE_VIEW.MY_SUBMISSIONS,
+          pageNo: 1,
+          pageSize: SUBMISSION_PAGE_SIZE
+        })
+        const payload = unwrapData(res) || {}
+        const list = Array.isArray(payload) ? payload : (payload.list || [])
+        mySubmissionEntries.value = list.map((item) => normalizeKnowledgeEntry(item))
+      } catch (error) {
+        console.error(error)
+        showMessage('我的投稿加载失败，请稍后重试', 'danger')
+      } finally {
+        submissionLoading.value = false
+      }
+    }
+
+    const loadPendingReview = async () => {
+      if (!isAdmin.value) {
+        pendingEntries.value = []
+        return
+      }
+      pendingLoading.value = true
+      try {
+        const res = await listKnowledgeEntries({
+          view: KNOWLEDGE_VIEW.PENDING_REVIEW,
+          pageNo: 1,
+          pageSize: REVIEW_PAGE_SIZE
+        })
+        const payload = unwrapData(res) || {}
+        const list = Array.isArray(payload) ? payload : (payload.list || [])
+        pendingEntries.value = list.map((item) => normalizeKnowledgeEntry(item))
+      } catch (error) {
+        console.error(error)
+        showMessage('待审核投稿加载失败，请稍后重试', 'danger')
+      } finally {
+        pendingLoading.value = false
+      }
+    }
+
+    const reloadAll = async () => {
+      await Promise.all([
+        loadPublishedEntries(),
+        loadHighlights(),
+        loadMySubmissions(),
+        isAdmin.value ? loadPendingReview() : Promise.resolve()
+      ])
     }
 
     const openCreateDialog = () => {
@@ -476,27 +552,29 @@ export default {
       if (submitting.value) {
         return
       }
-      const payload = {
-        title: form.title,
-        category: form.category,
-        scenario: form.scenario,
-        source: form.source || null,
-        tags: normalizeTags(form.tagsText),
-        summary: form.summary,
-        content: form.content
-      }
       submitting.value = true
       try {
+        const payload = {
+          title: form.title,
+          category: form.category,
+          scenario: form.scenario,
+          source: form.source || null,
+          tags: normalizeKnowledgeTags(form.tagsText),
+          summary: form.summary,
+          content: form.content
+        }
         if (editMode.value === 'create') {
           await createKnowledgeEntry(payload)
+          showMessage(isAdmin.value ? '公共经验已发布' : '投稿已提交，等待管理员审核', 'success')
         } else {
           await updateKnowledgeEntry(editingId.value, payload)
+          showMessage(isAdmin.value ? '经验已更新' : '投稿修改已保存，并重新进入待审核', 'success')
         }
         closeEditDialog()
-        await loadPage()
+        await reloadAll()
       } catch (error) {
         console.error(error)
-        alert('保存经验失败')
+        showMessage('保存经验失败，请检查后重试', 'danger')
       } finally {
         submitting.value = false
       }
@@ -508,79 +586,117 @@ export default {
       }
       try {
         await deleteKnowledgeEntry(item.id)
-        const nextTotal = Math.max(0, total.value - 1)
-        const maxPage = Math.max(1, Math.ceil(nextTotal / query.pageSize) || 1)
-        if (query.pageNo > maxPage) {
-          query.pageNo = maxPage
+        showMessage('经验已删除', 'success')
+        if (activeDetail.value?.id === item.id) {
+          closeDetailDialog()
         }
-        await loadPage()
+        await reloadAll()
       } catch (error) {
         console.error(error)
-        alert('删除经验失败')
+        showMessage('删除经验失败，请稍后重试', 'danger')
       }
     }
 
     const openDetailDialog = async (item) => {
       showDetailDialog.value = true
       detailLoading.value = true
+      reviewForm.reviewRemark = item.reviewRemark || ''
       try {
         const res = await getKnowledgeEntryDetail(item.id)
-        activeDetail.value = normalizeEntry(unwrapData(res) || item)
+        activeDetail.value = normalizeKnowledgeEntry(unwrapData(res) || item)
+        reviewForm.reviewRemark = activeDetail.value.reviewRemark || ''
       } catch (error) {
         console.error(error)
-        activeDetail.value = normalizeEntry(item)
+        activeDetail.value = normalizeKnowledgeEntry(item)
       } finally {
         detailLoading.value = false
       }
     }
 
     const closeDetailDialog = () => {
-      if (detailLoading.value) {
+      if (detailLoading.value || reviewSubmitting.value) {
         return
       }
       showDetailDialog.value = false
       activeDetail.value = null
+      reviewForm.reviewRemark = ''
     }
 
-    const goBack = () => {
-      router.push('/home')
+    const reviewEntry = async (item, action) => {
+      if (reviewSubmitting.value) {
+        return
+      }
+      reviewSubmitting.value = true
+      try {
+        const payload = { reviewRemark: reviewForm.reviewRemark || '' }
+        if (action === 'publish') {
+          await publishKnowledgeEntry(item.id, payload)
+          showMessage('投稿已发布到公共经验库', 'success')
+        } else {
+          await rejectKnowledgeEntry(item.id, payload)
+          showMessage('投稿已驳回，投稿人可继续修改', 'warning')
+        }
+        if (activeDetail.value?.id === item.id) {
+          closeDetailDialog()
+        }
+        await reloadAll()
+      } catch (error) {
+        console.error(error)
+        showMessage('审核操作失败，请稍后重试', 'danger')
+      } finally {
+        reviewSubmitting.value = false
+      }
     }
+
+    const canEdit = (item) => canEditKnowledgeEntry(item, currentUser.value)
+    const canDelete = (item) => canDeleteKnowledgeEntry(item, currentUser.value)
+    const statusMeta = (status) => getKnowledgeStatusMeta(status)
+    const goBack = () => router.push('/home')
 
     onMounted(() => {
-      loadPage()
+      reloadAll()
     })
 
     return {
-      loading,
-      submitting,
+      isAdmin,
+      pageMessage,
+      publishedLoading,
+      highlightLoading,
+      submissionLoading,
+      pendingLoading,
       detailLoading,
-      total,
-      query,
-      form,
-      pagedRecords,
-      featuredEntries,
+      submitting,
+      reviewSubmitting,
+      publishedEntries,
+      mySubmissionEntries,
+      pendingEntries,
+      highlightEntries,
+      publishedTotal,
       showEditDialog,
       showDetailDialog,
-      activeDetail,
       editMode,
-      pageSizeOptions,
+      activeDetail,
+      form,
+      reviewForm,
       categoryOptions,
-      totalPages,
       shortText,
       formatDate,
-      buildTagText,
+      statusMeta,
+      canEdit,
+      canDelete,
       goBack,
-      refreshHighlights,
-      loadEntries,
-      handlePageSizeChange,
-      changePage,
       openCreateDialog,
       openEditDialog,
       closeEditDialog,
       submitEditDialog,
       removeEntry,
       openDetailDialog,
-      closeDetailDialog
+      closeDetailDialog,
+      loadHighlights,
+      loadPublishedEntries,
+      loadMySubmissions,
+      loadPendingReview,
+      reviewEntry
     }
   }
 }
@@ -589,132 +705,167 @@ export default {
 <style scoped>
 .knowledge-base-page {
   min-height: 100vh;
-  height: 100%;
-  overflow: auto;
-  box-sizing: border-box;
-  padding: 14px 18px 20px;
-  color: #edf4ff;
+  padding: 16px 18px 28px;
+  color: #eff6ff;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 26%),
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.1), transparent 24%);
 }
 
 .page-nav {
   margin-bottom: 12px;
 }
 
+.back-home-btn,
+.ghost-btn,
+.action-btn,
+.mini-btn,
+.dialog-close {
+  border: none;
+  cursor: pointer;
+}
+
 .back-home-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 11px 16px;
   border-radius: 999px;
-  padding: 10px 16px;
   color: #f8fbff;
-  background: rgba(12, 32, 52, 0.58);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(12px);
-  cursor: pointer;
-}
-
-.back-home-icon {
-  font-size: 18px;
+  background: rgba(10, 28, 48, 0.74);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
 }
 
 .hero-panel,
-.panel-section {
-  background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 24px;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(16px);
+.panel-section,
+.dialog {
+  border-radius: 26px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(145deg, rgba(8, 22, 38, 0.88), rgba(14, 37, 59, 0.76));
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px);
 }
 
 .hero-panel {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
+  gap: 24px;
+  padding: 24px;
   margin-bottom: 14px;
 }
 
-.page-title {
+.eyebrow {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: #8fd6ff;
+}
+
+.page-title,
+.panel-title,
+.dialog-title,
+.detail-title {
   margin: 0;
-  font-size: 30px;
+}
+
+.page-title {
+  font-size: 32px;
 }
 
 .page-subtitle,
 .panel-tip,
 .dialog-subtitle,
-.banner-summary,
-.mobile-card-summary,
-.title-cell p {
+.highlight-summary,
+.entry-summary,
+.detail-summary,
+.detail-body p {
   margin: 8px 0 0;
-  color: #9db3c8;
-  line-height: 1.6;
+  line-height: 1.65;
+  color: #a3b8cc;
 }
 
-.hero-tags,
-.toolbar-left,
-.tag-row,
+.hero-stats,
+.panel-actions,
 .row-actions,
 .dialog-actions,
-.pager,
-.pager-left,
-.pager-right,
-.form-inline-grid {
+.tag-row,
+.meta-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.hero-tag,
-.category-chip,
-.tag-chip,
-.mini-btn,
-.ghost-btn,
-.action-btn {
-  border-radius: 999px;
-  border: none;
-}
-
-.hero-tag,
-.category-chip,
+.hero-chip,
+.status-chip,
+.meta-chip,
 .tag-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 8px 14px;
+  border-radius: 999px;
   font-size: 13px;
 }
 
-.hero-tag {
-  background: rgba(56, 189, 248, 0.16);
-  color: #bfe8ff;
+.hero-chip {
+  background: rgba(191, 219, 254, 0.12);
+  color: #dbeafe;
 }
 
-.category-chip {
-  background: rgba(250, 204, 21, 0.14);
+.hero-chip-admin {
+  background: rgba(251, 191, 36, 0.14);
   color: #fde68a;
 }
 
-.category-chip.subtle {
-  background: rgba(255, 255, 255, 0.08);
-  color: #c9d8e8;
+.hero-chip-user {
+  background: rgba(34, 197, 94, 0.14);
+  color: #bbf7d0;
 }
 
-.tag-chip {
-  background: rgba(16, 185, 129, 0.14);
-  color: #a7f3d0;
+.page-message {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+  border: 1px solid transparent;
+}
+
+.page-message-info {
+  color: #dbeafe;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(96, 165, 250, 0.24);
+}
+
+.page-message-success {
+  color: #d1fae5;
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(74, 222, 128, 0.24);
+}
+
+.page-message-warning {
+  color: #fef3c7;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(251, 191, 36, 0.24);
+}
+
+.page-message-danger {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(248, 113, 113, 0.24);
 }
 
 .panel-section {
-  padding: 18px;
   margin-bottom: 14px;
+  padding: 20px;
 }
 
 .panel-head,
-.banner-card-top,
-.banner-foot,
-.mobile-card-head,
-.detail-head,
+.highlight-head,
+.entry-card-head,
+.submission-head,
+.dialog-head,
 .detail-hero {
   display: flex;
   justify-content: space-between;
@@ -727,306 +878,307 @@ export default {
 }
 
 .panel-title {
-  margin: 0;
-  font-size: 20px;
+  font-size: 21px;
 }
 
-.banner-grid {
+.highlight-grid,
+.entry-grid,
+.pending-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.banner-card,
-.mobile-card,
-.dialog {
-  background: rgba(10, 26, 42, 0.74);
-  border: 1px solid rgba(148, 163, 184, 0.16);
+.highlight-card,
+.entry-card,
+.submission-card,
+.pending-card,
+.review-box {
   border-radius: 22px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(6, 18, 31, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.banner-card {
-  padding: 16px;
+.highlight-card,
+.entry-card,
+.submission-card,
+.pending-card {
+  padding: 18px;
+}
+
+.highlight-card {
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.banner-card:hover {
+.highlight-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 35px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
 }
 
-.banner-date,
-.banner-scene,
-.empty-state,
-.mobile-card-grid span,
-.detail-meta span {
-  color: #8ea6bf;
-}
-
-.banner-title,
-.mobile-card-title,
-.detail-title {
-  margin: 10px 0 8px;
+.highlight-title,
+.entry-title {
+  margin: 12px 0 0;
   font-size: 20px;
 }
 
-.banner-foot {
-  align-items: center;
-  margin-top: 12px;
+.date-text,
+.owner-label {
+  font-size: 13px;
+  color: #8ea4ba;
 }
 
-.desktop-table {
-  overflow-x: auto;
+.status-chip-published {
+  color: #d1fae5;
+  background: rgba(16, 185, 129, 0.14);
 }
 
-.entry-table {
-  width: 100%;
-  border-collapse: collapse;
+.status-chip-pending {
+  color: #fef3c7;
+  background: rgba(245, 158, 11, 0.14);
 }
 
-.entry-table th,
-.entry-table td {
-  padding: 12px 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-  text-align: left;
-  vertical-align: top;
+.status-chip-rejected {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.14);
 }
 
-.entry-table th {
-  color: #9db3c8;
-  font-weight: 600;
+.meta-chip {
+  background: rgba(255, 255, 255, 0.07);
+  color: #dbeafe;
 }
 
-.title-cell strong {
-  display: block;
-  font-size: 16px;
+.tag-chip {
+  background: rgba(56, 189, 248, 0.12);
+  color: #bae6fd;
 }
 
-.mobile-list {
-  display: none;
-}
-
-.mobile-card {
-  padding: 14px 16px;
-  margin-bottom: 12px;
-}
-
-.mobile-card-grid {
+.entry-meta-grid,
+.detail-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 10px 0;
-}
-
-.mobile-card-grid p,
-.detail-meta p {
-  margin: 0;
-}
-
-.mobile-card-grid strong,
-.detail-meta strong {
-  display: block;
-  margin-top: 4px;
-  color: #f3f8ff;
-}
-
-.mobile-card-grid .wide {
-  grid-column: 1 / -1;
-}
-
-.pager {
-  align-items: center;
-  justify-content: space-between;
+  gap: 10px 16px;
   margin-top: 14px;
 }
 
-.pager-select,
-.input {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 14px;
-  padding: 10px 12px;
-  background: rgba(8, 21, 35, 0.82);
-  color: #edf4ff;
+.entry-meta-grid p,
+.detail-meta p {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.entry-meta-grid span,
+.detail-meta span {
+  font-size: 12px;
+  color: #8ea4ba;
+}
+
+.entry-meta-grid strong,
+.detail-meta strong {
+  color: #f8fbff;
+}
+
+.submission-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-panel {
+  border-color: rgba(251, 191, 36, 0.24);
 }
 
 .ghost-btn,
 .action-btn,
-.mini-btn {
-  padding: 9px 14px;
-  cursor: pointer;
+.mini-btn,
+.dialog-close {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.ghost-btn:disabled,
+.action-btn:disabled,
+.mini-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .ghost-btn {
-  background: rgba(255, 255, 255, 0.08);
-  color: #dbe8f5;
+  padding: 10px 16px;
+  border-radius: 999px;
+  color: #dbeafe;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.action-btn,
+.mini-btn.approve {
+  color: #051521;
+  background: linear-gradient(135deg, #facc15, #f59e0b);
 }
 
 .action-btn {
-  background: linear-gradient(135deg, #1996ff, #27d5a4);
-  color: #fff;
+  padding: 11px 18px;
+  border-radius: 999px;
+  font-weight: 700;
 }
 
 .mini-btn {
-  padding: 7px 12px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #dbe8f5;
+  padding: 9px 14px;
+  border-radius: 999px;
+  color: #f8fbff;
+  background: rgba(59, 130, 246, 0.14);
 }
 
 .mini-btn.danger {
-  background: #fee2e2;
-  color: #b42318;
+  color: #fee2e2;
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.empty-state {
+  padding: 22px 0 10px;
+  color: #8ea4ba;
 }
 
 .dialog-mask {
   position: fixed;
   inset: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(15, 23, 42, 0.42);
-  z-index: 90;
+  background: rgba(2, 6, 23, 0.62);
+  backdrop-filter: blur(8px);
 }
 
 .dialog {
-  width: min(820px, 100%);
+  width: min(860px, 100%);
   max-height: 92vh;
   overflow: auto;
-  padding: 20px;
-  color: #edf4ff;
-  background: linear-gradient(135deg, rgba(8, 20, 34, 0.96), rgba(15, 37, 58, 0.94));
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
+  padding: 22px;
 }
 
 .detail-dialog {
-  width: min(900px, 100%);
+  width: min(960px, 100%);
 }
 
-.dialog-title {
-  margin: 0;
-  font-size: 22px;
+.dialog-head {
+  align-items: flex-start;
+}
+
+.dialog-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  color: #dbeafe;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .dialog-form {
-  display: grid;
-  gap: 12px;
-  margin-top: 12px;
+  margin-top: 18px;
 }
 
-.form-inline-grid {
+.form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .form-field {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  margin-bottom: 14px;
+}
+
+.form-field span {
+  color: #dbeafe;
   font-size: 14px;
-  color: #c9d8e8;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fbff;
+  outline: none;
 }
 
 .textarea {
   resize: vertical;
-  min-height: 96px;
+}
+
+.content-textarea {
+  min-height: 200px;
 }
 
 .detail-content {
-  display: grid;
-  gap: 14px;
+  margin-top: 18px;
 }
 
-.detail-tag-row {
-  margin-bottom: 8px;
-}
-
-.detail-summary {
-  margin: 0;
-  font-size: 16px;
-  line-height: 1.8;
-  color: #d6e4f2;
-}
-
-.detail-meta {
-  min-width: 220px;
-  display: grid;
-  gap: 12px;
+.detail-main {
+  flex: 1;
 }
 
 .detail-body {
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(7, 18, 31, 0.76);
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(4, 15, 27, 0.56);
 }
 
 .detail-body h4 {
-  margin: 0 0 12px;
-}
-
-.detail-body p {
   margin: 0;
-  line-height: 1.9;
-  white-space: pre-wrap;
 }
 
-.dialog-close {
-  border: none;
-  background: transparent;
-  color: #c9d8e8;
-  font-size: 22px;
-  cursor: pointer;
+.review-box {
+  margin-top: 18px;
+  padding: 18px;
 }
 
-.empty-state {
-  padding: 18px 0;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-@media (max-width: 1024px) {
-  .banner-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .knowledge-base-page {
-    padding: 14px 12px 20px;
-  }
-
+@media (max-width: 900px) {
   .hero-panel,
   .panel-head,
-  .detail-head,
   .detail-hero {
     flex-direction: column;
   }
 
-  .desktop-table {
-    display: none;
-  }
-
-  .mobile-list {
-    display: block;
-  }
-
-  .banner-grid,
-  .form-inline-grid {
+  .highlight-grid,
+  .entry-grid,
+  .pending-grid,
+  .form-grid,
+  .entry-meta-grid,
+  .detail-meta {
     grid-template-columns: 1fr;
-  }
-
-  .pager {
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   .dialog {
     padding: 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  .knowledge-base-page {
+    padding: 12px 12px 24px;
+  }
+
+  .panel-section,
+  .hero-panel {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .page-title {
+    font-size: 28px;
+  }
+
+  .highlight-title,
+  .entry-title {
+    font-size: 18px;
   }
 }
 </style>

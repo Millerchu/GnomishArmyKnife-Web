@@ -2,11 +2,17 @@ import axios from 'axios'
 import {clearAuthState} from '@/utils/authStorage'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
-const PUBLIC_AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/captcha', '/auth/password-public-key']
+const PUBLIC_REQUEST_PATHS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/captcha',
+  '/auth/password-public-key',
+  '/knowledge-base/public-highlights'
+]
 let authRedirecting = false
 
 function isPublicAuthRequest(url = '') {
-  return PUBLIC_AUTH_PATHS.some((path) => url.includes(path))
+  return PUBLIC_REQUEST_PATHS.some((path) => url.includes(path))
 }
 
 function isAuthExpiredCode(code = '') {
