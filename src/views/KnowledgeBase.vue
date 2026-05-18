@@ -28,11 +28,11 @@
       {{ pageMessage.text }}
     </p>
 
-    <section class="panel-section">
+    <section class="panel-section compact-section">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">今日精选经验</h2>
-          <p class="panel-tip">登录页短句会从这里随机抽取已发布经验，所以这组内容会直接影响系统第一印象。</p>
+          <p class="panel-tip">登录页短句会从这里随机抽取已发布经验。</p>
         </div>
         <button class="ghost-btn" :disabled="highlightLoading" @click="loadHighlights">
           {{ highlightLoading ? '切换中...' : '换一组' }}
@@ -40,24 +40,17 @@
       </div>
 
       <div v-if="highlightLoading && !highlightEntries.length" class="empty-state">加载推荐中...</div>
-      <div v-else-if="highlightEntries.length" class="highlight-grid">
-        <article
+      <div v-else-if="highlightEntries.length" class="highlight-strip">
+        <button
           v-for="item in highlightEntries"
           :key="item.id"
-          class="highlight-card"
+          type="button"
+          class="highlight-pill"
           @click="openDetailDialog(item)"
         >
-          <div class="highlight-head">
-            <span class="status-chip status-chip-published">已发布</span>
-            <span class="date-text">{{ formatDate(item.updatedAt || item.createdAt) }}</span>
-          </div>
-          <h3 class="highlight-title">{{ item.title }}</h3>
-          <p class="highlight-summary">{{ shortText(item.summary, 82) }}</p>
-          <div class="meta-row">
-            <span class="meta-chip">{{ item.category || '未分类' }}</span>
-            <span class="meta-chip">{{ item.scenario || '通用场景' }}</span>
-          </div>
-        </article>
+          <span class="highlight-pill-title">{{ item.title }}</span>
+          <span class="highlight-pill-summary">{{ shortText(item.summary, 38) }}</span>
+        </button>
       </div>
       <div v-else class="empty-state">暂无已发布经验，登录页暂不会展示经验短句。</div>
     </section>
@@ -80,25 +73,25 @@
 
       <div v-if="publishedLoading && !publishedEntries.length" class="empty-state">公共经验加载中...</div>
       <template v-else>
-        <div v-if="publishedEntries.length" class="entry-grid">
-          <article v-for="item in publishedEntries" :key="item.id" class="entry-card">
-            <div class="entry-card-head">
-              <div>
+        <div v-if="publishedEntries.length" class="entry-list">
+          <article v-for="item in publishedEntries" :key="item.id" class="entry-row">
+            <div class="entry-row-main">
+              <div class="entry-row-title">
                 <h3 class="entry-title">{{ item.title }}</h3>
-                <p class="entry-summary">{{ shortText(item.summary, 92) }}</p>
+                <span class="status-chip status-chip-published">已发布</span>
               </div>
-              <span class="status-chip status-chip-published">已发布</span>
+              <p class="entry-summary">{{ shortText(item.summary, 116) }}</p>
+              <div class="entry-row-meta">
+                <span>{{ item.category || '未分类' }}</span>
+                <span>{{ item.scenario || '通用场景' }}</span>
+                <span>{{ item.source || '未标注来源' }}</span>
+                <span>{{ formatDate(item.updatedAt || item.createdAt) }}</span>
+              </div>
             </div>
-            <div class="entry-meta-grid">
-              <p><span>分类</span><strong>{{ item.category || '-' }}</strong></p>
-              <p><span>场景</span><strong>{{ item.scenario || '-' }}</strong></p>
-              <p><span>来源</span><strong>{{ item.source || '-' }}</strong></p>
-              <p><span>更新时间</span><strong>{{ formatDate(item.updatedAt || item.createdAt) }}</strong></p>
+            <div class="entry-row-tags">
+              <span v-for="tag in (item.tags || []).slice(0, 3)" :key="`${item.id}-${tag}`" class="tag-chip">{{ tag }}</span>
             </div>
-            <div class="tag-row">
-              <span v-for="tag in item.tags" :key="`${item.id}-${tag}`" class="tag-chip">{{ tag }}</span>
-            </div>
-            <div class="row-actions">
+            <div class="row-actions row-actions-fixed">
               <button class="mini-btn" @click="openDetailDialog(item)">查看详情</button>
               <button v-if="canEdit(item)" class="mini-btn" @click="openEditDialog(item)">编辑</button>
               <button v-if="canDelete(item)" class="mini-btn danger" @click="removeEntry(item)">删除</button>
@@ -121,24 +114,24 @@
       </div>
 
       <div v-if="submissionLoading && !mySubmissionEntries.length" class="empty-state">投稿记录加载中...</div>
-      <div v-else-if="mySubmissionEntries.length" class="submission-list">
-        <article v-for="item in mySubmissionEntries" :key="item.id" class="submission-card">
-          <div class="submission-head">
-            <div>
+      <div v-else-if="mySubmissionEntries.length" class="entry-list">
+        <article v-for="item in mySubmissionEntries" :key="item.id" class="entry-row">
+          <div class="entry-row-main">
+            <div class="entry-row-title">
               <h3 class="entry-title">{{ item.title }}</h3>
-              <p class="entry-summary">{{ shortText(item.summary, 86) }}</p>
+              <span class="status-chip" :class="`status-chip-${statusMeta(item.status).tone}`">
+                {{ statusMeta(item.status).label }}
+              </span>
             </div>
-            <span class="status-chip" :class="`status-chip-${statusMeta(item.status).tone}`">
-              {{ statusMeta(item.status).label }}
-            </span>
+            <p class="entry-summary">{{ shortText(item.summary, 108) }}</p>
+            <div class="entry-row-meta">
+              <span>{{ item.category || '未分类' }}</span>
+              <span>{{ item.scenario || '通用场景' }}</span>
+              <span>{{ formatDate(item.updatedAt || item.createdAt) }}</span>
+              <span>审核备注：{{ shortText(item.reviewRemark || '暂无', 24) }}</span>
+            </div>
           </div>
-          <div class="entry-meta-grid">
-            <p><span>分类</span><strong>{{ item.category || '-' }}</strong></p>
-            <p><span>场景</span><strong>{{ item.scenario || '-' }}</strong></p>
-            <p><span>更新时间</span><strong>{{ formatDate(item.updatedAt || item.createdAt) }}</strong></p>
-            <p><span>审核备注</span><strong>{{ item.reviewRemark || '暂无' }}</strong></p>
-          </div>
-          <div class="row-actions">
+          <div class="row-actions row-actions-fixed">
             <button class="mini-btn" @click="openDetailDialog(item)">查看详情</button>
             <button v-if="canEdit(item)" class="mini-btn" @click="openEditDialog(item)">继续修改</button>
             <button v-if="canDelete(item)" class="mini-btn danger" @click="removeEntry(item)">删除投稿</button>
@@ -160,17 +153,22 @@
       </div>
 
       <div v-if="pendingLoading && !pendingEntries.length" class="empty-state">待审核列表加载中...</div>
-      <div v-else-if="pendingEntries.length" class="pending-grid">
-        <article v-for="item in pendingEntries" :key="item.id" class="pending-card">
-          <div class="submission-head">
-            <div>
-              <p class="owner-label">投稿人 ID · {{ item.ownerUserId || '-' }}</p>
+      <div v-else-if="pendingEntries.length" class="entry-list">
+        <article v-for="item in pendingEntries" :key="item.id" class="entry-row">
+          <div class="entry-row-main">
+            <div class="entry-row-title">
               <h3 class="entry-title">{{ item.title }}</h3>
+              <span class="status-chip status-chip-pending">待审核</span>
             </div>
-            <span class="status-chip status-chip-pending">待审核</span>
+            <p class="entry-summary">{{ shortText(item.summary, 112) }}</p>
+            <div class="entry-row-meta">
+              <span>投稿人 ID：{{ item.ownerUserId || '-' }}</span>
+              <span>{{ item.category || '未分类' }}</span>
+              <span>{{ item.scenario || '通用场景' }}</span>
+              <span>{{ formatDate(item.updatedAt || item.createdAt) }}</span>
+            </div>
           </div>
-          <p class="entry-summary">{{ shortText(item.summary, 96) }}</p>
-          <div class="row-actions">
+          <div class="row-actions row-actions-fixed">
             <button class="mini-btn" @click="openDetailDialog(item)">查看详情</button>
             <button class="mini-btn approve" :disabled="reviewSubmitting" @click="reviewEntry(item, 'publish')">通过发布</button>
             <button class="mini-btn danger" :disabled="reviewSubmitting" @click="reviewEntry(item, 'reject')">驳回</button>
@@ -705,6 +703,8 @@ export default {
 <style scoped>
 .knowledge-base-page {
   min-height: 100vh;
+  height: 100%;
+  overflow: auto;
   padding: 16px 18px 28px;
   color: #eff6ff;
   background:
@@ -751,8 +751,8 @@ export default {
   display: flex;
   justify-content: space-between;
   gap: 24px;
-  padding: 24px;
-  margin-bottom: 14px;
+  padding: 18px 20px;
+  margin-bottom: 12px;
 }
 
 .eyebrow {
@@ -771,7 +771,7 @@ export default {
 }
 
 .page-title {
-  font-size: 32px;
+  font-size: 28px;
 }
 
 .page-subtitle,
@@ -786,6 +786,10 @@ export default {
   color: #a3b8cc;
 }
 
+.page-subtitle {
+  max-width: 760px;
+}
+
 .hero-stats,
 .panel-actions,
 .row-actions,
@@ -795,6 +799,11 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.hero-stats {
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .hero-chip,
@@ -810,6 +819,7 @@ export default {
 }
 
 .hero-chip {
+  min-height: 42px;
   background: rgba(191, 219, 254, 0.12);
   color: #dbeafe;
 }
@@ -857,8 +867,12 @@ export default {
 }
 
 .panel-section {
-  margin-bottom: 14px;
-  padding: 20px;
+  margin-bottom: 12px;
+  padding: 16px;
+}
+
+.compact-section {
+  padding-bottom: 14px;
 }
 
 .panel-head,
@@ -874,19 +888,11 @@ export default {
 
 .panel-head {
   align-items: flex-start;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .panel-title {
-  font-size: 21px;
-}
-
-.highlight-grid,
-.entry-grid,
-.pending-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  font-size: 19px;
 }
 
 .highlight-card,
@@ -919,8 +925,116 @@ export default {
 
 .highlight-title,
 .entry-title {
-  margin: 12px 0 0;
-  font-size: 20px;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.highlight-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.highlight-pill {
+  min-width: 0;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  color: #eff6ff;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(6, 18, 31, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.highlight-pill-title,
+.highlight-pill-summary {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.highlight-pill-title {
+  font-weight: 700;
+}
+
+.highlight-pill-summary {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #8ea4ba;
+}
+
+.entry-list {
+  display: grid;
+  gap: 8px;
+}
+
+.entry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(6, 18, 31, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.entry-row-main {
+  min-width: 0;
+}
+
+.entry-row-title,
+.entry-row-meta,
+.entry-row-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.entry-row-title {
+  min-width: 0;
+}
+
+.entry-row-title .entry-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-row-meta {
+  flex-wrap: wrap;
+  margin-top: 6px;
+  color: #8ea4ba;
+  font-size: 12px;
+}
+
+.entry-row-meta span:not(:last-child)::after {
+  content: "/";
+  margin-left: 8px;
+  color: rgba(142, 164, 186, 0.62);
+}
+
+.entry-row-tags {
+  max-width: 260px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.row-actions-fixed {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.entry-row .entry-summary {
+  margin-top: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .date-text,
@@ -1147,13 +1261,25 @@ export default {
     flex-direction: column;
   }
 
-  .highlight-grid,
-  .entry-grid,
-  .pending-grid,
+  .highlight-strip,
   .form-grid,
   .entry-meta-grid,
   .detail-meta {
     grid-template-columns: 1fr;
+  }
+
+  .entry-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .entry-row-tags,
+  .row-actions-fixed {
+    justify-content: flex-start;
+  }
+
+  .entry-row-tags {
+    max-width: none;
   }
 
   .dialog {
@@ -1168,17 +1294,40 @@ export default {
 
   .panel-section,
   .hero-panel {
-    padding: 16px;
+    padding: 12px;
     border-radius: 22px;
   }
 
   .page-title {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .highlight-title,
   .entry-title {
-    font-size: 18px;
+    font-size: 16px;
+  }
+
+  .hero-stats,
+  .panel-actions {
+    gap: 6px;
+  }
+
+  .entry-row {
+    padding: 11px;
+  }
+
+  .entry-row-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .entry-row-title .entry-title,
+  .entry-row .entry-summary {
+    white-space: normal;
+  }
+
+  .row-actions-fixed {
+    flex-wrap: wrap;
   }
 }
 </style>
