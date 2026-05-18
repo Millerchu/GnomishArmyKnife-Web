@@ -10,7 +10,7 @@
     <div class="hero-panel">
       <div>
         <h1 class="page-title">WoW角色统计</h1>
-        <p class="page-subtitle">维护正式服角色装等、当前钥匙、8 本赛季分数和每周低保进度，主角色卡片由你手工指定。</p>
+        <p class="page-subtitle">维护正式服角色装等、当前钥匙和赛季评分，列表只保留日常检索最常用字段。</p>
       </div>
       <div class="hero-tags">
         <span class="hero-tag">已接真实接口</span>
@@ -76,7 +76,7 @@
         </article>
 
         <article
-          v-for="placeholder in Math.max(0, 4 - featuredCharacters.length)"
+          v-for="placeholder in spotlightPlaceholderCount"
           :key="`placeholder-${placeholder}`"
           class="character-card empty-card"
         >
@@ -129,7 +129,7 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">角色列表</h2>
-            <p class="panel-tip">列表展示核心资料、8 本进度和最近一周低保，适合快速维护账号常用角色。</p>
+            <p class="panel-tip">列表只保留核心字段，阵营用行底色区分；更多资料进入编辑详情维护。</p>
           </div>
         </div>
 
@@ -151,20 +151,21 @@
               <thead>
               <tr>
                 <th>角色名</th>
-                <th>职业 / 专精</th>
+                <th>专精</th>
                 <th>服务器</th>
-                <th>阵营</th>
                 <th>装等</th>
-                <th>主角色</th>
                 <th>当前钥匙</th>
                 <th>M+ 总分</th>
-                <th>最近低保</th>
-                <th>专业</th>
                 <th>操作</th>
               </tr>
               </thead>
               <tbody>
-              <tr v-for="item in pagedRecords" :key="item.id">
+              <tr
+                v-for="item in pagedRecords"
+                :key="item.id"
+                class="character-row"
+                :class="buildFactionRowClass(item)"
+              >
                 <td>
                   <span class="name-badge" :style="buildNameBadgeStyle(item)">
                     {{ item.characterName }}
@@ -173,22 +174,13 @@
                 <td>
                   <div class="class-cell">
                     <span class="class-dot" :style="{background: getClassMeta(item.className).color}"></span>
-                    <span>{{ item.className }}</span>
-                    <span class="cell-muted">{{ formatSpecText(item.specName) || '-' }}</span>
+                    <span>{{ formatSpecText(item.specName) || '-' }}</span>
                   </div>
                 </td>
                 <td>{{ item.realmName || '-' }}</td>
-                <td>
-                  <span class="faction-chip" :class="item.faction === 'HORDE' ? 'horde' : 'alliance'">
-                    {{ formatFactionText(item.faction) }}
-                  </span>
-                </td>
                 <td>{{ formatDecimal(item.itemLevel) }}</td>
-                <td>{{ item.isFeatured ? '是' : '否' }}</td>
                 <td>{{ formatCurrentKey(item) }}</td>
                 <td>{{ formatScore(item.mythicScore) }}</td>
-                <td>{{ formatLatestVaultText(item.weeklyVaults) }}</td>
-                <td>{{ formatProfessionText(item) }}</td>
                 <td>
                   <div class="row-actions">
                     <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
@@ -205,26 +197,22 @@
               v-for="item in pagedRecords"
               :key="item.id"
               class="mobile-card"
+              :class="buildFactionRowClass(item)"
               :style="buildMobileCardStyle(item)"
             >
               <div class="mobile-card-head">
                 <div>
                   <h3 class="mobile-card-title">{{ item.characterName }}</h3>
-                  <p class="mobile-card-subtitle">{{ item.className }} · {{ formatSpecText(item.specName) || '-' }} · {{ item.realmName }}</p>
+                  <p class="mobile-card-subtitle">{{ formatSpecText(item.specName) || '-' }} · {{ item.realmName }}</p>
                 </div>
-                <span class="faction-chip" :class="item.faction === 'HORDE' ? 'horde' : 'alliance'">
-                  {{ formatFactionText(item.faction) }}
-                </span>
               </div>
 
               <div class="mobile-card-grid">
                 <p><span>装等</span><strong>{{ formatDecimal(item.itemLevel) }}</strong></p>
                 <p><span>评分</span><strong>{{ formatScore(item.mythicScore) }}</strong></p>
-                <p><span>当前钥匙</span><strong>{{ formatCurrentKey(item) }}</strong></p>
-                <p><span>最近低保</span><strong>{{ formatLatestVaultText(item.weeklyVaults) }}</strong></p>
+                <p class="wide"><span>当前钥匙</span><strong>{{ formatCurrentKey(item) }}</strong></p>
                 <p><span>种族</span><strong>{{ formatRaceText(item.raceName) }}</strong></p>
-                <p><span>主角色</span><strong>{{ item.isFeatured ? '是' : '否' }}</strong></p>
-                <p class="wide"><span>专业</span><strong>{{ formatProfessionText(item) }}</strong></p>
+                <p><span>等级</span><strong>{{ item.level }}</strong></p>
               </div>
 
               <div class="mobile-card-actions">
@@ -255,46 +243,52 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">角色概览</h2>
-            <p class="panel-tip">快速查看阵营分布、职业分布和高装等服务器。</p>
+            <p class="panel-tip">压缩展示关键账号规模和分布。</p>
           </div>
         </div>
 
-        <div class="summary-grid">
-          <article class="summary-card">
-            <span>总角色数</span>
+        <div class="overview-metrics">
+          <article class="overview-metric">
             <strong>{{ overview.totalCharacters }}</strong>
+            <span>角色</span>
           </article>
-          <article class="summary-card">
-            <span>平均装等</span>
+          <article class="overview-metric">
             <strong>{{ formatDecimal(overview.averageItemLevel) }}</strong>
+            <span>平均装等</span>
           </article>
-          <article class="summary-card">
-            <span>最高大秘境评分</span>
+          <article class="overview-metric">
             <strong>{{ formatDecimal(overview.highestMythicScore) }}</strong>
+            <span>最高评分</span>
           </article>
-          <article class="summary-card">
-            <span>服务器数量</span>
+          <article class="overview-metric">
             <strong>{{ overview.totalRealms }}</strong>
+            <span>服务器</span>
           </article>
         </div>
 
-        <div class="insight-block">
+        <div class="insight-block compact-insight-block">
           <div class="insight-head">
-            <h3 class="insight-title">阵营分布</h3>
-            <span>{{ factionStats.length }} 类</span>
+            <h3 class="insight-title">阵营 / 服务器</h3>
           </div>
-          <div class="stats-list">
-            <div v-for="item in factionStats" :key="item.label" class="stats-row">
+          <div class="stats-list compact-stats-list">
+            <div v-for="item in factionStats" :key="item.label" class="stats-row compact-stats-row">
               <div>
                 <strong>{{ item.label }}</strong>
                 <span>{{ item.count }} 个角色</span>
               </div>
               <b>{{ item.ratio }}</b>
             </div>
+            <div v-for="item in realmStats.slice(0, 3)" :key="item.realmName" class="stats-row compact-stats-row">
+              <div>
+                <strong>{{ item.realmName }}</strong>
+                <span>{{ item.count }} 个角色</span>
+              </div>
+              <b>最高 {{ formatDecimal(item.highestItemLevel) }}</b>
+            </div>
           </div>
         </div>
 
-        <div class="insight-block">
+        <div class="insight-block compact-insight-block">
           <div class="insight-head">
             <h3 class="insight-title">职业分布</h3>
             <span>{{ classStats.length }} 职业</span>
@@ -308,22 +302,6 @@
             >
               <strong>{{ item.className }}</strong>
               <span>{{ item.count }} 个角色 · 平均装等 {{ formatDecimal(item.averageItemLevel) }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="insight-block">
-          <div class="insight-head">
-            <h3 class="insight-title">活跃服务器</h3>
-            <span>{{ realmStats.length }} 个</span>
-          </div>
-          <div class="stats-list">
-            <div v-for="item in realmStats" :key="item.realmName" class="stats-row">
-              <div>
-                <strong>{{ item.realmName }}</strong>
-                <span>{{ item.count }} 个角色</span>
-              </div>
-              <b>最高 {{ formatDecimal(item.highestItemLevel) }}</b>
             </div>
           </div>
         </div>
@@ -408,7 +386,7 @@
             </div>
           </div>
 
-          <section class="dialog-block">
+          <section v-if="showEndgameSections" class="dialog-block">
             <div class="dialog-block-head">
               <div>
                 <h4 class="dialog-block-title">每周低保</h4>
@@ -494,7 +472,7 @@
             <div v-else class="empty-inline">当前还没有周低保记录</div>
           </section>
 
-          <section class="dialog-block">
+          <section v-if="showEndgameSections" class="dialog-block">
             <div class="dialog-block-head">
               <div>
                 <h4 class="dialog-block-title">大秘境赛季记录</h4>
@@ -583,6 +561,7 @@ import {
   listWowCharacters,
   updateWowCharacter
 } from '@/api/wowCharacter'
+import {shouldShowEndgameSections} from '@/utils/wowCharacterDisplay'
 
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 const WOW_APP_CODE = 'APP_WOW_CHARACTER'
@@ -841,6 +820,9 @@ export default {
     })
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
+    const spotlightPlaceholderCount = computed(() => (
+      featuredCharacters.value.length ? Math.max(0, 4 - featuredCharacters.value.length) : 1
+    ))
     const featuredScorePopoverStyle = computed(() => ({
       left: `${featuredScorePopoverPosition.left}px`,
       top: `${featuredScorePopoverPosition.top}px`
@@ -887,6 +869,7 @@ export default {
     const availablePrimaryProfessionOptions = computed(() => professionOptions.value.filter((item) => item.value !== form.professionSecondary))
     const availableSecondaryProfessionOptions = computed(() => professionOptions.value.filter((item) => item.value !== form.professionPrimary))
     const formMythicScore = computed(() => form.mythicRuns.reduce((totalScore, item) => totalScore + toNumber(item.score, 0), 0))
+    const showEndgameSections = computed(() => shouldShowEndgameSections(form.level))
 
     const getDefaultFactionValue = () => {
       const matched = factionOptions.value.find((item) => item.value === DEFAULT_FACTION_VALUE)
@@ -1130,18 +1113,18 @@ export default {
       isFeatured: Boolean(form.isFeatured),
       mythicBestLevel: Number(form.mythicBestLevel || 0),
       mythicDungeonName: form.mythicDungeonName || null,
-      mythicRuns: form.mythicRuns.map((item) => ({
+      mythicRuns: showEndgameSections.value ? form.mythicRuns.map((item) => ({
         dungeonName: item.dungeonName,
         score: Number(item.score || 0)
-      })),
-      weeklyVaults: form.weeklyVaults.map((item) => ({
+      })) : [],
+      weeklyVaults: showEndgameSections.value ? form.weeklyVaults.map((item) => ({
         id: item.id || null,
         weekStartDate: item.weekStartDate || null,
         raidProgressCount: Number(item.raidProgressCount || 0),
         mythicProgressCount: Number(item.mythicProgressCount || 0),
         worldProgressCount: Number(item.worldProgressCount || 0),
         note: item.note || ''
-      })),
+      })) : [],
       professionPrimary: form.professionPrimary || null,
       professionSecondary: form.professionSecondary || null,
       note: form.note
@@ -1199,17 +1182,19 @@ export default {
         alert('选择当前钥匙副本后，请填写大于 0 的当前钥匙层数')
         return
       }
-      const weekSet = new Set()
-      for (const item of form.weeklyVaults) {
-        if (!item.weekStartDate) {
-          alert('请完整填写每周低保的周起始日')
-          return
+      if (showEndgameSections.value) {
+        const weekSet = new Set()
+        for (const item of form.weeklyVaults) {
+          if (!item.weekStartDate) {
+            alert('请完整填写每周低保的周起始日')
+            return
+          }
+          if (weekSet.has(item.weekStartDate)) {
+            alert('每周低保存在重复周起始日')
+            return
+          }
+          weekSet.add(item.weekStartDate)
         }
-        if (weekSet.has(item.weekStartDate)) {
-          alert('每周低保存在重复周起始日')
-          return
-        }
-        weekSet.add(item.weekStartDate)
       }
       if (submitting.value) {
         return
@@ -1377,6 +1362,8 @@ export default {
       }
     }
 
+    const buildFactionRowClass = (item) => item?.faction === 'HORDE' ? 'faction-row-horde' : 'faction-row-alliance'
+
     watch(() => form.className, () => {
       const normalized = normalizeSelectedValue(classOptions.value, form.className, getDefaultClassValue())
       if (normalized !== form.className) {
@@ -1487,7 +1474,9 @@ export default {
       availablePrimaryProfessionOptions,
       availableSecondaryProfessionOptions,
       totalPages,
+      spotlightPlaceholderCount,
       formMythicScore,
+      showEndgameSections,
       RAID_THRESHOLDS,
       MYTHIC_THRESHOLDS,
       WORLD_THRESHOLDS,
@@ -1522,7 +1511,8 @@ export default {
       buildAvatarStyle,
       buildNameBadgeStyle,
       buildClassStatStyle,
-      buildMobileCardStyle
+      buildMobileCardStyle,
+      buildFactionRowClass
     }
   }
 }
@@ -1927,7 +1917,15 @@ export default {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.overview-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .summary-card,
+.overview-metric,
 .class-stat-item,
 .stats-row,
 .mobile-card,
@@ -1936,6 +1934,25 @@ export default {
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.08);
+}
+
+.overview-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 72px;
+  padding: 12px;
+}
+
+.overview-metric strong {
+  font-size: 20px;
+  line-height: 1.15;
+  color: #ffd76e;
+}
+
+.overview-metric span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .summary-card {
@@ -1951,7 +1968,11 @@ export default {
 }
 
 .insight-block {
-  margin-top: 16px;
+  margin-top: 14px;
+}
+
+.compact-insight-block {
+  margin-top: 12px;
 }
 
 .stats-list,
@@ -1966,6 +1987,14 @@ export default {
 .stats-row,
 .class-stat-item {
   padding: 12px 14px;
+}
+
+.compact-stats-list {
+  gap: 8px;
+}
+
+.compact-stats-row {
+  padding: 10px 12px;
 }
 
 .stats-row > div,
@@ -2024,7 +2053,7 @@ export default {
 
 .character-table {
   width: 100%;
-  min-width: 1180px;
+  min-width: 780px;
   border-collapse: collapse;
 }
 
@@ -2039,6 +2068,22 @@ export default {
 .character-table th {
   color: rgba(255, 255, 255, 0.88);
   font-weight: 600;
+}
+
+.character-row {
+  transition: background 0.18s ease;
+}
+
+.character-row.faction-row-alliance {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.03));
+}
+
+.character-row.faction-row-horde {
+  background: linear-gradient(90deg, rgba(185, 28, 28, 0.12), rgba(185, 28, 28, 0.03));
+}
+
+.character-row:hover {
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 .name-badge {
@@ -2081,6 +2126,18 @@ export default {
 
 .mobile-card {
   padding: 14px;
+}
+
+.mobile-card.faction-row-alliance {
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(37, 99, 235, 0.04)),
+    rgba(255, 255, 255, 0.08);
+}
+
+.mobile-card.faction-row-horde {
+  background:
+    linear-gradient(135deg, rgba(185, 28, 28, 0.18), rgba(185, 28, 28, 0.04)),
+    rgba(255, 255, 255, 0.08);
 }
 
 .mobile-card-head {
@@ -2414,6 +2471,7 @@ button:disabled {
 
   .form-inline-grid,
   .mobile-card-grid,
+  .overview-metrics,
   .spotlight-grid {
     grid-template-columns: 1fr;
   }
