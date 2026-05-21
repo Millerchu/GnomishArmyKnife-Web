@@ -90,7 +90,7 @@
               'drag-over': dragOverToolKey === tool.key && draggingToolKey !== tool.key
             }"
             type="button"
-            draggable="true"
+            :draggable="!isMobileViewport"
             @dragstart="handleToolDragStart(tool, $event)"
             @dragenter.prevent="handleToolDragEnter(tool)"
             @dragover.prevent
@@ -442,6 +442,7 @@ export default {
     const draggingToolKey = ref('')
     const dragOverToolKey = ref('')
     const suppressNextToolOpen = ref(false)
+    const isMobileViewport = ref(false)
     const systemMenuRef = ref(null)
     const surfaceNoticeRef = ref(null)
     const logoutDialogRef = ref(null)
@@ -792,6 +793,10 @@ export default {
 
     // 拖拽排序只调整展示顺序，不直接修改使用频率，避免两个规则互相污染。
     const handleToolDragStart = (tool, event) => {
+      if (isMobileViewport.value) {
+        event?.preventDefault()
+        return
+      }
       draggingToolKey.value = tool.key
       dragOverToolKey.value = tool.key
       if (event?.dataTransfer) {
@@ -801,6 +806,9 @@ export default {
     }
 
     const handleToolDragEnter = (tool) => {
+      if (isMobileViewport.value) {
+        return
+      }
       if (!draggingToolKey.value || draggingToolKey.value === tool.key) {
         return
       }
@@ -808,6 +816,10 @@ export default {
     }
 
     const handleToolDrop = (tool) => {
+      if (isMobileViewport.value) {
+        handleToolDragEnd()
+        return
+      }
       const fromKey = draggingToolKey.value
       const toKey = tool.key
       if (!fromKey || fromKey === toKey) {
@@ -967,10 +979,19 @@ export default {
       }
     }
 
+    const syncMobileViewport = () => {
+      isMobileViewport.value = window.matchMedia('(max-width: 640px)').matches
+      if (isMobileViewport.value) {
+        handleToolDragEnd()
+      }
+    }
+
     onMounted(() => {
       timer = setInterval(() => {
         currentTime.value = new Date()
       }, 60 * 1000)
+      syncMobileViewport()
+      window.addEventListener('resize', syncMobileViewport)
       document.addEventListener('click', handleDocumentClick)
       document.addEventListener('keydown', handleEscapeKey)
       loadCurrentUserAccessibleApps()
@@ -984,6 +1005,7 @@ export default {
         clearTimeout(surfaceNoticeTimer)
       }
       resetEasterEggProgress()
+      window.removeEventListener('resize', syncMobileViewport)
       document.removeEventListener('click', handleDocumentClick)
       document.removeEventListener('keydown', handleEscapeKey)
     })
@@ -1005,6 +1027,7 @@ export default {
       visibleSystemMenus,
       tools,
       usesImageIcon,
+      isMobileViewport,
       draggingToolKey,
       dragOverToolKey,
       showUserDialog,
@@ -1637,14 +1660,58 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .home-page {
+    overflow: auto;
+  }
+
   .main-area {
     width: 100%;
-    padding: 16px 12px 12px;
+    min-height: 100vh;
+    padding: 8px 12px 18px !important;
+    gap: 8px !important;
+  }
+
+  .top-bar {
+    gap: 8px;
+  }
+
+  .easter-egg-trigger {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .top-right-wrap {
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .welcome-label,
+  .current-date {
+    display: none;
+  }
+
+  .user-name-text {
+    padding: 3px 7px;
+    font-size: 12px;
+  }
+
+  .system-menu-toggle {
+    width: 34px;
+    height: 34px;
+  }
+
+  .main-panel {
+    padding: 4px 0 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 
   .panel-head {
-    flex-direction: column;
-    align-items: flex-start;
+    display: none;
   }
 
   .surface-notice {
@@ -1653,37 +1720,90 @@ export default {
   }
 
   .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 18px 8px !important;
+    align-items: start;
   }
 
   .tool-item {
-    min-height: 150px;
-    padding: 12px;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: none;
+    border-radius: 0;
+    align-items: flex-start;
+    justify-content: center;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+    text-align: center;
+    -webkit-user-drag: none;
+    user-select: none;
   }
 
-  .tool-top {
+  .tool-item:hover {
+    transform: none;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .tool-item.dragging,
+  .tool-item.drag-over {
+    opacity: 1;
+    transform: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .tool-layout {
+    flex-direction: column;
     align-items: center;
+    gap: 7px;
   }
 
   .icon-box {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
+    width: 68px !important;
+    height: 68px !important;
+    flex-basis: 68px;
+    border-radius: 18px !important;
   }
 
   .icon-text {
-    font-size: 18px;
+    font-size: 20px;
   }
 
-  .top-right-wrap,
+  .tool-content {
+    width: 100%;
+    align-items: center;
+    gap: 0;
+  }
+
+  .tool-name {
+    max-width: 72px;
+    min-height: 34px;
+    font-size: 12px !important;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .tool-desc {
+    display: none;
+  }
+
   .filter-actions,
   .dialog-actions {
     width: 100%;
   }
 
   .top-right-wrap {
-    justify-content: flex-start;
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
   }
 
   .system-menu-box {
@@ -1711,7 +1831,8 @@ export default {
 
 @media (max-width: 420px) {
   .grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 16px 6px !important;
   }
 
   .top-right-wrap {
@@ -1719,8 +1840,8 @@ export default {
   }
 
   .welcome-wrap {
-    width: 100%;
-    justify-content: space-between;
+    width: auto;
+    justify-content: flex-end;
   }
 
   .current-date {
