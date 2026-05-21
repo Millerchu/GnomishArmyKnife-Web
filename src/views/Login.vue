@@ -371,11 +371,14 @@ export default {
 
 <style scoped>
 .login-page {
+  height: 100%;
   min-height: 100vh;
   padding: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background:
     radial-gradient(circle at top left, rgba(56, 189, 248, 0.24), transparent 26%),
     radial-gradient(circle at bottom right, rgba(250, 204, 21, 0.18), transparent 24%);
@@ -515,6 +518,9 @@ export default {
 .glass-box {
   width: 100%;
   padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   background: rgba(255, 255, 255, 0.16);
   color: #fff;
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22);
@@ -646,21 +652,68 @@ export default {
 
 @media (max-width: 640px) {
   .login-page {
-    padding: 14px;
+    padding: 10px;
+    align-items: center;
+    justify-content: center;
   }
 
-  .brand-header,
-  .ticker-head {
+  .page-shell {
+    width: min(320px, 100%);
+    margin-block: auto;
+    gap: 10px;
+    align-items: start;
+    align-content: start;
+    justify-items: center;
+  }
+
+  .brand-hero,
+  .glass-box {
+    width: 100%;
+    border-radius: 18px;
+  }
+
+  .brand-hero {
+    padding: 16px;
+    justify-content: center;
+  }
+
+  .brand-header {
     flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .brand-kicker,
+  .system-subtitle {
+    display: none;
+  }
+
+  .ticker-panel {
+    display: none;
   }
 
   .brand-mark {
-    width: 80px;
-    height: 80px;
+    width: 56px;
+    height: 56px;
   }
 
   .system-name {
-    font-size: 32px;
+    font-size: 28px;
+    line-height: 1.1;
+  }
+
+  .glass-box {
+    padding: 20px 16px;
+  }
+
+  .title {
+    margin-bottom: 16px;
+    font-size: 22px;
+  }
+
+  .form {
+    gap: 10px;
   }
 
   .ticker-title {
