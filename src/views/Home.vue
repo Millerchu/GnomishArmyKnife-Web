@@ -255,6 +255,7 @@ import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
 import {buildDefaultAppCatalog, mergeAppCatalogList, normalizeSystemApp} from '@/utils/appCatalogDraft'
 import {clearAuthState, readAuthState, writeAuthState} from '@/utils/authStorage'
+import {sortHomeTools} from '@/utils/homeToolOrder'
 import {resolvePermissionViewState} from '@/utils/permissionAccess'
 import {encryptPasswordByPublicKey} from '@/utils/rsaEncrypt'
 
@@ -272,7 +273,6 @@ const APP_COLOR_PALETTE = [
   ['#1f2937', '#4b5563'],
   ['#854d0e', '#eab308']
 ]
-const TOOL_USAGE_STORAGE_KEY = 'home_tool_usage_map'
 const TOOL_CUSTOM_ORDER_STORAGE_KEY = 'home_tool_custom_order'
 
 function unwrapData(res) {
@@ -384,21 +384,6 @@ function extractErrorMessage(error, fallback) {
   return data.message || data.msg || fallback
 }
 
-// 使用频率和自定义顺序都走本地持久化，保证桌面排序在刷新后仍然生效。
-function readUsageMap() {
-  try {
-    const raw = localStorage.getItem(TOOL_USAGE_STORAGE_KEY)
-    const parsed = JSON.parse(raw || '{}')
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch (error) {
-    return {}
-  }
-}
-
-function persistUsageMap(map) {
-  localStorage.setItem(TOOL_USAGE_STORAGE_KEY, JSON.stringify(map))
-}
-
 function readCustomOrder() {
   try {
     const raw = localStorage.getItem(TOOL_CUSTOM_ORDER_STORAGE_KEY)
@@ -437,7 +422,6 @@ export default {
     const appPermissionSource = ref('unavailable')
     const surfaceNotice = reactive(buildNotice())
     const toolCatalog = ref(buildDefaultAppCatalog())
-    const toolUsageMap = ref(readUsageMap())
     const customToolOrder = ref(readCustomOrder())
     const draggingToolKey = ref('')
     const dragOverToolKey = ref('')
@@ -486,7 +470,7 @@ export default {
     })
     const permissionHintText = computed(() => {
       if (appPermissionSource.value === 'backend') {
-        return '主页已优先按当前用户授权显示应用入口，桌面排序仍支持使用频率与拖拽自定义。'
+        return '主页已优先按当前用户授权显示应用入口，桌面排序保持稳定，也支持拖拽自定义。'
       }
       if (appPermissionSource.value === 'admin-fallback') {
         return '当前账号尚未写入正式授权，主页按管理员兜底目录展示。建议尽快在权限管理中补齐授权。'
@@ -526,37 +510,16 @@ export default {
       return systemMenus.filter((item) => ['profile', 'logout'].includes(item.key))
     })
 
-    // 默认按使用频率排序；一旦用户拖拽过桌面，就优先采用自定义顺序。
+    // 默认沿用应用目录顺序；一旦用户拖拽过桌面，就优先采用自定义顺序。
     const tools = computed(() => {
       const baseDefinitions = Array.isArray(accessibleFeatureCodes.value)
         ? toolCatalog.value.filter((item) => accessibleFeatureCodes.value.includes(item.featureCode))
         : toolCatalog.value
       // 系统管理类页面统一从右上角系统菜单进入，不在主页桌面重复展示图标。
       const desktopVisibleDefinitions = baseDefinitions.filter((item) => !isSystemMenuOnlyRoute(item.route))
-      const nextTools = desktopVisibleDefinitions.map((item, index) => buildToolEntry({
-        ...item,
-        usageCount: Number(toolUsageMap.value[item.key] ?? item.usageCount ?? 0)
-      }, index))
-
-      if (!customToolOrder.value.length) {
-        return nextTools.sort((prev, next) => next.usageCount - prev.usageCount || prev.order - next.order)
-      }
-
-      const orderMap = new Map(customToolOrder.value.map((item, index) => [item, index]))
-      return nextTools.sort((prev, next) => {
-        const prevOrder = orderMap.has(prev.key) ? orderMap.get(prev.key) : Number.MAX_SAFE_INTEGER
-        const nextOrder = orderMap.has(next.key) ? orderMap.get(next.key) : Number.MAX_SAFE_INTEGER
-        return prevOrder - nextOrder || next.usageCount - prev.usageCount || prev.order - next.order
-      })
+      const nextTools = desktopVisibleDefinitions.map((item, index) => buildToolEntry(item, index))
+      return sortHomeTools(nextTools, customToolOrder.value)
     })
-
-    const incrementToolUsage = (toolKey) => {
-      toolUsageMap.value = {
-        ...toolUsageMap.value,
-        [toolKey]: Number(toolUsageMap.value[toolKey] || 0) + 1
-      }
-      persistUsageMap(toolUsageMap.value)
-    }
 
     const syncProfileForm = () => {
       const currentUser = normalizeCurrentUser(user.value || {})
@@ -783,7 +746,6 @@ export default {
         suppressNextToolOpen.value = false
         return
       }
-      incrementToolUsage(tool.key)
       if (tool.route) {
         router.push(tool.route)
         return
@@ -791,7 +753,7 @@ export default {
       showSurfaceNotice('info', '应用暂未开放', `应用【${tool.name}】已登记，后续会在权限管理中维护入口与接入能力。`)
     }
 
-    // 拖拽排序只调整展示顺序，不直接修改使用频率，避免两个规则互相污染。
+    // 拖拽排序只调整展示顺序，不影响应用目录本身的排序配置。
     const handleToolDragStart = (tool, event) => {
       if (isMobileViewport.value) {
         event?.preventDefault()
