@@ -152,6 +152,7 @@
               <tr>
                 <th>角色名</th>
                 <th>专精</th>
+                <th>等级</th>
                 <th>服务器</th>
                 <th>装等</th>
                 <th>当前钥匙</th>
@@ -177,6 +178,7 @@
                     <span>{{ formatSpecText(item.specName) || '-' }}</span>
                   </div>
                 </td>
+                <td>{{ item.level || '-' }}</td>
                 <td>{{ item.realmName || '-' }}</td>
                 <td>{{ formatDecimal(item.itemLevel) }}</td>
                 <td>{{ formatCurrentKey(item) }}</td>
@@ -208,11 +210,10 @@
               </div>
 
               <div class="mobile-card-grid">
+                <p><span>等级</span><strong>{{ item.level }}</strong></p>
                 <p><span>装等</span><strong>{{ formatDecimal(item.itemLevel) }}</strong></p>
                 <p><span>评分</span><strong>{{ formatScore(item.mythicScore) }}</strong></p>
                 <p class="wide"><span>当前钥匙</span><strong>{{ formatCurrentKey(item) }}</strong></p>
-                <p><span>种族</span><strong>{{ formatRaceText(item.raceName) }}</strong></p>
-                <p><span>等级</span><strong>{{ item.level }}</strong></p>
               </div>
 
               <div class="mobile-card-actions">
@@ -390,12 +391,19 @@
             <div class="dialog-block-head">
               <div>
                 <h4 class="dialog-block-title">每周低保</h4>
-                <p class="dialog-block-tip">记录每周三条轨道完成数量，九宫格解锁状态由系统自动计算。</p>
+                <p class="dialog-block-tip">默认收起低保明细，点击宏伟宝库图标后维护本周奖励进度。</p>
               </div>
+              <button type="button" class="icon-toggle-btn" @click="toggleWeeklyVaults">
+                <img src="/brand/wow-great-vault-icon.png" alt="宏伟宝库" />
+                <span>{{ weeklyVaultsExpanded ? '收起低保' : formatLatestVaultText(form.weeklyVaults) }}</span>
+              </button>
+            </div>
+
+            <div v-if="weeklyVaultsExpanded" class="section-tools">
               <button type="button" class="ghost-btn" @click="appendWeeklyVault">新增一周</button>
             </div>
 
-            <div v-if="form.weeklyVaults.length" class="weekly-vault-list">
+            <div v-if="weeklyVaultsExpanded && form.weeklyVaults.length" class="weekly-vault-list vault-detail-list">
               <div v-for="(item, index) in form.weeklyVaults" :key="item.localKey" class="weekly-vault-card">
                 <div class="weekly-vault-head">
                   <label class="form-field compact-field">
@@ -418,6 +426,21 @@
                     <span>世界任务 / 地下堡</span>
                     <input v-model.number="item.worldProgressCount" class="input compact-input" type="number" min="0" max="99" step="1" />
                   </label>
+                </div>
+
+                <div class="vault-preview-board">
+                  <div class="vault-preview-track">
+                    <strong>团队副本</strong>
+                    <span>{{ item.raidProgressCount }} / 6</span>
+                  </div>
+                  <div class="vault-preview-track">
+                    <strong>地下城</strong>
+                    <span>{{ item.mythicProgressCount }} / 8</span>
+                  </div>
+                  <div class="vault-preview-track">
+                    <strong>世界</strong>
+                    <span>{{ item.worldProgressCount }} / 8</span>
+                  </div>
                 </div>
 
                 <div class="vault-board">
@@ -469,20 +492,27 @@
               </div>
             </div>
 
-            <div v-else class="empty-inline">当前还没有周低保记录</div>
+            <div v-else-if="weeklyVaultsExpanded" class="empty-inline">当前还没有周低保记录</div>
           </section>
 
           <section v-if="showEndgameSections" class="dialog-block">
             <div class="dialog-block-head">
               <div>
                 <h4 class="dialog-block-title">大秘境赛季记录</h4>
-                <p class="dialog-block-tip">维护 8 个副本的赛季分数，单本只录整数，M+ 总分自动求和。</p>
+                <p class="dialog-block-tip">默认只显示总分，展开后维护每个副本的分数和最高限时层数。</p>
               </div>
-              <span class="hero-tag">总分 {{ formatScore(formMythicScore) }}</span>
+              <button type="button" class="icon-toggle-btn" @click="toggleMythicRuns">
+                <img src="/brand/wow-mythic-record-icon.png" alt="大秘境记录" />
+                <span>总分 {{ formatScore(formMythicScore) }}</span>
+              </button>
             </div>
-            <div class="mythic-run-list compact-mythic-list">
+            <div v-if="mythicRunsExpanded" class="mythic-run-list compact-mythic-list">
               <div v-for="item in form.mythicRuns" :key="item.dungeonName" class="mythic-run-row compact-row">
                 <div class="mythic-run-title">{{ item.dungeonLabel }}</div>
+                <label class="mini-field timed-field">
+                  <span>最高限时</span>
+                  <input v-model.number="item.bestTimedLevel" class="input compact-input" type="number" min="0" max="40" step="1" />
+                </label>
                 <label class="mini-field score-field">
                   <span>分数</span>
                   <input v-model.number="item.score" class="input compact-input" type="number" min="0" max="9999" step="1" />
@@ -508,6 +538,24 @@
             </label>
           </div>
 
+          <section class="dialog-block">
+            <div class="dialog-block-head">
+              <div>
+                <h4 class="dialog-block-title">专精键位</h4>
+                <p class="dialog-block-tip">按当前职业的每个专精保存插件导出的键位字符串，列表只展示保存状态。</p>
+              </div>
+            </div>
+            <div class="keybinding-list">
+              <div v-for="item in form.keybindings" :key="item.specName" class="keybinding-row">
+                <div>
+                  <strong>{{ item.specNameLabel }}</strong>
+                  <span :class="{ saved: item.bindingContent }">{{ item.bindingContent ? '已保存键位' : '未保存键位' }}</span>
+                </div>
+                <button type="button" class="mini-btn" @click="openKeybindingDialog(item)">复制键位</button>
+              </div>
+            </div>
+          </section>
+
           <label class="form-field">
             <span>备注</span>
             <textarea v-model.trim="form.note" class="input textarea" rows="3" maxlength="160" placeholder="补充记录当前版本定位、账号用途等" />
@@ -520,6 +568,27 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div v-if="showKeybindingDialog" class="dialog-mask keybinding-mask" @click.self="closeKeybindingDialog">
+      <div class="keybinding-dialog">
+        <div class="dialog-block-head">
+          <div>
+            <h3 class="dialog-title">{{ activeKeybinding?.specNameLabel || '专精键位' }}</h3>
+            <p class="dialog-block-tip">键位字符串默认隐藏，只在这里查看、粘贴和复制。</p>
+          </div>
+        </div>
+        <textarea
+          v-model="activeKeybinding.bindingContent"
+          class="input textarea keybinding-textarea"
+          rows="10"
+          placeholder="粘贴插件导出的键位字符串"
+        />
+        <div class="dialog-actions">
+          <button type="button" class="ghost-btn" @click="closeKeybindingDialog">关闭</button>
+          <button type="button" class="action-btn" @click="copyActiveKeybinding">复制</button>
+        </div>
       </div>
     </div>
 
@@ -537,7 +606,7 @@
           class="score-popover-row"
         >
           <span>{{ run.dungeonLabel }}</span>
-          <strong>{{ formatScore(run.score) }}</strong>
+          <strong>+{{ run.bestTimedLevel }} · {{ formatScore(run.score) }}</strong>
         </div>
       </div>
     </div>
@@ -563,7 +632,7 @@ import {
 } from '@/api/wowCharacter'
 import {shouldShowEndgameSections} from '@/utils/wowCharacterDisplay'
 
-const PAGE_SIZE_OPTIONS = [8, 12, 20]
+const PAGE_SIZE_OPTIONS = [12, 20, 40]
 const WOW_APP_CODE = 'APP_WOW_CHARACTER'
 const WOW_MODULE_CODE = 'WOW_CHARACTER'
 const FACTION_FIELD_CODE = 'faction'
@@ -676,6 +745,7 @@ function normalizeMythicRunList(rawRuns, dungeonOptions) {
       }
       runMap.set(normalizedValue, {
         dungeonName: normalizedValue,
+        bestTimedLevel: toNumber(item?.bestTimedLevel, 0),
         score: toNumber(item?.score, 0)
       })
     })
@@ -683,8 +753,35 @@ function normalizeMythicRunList(rawRuns, dungeonOptions) {
   return dungeonOptions.map((option) => ({
     dungeonName: option.value,
     dungeonLabel: option.label,
+    bestTimedLevel: runMap.get(option.value)?.bestTimedLevel || 0,
     score: runMap.get(option.value)?.score || 0
   }))
+}
+
+function normalizeKeybindingList(rawKeybindings, specOptions) {
+  const keybindingMap = new Map()
+  if (Array.isArray(rawKeybindings)) {
+    rawKeybindings.forEach((item) => {
+      const normalizedValue = findOptionByAny(specOptions, item?.specName)?.value || item?.specName || ''
+      if (!normalizedValue) {
+        return
+      }
+      keybindingMap.set(normalizedValue, {
+        specName: normalizedValue,
+        bindingContent: item?.bindingContent || '',
+        hasKeybinding: Boolean(item?.hasKeybinding || item?.bindingContent)
+      })
+    })
+  }
+  return specOptions.map((option) => {
+    const matched = keybindingMap.get(option.value)
+    return {
+      specName: option.value,
+      specNameLabel: option.label,
+      bindingContent: matched?.bindingContent || '',
+      hasKeybinding: Boolean(matched?.hasKeybinding)
+    }
+  })
 }
 
 function normalizeCharacter(item = {}, dungeonOptions = []) {
@@ -704,6 +801,7 @@ function normalizeCharacter(item = {}, dungeonOptions = []) {
     mythicScore: toNumber(item.mythicScore ?? item.mythicRating, 0),
     mythicCompletedDungeonCount: toNumber(item.mythicCompletedDungeonCount, 0),
     mythicRuns: normalizeMythicRunList(item.mythicRuns || item.mythicRunList || [], dungeonOptions),
+    keybindings: Array.isArray(item.keybindings) ? item.keybindings : [],
     weeklyVaults: Array.isArray(item.weeklyVaults)
       ? item.weeklyVaults.map((vault) => createWeeklyVaultDraft(vault))
       : [],
@@ -771,6 +869,10 @@ export default {
     const classStats = ref([])
     const realmStats = ref([])
     const showDialog = ref(false)
+    const showKeybindingDialog = ref(false)
+    const mythicRunsExpanded = ref(false)
+    const weeklyVaultsExpanded = ref(false)
+    const activeKeybinding = ref(null)
     const dialogMode = ref('create')
     const editingId = ref('')
     const factionOptions = ref([])
@@ -802,6 +904,7 @@ export default {
       mythicDungeonName: '',
       mythicRuns: [],
       weeklyVaults: [],
+      keybindings: [],
       professionPrimary: '',
       professionSecondary: '',
       note: ''
@@ -879,6 +982,7 @@ export default {
     const getDefaultClassValue = () => classOptions.value.find((item) => item.isDefault)?.value || classOptions.value[0]?.value || ''
 
     const createDefaultMythicRuns = () => normalizeMythicRunList([], mythicDungeonOptions.value)
+    const createDefaultKeybindings = () => normalizeKeybindingList([], availableSpecOptions.value)
 
     const normalizeFormSelections = () => {
       form.className = normalizeSelectedValue(classOptions.value, form.className, getDefaultClassValue())
@@ -945,12 +1049,13 @@ export default {
         specOptions.value = normalizeDictionaryOptions(unwrapData(specRes))
         professionOptions.value = normalizeDictionaryOptions(unwrapData(professionRes))
         mythicDungeonOptions.value = normalizeDictionaryOptions(unwrapData(mythicDungeonRes))
-        if (!form.mythicRuns.length) {
-          form.mythicRuns = createDefaultMythicRuns()
-        } else {
-          form.mythicRuns = normalizeMythicRunList(form.mythicRuns, mythicDungeonOptions.value)
-        }
-        normalizeFormSelections()
+      if (!form.mythicRuns.length) {
+        form.mythicRuns = createDefaultMythicRuns()
+      } else {
+        form.mythicRuns = normalizeMythicRunList(form.mythicRuns, mythicDungeonOptions.value)
+      }
+      form.keybindings = normalizeKeybindingList(form.keybindings, availableSpecOptions.value)
+      normalizeFormSelections()
       } catch (error) {
         factionOptions.value = []
         classOptions.value = []
@@ -1044,6 +1149,7 @@ export default {
       form.mythicDungeonName = ''
       form.mythicRuns = createDefaultMythicRuns()
       form.weeklyVaults = []
+      form.keybindings = createDefaultKeybindings()
       form.professionPrimary = ''
       form.professionSecondary = ''
       form.note = ''
@@ -1065,6 +1171,7 @@ export default {
       form.weeklyVaults = Array.isArray(record.weeklyVaults)
         ? record.weeklyVaults.map((item) => createWeeklyVaultDraft(item))
         : []
+      form.keybindings = normalizeKeybindingList(record.keybindings || [], availableSpecOptions.value)
       form.professionPrimary = normalizeSelectedValue(professionOptions.value, record.professionPrimary, '')
       form.professionSecondary = normalizeSelectedValue(professionOptions.value, record.professionSecondary, '')
       form.note = record.note || ''
@@ -1079,10 +1186,47 @@ export default {
       form.weeklyVaults.splice(index, 1)
     }
 
+    const toggleWeeklyVaults = () => {
+      weeklyVaultsExpanded.value = !weeklyVaultsExpanded.value
+      if (weeklyVaultsExpanded.value && !form.weeklyVaults.length) {
+        appendWeeklyVault()
+      }
+    }
+
+    const toggleMythicRuns = () => {
+      mythicRunsExpanded.value = !mythicRunsExpanded.value
+    }
+
+    const openKeybindingDialog = (item) => {
+      activeKeybinding.value = item
+      showKeybindingDialog.value = true
+    }
+
+    const closeKeybindingDialog = () => {
+      showKeybindingDialog.value = false
+      activeKeybinding.value = null
+    }
+
+    const copyActiveKeybinding = async () => {
+      const content = activeKeybinding.value?.bindingContent || ''
+      if (!content) {
+        alert('当前专精还没有保存键位')
+        return
+      }
+      try {
+        await navigator.clipboard.writeText(content)
+        alert('键位字符串已复制')
+      } catch (error) {
+        alert('浏览器暂不允许自动复制，请手动复制弹窗中的内容')
+      }
+    }
+
     const openCreateDialog = () => {
       dialogMode.value = 'create'
       editingId.value = ''
       resetForm()
+      mythicRunsExpanded.value = false
+      weeklyVaultsExpanded.value = false
       showDialog.value = true
     }
 
@@ -1090,6 +1234,8 @@ export default {
       dialogMode.value = 'edit'
       editingId.value = item.id
       fillForm(item)
+      mythicRunsExpanded.value = false
+      weeklyVaultsExpanded.value = false
       showDialog.value = true
     }
 
@@ -1098,6 +1244,7 @@ export default {
         return
       }
       showDialog.value = false
+      closeKeybindingDialog()
       resetForm()
     }
 
@@ -1115,6 +1262,7 @@ export default {
       mythicDungeonName: form.mythicDungeonName || null,
       mythicRuns: showEndgameSections.value ? form.mythicRuns.map((item) => ({
         dungeonName: item.dungeonName,
+        bestTimedLevel: Number(item.bestTimedLevel || 0),
         score: Number(item.score || 0)
       })) : [],
       weeklyVaults: showEndgameSections.value ? form.weeklyVaults.map((item) => ({
@@ -1125,6 +1273,10 @@ export default {
         worldProgressCount: Number(item.worldProgressCount || 0),
         note: item.note || ''
       })) : [],
+      keybindings: form.keybindings.map((item) => ({
+        specName: item.specName,
+        bindingContent: item.bindingContent || ''
+      })),
       professionPrimary: form.professionPrimary || null,
       professionSecondary: form.professionSecondary || null,
       note: form.note
@@ -1291,6 +1443,7 @@ export default {
       ? item.mythicRuns.map((run) => ({
         dungeonName: run.dungeonName,
         dungeonLabel: getOptionLabel(mythicDungeonOptions.value, run.dungeonName, run.dungeonName || '-'),
+        bestTimedLevel: toNumber(run.bestTimedLevel, 0),
         score: toNumber(run.score, 0)
       }))
       : []
@@ -1376,6 +1529,7 @@ export default {
       if (form.raceName && !availableRaceOptions.value.some((item) => item.value === form.raceName)) {
         form.raceName = ''
       }
+      form.keybindings = normalizeKeybindingList(form.keybindings, availableSpecOptions.value)
     })
 
     watch(() => form.faction, () => {
@@ -1459,6 +1613,10 @@ export default {
       form,
       overview,
       showDialog,
+      showKeybindingDialog,
+      activeKeybinding,
+      mythicRunsExpanded,
+      weeklyVaultsExpanded,
       dialogMode,
       pageSizeOptions,
       factionOptions,
@@ -1494,6 +1652,11 @@ export default {
       loadPageData,
       appendWeeklyVault,
       removeWeeklyVault,
+      toggleWeeklyVaults,
+      toggleMythicRuns,
+      openKeybindingDialog,
+      closeKeybindingDialog,
+      copyActiveKeybinding,
       goBack,
       formatFactionText,
       formatSpecText,
@@ -2015,7 +2178,8 @@ export default {
 
 .action-btn,
 .ghost-btn,
-.mini-btn {
+.mini-btn,
+.icon-toggle-btn {
   border: none;
   border-radius: 10px;
   color: #fff;
@@ -2044,6 +2208,29 @@ export default {
 
 .mini-btn.danger {
   background: rgba(239, 68, 68, 0.65);
+}
+
+.icon-toggle-btn {
+  min-height: 44px;
+  padding: 4px 10px 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.icon-toggle-btn img {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.section-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin: 10px 0;
 }
 
 .table-wrap {
@@ -2121,11 +2308,12 @@ export default {
 .mobile-list {
   display: none;
   margin-top: 14px;
-  gap: 12px;
+  gap: 8px;
 }
 
 .mobile-card {
-  padding: 14px;
+  padding: 10px 11px;
+  border-radius: 12px;
 }
 
 .mobile-card.faction-row-alliance {
@@ -2147,22 +2335,23 @@ export default {
 }
 
 .mobile-card-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  margin-top: 8px;
+  gap: 8px;
 }
 
 .mobile-card-grid p {
   margin: 0;
-  padding: 11px 12px;
-  border-radius: 12px;
+  padding: 8px 9px;
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .mobile-card-grid strong {
-  font-size: 14px;
+  font-size: 13px;
   word-break: break-word;
 }
 
@@ -2285,7 +2474,7 @@ export default {
 }
 
 .compact-row {
-  grid-template-columns: minmax(0, 1fr) 126px;
+  grid-template-columns: minmax(0, 1fr) 118px 126px;
   gap: 8px;
   align-items: center;
 }
@@ -2318,6 +2507,10 @@ export default {
   padding: 12px;
 }
 
+.vault-detail-list {
+  margin-top: 10px;
+}
+
 .weekly-vault-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 10px;
@@ -2341,6 +2534,39 @@ export default {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.vault-preview-board {
+  margin-top: 10px;
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(24, 18, 12, 0.86), rgba(33, 27, 38, 0.78)),
+    url('/brand/wow-great-vault-icon.png') right 8px center/76px 76px no-repeat;
+  border: 1px solid rgba(251, 191, 36, 0.22);
+}
+
+.vault-preview-track {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.vault-preview-track strong {
+  font-size: 12px;
+}
+
+.vault-preview-track span {
+  color: #ffd76e;
+  font-weight: 700;
 }
 
 .vault-track {
@@ -2384,6 +2610,65 @@ export default {
   border-radius: 14px;
 }
 
+.keybinding-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.keybinding-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.keybinding-row > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.keybinding-row strong {
+  font-size: 13px;
+}
+
+.keybinding-row span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.keybinding-row span.saved {
+  color: #86efac;
+}
+
+.keybinding-mask {
+  z-index: 70;
+}
+
+.keybinding-dialog {
+  width: min(720px, 100%);
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(135deg, rgba(5, 18, 33, 0.98), rgba(15, 40, 66, 0.96));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+}
+
+.keybinding-textarea {
+  margin-top: 12px;
+  min-height: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
 .dialog-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -2418,6 +2703,8 @@ button:disabled {
   .filter-grid,
   .summary-grid,
   .vault-board,
+  .vault-preview-board,
+  .keybinding-list,
   .weekly-vault-grid {
     grid-template-columns: 1fr;
   }
@@ -2429,7 +2716,25 @@ button:disabled {
 
 @media (max-width: 720px) {
   .wow-page {
-    padding: 12px;
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .page-nav {
+    margin-bottom: 8px;
+  }
+
+  .back-home-btn {
+    min-height: 34px;
+    padding: 0 10px;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .back-home-icon {
+    width: 22px;
+    height: 22px;
+    font-size: 13px;
   }
 
   .hero-panel,
@@ -2441,6 +2746,99 @@ button:disabled {
   .weekly-vault-head {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .hero-panel,
+  .filter-panel,
+  .list-panel,
+  .dialog {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .hero-panel,
+  .filter-panel {
+    margin-bottom: 8px;
+  }
+
+  .spotlight-panel,
+  .insight-panel {
+    display: none;
+  }
+
+  .page-title {
+    font-size: 20px;
+    line-height: 1.18;
+  }
+
+  .panel-title {
+    font-size: 16px;
+    line-height: 1.25;
+  }
+
+  .page-subtitle,
+  .panel-tip {
+    display: none;
+  }
+
+  .hero-tags {
+    gap: 6px;
+  }
+
+  .hero-tag {
+    min-height: 24px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .hero-tag:first-child,
+  .hero-tag:last-child {
+    display: none;
+  }
+
+  .filter-grid {
+    gap: 8px;
+  }
+
+  .field,
+  .form-field,
+  .mini-field {
+    gap: 5px;
+  }
+
+  .field span,
+  .form-field span,
+  .mini-field span {
+    font-size: 11px;
+  }
+
+  .input {
+    min-height: 34px;
+    padding: 7px 9px;
+    border-radius: 9px;
+    font-size: 13px;
+  }
+
+  .textarea {
+    min-height: 74px;
+  }
+
+  .toolbar {
+    margin-top: 8px;
+    gap: 8px;
+  }
+
+  .action-btn,
+  .ghost-btn {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .mini-btn {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 12px;
   }
 
   .filter-actions,
@@ -2467,13 +2865,150 @@ button:disabled {
 
   .mobile-list {
     display: grid;
+    margin-top: 8px;
+    gap: 6px;
+  }
+
+  .mobile-card {
+    padding: 8px;
+    border-radius: 10px;
+  }
+
+  .mobile-card-head {
+    gap: 6px;
+  }
+
+  .mobile-card-title {
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .mobile-card-subtitle {
+    margin-top: 3px;
+    font-size: 11px;
+  }
+
+  .mobile-card-actions {
+    margin-top: 6px;
+    gap: 6px;
+  }
+
+  .mobile-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    margin-top: 6px;
+    gap: 6px;
+  }
+
+  .mobile-card-grid p {
+    padding: 6px 7px;
+    border-radius: 8px;
+    gap: 2px;
+  }
+
+  .mobile-card-grid p:first-child {
+    display: none;
+  }
+
+  .mobile-card-grid span {
+    font-size: 10px;
+  }
+
+  .mobile-card-grid strong {
+    font-size: 12px;
   }
 
   .form-inline-grid,
-  .mobile-card-grid,
   .overview-metrics,
   .spotlight-grid {
     grid-template-columns: 1fr;
+  }
+
+  .pager {
+    margin-top: 10px;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .pager-select {
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .dialog-mask {
+    padding: 8px;
+  }
+
+  .dialog {
+    max-height: calc(100vh - 16px);
+  }
+
+  .dialog-form {
+    gap: 10px;
+  }
+
+  .dialog-title {
+    font-size: 17px;
+  }
+
+  .dialog-block {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .dialog-block-title {
+    font-size: 14px;
+  }
+
+  .dialog-block-tip {
+    font-size: 11px;
+  }
+
+  .icon-toggle-btn {
+    min-height: 36px;
+    padding: 4px 8px 4px 5px;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .icon-toggle-btn img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .vault-preview-board {
+    min-height: auto;
+    padding: 8px;
+    background:
+      linear-gradient(135deg, rgba(24, 18, 12, 0.86), rgba(33, 27, 38, 0.78)),
+      url('/brand/wow-great-vault-icon.png') right 6px center/54px 54px no-repeat;
+  }
+
+  .vault-preview-track {
+    padding: 6px;
+  }
+
+  .vault-slot {
+    min-height: 34px;
+    font-size: 12px;
+  }
+
+  .mythic-run-title {
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .keybinding-row {
+    padding: 8px;
+  }
+
+  .keybinding-dialog {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .keybinding-textarea {
+    min-height: 180px;
   }
 }
 
@@ -2484,12 +3019,26 @@ button:disabled {
   .list-panel,
   .insight-panel,
   .dialog {
-    padding: 14px;
-    border-radius: 16px;
+    padding: 9px;
+    border-radius: 12px;
   }
 
   .page-title {
-    font-size: 24px;
+    font-size: 19px;
+  }
+
+  .hero-tags {
+    display: none;
+  }
+
+  .filter-actions .action-btn,
+  .filter-actions .ghost-btn,
+  .toolbar-left .action-btn,
+  .toolbar-left .ghost-btn,
+  .pager-right .ghost-btn,
+  .dialog-actions .action-btn,
+  .dialog-actions .ghost-btn {
+    flex-basis: 100%;
   }
 }
 </style>
