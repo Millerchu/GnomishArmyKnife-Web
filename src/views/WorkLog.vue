@@ -10,11 +10,11 @@
     <div class="hero-panel">
       <div>
         <h1 class="page-title">工作日志</h1>
-        <p class="page-subtitle">按周查看与维护日志，类型、地点和项目优先使用数据字典配置，周视图同步展示本周统计。</p>
+        <p class="page-subtitle">按周或按月查看与维护日志，类型、地点和项目优先使用数据字典配置，视图切换后同步展示对应统计。</p>
       </div>
       <div class="hero-tags">
-        <span class="hero-tag">当前周 {{ weekDays[0]?.date }} - {{ weekDays[6]?.date }}</span>
-        <span class="hero-tag">{{ showYearList ? '已展开年度列表' : '周视图' }}</span>
+        <span class="hero-tag">{{ calendarRangeText }}</span>
+        <span class="hero-tag">{{ showYearList ? '已展开年度列表' : (calendarView === 'month' ? '月视图' : '周视图') }}</span>
         <span class="hero-tag">{{ dictionarySourceText }}</span>
       </div>
     </div>
@@ -22,8 +22,8 @@
     <section class="week-stats-panel">
       <div class="panel-head">
         <div>
-          <h2 class="panel-title">本周统计</h2>
-          <p class="panel-tip">汇总当前周参与项目、状态、人天和加班情况，切换周次后会自动刷新。</p>
+          <h2 class="panel-title">{{ activeStatsTitle }}</h2>
+          <p class="panel-tip">{{ activeStatsTip }}</p>
         </div>
       </div>
 
@@ -33,8 +33,8 @@
             <span class="stats-label">参与项目</span>
             <span class="stats-card-badge">Projects</span>
           </div>
-          <div v-if="weeklyStats.projects.length" class="stats-chip-row stats-chip-row-dense">
-            <span v-for="project in weeklyStats.projects" :key="project" class="stats-chip">{{ project }}</span>
+          <div v-if="activeStats.projects.length" class="stats-chip-row stats-chip-row-dense">
+            <span v-for="project in activeStats.projects" :key="project" class="stats-chip">{{ project }}</span>
           </div>
           <strong v-else class="stats-empty">暂无项目</strong>
         </article>
@@ -44,8 +44,8 @@
             <span class="stats-label">当前状态</span>
             <span class="stats-card-badge">Status</span>
           </div>
-          <div v-if="weeklyStats.statuses.length" class="stats-chip-row stats-chip-row-dense">
-            <span v-for="status in weeklyStats.statuses" :key="status" class="stats-chip status-chip">{{ status }}</span>
+          <div v-if="activeStats.statuses.length" class="stats-chip-row stats-chip-row-dense">
+            <span v-for="status in activeStats.statuses" :key="status" class="stats-chip status-chip">{{ status }}</span>
           </div>
           <strong v-else class="stats-empty">暂无状态</strong>
         </article>
@@ -56,8 +56,8 @@
             <span class="stats-card-badge">PD</span>
           </div>
           <div class="stats-metric-block">
-            <strong>{{ formatPersonDayText(weeklyStats.personDayTotal) }}</strong>
-            <small>{{ weeklyStats.workDays }} 天有记录</small>
+            <strong>{{ formatPersonDayText(activeStats.personDayTotal) }}</strong>
+            <small>{{ activeStats.workDays }} 天有记录</small>
           </div>
         </article>
 
@@ -67,8 +67,8 @@
             <span class="stats-card-badge">OT</span>
           </div>
           <div class="stats-metric-block">
-            <strong>{{ formatHoursText(weeklyStats.overtimeHoursTotal) }}</strong>
-            <small>{{ weeklyStats.weekendLogCount }} 条周末记录</small>
+            <strong>{{ formatHoursText(activeStats.overtimeHoursTotal) }}</strong>
+            <small>{{ activeStats.weekendLogCount }} 条周末记录</small>
           </div>
         </article>
 
@@ -78,17 +78,41 @@
             <span class="stats-card-badge">Logs</span>
           </div>
           <div class="stats-metric-block">
-            <strong>{{ weeklyStats.logCount }}</strong>
-            <small>{{ weeklyStats.locations.length ? `${weeklyStats.locations.length} 个地点` : '暂无地点' }}</small>
+            <strong>{{ activeStats.logCount }}</strong>
+            <small>{{ activeStats.locations.length ? `${activeStats.locations.length} 个地点` : '暂无地点' }}</small>
           </div>
         </article>
       </div>
     </section>
 
     <div class="top-bar">
+      <div class="view-switch" role="group" aria-label="工作日志视图切换">
+        <button
+          type="button"
+          class="view-switch-btn"
+          :class="{active: calendarView === 'week'}"
+          :disabled="loading"
+          @click="switchCalendarView('week')"
+        >
+          周视图
+        </button>
+        <button
+          type="button"
+          class="view-switch-btn"
+          :class="{active: calendarView === 'month'}"
+          :disabled="loading"
+          @click="switchCalendarView('month')"
+        >
+          月视图
+        </button>
+      </div>
       <div class="actions">
-        <button class="action-btn" :disabled="loading" @click="changeWeek(-1)">上一周</button>
-        <button class="action-btn" :disabled="loading" @click="changeWeek(1)">下一周</button>
+        <button class="action-btn" :disabled="loading" @click="changeCalendarRange(-1)">
+          {{ calendarView === 'month' ? '上一月' : '上一周' }}
+        </button>
+        <button class="action-btn" :disabled="loading" @click="changeCalendarRange(1)">
+          {{ calendarView === 'month' ? '下一月' : '下一周' }}
+        </button>
         <button class="action-btn" :disabled="loading" @click="openCreateDialog">新增</button>
         <button class="action-btn" :disabled="!selectedLog || loading" @click="openEditDialog()">修改</button>
         <button class="action-btn danger" :disabled="!selectedLog || loading" @click="deleteSelectedLog">删除</button>
@@ -98,7 +122,7 @@
       </div>
     </div>
 
-    <div class="calendar-grid">
+    <div v-if="calendarView === 'week'" class="calendar-grid">
       <div
         v-for="day in weekDays"
         :key="day.date"
@@ -138,6 +162,56 @@
         </div>
 
         <div v-else class="empty-text">暂无日志</div>
+      </div>
+    </div>
+
+    <div v-else class="month-view-panel">
+      <div class="month-view-head">
+        <h2 class="panel-title">{{ monthLabel }}</h2>
+        <span class="panel-tip">单击选择日期，双击当月日期查看当天日志详情。</span>
+      </div>
+
+      <div class="month-week-row">
+        <span v-for="label in ['周一', '周二', '周三', '周四', '周五', '周六', '周日']" :key="label">{{ label }}</span>
+      </div>
+
+      <div class="month-calendar-grid">
+        <div
+          v-for="day in monthDays"
+          :key="day.date"
+          class="month-day-card"
+          :class="{active: selectedDate === day.date, muted: !day.inCurrentMonth}"
+          @click="selectMonthDay(day)"
+          @dblclick="openMonthDayDetail(day)"
+        >
+          <div class="day-head month-day-head">
+            <div class="day-head-main">
+              <strong>{{ day.dayNumber }}</strong>
+              <span>{{ day.date }}</span>
+            </div>
+            <span class="day-count-badge">{{ monthSummaryMap[day.date]?.count || 0 }}</span>
+          </div>
+
+          <div v-if="monthSummaryMap[day.date]?.count" class="summary-wrap month-summary-wrap">
+            <div class="summary-chip-row summary-chip-row-dense">
+              <span v-for="type in monthSummaryMap[day.date].typeLabels" :key="`${day.date}-${type}`" class="summary-chip">{{ type }}</span>
+            </div>
+            <p class="summary-projects">{{ monthSummaryMap[day.date].projectsText }}</p>
+            <p class="summary-work">{{ monthSummaryMap[day.date].workItemsText }}</p>
+            <div class="summary-metric-strip">
+              <span class="summary-metric">
+                <small>人天</small>
+                <strong>{{ formatPersonDayText(monthSummaryMap[day.date].personDayTotal) }}</strong>
+              </span>
+              <span class="summary-metric">
+                <small>加班</small>
+                <strong>{{ formatHoursText(monthSummaryMap[day.date].overtimeHoursTotal) }}</strong>
+              </span>
+            </div>
+          </div>
+
+          <div v-else class="empty-text">{{ day.inCurrentMonth ? '暂无日志' : '非本月' }}</div>
+        </div>
       </div>
     </div>
 
@@ -384,6 +458,15 @@ import {
   listWorkLogs,
   updateWorkLog
 } from '@/api/workLog'
+import {
+  buildDateSummaryMap,
+  buildMonthCalendarDays,
+  calculateLogStats,
+  formatDate,
+  getMonthRange,
+  parseDate,
+  shiftMonthByOffset
+} from '@/utils/workLogCalendar'
 
 const WEEK_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const STANDARD_OFF_WORK_TIME = '18:00'
@@ -399,17 +482,6 @@ const DEFAULT_TYPE_OPTIONS = [
   {itemCode: 'sick_leave', label: '病假', value: 'SICK_LEAVE', isDefault: false, sortNo: 4},
   {itemCode: 'other', label: '其他', value: 'OTHER', isDefault: false, sortNo: 5}
 ]
-
-function formatDate(date) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function parseDate(text) {
-  return new Date(`${text}T00:00:00`)
-}
 
 function getWeekMonday(date) {
   const current = new Date(date)
@@ -428,6 +500,15 @@ function getWeekOffsetByDate(logDate) {
   const targetMonday = getWeekMonday(parseDate(logDate))
   const diffTime = targetMonday.getTime() - todayMonday.getTime()
   return Math.round(diffTime / (7 * 24 * 60 * 60 * 1000))
+}
+
+function getMonthOffsetByDate(logDate) {
+  if (!logDate) {
+    return 0
+  }
+  const today = new Date()
+  const target = parseDate(logDate)
+  return (target.getFullYear() - today.getFullYear()) * 12 + target.getMonth() - today.getMonth()
 }
 
 function toSafeIdText(value) {
@@ -609,7 +690,9 @@ export default {
     const loading = ref(false)
     const submitting = ref(false)
     const dictLoading = ref(false)
+    const calendarView = ref('week')
     const weekOffset = ref(0)
+    const monthOffset = ref(0)
 
     const selectedDate = ref(formatDate(new Date()))
     const detailDate = ref(formatDate(new Date()))
@@ -622,6 +705,7 @@ export default {
     const showTypeDropdown = ref(false)
 
     const weeklyLogs = ref([])
+    const monthlyLogs = ref([])
     const detailDayLogs = ref([])
     const yearLogs = ref([])
 
@@ -661,9 +745,20 @@ export default {
       return list
     })
 
+    const monthReferenceDate = computed(() => shiftMonthByOffset(new Date(), monthOffset.value))
+    const monthRange = computed(() => getMonthRange(monthReferenceDate.value))
+    const monthDays = computed(() => buildMonthCalendarDays(monthReferenceDate.value))
+    const monthLabel = computed(() => `${monthRange.value.year} 年 ${monthRange.value.month} 月`)
+    const calendarRangeText = computed(() => {
+      if (calendarView.value === 'month') {
+        return `当前月 ${monthRange.value.startDate} - ${monthRange.value.endDate}`
+      }
+      return `当前周 ${weekDays.value[0]?.date} - ${weekDays.value[6]?.date}`
+    })
+
     const knownLogs = computed(() => {
       const map = new Map()
-      ;[...weeklyLogs.value, ...detailDayLogs.value, ...yearLogs.value].forEach((item) => {
+      ;[...weeklyLogs.value, ...monthlyLogs.value, ...detailDayLogs.value, ...yearLogs.value].forEach((item) => {
         if (item?.id != null && !map.has(item.id)) {
           map.set(item.id, item)
         }
@@ -694,56 +789,47 @@ export default {
       return result
     }, {}))
 
-    const logsGroupedByDate = computed(() => {
-      return weeklyLogs.value.reduce((grouped, item) => {
-        if (!grouped[item.logDate]) {
-          grouped[item.logDate] = []
-        }
-        grouped[item.logDate].push(item)
-        return grouped
-      }, {})
+    const weeklyStats = computed(() => {
+      return calculateLogStats(weeklyLogs.value, {
+        formatProjectText,
+        formatLocationText,
+        formatTypeCodeList
+      })
     })
 
-    const weeklyStats = computed(() => {
-      const projects = Array.from(new Set(weeklyLogs.value.map((item) => formatProjectText(item.projectCode)).filter((item) => item && item !== '-')))
-      const statuses = Array.from(new Set(weeklyLogs.value.flatMap((item) => formatTypeCodeList(item.typeCodes)).filter(Boolean)))
-      const locations = Array.from(new Set(weeklyLogs.value.map((item) => formatLocationText(item.location)).filter((item) => item && item !== '-')))
-      const workDays = new Set(weeklyLogs.value.map((item) => item.logDate).filter(Boolean)).size
-      const personDayTotal = weeklyLogs.value.reduce((total, item) => total + toNumber(item.personDay, 0), 0)
-      const overtimeHoursTotal = weeklyLogs.value.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0)
+    const monthlyStats = computed(() => {
+      return calculateLogStats(monthlyLogs.value, {
+        formatProjectText,
+        formatLocationText,
+        formatTypeCodeList
+      })
+    })
 
-      return {
-        projects,
-        statuses,
-        locations,
-        workDays,
-        personDayTotal,
-        overtimeHoursTotal,
-        logCount: weeklyLogs.value.length,
-        weekendLogCount: weeklyLogs.value.filter((item) => isWeekendDate(item.logDate)).length
+    const activeStats = computed(() => calendarView.value === 'month' ? monthlyStats.value : weeklyStats.value)
+    const activeStatsTitle = computed(() => calendarView.value === 'month' ? '本月统计' : '本周统计')
+    const activeStatsTip = computed(() => {
+      if (calendarView.value === 'month') {
+        return '汇总当前月参与项目、状态、人天和加班情况，切换月份后会自动刷新。'
       }
+      return '汇总当前周参与项目、状态、人天和加班情况，切换周次后会自动刷新。'
     })
 
     const daySummaryMap = computed(() => {
-      const summary = {}
-      weekDays.value.forEach((day) => {
-        const list = logsGroupedByDate.value[day.date] || []
-        const typeLabels = Array.from(new Set(list.flatMap((item) => formatTypeCodeList(item.typeCodes)).filter(Boolean)))
-        const projectsText = joinUniqueValues(list.map((item) => formatProjectText(item.projectCode)).filter((item) => item && item !== '-'))
-        const workItemsText = shortText(joinUniqueValues(list.map((item) => item.workItem)))
-        const personDayTotal = list.reduce((total, item) => total + toNumber(item.personDay, 0), 0)
-        const overtimeHoursTotal = list.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0)
-
-        summary[day.date] = {
-          count: list.length,
-          typeLabels,
-          projectsText,
-          workItemsText,
-          personDayTotal,
-          overtimeHoursTotal
-        }
+      return buildDateSummaryMap(weekDays.value, weeklyLogs.value, {
+        formatProjectText,
+        formatTypeCodeList,
+        joinUniqueValues,
+        shortText
       })
-      return summary
+    })
+
+    const monthSummaryMap = computed(() => {
+      return buildDateSummaryMap(monthDays.value, monthlyLogs.value, {
+        formatProjectText,
+        formatTypeCodeList,
+        joinUniqueValues,
+        shortText
+      })
     })
 
     const selectedLog = computed(() => knownLogs.value.find((item) => item.id === selectedLogId.value) || null)
@@ -905,6 +991,31 @@ export default {
       }
     }
 
+    async function fetchMonthlyLogs() {
+      if (!currentUserId) {
+        return
+      }
+      loading.value = true
+      try {
+        const range = monthRange.value
+        const list = await requestLogsWithCompatibleUserIds((userId) => listWorkLogs({
+          userId,
+          startDate: range.startDate,
+          endDate: range.endDate
+        }).then((res) => {
+          const data = unwrapData(res)
+          const rawList = Array.isArray(data) ? data : []
+          return rawList.map(normalizeLog)
+        }))
+        monthlyLogs.value = list.sort((prev, next) => parseDate(prev.logDate) - parseDate(next.logDate))
+      } catch (error) {
+        console.error(error)
+        alert('加载当月日志失败，请检查后端服务')
+      } finally {
+        loading.value = false
+      }
+    }
+
     async function fetchDayDetails(date) {
       if (!currentUserId) {
         return []
@@ -984,6 +1095,13 @@ export default {
       selectedDate.value = date
     }
 
+    function selectMonthDay(day) {
+      if (!day.inCurrentMonth) {
+        return
+      }
+      selectDay(day.date)
+    }
+
     async function openDayDetail(date) {
       detailDate.value = date
       selectedDate.value = date
@@ -993,23 +1111,55 @@ export default {
       selectedLogId.value = dayLogs[0]?.id ?? null
     }
 
+    async function openMonthDayDetail(day) {
+      if (!day.inCurrentMonth) {
+        return
+      }
+      await openDayDetail(day.date)
+    }
+
     function selectLog(log) {
       selectedLogId.value = log.id
       selectedDate.value = log.logDate
     }
 
+    async function refreshActiveCalendarLogs() {
+      if (calendarView.value === 'month') {
+        await fetchMonthlyLogs()
+        return
+      }
+      await fetchWeeklyLogs()
+    }
+
     async function focusLogDate(logDate, preferredLogId = null) {
       const targetDate = logDate || selectedDate.value
       weekOffset.value = getWeekOffsetByDate(targetDate)
+      monthOffset.value = getMonthOffsetByDate(targetDate)
       selectedDate.value = targetDate
       detailDate.value = targetDate
       showDayDetail.value = true
-      await fetchWeeklyLogs()
+      await refreshActiveCalendarLogs()
       const dayLogs = await fetchDayDetails(targetDate)
       const matchedLog = preferredLogId != null
         ? dayLogs.find((item) => item.id === preferredLogId)
         : null
       selectedLogId.value = matchedLog?.id ?? dayLogs[0]?.id ?? null
+    }
+
+    async function switchCalendarView(view) {
+      if (calendarView.value === view) {
+        return
+      }
+      calendarView.value = view
+      showDayDetail.value = false
+      selectedLogId.value = null
+      if (view === 'month') {
+        monthOffset.value = getMonthOffsetByDate(selectedDate.value)
+        await fetchMonthlyLogs()
+        return
+      }
+      weekOffset.value = getWeekOffsetByDate(selectedDate.value)
+      await fetchWeeklyLogs()
     }
 
     async function changeWeek(delta) {
@@ -1018,6 +1168,22 @@ export default {
       selectedLogId.value = null
       selectedDate.value = weekDays.value[0].date
       await fetchWeeklyLogs()
+    }
+
+    async function changeMonth(delta) {
+      monthOffset.value += delta
+      showDayDetail.value = false
+      selectedLogId.value = null
+      selectedDate.value = getMonthRange(monthReferenceDate.value).startDate
+      await fetchMonthlyLogs()
+    }
+
+    async function changeCalendarRange(delta) {
+      if (calendarView.value === 'month') {
+        await changeMonth(delta)
+        return
+      }
+      await changeWeek(delta)
     }
 
     async function toggleYearList() {
@@ -1151,7 +1317,7 @@ export default {
       try {
         await deleteWorkLog(selectedLog.value.id)
         selectedLogId.value = null
-        await fetchWeeklyLogs()
+        await refreshActiveCalendarLogs()
         if (showDayDetail.value) {
           await fetchDayDetails(detailDate.value)
         }
@@ -1209,10 +1375,19 @@ export default {
       loading,
       submitting,
       dictLoading,
+      calendarView,
       weekDays,
       weekDaysText: WEEK_TEXT,
       weeklyStats,
+      monthlyStats,
+      activeStats,
+      activeStatsTitle,
+      activeStatsTip,
       daySummaryMap,
+      monthDays,
+      monthLabel,
+      monthSummaryMap,
+      calendarRangeText,
       selectedDate,
       detailDate,
       detailDayLogs,
@@ -1242,9 +1417,14 @@ export default {
       formatHoursText,
       shortText,
       selectDay,
+      selectMonthDay,
       openDayDetail,
+      openMonthDayDetail,
       selectLog,
+      switchCalendarView,
       changeWeek,
+      changeMonth,
+      changeCalendarRange,
       toggleYearList,
       openCreateDialog,
       openEditDialog,
@@ -1313,6 +1493,7 @@ export default {
 
 .hero-panel,
 .week-stats-panel,
+.month-view-panel,
 .detail-panel,
 .dialog {
   border-radius: 18px;
@@ -1373,8 +1554,48 @@ export default {
 .top-bar {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.view-switch-btn {
+  min-height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.view-switch-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  color: #fff;
+}
+
+.view-switch-btn.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(50, 119, 175, 0.92), rgba(68, 146, 208, 0.9));
+  box-shadow: 0 8px 18px rgba(30, 93, 148, 0.26);
+}
+
+.view-switch-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .actions {
@@ -1423,6 +1644,7 @@ export default {
 }
 
 .week-stats-panel,
+.month-view-panel,
 .detail-panel {
   margin-bottom: 14px;
   padding: 16px;
@@ -1564,6 +1786,83 @@ export default {
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.month-view-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.month-week-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.month-week-row span {
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.52);
+  text-transform: uppercase;
+}
+
+.month-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.month-day-card {
+  position: relative;
+  min-height: 154px;
+  padding: 10px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at top right, rgba(80, 166, 239, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(10, 30, 49, 0.94), rgba(9, 24, 39, 0.86));
+  border: 1px solid rgba(109, 170, 218, 0.12);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+}
+
+.month-day-card:hover:not(.muted) {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.month-day-card.active {
+  border-color: rgba(103, 180, 255, 0.92);
+  background:
+    radial-gradient(circle at top right, rgba(98, 181, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(14, 38, 60, 0.98), rgba(12, 31, 49, 0.94));
+}
+
+.month-day-card.muted {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.month-day-head {
+  margin-bottom: 8px;
+}
+
+.month-day-head .day-head-main strong {
+  font-size: 18px;
+}
+
+.month-summary-wrap {
+  gap: 6px;
+}
+
+.month-summary-wrap .summary-work {
+  -webkit-line-clamp: 2;
 }
 
 .day-card {
@@ -2040,6 +2339,7 @@ export default {
 
   .hero-panel,
   .week-stats-panel,
+  .month-view-panel,
   .detail-panel {
     padding: 15px;
   }
@@ -2053,6 +2353,11 @@ export default {
   }
 
   .calendar-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .month-calendar-grid,
+  .month-week-row {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
@@ -2075,7 +2380,12 @@ export default {
   }
 
   .top-bar {
+    flex-direction: column;
     align-items: stretch;
+  }
+
+  .view-switch {
+    align-self: flex-start;
   }
 
   .actions {
@@ -2096,6 +2406,7 @@ export default {
   .hero-panel,
   .panel-head,
   .detail-panel-head,
+  .month-view-head,
   .year-head {
     flex-direction: column;
   }
@@ -2105,6 +2416,8 @@ export default {
   }
 
   .calendar-grid,
+  .month-calendar-grid,
+  .month-week-row,
   .week-stats-grid,
   .form-inline-grid {
     grid-template-columns: 1fr;
@@ -2144,6 +2457,10 @@ export default {
     min-height: 154px;
   }
 
+  .month-day-card {
+    min-height: 142px;
+  }
+
   .summary-metric-strip {
     grid-template-columns: 1fr;
   }
@@ -2160,6 +2477,7 @@ export default {
 
   .hero-panel,
   .week-stats-panel,
+  .month-view-panel,
   .detail-panel,
   .dialog {
     border-radius: 16px;
@@ -2167,6 +2485,7 @@ export default {
 
   .hero-panel,
   .week-stats-panel,
+  .month-view-panel,
   .detail-panel {
     padding: 14px 12px;
   }
@@ -2211,6 +2530,14 @@ export default {
   .actions .action-btn,
   .actions .ghost-btn {
     flex: 1 1 100%;
+  }
+
+  .view-switch {
+    width: 100%;
+  }
+
+  .view-switch-btn {
+    flex: 1;
   }
 
   .year-select {
