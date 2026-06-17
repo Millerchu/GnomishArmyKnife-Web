@@ -60,7 +60,9 @@ test('calculateLogStats aggregates month logs and de-duplicates projects and sta
       projectCode: 'GAK',
       location: '客户现场',
       personDay: 0.5,
-      overtimeHours: 1.5
+      overtimeHours: 1.5,
+      businessTripAllowanceAmount: 160,
+      businessTripReimbursed: false
     },
     {
       logDate: '2026-05-03',
@@ -68,7 +70,9 @@ test('calculateLogStats aggregates month logs and de-duplicates projects and sta
       projectCode: 'OPS',
       location: '居家',
       personDay: 0,
-      overtimeHours: 0
+      overtimeHours: 0,
+      businessTripAllowanceAmount: 110,
+      businessTripReimbursed: true
     }
   ], {
     formatProjectText: (value) => ({GAK: '工具项目', OPS: '运维'}[value] || value),
@@ -88,4 +92,7 @@ test('calculateLogStats aggregates month logs and de-duplicates projects and sta
   assert.equal(result.weekendLogCount, 2)
   assert.equal(result.personDayTotal, 1.5)
   assert.equal(result.overtimeHoursTotal, 3.5)
+  assert.equal(result.businessTripAllowanceTotal, 270)
+  assert.equal(result.reimbursedAllowanceTotal, 110)
+  assert.equal(result.unreimbursedAllowanceTotal, 160)
 })

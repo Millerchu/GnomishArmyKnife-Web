@@ -82,6 +82,17 @@
             <small>{{ activeStats.locations.length ? `${activeStats.locations.length} 个地点` : '暂无地点' }}</small>
           </div>
         </article>
+
+        <article v-if="calendarView === 'month'" class="stats-card stats-card-metric travel-allowance-card">
+          <div class="stats-card-head">
+            <span class="stats-label">出差补助</span>
+            <span class="stats-card-badge">Trip</span>
+          </div>
+          <div class="stats-metric-block">
+            <strong>{{ formatMoneyText(activeStats.businessTripAllowanceTotal) }}</strong>
+            <small>未报销 {{ formatMoneyText(activeStats.unreimbursedAllowanceTotal) }}</small>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -136,7 +147,7 @@
             <strong>{{ day.weekLabel }}</strong>
             <span>{{ day.date }}</span>
           </div>
-          <span class="day-count-badge">{{ daySummaryMap[day.date]?.count || 0 }}</span>
+          <span class="day-count-badge">{{ formatPersonDayBadgeText(daySummaryMap[day.date]?.personDayTotal) }}</span>
         </div>
 
         <div v-if="daySummaryMap[day.date]?.count" class="summary-wrap">
@@ -189,7 +200,7 @@
               <strong>{{ day.dayNumber }}</strong>
               <span>{{ day.date }}</span>
             </div>
-            <span class="day-count-badge">{{ monthSummaryMap[day.date]?.count || 0 }}</span>
+            <span class="day-count-badge">{{ formatPersonDayBadgeText(monthSummaryMap[day.date]?.personDayTotal) }}</span>
           </div>
 
           <div v-if="monthSummaryMap[day.date]?.count" class="summary-wrap month-summary-wrap">
@@ -248,6 +259,8 @@
           <div class="detail-foot-row">
             <span>{{ formatPersonDayText(item.personDay) }}</span>
             <span>{{ formatHoursText(item.overtimeHours) }}</span>
+            <span v-if="item.businessTripAllowanceAmount">{{ formatBusinessTripAllowanceText(item) }}</span>
+            <span v-if="item.businessTripAllowanceAmount">{{ item.businessTripReimbursed ? '已报销' : '未报销' }}</span>
             <span v-if="item.remark">{{ item.remark }}</span>
           </div>
         </article>
@@ -275,6 +288,8 @@
             <th>禅道编号</th>
             <th>人天</th>
             <th>加班</th>
+            <th>补助</th>
+            <th>报销</th>
             <th>备注</th>
           </tr>
           </thead>
@@ -293,6 +308,8 @@
             <td>{{ item.zentaoNo || '-' }}</td>
             <td>{{ formatPersonDayText(item.personDay) }}</td>
             <td>{{ formatHoursText(item.overtimeHours) }}</td>
+            <td>{{ item.businessTripAllowanceAmount ? formatBusinessTripAllowanceText(item) : '-' }}</td>
+            <td>{{ item.businessTripAllowanceAmount ? (item.businessTripReimbursed ? '已报销' : '未报销') : '-' }}</td>
             <td>{{ item.remark || '-' }}</td>
           </tr>
           </tbody>
@@ -321,6 +338,8 @@
           <div class="mobile-log-foot">
             <span>{{ formatPersonDayText(item.personDay) }}</span>
             <span>{{ formatHoursText(item.overtimeHours) }}</span>
+            <span v-if="item.businessTripAllowanceAmount">{{ formatBusinessTripAllowanceText(item) }}</span>
+            <span v-if="item.businessTripAllowanceAmount">{{ item.businessTripReimbursed ? '已报销' : '未报销' }}</span>
             <span v-if="item.remark">{{ item.remark }}</span>
           </div>
         </article>
@@ -380,6 +399,34 @@
           <div class="selected-type-row">
             <span v-for="item in selectedTypeOptions" :key="item.value" class="selected-type-chip">{{ item.label }}</span>
             <span v-if="!selectedTypeOptions.length" class="selected-type-empty">请选择至少一个日志类型</span>
+          </div>
+
+          <div v-if="hasBusinessTripType" class="allowance-panel">
+            <div class="allowance-head">
+              <span>出差补助</span>
+              <strong>{{ formatMoneyText(calculatedBusinessTripAllowanceAmount) }}</strong>
+            </div>
+            <div v-if="hasOutOfCityBusinessTripType" class="allowance-segment" role="group" aria-label="市外出差补助场景">
+              <button
+                v-for="item in businessTripAllowanceSceneOptions"
+                :key="item.value"
+                type="button"
+                class="allowance-segment-btn"
+                :class="{active: form.businessTripAllowanceScene === item.value}"
+                @click="form.businessTripAllowanceScene = item.value"
+              >
+                <span>{{ item.label }}</span>
+                <strong>{{ formatMoneyText(item.amount) }}</strong>
+              </button>
+            </div>
+            <div v-else class="allowance-fixed-row">
+              <span>市内出差补助</span>
+              <strong>{{ formatMoneyText(100) }}</strong>
+            </div>
+            <label class="allowance-checkbox">
+              <input v-model="form.businessTripReimbursed" type="checkbox" />
+              <span>已报销</span>
+            </label>
           </div>
 
           <div class="form-inline-grid">
@@ -475,12 +522,29 @@ const WORK_LOG_MODULE_CODE = 'WORK_LOG'
 const TYPE_FIELD_CODE = 'typeCodes'
 const LOCATION_FIELD_CODE = 'location'
 const PROJECT_FIELD_CODE = 'projectCode'
+const TYPE_CITY_BUSINESS_TRIP = 'CITY_BUSINESS_TRIP'
+const TYPE_OUT_OF_CITY_BUSINESS_TRIP = 'OUT_OF_CITY_BUSINESS_TRIP'
+const TYPE_LEGACY_BUSINESS_TRIP = 'BUSINESS_TRIP'
+const ALLOWANCE_SCENE_CITY = 'CITY'
+const ALLOWANCE_SCENE_OUT_OF_CITY_TRANSIT = 'OUT_OF_CITY_TRANSIT'
+const ALLOWANCE_SCENE_OUT_OF_CITY_DAILY = 'OUT_OF_CITY_DAILY'
+const CITY_BUSINESS_TRIP_ALLOWANCE = 100
+const OUT_OF_CITY_TRANSIT_ALLOWANCE = 110
+const OUT_OF_CITY_DAILY_ALLOWANCE = 160
+const LEGACY_TYPE_LABELS = {
+  BUSINESS_TRIP: '出差'
+}
 const DEFAULT_TYPE_OPTIONS = [
   {itemCode: 'normal', label: '正常工作', value: 'NORMAL', isDefault: true, sortNo: 1},
   {itemCode: 'leave', label: '请假', value: 'LEAVE', isDefault: false, sortNo: 2},
-  {itemCode: 'business_trip', label: '出差', value: 'BUSINESS_TRIP', isDefault: false, sortNo: 3},
-  {itemCode: 'sick_leave', label: '病假', value: 'SICK_LEAVE', isDefault: false, sortNo: 4},
-  {itemCode: 'other', label: '其他', value: 'OTHER', isDefault: false, sortNo: 5}
+  {itemCode: 'city_business_trip', label: '市内出差', value: TYPE_CITY_BUSINESS_TRIP, isDefault: false, sortNo: 3},
+  {itemCode: 'out_of_city_business_trip', label: '市外出差', value: TYPE_OUT_OF_CITY_BUSINESS_TRIP, isDefault: false, sortNo: 4},
+  {itemCode: 'sick_leave', label: '病假', value: 'SICK_LEAVE', isDefault: false, sortNo: 5},
+  {itemCode: 'other', label: '其他', value: 'OTHER', isDefault: false, sortNo: 6}
+]
+const BUSINESS_TRIP_ALLOWANCE_SCENE_OPTIONS = [
+  {label: '往返机场/火车站', value: ALLOWANCE_SCENE_OUT_OF_CITY_TRANSIT, amount: OUT_OF_CITY_TRANSIT_ALLOWANCE},
+  {label: '平时', value: ALLOWANCE_SCENE_OUT_OF_CITY_DAILY, amount: OUT_OF_CITY_DAILY_ALLOWANCE}
 ]
 
 function getWeekMonday(date) {
@@ -542,6 +606,10 @@ function toNumber(value, fallback = 0) {
 
 function formatDecimal(value, digits = 2) {
   return `${Number(toNumber(value, 0).toFixed(digits))}`
+}
+
+function formatMoneyText(value) {
+  return `¥${toNumber(value, 0).toFixed(2)}`
 }
 
 function normalizeTypeCodes(value) {
@@ -650,6 +718,7 @@ function normalizeLog(item) {
   const logDate = item?.logDate || ''
   const overtimeHours = toNumber(item?.overtimeHours, 0)
   const offWorkTime = normalizeTimeValue(item?.offWorkTime || item?.actualOffWorkTime || item?.leaveTime || '')
+  const businessTripAllowanceAmount = toNumber(item?.businessTripAllowanceAmount, 0)
 
   return {
     id: item?.id,
@@ -663,8 +732,35 @@ function normalizeLog(item) {
     personDay: toNumber(item?.personDay, 1),
     overtimeHours,
     offWorkTime: isWeekendDate(logDate) ? '' : (offWorkTime || deriveOffWorkTimeFromHours(overtimeHours)),
+    businessTripAllowanceScene: item?.businessTripAllowanceScene || '',
+    businessTripAllowanceAmount,
+    businessTripReimbursed: Boolean(item?.businessTripReimbursed),
     remark: item?.remark || ''
   }
+}
+
+function hasTypeCode(typeCodes, typeCode) {
+  return normalizeTypeCodes(typeCodes).includes(typeCode)
+}
+
+function calculateBusinessTripAllowanceAmount(typeCodes, scene) {
+  if (hasTypeCode(typeCodes, TYPE_CITY_BUSINESS_TRIP)) {
+    return CITY_BUSINESS_TRIP_ALLOWANCE
+  }
+  if (hasTypeCode(typeCodes, TYPE_OUT_OF_CITY_BUSINESS_TRIP) || hasTypeCode(typeCodes, TYPE_LEGACY_BUSINESS_TRIP)) {
+    return scene === ALLOWANCE_SCENE_OUT_OF_CITY_TRANSIT
+      ? OUT_OF_CITY_TRANSIT_ALLOWANCE
+      : OUT_OF_CITY_DAILY_ALLOWANCE
+  }
+  return 0
+}
+
+function formatBusinessTripAllowanceScene(scene) {
+  return {
+    [ALLOWANCE_SCENE_CITY]: '市内出差',
+    [ALLOWANCE_SCENE_OUT_OF_CITY_TRANSIT]: '往返机场/火车站',
+    [ALLOWANCE_SCENE_OUT_OF_CITY_DAILY]: '平时'
+  }[scene] || '出差补助'
 }
 
 function shortText(text, maxLength = 44) {
@@ -726,6 +822,8 @@ export default {
       personDay: 1,
       offWorkTime: STANDARD_OFF_WORK_TIME,
       manualOvertimeHours: 0,
+      businessTripAllowanceScene: ALLOWANCE_SCENE_OUT_OF_CITY_DAILY,
+      businessTripReimbursed: false,
       remark: ''
     })
 
@@ -853,6 +951,15 @@ export default {
     })
 
     const selectedTypeOptions = computed(() => typeOptions.value.filter((item) => form.typeCodes.includes(item.value)))
+    const hasCityBusinessTripType = computed(() => form.typeCodes.includes(TYPE_CITY_BUSINESS_TRIP))
+    const hasOutOfCityBusinessTripType = computed(() => {
+      return form.typeCodes.includes(TYPE_OUT_OF_CITY_BUSINESS_TRIP) || form.typeCodes.includes(TYPE_LEGACY_BUSINESS_TRIP)
+    })
+    const hasBusinessTripType = computed(() => hasCityBusinessTripType.value || hasOutOfCityBusinessTripType.value)
+    const businessTripAllowanceSceneOptions = computed(() => BUSINESS_TRIP_ALLOWANCE_SCENE_OPTIONS)
+    const calculatedBusinessTripAllowanceAmount = computed(() => {
+      return calculateBusinessTripAllowanceAmount(form.typeCodes, form.businessTripAllowanceScene)
+    })
     const selectedTypeText = computed(() => {
       if (!selectedTypeOptions.value.length) {
         return '请选择日志类型'
@@ -862,7 +969,7 @@ export default {
 
     function formatTypeCodeList(codes) {
       const list = normalizeTypeCodes(codes)
-      return list.map((code) => typeLabelMap.value[code] || code)
+      return list.map((code) => typeLabelMap.value[code] || LEGACY_TYPE_LABELS[code] || code)
     }
 
     function formatTypeCodes(codes) {
@@ -890,8 +997,17 @@ export default {
       return `${formatDecimal(value, 1)} 人天`
     }
 
+    function formatPersonDayBadgeText(value) {
+      return `${formatDecimal(value, 1)}天`
+    }
+
     function formatHoursText(value) {
       return `${formatDecimal(value, 2)} h`
+    }
+
+    function formatBusinessTripAllowanceText(item) {
+      const scene = formatBusinessTripAllowanceScene(item?.businessTripAllowanceScene)
+      return `${scene} ${formatMoneyText(item?.businessTripAllowanceAmount)}`
     }
 
     function mergeLogsByDate(logGroups = []) {
@@ -1072,6 +1188,8 @@ export default {
       form.personDay = 1
       form.offWorkTime = isWeekendDate(selectedDate.value) ? '' : STANDARD_OFF_WORK_TIME
       form.manualOvertimeHours = 0
+      form.businessTripAllowanceScene = ALLOWANCE_SCENE_OUT_OF_CITY_DAILY
+      form.businessTripReimbursed = false
       form.remark = ''
       applyFormOptionDefaults()
     }
@@ -1087,6 +1205,8 @@ export default {
       form.personDay = detail.personDay ?? 1
       form.offWorkTime = isWeekendDate(detail.logDate) ? '' : (detail.offWorkTime || STANDARD_OFF_WORK_TIME)
       form.manualOvertimeHours = detail.overtimeHours ?? 0
+      form.businessTripAllowanceScene = detail.businessTripAllowanceScene || ALLOWANCE_SCENE_OUT_OF_CITY_DAILY
+      form.businessTripReimbursed = Boolean(detail.businessTripReimbursed)
       form.remark = detail.remark
       applyFormOptionDefaults()
     }
@@ -1255,6 +1375,10 @@ export default {
         alert('请填写工作内容')
         return
       }
+      if (hasCityBusinessTripType.value && hasOutOfCityBusinessTripType.value) {
+        alert('市内出差和市外出差不能同时选择')
+        return
+      }
       if (!isWeekendFormDate.value && !form.offWorkTime) {
         alert('请填写实际下班时间')
         return
@@ -1271,6 +1395,10 @@ export default {
         personDay: Number(form.personDay),
         overtimeHours,
         offWorkTime: isWeekendFormDate.value ? null : formatBackendOffWorkTime(form.offWorkTime || STANDARD_OFF_WORK_TIME),
+        businessTripAllowanceScene: hasBusinessTripType.value
+          ? (hasCityBusinessTripType.value ? ALLOWANCE_SCENE_CITY : form.businessTripAllowanceScene)
+          : null,
+        businessTripReimbursed: hasBusinessTripType.value ? Boolean(form.businessTripReimbursed) : false,
         remark: form.remark
       }
 
@@ -1356,6 +1484,17 @@ export default {
       }
     })
 
+    watch(() => [...form.typeCodes], () => {
+      if (hasCityBusinessTripType.value) {
+        form.businessTripAllowanceScene = ALLOWANCE_SCENE_CITY
+      } else if (hasOutOfCityBusinessTripType.value && !BUSINESS_TRIP_ALLOWANCE_SCENE_OPTIONS.some((item) => item.value === form.businessTripAllowanceScene)) {
+        form.businessTripAllowanceScene = ALLOWANCE_SCENE_OUT_OF_CITY_DAILY
+      } else if (!hasBusinessTripType.value) {
+        form.businessTripAllowanceScene = ALLOWANCE_SCENE_OUT_OF_CITY_DAILY
+        form.businessTripReimbursed = false
+      }
+    })
+
     watch(showDialog, (visible) => {
       if (!visible) {
         showTypeDropdown.value = false
@@ -1406,6 +1545,10 @@ export default {
       showTypeDropdown,
       selectedTypeOptions,
       selectedTypeText,
+      hasBusinessTripType,
+      hasOutOfCityBusinessTripType,
+      businessTripAllowanceSceneOptions,
+      calculatedBusinessTripAllowanceAmount,
       isWeekendFormDate,
       calculatedOvertimeHours,
       dictionarySourceText,
@@ -1414,7 +1557,10 @@ export default {
       formatProjectText,
       formatLocationText,
       formatPersonDayText,
+      formatPersonDayBadgeText,
       formatHoursText,
+      formatMoneyText,
+      formatBusinessTripAllowanceText,
       shortText,
       selectDay,
       selectMonthDay,
@@ -1675,7 +1821,7 @@ export default {
 
 .week-stats-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1775,6 +1921,13 @@ export default {
 .stats-card-metric {
   justify-content: space-between;
   min-height: 122px;
+}
+
+.travel-allowance-card {
+  border-color: rgba(130, 212, 178, 0.24);
+  background:
+    linear-gradient(180deg, rgba(42, 95, 78, 0.28), rgba(255, 255, 255, 0.02)),
+    linear-gradient(135deg, rgba(9, 32, 51, 0.96), rgba(15, 56, 58, 0.84));
 }
 
 .status-chip {
@@ -2128,6 +2281,13 @@ export default {
 .dialog {
   width: min(720px, 100%);
   padding: 20px;
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.dialog,
+.dialog * {
+  box-sizing: border-box;
 }
 
 .dialog h3 {
@@ -2171,6 +2331,7 @@ export default {
 
 .multi-select {
   position: relative;
+  width: 100%;
 }
 
 .multi-select.open .multi-select-trigger {
@@ -2195,30 +2356,51 @@ export default {
   font-size: 13px;
 }
 
+.multi-select-trigger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .multi-select-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   margin-top: 8px;
-  padding: 14px;
+  padding: 10px;
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(5, 17, 30, 0.98), rgba(9, 24, 39, 0.96));
   border: 1px solid rgba(107, 180, 255, 0.16);
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.32);
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  max-height: min(300px, 40vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .multi-select-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
+  padding: 0 2px;
 }
 
 .mini-link {
   border: none;
-  background: transparent;
+  border-radius: 999px;
+  background: rgba(142, 204, 255, 0.1);
   color: #8eccff;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
+  padding: 5px 10px;
 }
 
 .mini-link:hover {
@@ -2227,18 +2409,22 @@ export default {
 
 .multi-option-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .multi-option {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 52px;
-  padding: 0 14px;
-  border-radius: 14px;
+  gap: 10px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
@@ -2264,10 +2450,10 @@ export default {
 
 .multi-option-check {
   position: relative;
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   background: rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
@@ -2295,7 +2481,11 @@ export default {
 
 .multi-option-label {
   flex: 1;
-  font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.94);
 }
@@ -2304,11 +2494,96 @@ export default {
   min-height: 22px;
 }
 
+.allowance-panel {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border-radius: 16px;
+  border: 1px solid rgba(130, 212, 178, 0.18);
+  background:
+    linear-gradient(135deg, rgba(31, 94, 75, 0.32), rgba(30, 74, 104, 0.18)),
+    rgba(255, 255, 255, 0.05);
+}
+
+.allowance-head,
+.allowance-fixed-row,
+.allowance-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.allowance-head span,
+.allowance-fixed-row span,
+.allowance-checkbox span {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.allowance-head strong,
+.allowance-fixed-row strong {
+  color: #b8ffd8;
+  font-size: 18px;
+}
+
+.allowance-segment {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.allowance-segment-btn {
+  min-height: 52px;
+  padding: 8px 11px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+
+.allowance-segment-btn.active {
+  border-color: rgba(142, 236, 187, 0.55);
+  background: linear-gradient(135deg, rgba(33, 122, 86, 0.72), rgba(42, 119, 146, 0.46));
+}
+
+.allowance-segment-btn span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.allowance-segment-btn strong {
+  color: #b8ffd8;
+  font-size: 13px;
+}
+
+.allowance-checkbox {
+  justify-content: flex-start;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.allowance-checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: #52c789;
+}
+
 .dialog-actions {
+  position: sticky;
+  bottom: -20px;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 4px;
+  margin: 4px -20px -20px;
+  padding: 12px 20px 16px;
+  background: linear-gradient(180deg, rgba(9, 24, 39, 0.72), rgba(8, 20, 33, 0.96));
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .table-wrap {

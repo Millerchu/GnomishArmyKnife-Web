@@ -81,9 +81,10 @@ insert into seed_dictionary_items (
 
   (5003001, 5003, 'WORK_LOG_TYPE', 'normal', '正常工作', 'NORMAL', 1, 'ENABLED', true, '正常工作记录', null),
   (5003002, 5003, 'WORK_LOG_TYPE', 'leave', '请假', 'LEAVE', 2, 'ENABLED', false, '请假记录', null),
-  (5003003, 5003, 'WORK_LOG_TYPE', 'business_trip', '出差', 'BUSINESS_TRIP', 3, 'ENABLED', false, '出差记录', null),
-  (5003004, 5003, 'WORK_LOG_TYPE', 'sick_leave', '病假', 'SICK_LEAVE', 4, 'ENABLED', false, '病假记录', null),
-  (5003005, 5003, 'WORK_LOG_TYPE', 'other', '其他', 'OTHER', 5, 'ENABLED', false, '其他类型', null),
+  (5003006, 5003, 'WORK_LOG_TYPE', 'city_business_trip', '市内出差', 'CITY_BUSINESS_TRIP', 3, 'ENABLED', false, '市内出差记录，补助 100 元', null),
+  (5003007, 5003, 'WORK_LOG_TYPE', 'out_of_city_business_trip', '市外出差', 'OUT_OF_CITY_BUSINESS_TRIP', 4, 'ENABLED', false, '市外出差记录，按往返/平时计算补助', null),
+  (5003004, 5003, 'WORK_LOG_TYPE', 'sick_leave', '病假', 'SICK_LEAVE', 5, 'ENABLED', false, '病假记录', null),
+  (5003005, 5003, 'WORK_LOG_TYPE', 'other', '其他', 'OTHER', 6, 'ENABLED', false, '其他类型', null),
 
   (5004001, 5004, 'WORK_LOG_PROJECT', 'gak', 'GAK', 'GAK', 1, 'ENABLED', true, '当前主工程', null),
   (5004002, 5004, 'WORK_LOG_PROJECT', 'client', '客户项目', 'CLIENT', 2, 'ENABLED', false, '客户交付项目', null),

@@ -94,6 +94,16 @@ export function calculateLogStats(logs = [], formatters = {}) {
   }, 0)
 
   const overtimeHoursTotal = logs.reduce((total, item) => total + toNumber(item?.overtimeHours, 0), 0)
+  const businessTripAllowanceTotal = logs.reduce(
+    (total, item) => total + toNumber(item?.businessTripAllowanceAmount, 0),
+    0
+  )
+  const reimbursedAllowanceTotal = logs.reduce((total, item) => {
+    if (!item?.businessTripReimbursed) {
+      return total
+    }
+    return total + toNumber(item?.businessTripAllowanceAmount, 0)
+  }, 0)
 
   return {
     projects,
@@ -102,6 +112,9 @@ export function calculateLogStats(logs = [], formatters = {}) {
     workDays: workDates.size,
     personDayTotal,
     overtimeHoursTotal,
+    businessTripAllowanceTotal,
+    reimbursedAllowanceTotal,
+    unreimbursedAllowanceTotal: businessTripAllowanceTotal - reimbursedAllowanceTotal,
     logCount: logs.length,
     weekendLogCount: logs.filter((item) => isWeekendDate(item?.logDate)).length
   }
@@ -133,7 +146,8 @@ export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {
       projectsText: joinUniqueValues(list.map((item) => formatProjectText(item.projectCode)).filter((item) => item && item !== '-')),
       workItemsText: shortText(joinUniqueValues(list.map((item) => item.workItem))),
       personDayTotal: list.reduce((total, item) => total + toNumber(item.personDay, 0), 0),
-      overtimeHoursTotal: list.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0)
+      overtimeHoursTotal: list.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0),
+      businessTripAllowanceTotal: list.reduce((total, item) => total + toNumber(item.businessTripAllowanceAmount, 0), 0)
     }
     return summary
   }, {})
