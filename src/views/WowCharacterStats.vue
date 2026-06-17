@@ -57,7 +57,7 @@
                 <span>装等</span>
                 <strong>{{ formatDecimal(item.itemLevel) }}</strong>
               </div>
-              <div class="card-stat score-stat" @dblclick="showFeaturedScorePopover($event, item)">
+              <div class="card-stat score-stat" title="点击查看大秘境赛季记录" @click="showFeaturedScorePopover($event, item)">
                 <span>M+ 总分</span>
                 <strong>{{ formatScore(item.mythicScore) }}</strong>
               </div>
@@ -182,7 +182,7 @@
                 <td>{{ item.realmName || '-' }}</td>
                 <td>{{ formatDecimal(item.itemLevel) }}</td>
                 <td>{{ formatCurrentKey(item) }}</td>
-                <td>{{ formatScore(item.mythicScore) }}</td>
+                <td class="score-cell" @click="showFeaturedScorePopover($event, item)">{{ formatScore(item.mythicScore) }}</td>
                 <td>
                   <div class="row-actions">
                     <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
@@ -212,7 +212,7 @@
               <div class="mobile-card-grid">
                 <p><span>等级</span><strong>{{ item.level }}</strong></p>
                 <p><span>装等</span><strong>{{ formatDecimal(item.itemLevel) }}</strong></p>
-                <p><span>评分</span><strong>{{ formatScore(item.mythicScore) }}</strong></p>
+                <p class="score-mobile-cell" @click="showFeaturedScorePopover($event, item)"><span>评分</span><strong>{{ formatScore(item.mythicScore) }}</strong></p>
                 <p class="wide"><span>当前钥匙</span><strong>{{ formatCurrentKey(item) }}</strong></p>
               </div>
 
@@ -506,17 +506,39 @@
                 <span>总分 {{ formatScore(formMythicScore) }}</span>
               </button>
             </div>
-            <div v-if="mythicRunsExpanded" class="mythic-run-list compact-mythic-list">
-              <div v-for="item in form.mythicRuns" :key="item.dungeonName" class="mythic-run-row compact-row">
-                <div class="mythic-run-title">{{ item.dungeonLabel }}</div>
-                <label class="mini-field timed-field">
-                  <span>最高限时</span>
-                  <input v-model.number="item.bestTimedLevel" class="input compact-input" type="number" min="0" max="40" step="1" />
-                </label>
-                <label class="mini-field score-field">
-                  <span>分数</span>
-                  <input v-model.number="item.score" class="input compact-input" type="number" min="0" max="9999" step="1" />
-                </label>
+            <div v-if="mythicRunsExpanded" class="mythic-season-board editable-mythic-board">
+              <div class="mythic-season-top">
+                <div>
+                  <span class="mythic-season-kicker">史诗钥石评分</span>
+                  <strong>{{ formatScore(formMythicScore) }}</strong>
+                </div>
+                <div class="mythic-current-key">
+                  <span>当前钥石</span>
+                  <b>{{ formatMythicSummary(form) }}</b>
+                </div>
+              </div>
+
+              <div class="mythic-dungeon-grid editable-dungeon-grid">
+                <div
+                  v-for="item in form.mythicRuns"
+                  :key="item.dungeonName"
+                  class="mythic-dungeon-tile"
+                  :class="{ empty: !item.bestTimedLevel && !item.score }"
+                >
+                  <div class="dungeon-tile-art">
+                    <span>{{ formatDungeonShortLabel(item.dungeonLabel) }}</span>
+                  </div>
+                  <div class="dungeon-tile-fields">
+                    <label>
+                      <span>评分</span>
+                      <input v-model.number="item.score" class="tile-input" type="number" min="0" max="9999" step="1" />
+                    </label>
+                    <label>
+                      <span>限时</span>
+                      <input v-model.number="item.bestTimedLevel" class="tile-input" type="number" min="0" max="40" step="1" />
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -594,19 +616,35 @@
 
     <div
       v-if="activeFeaturedScoreItem"
-      class="score-popover floating-score-popover"
+      class="score-popover floating-score-popover mythic-score-panel"
       :style="featuredScorePopoverStyle"
       @mouseleave="hideFeaturedScorePopover"
     >
-      <div class="score-popover-title">单本分数</div>
-      <div class="score-popover-list">
+      <div class="mythic-panel-header">
+        <strong>史诗钥石地下城</strong>
+        <button type="button" class="popover-close-btn" @click="hideFeaturedScorePopover">×</button>
+      </div>
+      <div class="mythic-panel-score">
+        <div>
+          <span>史诗钥石评分</span>
+          <strong>{{ formatScore(activeFeaturedScoreItem.mythicScore) }}</strong>
+        </div>
+        <p>当前钥石：{{ formatCurrentKey(activeFeaturedScoreItem) }}</p>
+      </div>
+      <div class="mythic-dungeon-grid popover-dungeon-grid">
         <div
           v-for="run in buildFeaturedScoreDetails(activeFeaturedScoreItem)"
           :key="`${activeFeaturedScoreItem.id}-${run.dungeonName}`"
-          class="score-popover-row"
+          class="mythic-dungeon-tile compact-dungeon-tile"
+          :class="{ empty: !run.bestTimedLevel && !run.score }"
         >
-          <span>{{ run.dungeonLabel }}</span>
-          <strong>+{{ run.bestTimedLevel }} · {{ formatScore(run.score) }}</strong>
+          <div class="dungeon-tile-art">
+            <span>{{ formatDungeonShortLabel(run.dungeonLabel) }}</span>
+          </div>
+          <div class="dungeon-tile-score">
+            <strong>{{ formatScore(run.score) }}</strong>
+            <span>{{ run.bestTimedLevel ? run.bestTimedLevel : '-' }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -645,6 +683,25 @@ const DEFAULT_FACTION_VALUE = 'ALLIANCE'
 const RAID_THRESHOLDS = [2, 4, 6]
 const MYTHIC_THRESHOLDS = [1, 4, 8]
 const WORLD_THRESHOLDS = [2, 4, 8]
+const DUNGEON_SHORT_LABELS = {
+  '魔导师平台': '魔导',
+  '迈萨拉洞窟': '洞窟',
+  '节点希纳斯': '节点',
+  '风行者之塔': '风行',
+  '艾杰斯亚学院': '学院',
+  '萨隆矿坑': '矿坑',
+  '执政团之座': '执政',
+  '通天峰': '通天',
+  '通天': '通天',
+  '破晨号': '晨号',
+  '艾拉-卡拉，回响之城': '回响',
+  '塞兹仙林的迷雾': '迷雾',
+  '围攻伯拉勒斯': '围攻',
+  '格瑞姆巴托': '格瑞',
+  '伤逝剧场': '剧场',
+  '暴富矿区': '矿区',
+  '驭雷栖巢': '栖巢'
+}
 
 function unwrapData(res) {
   const payload = res?.data
@@ -1439,6 +1496,13 @@ export default {
       return `${latest.weekStartDate || '未设日期'} · ${unlocked}/9`
     }
     const buildAvatarText = (name) => `${name || '角'}`.slice(0, 2)
+    const formatDungeonShortLabel = (label) => {
+      const normalized = `${label || ''}`.trim()
+      if (!normalized) {
+        return '-'
+      }
+      return DUNGEON_SHORT_LABELS[normalized] || normalized.slice(-2)
+    }
     const buildFeaturedScoreDetails = (item) => Array.isArray(item?.mythicRuns)
       ? item.mythicRuns.map((run) => ({
         dungeonName: run.dungeonName,
@@ -1452,10 +1516,10 @@ export default {
         activeFeaturedScoreItem.value = null
         return
       }
-      const popoverWidth = 240
-      const popoverHeight = 320
       const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
       const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+      const popoverWidth = Math.min(560, Math.max(280, viewportWidth - 24))
+      const popoverHeight = 420
       featuredScorePopoverPosition.left = Math.min(
         Math.max(12, event.clientX + 12),
         Math.max(12, viewportWidth - popoverWidth - 12)
@@ -1666,6 +1730,7 @@ export default {
       formatLatestVaultText,
       formatProfessionText,
       buildAvatarText,
+      formatDungeonShortLabel,
       buildFeaturedScoreDetails,
       showFeaturedScorePopover,
       hideFeaturedScorePopover,
@@ -1949,51 +2014,114 @@ export default {
   cursor: pointer;
 }
 
+.score-cell,
+.score-mobile-cell {
+  cursor: pointer;
+}
+
+.score-cell {
+  color: #ffd76e;
+  font-weight: 800;
+}
+
 .score-popover {
-  width: 220px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: linear-gradient(135deg, rgba(5, 18, 33, 0.96), rgba(15, 40, 66, 0.94));
-  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(14px);
+  position: relative;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 207, 89, 0.22);
+  background:
+    linear-gradient(135deg, rgba(6, 7, 13, 0.9), rgba(35, 25, 42, 0.82)),
+    radial-gradient(circle at 18% 18%, rgba(255, 206, 78, 0.2), transparent 28%),
+    radial-gradient(circle at 84% 36%, rgba(54, 169, 255, 0.16), transparent 32%);
+  box-shadow: 0 22px 36px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(16px);
 }
 
 .floating-score-popover {
   position: fixed;
   z-index: 60;
-  width: 240px;
+  width: min(560px, calc(100vw - 24px));
 }
 
-.score-popover-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: #d7f0ff;
+.mythic-score-panel {
+  overflow: hidden;
 }
 
-.score-popover-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+.mythic-score-panel::before,
+.mythic-season-board::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 206, 78, 0.08), transparent),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 9px);
+  mix-blend-mode: screen;
+  opacity: 0.48;
 }
 
-.score-popover-row {
+.mythic-panel-header,
+.mythic-season-top {
+  position: relative;
+  z-index: 1;
+}
+
+.mythic-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffdf5f;
 }
 
-.score-popover-row:last-child {
-  border-bottom: none;
+.mythic-panel-header strong {
+  font-size: 16px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.52);
 }
 
-.score-popover-row strong {
-  color: #ffd76e;
+.popover-close-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 999px;
+  color: #ffffff;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mythic-panel-score {
+  position: relative;
+  z-index: 1;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid rgba(255, 207, 89, 0.16);
+}
+
+.mythic-panel-score div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mythic-panel-score span,
+.mythic-panel-score p {
+  margin: 0;
   font-size: 13px;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.mythic-panel-score strong {
+  color: #ff9f1c;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.48);
 }
 
 .card-stat span,
@@ -2479,6 +2607,173 @@ export default {
   align-items: center;
 }
 
+.mythic-season-board {
+  position: relative;
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 207, 89, 0.2);
+  background:
+    linear-gradient(135deg, rgba(7, 8, 16, 0.9), rgba(39, 28, 43, 0.78)),
+    radial-gradient(circle at 20% 18%, rgba(255, 206, 78, 0.2), transparent 26%),
+    radial-gradient(circle at 84% 34%, rgba(48, 145, 255, 0.14), transparent 28%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 14px 26px rgba(0, 0, 0, 0.24);
+}
+
+.mythic-season-top {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.mythic-season-top > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mythic-season-kicker {
+  color: #ffe16f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mythic-season-top strong {
+  color: #ff9f1c;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.48);
+}
+
+.mythic-current-key {
+  min-width: 180px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 207, 89, 0.14);
+}
+
+.mythic-current-key span,
+.dungeon-tile-fields span {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.mythic-current-key b {
+  display: block;
+  color: #fff5c8;
+  font-size: 13px;
+}
+
+.mythic-dungeon-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.editable-dungeon-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.popover-dungeon-grid {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.mythic-dungeon-tile {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 207, 89, 0.22);
+  background:
+    linear-gradient(180deg, rgba(143, 64, 21, 0.72), rgba(38, 14, 21, 0.94)),
+    radial-gradient(circle at 50% 4%, rgba(255, 207, 89, 0.32), transparent 34%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.mythic-dungeon-tile.empty {
+  border-color: rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(180deg, rgba(47, 56, 72, 0.74), rgba(17, 21, 32, 0.92)),
+    radial-gradient(circle at 50% 4%, rgba(255, 255, 255, 0.14), transparent 34%);
+}
+
+.dungeon-tile-art {
+  min-height: 48px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  padding: 7px 5px;
+  background:
+    linear-gradient(180deg, rgba(9, 18, 31, 0.12), rgba(0, 0, 0, 0.44)),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 10px);
+}
+
+.dungeon-tile-art span {
+  width: 100%;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffd45f;
+  font-size: 13px;
+  font-weight: 800;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.62);
+}
+
+.dungeon-tile-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 3px 7px;
+}
+
+.dungeon-tile-score strong {
+  color: #ff9f1c;
+  font-size: 19px;
+  line-height: 1;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.58);
+}
+
+.dungeon-tile-score span {
+  color: #ffd76e;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.dungeon-tile-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px;
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.tile-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 5px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  color: #ffffff;
+  background: rgba(6, 13, 25, 0.66);
+  outline: none;
+  text-align: center;
+  font-weight: 800;
+}
+
+.compact-dungeon-tile .dungeon-tile-art {
+  min-height: 44px;
+}
+
 .mythic-run-title {
   min-height: 36px;
   display: flex;
@@ -2712,6 +3007,21 @@ button:disabled {
   .mythic-run-row {
     grid-template-columns: 1fr;
   }
+
+  .mythic-season-top,
+  .mythic-panel-score {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editable-dungeon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .popover-dungeon-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
 }
 
 @media (max-width: 720px) {
@@ -2995,6 +3305,34 @@ button:disabled {
   .mythic-run-title {
     min-height: 32px;
     padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .mythic-season-board,
+  .score-popover {
+    padding: 12px;
+  }
+
+  .mythic-season-top strong,
+  .mythic-panel-score strong {
+    font-size: 28px;
+  }
+
+  .dungeon-tile-art {
+    min-height: 40px;
+  }
+
+  .dungeon-tile-art span {
+    font-size: 12px;
+  }
+
+  .dungeon-tile-fields {
+    gap: 5px;
+    padding: 6px;
+  }
+
+  .tile-input {
+    height: 30px;
     font-size: 12px;
   }
 
