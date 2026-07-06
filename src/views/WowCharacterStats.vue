@@ -428,58 +428,33 @@
                   </label>
                 </div>
 
-                <div class="vault-preview-board">
-                  <div class="vault-preview-track">
-                    <strong>团队副本</strong>
-                    <span>{{ item.raidProgressCount }} / 6</span>
+                <div class="vault-grand-board">
+                  <div class="vault-grand-copy">
+                    <strong>每周完成活动可以将物品添加到宏伟宝库中。</strong>
+                    <span>你每周可以选择一件奖励。</span>
                   </div>
-                  <div class="vault-preview-track">
-                    <strong>地下城</strong>
-                    <span>{{ item.mythicProgressCount }} / 8</span>
-                  </div>
-                  <div class="vault-preview-track">
-                    <strong>世界</strong>
-                    <span>{{ item.worldProgressCount }} / 8</span>
-                  </div>
-                </div>
+                  <div class="vault-grand-divider" />
 
-                <div class="vault-board">
-                  <div class="vault-track">
-                    <strong>团本</strong>
-                    <div class="vault-slot-grid">
-                      <div
-                        v-for="threshold in RAID_THRESHOLDS"
-                        :key="`raid-${item.localKey}-${threshold}`"
-                        class="vault-slot"
-                        :class="{ unlocked: item.raidProgressCount >= threshold }"
-                      >
-                        {{ threshold }}
-                      </div>
+                  <div
+                    v-for="track in buildVaultRewardTracks(item)"
+                    :key="`${item.localKey}-${track.key}`"
+                    class="vault-reward-row"
+                  >
+                    <div class="vault-track-scene" :class="`vault-track-${track.key}`">
+                      <strong>{{ track.title }}</strong>
+                      <span>{{ track.progress }} / {{ track.maxProgress }}</span>
                     </div>
-                  </div>
-                  <div class="vault-track">
-                    <strong>M+</strong>
-                    <div class="vault-slot-grid">
+                    <div class="vault-reward-grid">
                       <div
-                        v-for="threshold in MYTHIC_THRESHOLDS"
-                        :key="`mythic-${item.localKey}-${threshold}`"
-                        class="vault-slot"
-                        :class="{ unlocked: item.mythicProgressCount >= threshold }"
+                        v-for="reward in track.rewards"
+                        :key="`${item.localKey}-${track.key}-${reward.threshold}`"
+                        class="vault-reward-card"
+                        :class="{ unlocked: reward.unlocked }"
+                        :style="{ '--vault-progress': `${reward.percent}%` }"
                       >
-                        {{ threshold }}
-                      </div>
-                    </div>
-                  </div>
-                  <div class="vault-track">
-                    <strong>世界 / 地下堡</strong>
-                    <div class="vault-slot-grid">
-                      <div
-                        v-for="threshold in WORLD_THRESHOLDS"
-                        :key="`world-${item.localKey}-${threshold}`"
-                        class="vault-slot"
-                        :class="{ unlocked: item.worldProgressCount >= threshold }"
-                      >
-                        {{ threshold }}
+                        <span class="vault-state-mark">{{ reward.unlocked ? '✓' : '锁' }}</span>
+                        <strong>{{ reward.label }}</strong>
+                        <span class="vault-reward-value">{{ reward.unlocked ? reward.rewardText : reward.progressText }}</span>
                       </div>
                     </div>
                   </div>
@@ -683,6 +658,35 @@ const DEFAULT_FACTION_VALUE = 'ALLIANCE'
 const RAID_THRESHOLDS = [2, 4, 6]
 const MYTHIC_THRESHOLDS = [1, 4, 8]
 const WORLD_THRESHOLDS = [2, 4, 8]
+const VAULT_REWARD_TRACKS = [
+  {
+    key: 'raid',
+    title: '团队副本',
+    progressField: 'raidProgressCount',
+    maxProgress: 6,
+    thresholds: RAID_THRESHOLDS,
+    rewardText: '团本奖励',
+    labels: ['击败 2 个团队首领', '击败 4 个团队首领', '击败 6 个团队首领']
+  },
+  {
+    key: 'mythic',
+    title: '地下城',
+    progressField: 'mythicProgressCount',
+    maxProgress: 8,
+    thresholds: MYTHIC_THRESHOLDS,
+    rewardText: '地下城奖励',
+    labels: ['完成 1 个史诗钥石地下城', '完成 4 个史诗钥石地下城', '完成 8 个史诗钥石地下城']
+  },
+  {
+    key: 'world',
+    title: '世界',
+    progressField: 'worldProgressCount',
+    maxProgress: 8,
+    thresholds: WORLD_THRESHOLDS,
+    rewardText: '世界奖励',
+    labels: ['完成 2 项世界活动', '完成 4 项世界活动', '完成 8 项世界活动']
+  }
+]
 const DUNGEON_SHORT_LABELS = {
   '魔导师平台': '魔导',
   '迈萨拉洞窟': '洞窟',
@@ -1495,6 +1499,21 @@ export default {
         + [latest.worldProgressCount >= 2 ? 1 : 0, latest.worldProgressCount >= 4 ? 1 : 0, latest.worldProgressCount >= 8 ? 1 : 0].filter(Boolean).length
       return `${latest.weekStartDate || '未设日期'} · ${unlocked}/9`
     }
+    const buildVaultRewardTracks = (weeklyVault) => VAULT_REWARD_TRACKS.map((track) => {
+      const progress = Math.max(0, toNumber(weeklyVault?.[track.progressField], 0))
+      return {
+        ...track,
+        progress,
+        rewards: track.thresholds.map((threshold, index) => ({
+          threshold,
+          label: track.labels[index],
+          unlocked: progress >= threshold,
+          percent: Math.min(100, Math.round((progress / threshold) * 100)),
+          progressText: `${Math.min(progress, threshold)}/${threshold}`,
+          rewardText: track.rewardText
+        }))
+      }
+    })
     const buildAvatarText = (name) => `${name || '角'}`.slice(0, 2)
     const formatDungeonShortLabel = (label) => {
       const normalized = `${label || ''}`.trim()
@@ -1728,6 +1747,7 @@ export default {
       formatCurrentKey,
       formatMythicSummary,
       formatLatestVaultText,
+      buildVaultRewardTracks,
       formatProfessionText,
       buildAvatarText,
       formatDungeonShortLabel,
@@ -2824,75 +2844,223 @@ export default {
   min-height: 72px;
 }
 
-.vault-board {
+.vault-grand-board {
+  position: relative;
   margin-top: 12px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.vault-preview-board {
-  margin-top: 10px;
-  min-height: 78px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  padding: 10px;
-  border-radius: 14px;
-  background:
-    linear-gradient(135deg, rgba(24, 18, 12, 0.86), rgba(33, 27, 38, 0.78)),
-    url('/brand/wow-great-vault-icon.png') right 8px center/76px 76px no-repeat;
-  border: 1px solid rgba(251, 191, 36, 0.22);
-}
-
-.vault-preview-track {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  padding: 8px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.28);
-}
-
-.vault-preview-track strong {
-  font-size: 12px;
-}
-
-.vault-preview-track span {
-  color: #ffd76e;
-  font-weight: 700;
-}
-
-.vault-track {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.vault-slot-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.vault-slot {
-  min-height: 42px;
+  padding: 18px;
+  overflow: hidden;
   border-radius: 12px;
+  border: 1px solid rgba(205, 147, 54, 0.28);
+  background:
+    linear-gradient(135deg, rgba(12, 11, 13, 0.94), rgba(32, 23, 21, 0.9)),
+    radial-gradient(circle at 50% 8%, rgba(221, 157, 58, 0.18), transparent 36%),
+    url('/brand/wow-great-vault-icon.png') right 18px top 18px/92px 92px no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 232, 155, 0.08), 0 16px 28px rgba(0, 0, 0, 0.24);
+}
+
+.vault-grand-board::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 210, 112, 0.08), transparent 24%, transparent 76%, rgba(255, 210, 112, 0.06)),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 14px);
+  opacity: 0.72;
+}
+
+.vault-grand-copy,
+.vault-grand-divider,
+.vault-reward-row {
+  position: relative;
+  z-index: 1;
+}
+
+.vault-grand-copy {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-right: 88px;
+  color: rgba(255, 255, 255, 0.86);
+  text-align: center;
+}
+
+.vault-grand-copy strong {
+  color: #f5e7c5;
+  font-size: 17px;
+}
+
+.vault-grand-copy span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+}
+
+.vault-grand-divider {
+  width: min(460px, 72%);
+  height: 14px;
+  margin: 12px auto 16px;
+  border-top: 1px solid rgba(206, 149, 57, 0.54);
+}
+
+.vault-grand-divider::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 14px;
+  height: 14px;
+  transform: translateX(-50%) rotate(45deg);
+  border-right: 1px solid rgba(206, 149, 57, 0.78);
+  border-bottom: 1px solid rgba(206, 149, 57, 0.78);
+  background: rgba(22, 15, 12, 0.9);
+}
+
+.vault-reward-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.72fr) minmax(0, 1.8fr);
+  gap: 16px;
+  align-items: stretch;
+  padding: 14px 0;
+  border-top: 1px solid rgba(206, 149, 57, 0.18);
+}
+
+.vault-reward-row:first-of-type {
+  border-top: none;
+}
+
+.vault-track-scene {
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 18px 14px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid rgba(206, 149, 57, 0.18);
+  background:
+    linear-gradient(90deg, rgba(16, 12, 10, 0.52), rgba(16, 12, 10, 0.18)),
+    radial-gradient(circle at 72% 42%, rgba(245, 158, 11, 0.3), transparent 36%),
+    linear-gradient(135deg, rgba(88, 37, 18, 0.84), rgba(16, 23, 28, 0.88));
+}
+
+.vault-track-scene strong {
+  color: #d9a43c;
+  font-size: 25px;
+  line-height: 1;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+}
+
+.vault-track-scene span {
+  width: max-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #ffe4a0;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(0, 0, 0, 0.36);
+  border: 1px solid rgba(255, 210, 112, 0.2);
+}
+
+.vault-track-mythic {
+  background:
+    linear-gradient(90deg, rgba(9, 15, 18, 0.58), rgba(9, 15, 18, 0.14)),
+    radial-gradient(circle at 72% 40%, rgba(55, 189, 201, 0.28), transparent 38%),
+    linear-gradient(135deg, rgba(18, 54, 57, 0.82), rgba(15, 18, 27, 0.9));
+}
+
+.vault-track-world {
+  background:
+    linear-gradient(90deg, rgba(11, 15, 11, 0.56), rgba(11, 15, 11, 0.16)),
+    radial-gradient(circle at 74% 42%, rgba(126, 183, 69, 0.26), transparent 40%),
+    linear-gradient(135deg, rgba(42, 57, 30, 0.86), rgba(17, 18, 24, 0.9));
+}
+
+.vault-reward-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vault-reward-card {
+  position: relative;
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 14px 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  background:
+    linear-gradient(180deg, rgba(19, 25, 28, 0.86), rgba(8, 9, 12, 0.92)),
+    radial-gradient(circle at 18% 84%, rgba(237, 179, 65, 0.12), transparent 34%);
+  box-shadow: inset 0 -4px 0 rgba(214, 151, 48, 0.3);
+}
+
+.vault-reward-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--vault-progress);
+  height: 4px;
+  background: #d9a43c;
+}
+
+.vault-reward-card.unlocked {
+  color: #ffffff;
+  border-color: rgba(50, 214, 93, 0.52);
+  background:
+    linear-gradient(180deg, rgba(48, 50, 43, 0.8), rgba(15, 18, 15, 0.9)),
+    radial-gradient(circle at 20% 84%, rgba(255, 211, 96, 0.4), transparent 36%);
+  box-shadow: inset 0 -4px 0 #32d65d, 0 0 22px rgba(255, 205, 84, 0.12);
+}
+
+.vault-reward-card.unlocked::before {
+  background: #32d65d;
+}
+
+.vault-state-mark {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.72);
-  font-weight: 600;
+  border-radius: 999px;
+  color: #111318;
+  font-size: 12px;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.22);
 }
 
-.vault-slot.unlocked {
-  border-color: rgba(251, 191, 36, 0.45);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.32), rgba(234, 179, 8, 0.18));
-  color: #fff4c2;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+.vault-reward-card.unlocked .vault-state-mark {
+  color: #07340f;
+  background: #32d65d;
+  box-shadow: 0 0 16px rgba(50, 214, 93, 0.46);
+}
+
+.vault-reward-card strong {
+  min-height: 38px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.vault-reward-card.unlocked strong {
+  color: #fff5d2;
+}
+
+.vault-reward-value {
+  align-self: flex-end;
+  color: #d9a43c;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.vault-reward-card.unlocked .vault-reward-value {
+  color: #31f06a;
 }
 
 .empty-inline {
@@ -2997,11 +3165,14 @@ button:disabled {
 @media (max-width: 960px) {
   .filter-grid,
   .summary-grid,
-  .vault-board,
-  .vault-preview-board,
   .keybinding-list,
   .weekly-vault-grid {
     grid-template-columns: 1fr;
+  }
+
+  .vault-reward-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .mythic-run-row {
@@ -3285,23 +3456,6 @@ button:disabled {
     height: 28px;
   }
 
-  .vault-preview-board {
-    min-height: auto;
-    padding: 8px;
-    background:
-      linear-gradient(135deg, rgba(24, 18, 12, 0.86), rgba(33, 27, 38, 0.78)),
-      url('/brand/wow-great-vault-icon.png') right 6px center/54px 54px no-repeat;
-  }
-
-  .vault-preview-track {
-    padding: 6px;
-  }
-
-  .vault-slot {
-    min-height: 34px;
-    font-size: 12px;
-  }
-
   .mythic-run-title {
     min-height: 32px;
     padding: 0 8px;
@@ -3324,6 +3478,57 @@ button:disabled {
 
   .dungeon-tile-art span {
     font-size: 12px;
+  }
+
+  .vault-grand-board {
+    padding: 12px;
+    background:
+      linear-gradient(135deg, rgba(12, 11, 13, 0.94), rgba(32, 23, 21, 0.9)),
+      radial-gradient(circle at 50% 8%, rgba(221, 157, 58, 0.18), transparent 36%),
+      url('/brand/wow-great-vault-icon.png') right 10px top 10px/58px 58px no-repeat;
+  }
+
+  .vault-grand-copy {
+    align-items: flex-start;
+    padding-right: 54px;
+    text-align: left;
+  }
+
+  .vault-grand-copy strong {
+    font-size: 14px;
+  }
+
+  .vault-grand-copy span {
+    font-size: 12px;
+  }
+
+  .vault-grand-divider {
+    width: 100%;
+    margin: 10px auto 8px;
+  }
+
+  .vault-track-scene {
+    min-height: 82px;
+    padding: 14px;
+  }
+
+  .vault-track-scene strong {
+    font-size: 21px;
+  }
+
+  .vault-reward-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .vault-reward-card {
+    min-height: 88px;
+    padding: 12px;
+  }
+
+  .vault-reward-card strong {
+    min-height: auto;
+    font-size: 13px;
   }
 
   .dungeon-tile-fields {
