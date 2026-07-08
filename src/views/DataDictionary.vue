@@ -30,26 +30,15 @@
         </label>
         <label class="field-item">
           <span>状态</span>
-          <select v-model="filters.status" :disabled="loading">
-            <option value="">全部</option>
-            <option value="ENABLED">启用</option>
-            <option value="DISABLED">禁用</option>
-          </select>
+          <GlassSelect v-model="filters.status" :options="statusFilterOptions" :disabled="loading"/>
         </label>
         <label class="field-item">
           <span>作用范围</span>
-          <select v-model="filters.dictScope" :disabled="loading">
-            <option value="">全部</option>
-            <option value="PUBLIC">公共</option>
-            <option value="PERSONAL">个人</option>
-          </select>
+          <GlassSelect v-model="filters.dictScope" :options="scopeFilterOptions" :disabled="loading"/>
         </label>
         <label class="field-item">
           <span>引用应用</span>
-          <select v-model="filters.referenceApp" :disabled="loading">
-            <option value="">全部</option>
-            <option v-for="item in referenceAppOptions" :key="item" :value="item">{{ item }}</option>
-          </select>
+          <GlassSelect v-model="filters.referenceApp" :options="referenceAppSelectOptions" :disabled="loading"/>
         </label>
       </div>
       <div class="filter-actions">
@@ -166,11 +155,13 @@
       <div class="pager">
         <div class="pager-left">
           <span>第 {{ pagination.pageNo }} / {{ pageCount }} 页</span>
-          <select v-model.number="pagination.pageSize" :disabled="loading" @change="changePageSize">
-            <option :value="10">10 条/页</option>
-            <option :value="20">20 条/页</option>
-            <option :value="50">50 条/页</option>
-          </select>
+          <GlassSelect
+            v-model="pagination.pageSize"
+            class="page-size-select"
+            :options="pageSizeOptions"
+            :disabled="loading"
+            @change="changePageSize"
+          />
         </div>
         <div class="pager-right">
           <button class="ghost-btn" :disabled="loading || pagination.pageNo <= 1" @click="changePage(-1)">上一页</button>
@@ -305,17 +296,11 @@
           </label>
           <label class="field-item">
             <span>状态</span>
-            <select v-model="dictionaryForm.status" :disabled="submitting">
-              <option value="ENABLED">启用</option>
-              <option value="DISABLED">禁用</option>
-            </select>
+            <GlassSelect v-model="dictionaryForm.status" :options="statusOptions" :disabled="submitting"/>
           </label>
           <label class="field-item">
             <span>作用范围</span>
-            <select v-model="dictionaryForm.dictScope" :disabled="submitting">
-              <option value="PUBLIC">公共</option>
-              <option value="PERSONAL">个人</option>
-            </select>
+            <GlassSelect v-model="dictionaryForm.dictScope" :options="scopeOptions" :disabled="submitting"/>
           </label>
           <label class="field-item">
             <span>引用应用</span>
@@ -394,10 +379,7 @@
           </label>
           <label class="field-item">
             <span>状态</span>
-            <select v-model="itemForm.status" :disabled="submitting">
-              <option value="ENABLED">启用</option>
-              <option value="DISABLED">禁用</option>
-            </select>
+            <GlassSelect v-model="itemForm.status" :options="statusOptions" :disabled="submitting"/>
           </label>
           <label class="checkbox-item">
             <input v-model="itemForm.isDefault" type="checkbox" :disabled="submitting"/>
@@ -429,6 +411,7 @@
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import GlassSelect from '@/components/GlassSelect.vue'
 import {
   createDataDictionary,
   createDataDictionaryItem,
@@ -560,6 +543,9 @@ function extractEntityId(payload, candidates = ['id']) {
 
 export default {
   name: 'DataDictionary',
+  components: {
+    GlassSelect
+  },
   setup() {
     const router = useRouter()
 
@@ -625,6 +611,39 @@ export default {
       })
       return Array.from(set)
     })
+
+    const statusFilterOptions = [
+      {label: '全部', value: ''},
+      {label: '启用', value: 'ENABLED'},
+      {label: '禁用', value: 'DISABLED'}
+    ]
+
+    const statusOptions = [
+      {label: '启用', value: 'ENABLED'},
+      {label: '禁用', value: 'DISABLED'}
+    ]
+
+    const scopeFilterOptions = [
+      {label: '全部', value: ''},
+      {label: '公共', value: 'PUBLIC'},
+      {label: '个人', value: 'PERSONAL'}
+    ]
+
+    const scopeOptions = [
+      {label: '公共', value: 'PUBLIC'},
+      {label: '个人', value: 'PERSONAL'}
+    ]
+
+    const pageSizeOptions = [
+      {label: '10 条/页', value: 10},
+      {label: '20 条/页', value: 20},
+      {label: '50 条/页', value: 50}
+    ]
+
+    const referenceAppSelectOptions = computed(() => [
+      {label: '全部', value: ''},
+      ...referenceAppOptions.value.map((item) => ({label: item, value: item}))
+    ])
 
     const formatApps = (apps) => {
       return apps && apps.length ? apps.join('、') : '-'
@@ -1006,6 +1025,12 @@ export default {
       pagination,
       pageCount,
       referenceAppOptions,
+      referenceAppSelectOptions,
+      statusFilterOptions,
+      statusOptions,
+      scopeFilterOptions,
+      scopeOptions,
+      pageSizeOptions,
       formatDictScope,
       showDictionaryDialog,
       dictionaryDialogMode,
@@ -1475,6 +1500,384 @@ export default {
 .mini-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Polished glassmorphism layer for the data dictionary workspace. */
+.dict-page {
+  color: #eef7ff;
+}
+
+.dict-page .hero-panel,
+.dict-page .filter-panel,
+.dict-page .table-panel,
+.dict-page .items-panel {
+  border: 1px solid rgba(221, 239, 255, 0.18) !important;
+  background:
+    linear-gradient(180deg, rgba(19, 48, 58, 0.68), rgba(7, 20, 35, 0.76)),
+    rgba(6, 24, 34, 0.54) !important;
+  box-shadow:
+    0 28px 70px rgba(0, 7, 18, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  backdrop-filter: blur(24px) saturate(150%);
+}
+
+.dict-page .hero-panel,
+.dict-page .filter-panel {
+  border-radius: 24px !important;
+}
+
+.dict-page .table-panel,
+.dict-page .items-panel {
+  padding: 18px !important;
+  border-radius: 22px !important;
+}
+
+.dict-page .page-title {
+  color: #f4fbff !important;
+  font-weight: 860;
+  text-shadow: 0 1px 18px rgba(109, 226, 213, 0.12);
+}
+
+.dict-page .page-subtitle,
+.dict-page .items-subtitle {
+  color: rgba(221, 236, 246, 0.74) !important;
+}
+
+.dict-page .hero-tag,
+.dict-page .toolbar-right {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(226, 243, 255, 0.18) !important;
+  border-radius: 999px;
+  color: rgba(240, 250, 255, 0.92) !important;
+  background: rgba(255, 255, 255, 0.09) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.dict-page .filter-actions {
+  justify-content: flex-start !important;
+}
+
+.dict-page .filter-actions .ghost-btn {
+  margin-left: 0 !important;
+}
+
+.dict-page .field-item {
+  color: rgba(225, 241, 251, 0.82) !important;
+  font-weight: 760;
+}
+
+.dict-page .field-item input,
+.dict-page .field-item textarea {
+  border: 1px solid rgba(221, 239, 255, 0.24) !important;
+  border-radius: 14px !important;
+  color: #eff9ff !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07)),
+    rgba(6, 24, 36, 0.5) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 10px 24px rgba(0, 7, 18, 0.16) !important;
+  backdrop-filter: blur(18px) saturate(145%);
+}
+
+.dict-page .field-item input::placeholder,
+.dict-page .field-item textarea::placeholder {
+  color: rgba(220, 234, 246, 0.48) !important;
+}
+
+.dict-page .field-item input:focus,
+.dict-page .field-item textarea:focus {
+  border-color: rgba(93, 231, 213, 0.64) !important;
+  box-shadow:
+    0 0 0 3px rgba(93, 231, 213, 0.16),
+    0 12px 26px rgba(0, 7, 18, 0.22) !important;
+}
+
+.dict-page .toolbar,
+.dict-page .items-head,
+.dict-page .pager {
+  color: rgba(244, 251, 255, 0.94) !important;
+}
+
+.dict-page .toolbar {
+  margin-top: 0 !important;
+  margin-bottom: 14px !important;
+}
+
+.dict-page .table-wrap {
+  border-radius: 20px !important;
+  border: 1px solid rgba(221, 239, 255, 0.2) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+    rgba(7, 20, 34, 0.46) !important;
+  box-shadow:
+    0 22px 56px rgba(0, 7, 18, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  overflow: auto !important;
+  backdrop-filter: blur(22px) saturate(150%);
+}
+
+.dict-page .dict-table {
+  min-width: 1120px !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: transparent !important;
+}
+
+.dict-page .dict-table th,
+.dict-page .dict-table td {
+  padding: 13px 14px !important;
+  border-bottom: 1px solid rgba(226, 241, 255, 0.13) !important;
+  color: rgba(239, 248, 255, 0.9) !important;
+  font-size: 14px !important;
+  line-height: 1.36 !important;
+  text-align: left !important;
+}
+
+.dict-page .dict-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 46px;
+  background:
+    linear-gradient(180deg, rgba(244, 249, 255, 0.17), rgba(222, 239, 255, 0.1)),
+    rgba(11, 28, 43, 0.72) !important;
+  color: rgba(234, 245, 255, 0.82) !important;
+  font-size: 12px !important;
+  font-weight: 820 !important;
+  letter-spacing: 0 !important;
+  box-shadow: inset 0 -1px 0 rgba(226, 241, 255, 0.18);
+  backdrop-filter: blur(20px) saturate(155%);
+}
+
+.dict-page .dict-table tbody tr {
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.055) !important;
+  transition:
+    background-color 160ms cubic-bezier(0.2, 0.9, 0.2, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0.9, 0.2, 1),
+    transform 160ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.dict-page .dict-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.dict-page .dict-table tbody tr:hover {
+  background: rgba(83, 211, 199, 0.14) !important;
+  box-shadow: inset 4px 0 0 rgba(83, 211, 199, 0.82) !important;
+}
+
+.dict-page .dict-table tbody tr.activeRow {
+  background:
+    linear-gradient(90deg, rgba(80, 143, 255, 0.22), rgba(79, 219, 205, 0.08)) !important;
+  box-shadow:
+    inset 4px 0 0 #4aa7ff,
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.dict-page .dict-table td:first-child,
+.dict-page .dict-table td:nth-child(7),
+.dict-page .dict-table td:nth-child(8) {
+  font-variant-numeric: tabular-nums;
+}
+
+.dict-page .dict-table td:first-child {
+  color: #d6f2ff !important;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px !important;
+  font-weight: 760;
+}
+
+.dict-page .dict-table td:nth-child(2),
+.dict-page .dict-table td:nth-child(5),
+.dict-page .dict-table td:nth-child(6) {
+  color: #f7fbff !important;
+  font-weight: 700;
+}
+
+.dict-page .action-col {
+  width: 320px !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+
+.dict-page .action-col .mini-btn,
+.dict-page .mini-btn {
+  min-width: auto !important;
+  height: 32px !important;
+  margin-right: 6px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(221, 239, 255, 0.22) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(242, 250, 255, 0.9) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 7px 16px rgba(0, 8, 18, 0.18) !important;
+  font-size: 13px !important;
+  font-weight: 750 !important;
+  backdrop-filter: blur(14px);
+}
+
+.dict-page .action-col .mini-btn:first-child {
+  border-color: rgba(94, 234, 212, 0.34) !important;
+  background: rgba(20, 184, 166, 0.18) !important;
+  color: #c6fff4 !important;
+}
+
+.dict-page .action-col .mini-btn:not(:disabled):hover,
+.dict-page .mini-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(148, 217, 255, 0.42) !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+.dict-page .action-col .mini-btn.danger,
+.dict-page .mini-btn.danger {
+  border-color: rgba(255, 151, 151, 0.28) !important;
+  background: rgba(220, 38, 38, 0.16) !important;
+  color: #ffd0d0 !important;
+}
+
+.dict-page .status-tag {
+  height: 27px !important;
+  min-width: 58px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 820 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 8px 18px rgba(0, 7, 18, 0.14);
+}
+
+.dict-page .status-tag.on {
+  border: 1px solid rgba(95, 232, 159, 0.36) !important;
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #baf7cd !important;
+}
+
+.dict-page .status-tag.off {
+  border: 1px solid rgba(255, 151, 151, 0.3) !important;
+  background: rgba(239, 68, 68, 0.16) !important;
+  color: #ffd3d3 !important;
+}
+
+.dict-page .empty-cell {
+  color: rgba(226, 240, 251, 0.68) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.dict-page .pager {
+  margin-top: 14px !important;
+  padding: 2px 0 0;
+}
+
+.dict-page .pager-left,
+.dict-page .pager-right {
+  min-height: 40px;
+}
+
+.dict-page .page-size-select {
+  min-width: 118px;
+}
+
+.dict-page .ghost-btn,
+.dict-page .action-btn {
+  min-height: 38px !important;
+  border-radius: 999px !important;
+  font-weight: 780 !important;
+}
+
+.dict-page .ghost-btn {
+  border: 1px solid rgba(226, 243, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(242, 250, 255, 0.92) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 10px 24px rgba(0, 7, 18, 0.18) !important;
+  backdrop-filter: blur(16px) saturate(145%);
+}
+
+.dict-page .action-btn {
+  border: 1px solid rgba(91, 235, 218, 0.28) !important;
+  background:
+    linear-gradient(180deg, rgba(32, 189, 173, 0.94), rgba(10, 125, 121, 0.96)) !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 14px 30px rgba(3, 105, 99, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+}
+
+.dict-page .ghost-btn:not(:disabled):hover,
+.dict-page .action-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.dict-page .dialog-mask {
+  background: rgba(1, 8, 16, 0.42) !important;
+  backdrop-filter: blur(12px) saturate(130%) !important;
+}
+
+.dict-page .dialog {
+  position: relative;
+  border: 1px solid rgba(230, 244, 255, 0.2) !important;
+  border-radius: 24px !important;
+  background:
+    linear-gradient(180deg, rgba(26, 57, 72, 0.82), rgba(8, 22, 36, 0.86)),
+    rgba(10, 26, 40, 0.72) !important;
+  box-shadow:
+    0 34px 90px rgba(0, 7, 18, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  backdrop-filter: blur(30px) saturate(160%) !important;
+}
+
+.dict-page .dialog::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #ff5f57;
+  box-shadow: 18px 0 0 #febc2e, 36px 0 0 #28c840;
+}
+
+.dict-page .dialog-title {
+  padding-left: 72px;
+  color: #f4fbff !important;
+  font-weight: 840 !important;
+}
+
+.dict-page .dialog-actions {
+  border-top: 1px solid rgba(226, 241, 255, 0.12);
+  position: sticky;
+  bottom: -1px;
+  z-index: 2;
+  margin: 2px -14px -14px;
+  padding: 16px 14px 14px !important;
+  border-color: rgba(226, 241, 255, 0.12) !important;
+  border-radius: 0 0 22px 22px;
+  background:
+    linear-gradient(180deg, rgba(10, 28, 42, 0), rgba(8, 22, 36, 0.88) 34%),
+    rgba(8, 22, 36, 0.56) !important;
+  backdrop-filter: blur(18px) saturate(145%) !important;
+}
+
+.dict-page .checkbox-item {
+  color: rgba(225, 241, 251, 0.82) !important;
+}
+
+.dict-page .mobile-dict-card {
+  border: 1px solid rgba(221, 239, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    0 18px 38px rgba(0, 7, 18, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(18px) saturate(145%);
 }
 
 @media (max-width: 980px) {

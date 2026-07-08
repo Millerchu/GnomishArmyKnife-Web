@@ -13,10 +13,21 @@
 <script>
 import {onMounted, ref} from 'vue'
 
+const FALLBACK_BACKGROUND = `
+  linear-gradient(
+    180deg,
+    rgba(2, 8, 16, 0.84) 0%,
+    rgba(7, 30, 45, 0.84) 48%,
+    rgba(26, 34, 44, 0.88) 100%
+  ),
+  linear-gradient(135deg, #06111f 0%, #0b2c3f 46%, #2b3141 100%)
+`
+
 export default {
   setup() {
     const bgStyle = ref({
-      opacity: 0,
+      background: FALLBACK_BACKGROUND,
+      opacity: 1,
       transition: 'opacity 1.2s ease'
     })
 
@@ -49,6 +60,7 @@ export default {
 
         setBg(url)
       } catch (e) {
+        setFallbackBg()
         console.error('壁纸加载失败：', e)
       }
     }
@@ -63,6 +75,14 @@ export default {
           ),
           url(${url}) center/cover no-repeat
         `,
+        opacity: 1,
+        transition: 'opacity 1.2s ease'
+      }
+    }
+
+    const setFallbackBg = () => {
+      bgStyle.value = {
+        background: FALLBACK_BACKGROUND,
         opacity: 1,
         transition: 'opacity 1.2s ease'
       }

@@ -1,0 +1,606 @@
+:root {
+  --macos-surface: rgba(9, 25, 38, 0.62);
+  --macos-surface-strong: rgba(20, 48, 62, 0.76);
+  --macos-surface-muted: rgba(15, 35, 49, 0.52);
+  --macos-surface-hover: rgba(87, 211, 198, 0.14);
+  --macos-scrim: rgba(1, 8, 16, 0.52);
+  --macos-border: rgba(221, 239, 255, 0.18);
+  --macos-border-strong: rgba(221, 239, 255, 0.3);
+  --macos-text: #f2f9ff;
+  --macos-text-soft: rgba(238, 248, 255, 0.9);
+  --macos-text-muted: rgba(219, 235, 247, 0.68);
+  --macos-accent: #20bdae;
+  --macos-accent-strong: #0a7d79;
+  --macos-blue: #4aa7ff;
+  --macos-danger: #ff8f8f;
+  --macos-success: #78e69d;
+  --macos-warning: #ffd166;
+  --macos-coral: #ff9b8f;
+  --macos-radius-xs: 10px;
+  --macos-radius-sm: 14px;
+  --macos-radius-md: 18px;
+  --macos-radius-lg: 24px;
+  --macos-shadow-sm: 0 12px 30px rgba(0, 7, 18, 0.22);
+  --macos-shadow-md: 0 22px 58px rgba(0, 7, 18, 0.32);
+  --macos-shadow-lg: 0 36px 96px rgba(0, 7, 18, 0.5);
+  --macos-ease: cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+body {
+  color: var(--macos-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid rgba(93, 231, 213, 0.28);
+  outline-offset: 2px;
+}
+
+.hero-panel,
+.main-panel,
+.filter-panel,
+.catalog-panel,
+.list-panel,
+.insight-panel,
+.budget-panel,
+.spotlight-panel,
+.price-panel,
+.report-panel,
+.home-state,
+.surface-notice,
+.summary-card,
+.budget-card,
+.price-card,
+.report-card,
+.task-card,
+.tool-item,
+.mobile-card,
+.mobile-record-card,
+.mobile-task-card,
+.mobile-user-card,
+.mobile-log-card,
+.mobile-version-card,
+.mobile-dict-card,
+.dialog,
+.user-dialog,
+.editor-dialog,
+.keybinding-dialog {
+  border: 1px solid var(--macos-border) !important;
+  background:
+    linear-gradient(180deg, var(--macos-surface-strong), var(--macos-surface)),
+    rgba(8, 22, 36, 0.58) !important;
+  box-shadow:
+    var(--macos-shadow-sm),
+    inset 0 1px 0 rgba(255, 255, 255, 0.13) !important;
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+.list-panel,
+.catalog-panel,
+.filter-panel,
+.insight-panel,
+.budget-panel,
+.spotlight-panel,
+.price-panel,
+.report-panel {
+  border-radius: var(--macos-radius-lg) !important;
+}
+
+.panel-head,
+.toolbar,
+.display-head,
+.insight-head,
+.dialog-head,
+.mobile-card-head,
+.budget-card-head,
+.history-head,
+.detail-head,
+.year-head {
+  align-items: center;
+}
+
+.panel-title,
+.dialog-title,
+.insight-title,
+.mobile-card-title,
+.mobile-task-title,
+.history-title,
+.page-title {
+  color: var(--macos-text) !important;
+  letter-spacing: 0 !important;
+}
+
+.panel-tip,
+.dialog-subtitle,
+.dialog-block-tip,
+.page-subtitle,
+.mobile-card-subtitle,
+.mobile-record-subtitle,
+.cell-muted,
+.empty-text,
+.history-time,
+.summary-extra {
+  color: var(--macos-text-muted) !important;
+}
+
+.table-wrap {
+  border: 1px solid var(--macos-border) !important;
+  border-radius: var(--macos-radius-md) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04)),
+    rgba(7, 20, 34, 0.46) !important;
+  box-shadow:
+    var(--macos-shadow-sm),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  overflow: auto !important;
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+
+.table-wrap table,
+.dict-table,
+.character-table,
+.log-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  width: 100%;
+  background: transparent !important;
+}
+
+.table-wrap th,
+.table-wrap td,
+.dict-table th,
+.dict-table td,
+.character-table th,
+.character-table td,
+.log-table th,
+.log-table td {
+  border-color: rgba(226, 241, 255, 0.13) !important;
+  color: rgba(239, 248, 255, 0.9) !important;
+}
+
+.table-wrap th,
+.dict-table th,
+.character-table th,
+.log-table th,
+.table-head {
+  background:
+    linear-gradient(180deg, rgba(244, 249, 255, 0.17), rgba(222, 239, 255, 0.09)),
+    rgba(11, 28, 43, 0.72) !important;
+  color: rgba(234, 245, 255, 0.82) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+
+.table-wrap tbody tr,
+.table-row {
+  background: rgba(255, 255, 255, 0.04) !important;
+  transition:
+    background-color 180ms var(--macos-ease),
+    border-color 180ms var(--macos-ease),
+    box-shadow 180ms var(--macos-ease),
+    transform 180ms var(--macos-ease);
+}
+
+.table-wrap tbody tr:nth-child(even),
+.table-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+.table-wrap tbody tr:hover,
+.table-row:hover,
+.log-table tbody tr:hover {
+  background: var(--macos-surface-hover) !important;
+  box-shadow: inset 3px 0 0 rgba(83, 211, 199, 0.76);
+}
+
+.table-row {
+  border-color: rgba(226, 241, 255, 0.13) !important;
+}
+
+.mobile-list,
+.mobile-task-list,
+.mobile-record-list,
+.mobile-user-list,
+.mobile-version-list,
+.mobile-dict-list,
+.mobile-item-list,
+.mobile-year-list,
+.history-list,
+.detail-list {
+  gap: 12px !important;
+}
+
+.mobile-card,
+.mobile-record-card,
+.mobile-task-card,
+.mobile-user-card,
+.mobile-log-card,
+.mobile-version-card,
+.mobile-dict-card,
+.history-item,
+.detail-item,
+.upcoming-item,
+.recent-item,
+.distribution-row,
+.stats-row {
+  border: 1px solid var(--macos-border) !important;
+  border-radius: var(--macos-radius-md) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04)),
+    rgba(7, 20, 34, 0.46) !important;
+  box-shadow:
+    0 16px 38px rgba(0, 7, 18, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  transition:
+    border-color 180ms var(--macos-ease),
+    box-shadow 180ms var(--macos-ease),
+    transform 180ms var(--macos-ease);
+}
+
+.mobile-card:hover,
+.mobile-record-card:hover,
+.mobile-task-card:hover,
+.mobile-user-card:hover,
+.mobile-log-card:hover,
+.mobile-version-card:hover,
+.mobile-dict-card:hover {
+  border-color: rgba(93, 231, 213, 0.34) !important;
+  box-shadow: var(--macos-shadow-md) !important;
+}
+
+.mobile-card-grid p,
+.mobile-record-grid p,
+.mobile-task-grid p,
+.card-stat,
+.budget-meta,
+.price-grid p {
+  border: 1px solid rgba(226, 241, 255, 0.13) !important;
+  border-radius: var(--macos-radius-sm) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+}
+
+.dialog-mask {
+  z-index: 70 !important;
+  background: var(--macos-scrim) !important;
+  backdrop-filter: blur(14px) saturate(132%);
+  -webkit-backdrop-filter: blur(14px) saturate(132%);
+  animation: macos-fade-in 180ms var(--macos-ease);
+}
+
+.dialog,
+.user-dialog,
+.editor-dialog,
+.keybinding-dialog {
+  position: relative;
+  border-radius: 26px !important;
+  box-shadow: var(--macos-shadow-lg) !important;
+  animation: macos-dialog-in 220ms var(--macos-ease);
+}
+
+.dialog::before,
+.user-dialog::before,
+.editor-dialog::before,
+.keybinding-dialog::before {
+  content: "";
+  display: block;
+  width: 50px;
+  height: 12px;
+  margin-bottom: 14px;
+  background:
+    radial-gradient(circle at 6px 6px, #ff5f57 0 5px, transparent 6px),
+    radial-gradient(circle at 25px 6px, #febc2e 0 5px, transparent 6px),
+    radial-gradient(circle at 44px 6px, #28c840 0 5px, transparent 6px);
+}
+
+.dialog-head,
+.dialog-actions {
+  border-color: rgba(226, 241, 255, 0.12) !important;
+}
+
+.dialog-actions {
+  position: sticky;
+  bottom: -1px;
+  z-index: 2;
+  margin-left: -1px;
+  margin-right: -1px;
+  padding-top: 14px !important;
+  background:
+    linear-gradient(180deg, rgba(10, 28, 42, 0), rgba(8, 22, 36, 0.88) 34%),
+    rgba(8, 22, 36, 0.56) !important;
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+
+.dialog-close {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  border: 1px solid rgba(226, 241, 255, 0.18) !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--macos-text-soft) !important;
+  box-shadow: 0 8px 20px rgba(0, 7, 18, 0.18) !important;
+}
+
+.dialog-close:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: var(--macos-text) !important;
+}
+
+.action-btn,
+.ghost-btn,
+.mini-btn,
+.icon-btn,
+.view-btn,
+.mode-btn,
+.tab-btn,
+.task-check-btn {
+  border-radius: 999px !important;
+  border: 1px solid rgba(226, 241, 255, 0.18) !important;
+  box-shadow:
+    0 10px 24px rgba(0, 7, 18, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  transition:
+    background-color 160ms var(--macos-ease),
+    border-color 160ms var(--macos-ease),
+    box-shadow 160ms var(--macos-ease),
+    transform 160ms var(--macos-ease);
+}
+
+.action-btn,
+.view-btn.active,
+.mode-btn.active,
+.tab-btn.active {
+  background: linear-gradient(180deg, var(--macos-accent), var(--macos-accent-strong)) !important;
+  color: #ffffff !important;
+  border-color: rgba(91, 235, 218, 0.28) !important;
+}
+
+.ghost-btn,
+.mini-btn,
+.icon-btn,
+.view-btn,
+.mode-btn,
+.tab-btn {
+  background: rgba(255, 255, 255, 0.11) !important;
+  color: var(--macos-text-soft) !important;
+}
+
+.mini-btn.danger,
+.danger,
+.danger-btn {
+  border-color: rgba(255, 151, 151, 0.28) !important;
+  background: rgba(220, 38, 38, 0.16) !important;
+  color: #ffd0d0 !important;
+}
+
+.action-btn:not(:disabled):hover,
+.ghost-btn:not(:disabled):hover,
+.mini-btn:not(:disabled):hover,
+.icon-btn:not(:disabled):hover,
+.view-btn:not(:disabled):hover,
+.mode-btn:not(:disabled):hover,
+.tab-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(148, 217, 255, 0.38) !important;
+  box-shadow:
+    0 14px 30px rgba(0, 7, 18, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+.action-btn:disabled,
+.ghost-btn:disabled,
+.mini-btn:disabled,
+.icon-btn:disabled,
+.view-btn:disabled,
+.mode-btn:disabled,
+.tab-btn:disabled {
+  opacity: 0.52 !important;
+  box-shadow: none !important;
+}
+
+.input,
+.textarea,
+.pager-select,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  border: 1px solid rgba(221, 239, 255, 0.24) !important;
+  border-radius: var(--macos-radius-sm) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07)),
+    rgba(6, 24, 36, 0.5) !important;
+  color: var(--macos-text) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 10px 24px rgba(0, 7, 18, 0.16) !important;
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  transition:
+    border-color 160ms var(--macos-ease),
+    box-shadow 160ms var(--macos-ease),
+    background-color 160ms var(--macos-ease);
+}
+
+select {
+  color-scheme: dark;
+}
+
+select option,
+.input option,
+.pager-select option,
+.field option,
+.field-item option,
+.pager-left option {
+  color: #f2f9ff !important;
+  background: #102033 !important;
+}
+
+select option:checked,
+.input option:checked,
+.pager-select option:checked,
+.field option:checked,
+.field-item option:checked,
+.pager-left option:checked {
+  color: #06111f !important;
+  background: #8ec5ff !important;
+}
+
+.input::placeholder,
+.textarea::placeholder,
+input:not([type="checkbox"]):not([type="radio"])::placeholder,
+textarea::placeholder {
+  color: rgba(220, 234, 246, 0.48) !important;
+}
+
+.input:focus,
+.textarea:focus,
+.pager-select:focus,
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(93, 231, 213, 0.64) !important;
+  box-shadow:
+    0 0 0 4px rgba(93, 231, 213, 0.14),
+    0 12px 26px rgba(0, 7, 18, 0.22) !important;
+}
+
+.list-tag,
+.status-tag,
+.importance-tag,
+.type-chip,
+.budget-status,
+.faction-chip,
+.spec-chip,
+.consumption-chip,
+.meta-chip,
+.tag,
+.panel-tag,
+.hero-tag,
+.app-count,
+.current-date,
+.user-name-text {
+  border: 1px solid rgba(226, 241, 255, 0.18) !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--macos-text-soft) !important;
+}
+
+.status-tag.on,
+.status-tag.success,
+.status-tag.enabled {
+  border-color: rgba(95, 232, 159, 0.34) !important;
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #baf7cd !important;
+}
+
+.status-tag.off,
+.status-tag.disabled {
+  border-color: rgba(255, 151, 151, 0.28) !important;
+  background: rgba(239, 68, 68, 0.16) !important;
+  color: #ffd3d3 !important;
+}
+
+.empty-state {
+  border: 1px dashed rgba(226, 241, 255, 0.24) !important;
+  border-radius: var(--macos-radius-lg) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: var(--macos-text-muted) !important;
+}
+
+.system-menu-dropdown,
+.dropdown,
+.popup,
+.popover {
+  border: 1px solid var(--macos-border) !important;
+  background:
+    linear-gradient(180deg, rgba(24, 53, 70, 0.82), rgba(9, 24, 38, 0.84)),
+    rgba(7, 18, 29, 0.68) !important;
+  box-shadow: var(--macos-shadow-md) !important;
+  backdrop-filter: blur(26px) saturate(165%);
+  -webkit-backdrop-filter: blur(26px) saturate(165%);
+}
+
+@keyframes macos-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes macos-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .dialog,
+  .user-dialog,
+  .editor-dialog,
+  .keybinding-dialog {
+    border-radius: 22px !important;
+  }
+
+  .table-wrap {
+    border-radius: var(--macos-radius-sm) !important;
+  }
+
+  .mobile-card,
+  .mobile-record-card,
+  .mobile-task-card,
+  .mobile-user-card,
+  .mobile-log-card,
+  .mobile-version-card,
+  .mobile-dict-card {
+    border-radius: var(--macos-radius-sm) !important;
+  }
+}
