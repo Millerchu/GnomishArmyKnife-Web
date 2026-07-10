@@ -1,14 +1,51 @@
 <template>
-  <div class="mac-window-controls" aria-hidden="true">
-    <span class="mac-window-dot close"></span>
-    <span class="mac-window-dot minimize"></span>
-    <span class="mac-window-dot zoom"></span>
+  <div class="mac-window-controls" role="group" aria-label="弹窗窗口控制">
+    <button
+      type="button"
+      class="mac-window-dot close"
+      :disabled="closeDisabled"
+      aria-label="取消并关闭弹窗"
+      title="取消并关闭"
+      @click="$emit('close')"
+    >
+      ×
+    </button>
+    <button
+      type="button"
+      class="mac-window-dot minimize"
+      :disabled="closeDisabled"
+      aria-label="收起弹窗"
+      title="收起"
+      @click="$emit('minimize')"
+    >
+      −
+    </button>
+    <button
+      type="button"
+      class="mac-window-dot zoom"
+      :aria-label="maximized ? '还原弹窗' : '最大化弹窗'"
+      :title="maximized ? '还原' : '最大化'"
+      @click="$emit('toggle-maximize')"
+    >
+      +
+    </button>
   </div>
 </template>
 
 <script>
 export default {
-  name: 'MacWindowControls'
+  name: 'MacWindowControls',
+  props: {
+    closeDisabled: {
+      type: Boolean,
+      default: false
+    },
+    maximized: {
+      type: Boolean,
+      default: false
+    }
+  },
+  emits: ['close', 'minimize', 'toggle-maximize']
 }
 </script>
 
@@ -16,26 +53,74 @@ export default {
 .mac-window-controls {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-width: 54px;
+  gap: 2px;
 }
 
 .mac-window-dot {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  border: 0;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  transition: color 120ms ease;
+}
+
+.mac-window-dot::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
   width: 12px;
   height: 12px;
   border-radius: 999px;
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1);
+  content: '';
+  transform: translate(-50%, -50%);
+  transition: filter 120ms ease, opacity 120ms ease;
 }
 
-.mac-window-dot.close {
+.mac-window-controls:hover .mac-window-dot,
+.mac-window-dot:focus-visible {
+  color: rgba(15, 23, 42, 0.72);
+}
+
+.mac-window-dot:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.9);
+  outline-offset: 2px;
+}
+
+.mac-window-dot:disabled {
+  cursor: not-allowed;
+}
+
+.mac-window-dot:disabled::before {
+  filter: grayscale(0.7);
+  opacity: 0.45;
+}
+
+.mac-window-dot.close::before {
   background: #ff5f57;
 }
 
-.mac-window-dot.minimize {
+.mac-window-dot.minimize::before {
   background: #febc2e;
 }
 
-.mac-window-dot.zoom {
+.mac-window-dot.zoom::before {
   background: #28c840;
 }
 </style>
