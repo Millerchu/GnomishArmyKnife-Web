@@ -2,18 +2,27 @@
   <Teleport to="body">
     <Transition name="mac-dialog">
       <div
-        v-if="modelValue && !isMinimized"
+        v-if="modelValue"
+        v-show="!isMinimized"
+        ref="dialogMask"
         class="mac-dialog-mask"
+        :class="{minimized: isMinimized}"
+        :inert="isMinimized"
+        :aria-hidden="isMinimized ? 'true' : undefined"
+        :style="{zIndex: dialogZIndex}"
         role="presentation"
+        @pointerdown="activateDialog"
         @click.self="handleMaskClick"
       >
         <section
+          ref="dialogPanel"
           class="mac-dialog-panel"
           :class="[panelClass, {maximized: dialogViewState.maximized}]"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="titleId"
           :style="{maxWidth: width, width: width}"
+          tabindex="-1"
         >
           <header class="mac-dialog-head">
             <MacWindowControls
@@ -47,11 +56,15 @@
           </footer>
         </section>
       </div>
+    </Transition>
+    <Transition name="mac-dialog-dock">
       <button
-        v-else-if="modelValue && isMinimized"
+        v-if="modelValue && isMinimized"
+        ref="restoreButton"
         class="mac-dialog-minimized"
         type="button"
-        aria-label="恢复弹窗"
+        :aria-label="`恢复${title}弹窗`"
+        :style="{bottom: dockBottom, zIndex: dialogZIndex}"
         @click="restore"
       >
         <span class="mac-dialog-minimized-dot" aria-hidden="true"></span>
@@ -63,6 +76,8 @@
 </template>
 
 <script>
+import {reactive} from 'vue'
+
 import MacWindowControls from './MacWindowControls.vue'
 import {
   DIALOG_VIEW_ACTION,
@@ -72,6 +87,20 @@ import {
 } from './macDialogState.js'
 
 let dialogIdSeed = 0
+
+const DIALOG_Z_INDEX_BASE = 90
+const DIALOG_Z_INDEX_STEP = 2
+const DOCK_BOTTOM_BASE_PX = 20
+const DOCK_VERTICAL_STEP_PX = 60
+const FOCUSABLE_ELEMENT_SELECTOR = [
+  'button:not(:disabled)',
+  'a[href]',
+  'input:not(:disabled)',
+  'select:not(:disabled)',
+  'textarea:not(:disabled)',
+  '[tabindex]:not([tabindex="-1"])'
+].join(',')
+const activeDialogIdStack = reactive([])
 
 export default {
   name: 'MacDialog',
@@ -120,7 +149,9 @@ export default {
     dialogIdSeed += 1
     return {
       dialogId: dialogIdSeed,
-      dialogViewState: createDialogViewState()
+      dialogViewState: createDialogViewState(),
+      focusReturnElement: null,
+      isKeydownListening: false
     }
   },
   computed: {
@@ -130,20 +161,42 @@ export default {
     isMaximized() {
       return this.dialogViewState.maximized
     },
+    dialogStackIndex() {
+      return activeDialogIdStack.indexOf(this.dialogId)
+    },
+    dialogZIndex() {
+      const stackIndex = Math.max(this.dialogStackIndex, 0)
+      return DIALOG_Z_INDEX_BASE + stackIndex * DIALOG_Z_INDEX_STEP
+    },
+    dockBottom() {
+      const stackIndex = Math.max(this.dialogStackIndex, 0)
+      return `${DOCK_BOTTOM_BASE_PX + stackIndex * DOCK_VERTICAL_STEP_PX}px`
+    },
     titleId() {
       return `mac-dialog-title-${this.dialogId}`
     }
   },
   watch: {
-    modelValue() {
+    modelValue(isOpen) {
       this.resetViewState()
+      if (isOpen) {
+        this.activateDialog()
+        this.addKeydownListener()
+        return
+      }
+
+      this.deactivateDialog()
+      this.focusReturnElement = null
     }
   },
   mounted() {
-    document.addEventListener('keydown', this.handleKeydown)
+    if (this.modelValue) {
+      this.activateDialog()
+      this.addKeydownListener()
+    }
   },
   beforeUnmount() {
-    document.removeEventListener('keydown', this.handleKeydown)
+    this.deactivateDialog()
   },
   methods: {
     resetViewState() {
@@ -161,6 +214,7 @@ export default {
         return
       }
 
+      this.deactivateDialog()
       this.resetViewState()
       this.$emit('update:modelValue', false)
       this.$emit('cancel')
@@ -168,6 +222,43 @@ export default {
     },
     close() {
       this.requestClose()
+    },
+    addKeydownListener() {
+      if (this.isKeydownListening) {
+        return
+      }
+
+      document.addEventListener('keydown', this.handleKeydown)
+      this.isKeydownListening = true
+    },
+    removeKeydownListener() {
+      if (!this.isKeydownListening) {
+        return
+      }
+
+      document.removeEventListener('keydown', this.handleKeydown)
+      this.isKeydownListening = false
+    },
+    removeFromDialogStack() {
+      const stackIndex = activeDialogIdStack.indexOf(this.dialogId)
+      if (stackIndex >= 0) {
+        activeDialogIdStack.splice(stackIndex, 1)
+      }
+    },
+    activateDialog() {
+      if (!this.modelValue) {
+        return
+      }
+
+      this.removeFromDialogStack()
+      activeDialogIdStack.push(this.dialogId)
+    },
+    deactivateDialog() {
+      this.removeKeydownListener()
+      this.removeFromDialogStack()
+    },
+    isTopmostDialog() {
+      return activeDialogIdStack.at(-1) === this.dialogId
     },
     minimize() {
       const nextState = reduceDialogViewState(
@@ -179,8 +270,17 @@ export default {
         return
       }
 
+      const dialogPanel = this.$refs.dialogPanel
+      const activeElement = document.activeElement
+      this.focusReturnElement = dialogPanel?.contains(activeElement)
+        ? activeElement
+        : null
       this.dialogViewState = nextState
+      this.activateDialog()
       this.$emit('minimize')
+      this.$nextTick(() => {
+        this.$refs.restoreButton?.focus()
+      })
     },
     restore() {
       const nextState = reduceDialogViewState(
@@ -192,7 +292,34 @@ export default {
       }
 
       this.dialogViewState = nextState
+      this.activateDialog()
       this.$emit('restore')
+      this.$nextTick(() => {
+        this.restoreDialogFocus()
+      })
+    },
+    restoreDialogFocus() {
+      const dialogPanel = this.$refs.dialogPanel
+      if (!dialogPanel) {
+        return
+      }
+
+      const focusReturnElement = this.focusReturnElement
+      if (
+        focusReturnElement?.isConnected
+        && dialogPanel.contains(focusReturnElement)
+      ) {
+        focusReturnElement.focus()
+        this.focusReturnElement = null
+        return
+      }
+
+      const firstFocusableElement = dialogPanel.querySelector(
+        FOCUSABLE_ELEMENT_SELECTOR
+      )
+      const focusTarget = firstFocusableElement || dialogPanel
+      focusTarget.focus()
+      this.focusReturnElement = null
     },
     toggleMaximize() {
       this.dialogViewState = reduceDialogViewState(
@@ -200,6 +327,7 @@ export default {
         DIALOG_VIEW_ACTION.TOGGLE_MAXIMIZE,
         this.closeDisabled
       )
+      this.activateDialog()
       this.$emit('maximize-change', this.dialogViewState.maximized)
     },
     handleMaskClick() {
@@ -208,9 +336,16 @@ export default {
       }
     },
     handleKeydown(event) {
-      if (event.key === 'Escape') {
-        this.requestClose()
+      if (
+        event.defaultPrevented
+        || event.key !== 'Escape'
+        || !this.isTopmostDialog()
+      ) {
+        return
       }
+
+      event.preventDefault()
+      this.requestClose()
     }
   }
 }
@@ -229,9 +364,14 @@ export default {
   backdrop-filter: blur(14px) saturate(132%);
 }
 
+.mac-dialog-mask.minimized {
+  pointer-events: none;
+}
+
 .mac-dialog-panel {
   width: min(100%, 720px);
   max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(221, 239, 255, 0.2);
@@ -248,7 +388,14 @@ export default {
 
 .mac-dialog-panel.maximized {
   width: calc(100vw - 32px) !important;
+  width: calc(
+    100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
+  ) !important;
   height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
+  height: calc(
+    100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+  );
   max-width: none !important;
   max-height: none;
 }
@@ -399,9 +546,12 @@ export default {
 }
 
 .mac-dialog-enter-active .mac-dialog-panel,
-.mac-dialog-leave-active .mac-dialog-panel,
-.mac-dialog-enter-active.mac-dialog-minimized,
-.mac-dialog-leave-active.mac-dialog-minimized {
+.mac-dialog-leave-active .mac-dialog-panel {
+  transition: transform 220ms cubic-bezier(0.2, 0.9, 0.2, 1), opacity 180ms ease;
+}
+
+.mac-dialog-dock-enter-active,
+.mac-dialog-dock-leave-active {
   transition: transform 220ms cubic-bezier(0.2, 0.9, 0.2, 1), opacity 180ms ease;
 }
 
@@ -412,8 +562,8 @@ export default {
 
 .mac-dialog-enter-from .mac-dialog-panel,
 .mac-dialog-leave-to .mac-dialog-panel,
-.mac-dialog-enter-from.mac-dialog-minimized,
-.mac-dialog-leave-to.mac-dialog-minimized {
+.mac-dialog-dock-enter-from,
+.mac-dialog-dock-leave-to {
   opacity: 0;
   transform: translateY(10px) scale(0.985);
 }
@@ -422,17 +572,35 @@ export default {
   .mac-dialog-mask {
     align-items: flex-end;
     padding: 12px;
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-right: max(8px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    padding-left: max(8px, env(safe-area-inset-left, 0px));
   }
 
   .mac-dialog-panel {
     max-width: calc(100vw - 16px) !important;
+    max-width: calc(
+      100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
+    ) !important;
     max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+    max-height: calc(
+      100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    );
     border-radius: 22px;
   }
 
   .mac-dialog-panel.maximized {
     width: calc(100vw - 16px) !important;
+    width: calc(
+      100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
+    ) !important;
     height: calc(100vh - 16px);
+    height: calc(100dvh - 16px);
+    height: calc(
+      100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    );
     max-width: none !important;
     max-height: none;
   }
@@ -458,8 +626,8 @@ export default {
   .mac-dialog-leave-active,
   .mac-dialog-enter-active .mac-dialog-panel,
   .mac-dialog-leave-active .mac-dialog-panel,
-  .mac-dialog-enter-active.mac-dialog-minimized,
-  .mac-dialog-leave-active.mac-dialog-minimized {
+  .mac-dialog-dock-enter-active,
+  .mac-dialog-dock-leave-active {
     transition-duration: 1ms;
   }
 }
