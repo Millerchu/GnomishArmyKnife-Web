@@ -6,7 +6,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import WorkLog from '../WorkLog.vue'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
-import {getWeeklyBrief} from '@/api/workLog'
+import {createWorkLog, getWeeklyBrief, listWorkLogs} from '@/api/workLog'
 
 const routerPush = vi.fn()
 const mountedWrappers = []
@@ -124,7 +124,14 @@ beforeEach(() => {
   listDataDictionaryOptionsByUsage.mockImplementation(({bizFieldCode}) => {
     return Promise.resolve(buildApiResponse(dictionaryOptionsByField[bizFieldCode] || []))
   })
+  createWorkLog.mockImplementation((payload) => Promise.resolve(buildApiResponse({
+    id: 501,
+    overtimeHours: 0,
+    businessTripAllowanceAmount: 0,
+    ...payload
+  })))
   getWeeklyBrief.mockResolvedValue(buildApiResponse([]))
+  listWorkLogs.mockResolvedValue(buildApiResponse([]))
 })
 
 afterEach(() => {
@@ -179,6 +186,41 @@ describe('WorkLog MacDialog integration', () => {
 
     expect(wrapper.vm.showDialog).toBe(false)
     expect(document.body.querySelector('.mac-dialog-panel.work-log-dialog')).toBeNull()
+  })
+
+  it('submits a valid create form from the teleported footer button', async () => {
+    await mountWorkLogAndOpenCreateDialog()
+
+    const panel = document.body.querySelector('.mac-dialog-panel.work-log-dialog')
+    const form = panel.querySelector('form#work-log-dialog-form')
+    const logDateInput = form.querySelector('input[type="date"]')
+    const personDayInput = form.querySelector('input[type="number"][step="0.1"]')
+    const workItemTextarea = form.querySelector('textarea[placeholder^="填写当天的工作内容"]')
+    const submitButton = panel.querySelector('.mac-dialog-actions button[type="submit"]')
+
+    logDateInput.value = '2026-07-10'
+    logDateInput.dispatchEvent(new Event('input', {bubbles: true}))
+    personDayInput.value = '0'
+    personDayInput.dispatchEvent(new Event('input', {bubbles: true}))
+    workItemTextarea.value = '完成 MacDialog 提交集成验证'
+    workItemTextarea.dispatchEvent(new Event('input', {bubbles: true}))
+    await nextTick()
+
+    expect(submitButton.form).toBe(form)
+    expect(form.checkValidity()).toBe(true)
+    submitButton.click()
+    await flushPromises()
+
+    expect(createWorkLog).toHaveBeenCalledTimes(1)
+    expect(createWorkLog).toHaveBeenCalledWith(expect.objectContaining({
+      userId: '1001',
+      logDate: '2026-07-10',
+      typeCodes: ['NORMAL'],
+      location: 'OFFICE',
+      projectCode: 'PROJECT_ALPHA',
+      workItem: '完成 MacDialog 提交集成验证',
+      personDay: 0
+    }))
   })
 
   it('disables close entries while submitting but keeps maximize available', async () => {
