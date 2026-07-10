@@ -8,11 +8,23 @@ import {
   reduceDialogViewState
 } from '../macDialogState.js'
 
-test('createDialogViewState creates the standard dialog view state', () => {
-  assert.deepEqual(createDialogViewState(), {
+test('DIALOG_VIEW_ACTION exposes the dialog action contract', () => {
+  assert.equal(DIALOG_VIEW_ACTION.MINIMIZE, 'minimize')
+  assert.equal(DIALOG_VIEW_ACTION.RESTORE, 'restore')
+  assert.equal(DIALOG_VIEW_ACTION.TOGGLE_MAXIMIZE, 'toggle-maximize')
+  assert.equal(DIALOG_VIEW_ACTION.RESET, 'reset')
+})
+
+test('createDialogViewState creates a fresh standard dialog view state', () => {
+  const firstState = createDialogViewState()
+  const secondState = createDialogViewState()
+
+  assert.deepEqual(firstState, {
     minimized: false,
     maximized: false
   })
+  assert.deepEqual(secondState, firstState)
+  assert.notStrictEqual(secondState, firstState)
 })
 
 test('MINIMIZE minimizes the dialog and RESTORE restores it', () => {
@@ -77,4 +89,12 @@ test('RESET clears minimized and maximized state', () => {
     ),
     {minimized: false, maximized: false}
   )
+})
+
+test('unknown action returns an unchanged state copy', () => {
+  const currentState = {minimized: true, maximized: false}
+  const nextState = reduceDialogViewState(currentState, 'unknown-action')
+
+  assert.deepEqual(nextState, currentState)
+  assert.notStrictEqual(nextState, currentState)
 })
