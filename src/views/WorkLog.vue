@@ -347,149 +347,157 @@
       <div v-else class="empty-text">{{ yearFilter }} 年暂无日志</div>
     </div>
 
-    <div v-if="showDialog" class="dialog-mask" @click.self="closeDialog">
-      <div class="dialog">
-        <h3>{{ dialogMode === 'create' ? '新增工作日志' : '修改工作日志' }}</h3>
+    <MacDialog
+      v-model="showDialog"
+      :title="dialogMode === 'create' ? '新增工作日志' : '修改工作日志'"
+      width="920px"
+      :close-disabled="submitting"
+      panel-class="work-log-dialog"
+      @cancel="closeDialog"
+    >
+      <form id="work-log-dialog-form" class="dialog-form" @submit.prevent="submitDialog">
+        <div class="form-inline-grid">
+          <label class="form-field">
+            <span>日期</span>
+            <input v-model="form.logDate" type="date" required />
+          </label>
 
-        <form class="dialog-form" @submit.prevent="submitDialog">
-          <div class="form-inline-grid">
-            <label class="form-field">
-              <span>日期</span>
-              <input v-model="form.logDate" type="date" required />
-            </label>
+          <label class="form-field">
+            <span>人天</span>
+            <input v-model.number="form.personDay" type="number" step="0.1" min="0" required placeholder="例如：1" />
+          </label>
+        </div>
 
-            <label class="form-field">
-              <span>人天</span>
-              <input v-model.number="form.personDay" type="number" step="0.1" min="0" required placeholder="例如：1" />
-            </label>
-          </div>
+        <div class="form-field">
+          <span>日志类型</span>
+          <div class="multi-select" :class="{open: showTypeDropdown}">
+            <button type="button" class="multi-select-trigger" @click="toggleTypeDropdown">
+              <span>{{ selectedTypeText }}</span>
+              <strong>{{ showTypeDropdown ? '收起' : '展开' }}</strong>
+            </button>
 
-          <div class="form-field">
-            <span>日志类型</span>
-            <div class="multi-select" :class="{open: showTypeDropdown}">
-              <button type="button" class="multi-select-trigger" @click="toggleTypeDropdown">
-                <span>{{ selectedTypeText }}</span>
-                <strong>{{ showTypeDropdown ? '收起' : '展开' }}</strong>
-              </button>
+            <div v-if="showTypeDropdown" class="multi-select-panel" @click.stop>
+              <div class="multi-select-actions">
+                <button type="button" class="mini-link" @click="selectAllTypes">全选</button>
+                <button type="button" class="mini-link" @click="clearTypes">清空</button>
+              </div>
 
-              <div v-if="showTypeDropdown" class="multi-select-panel" @click.stop>
-                <div class="multi-select-actions">
-                  <button type="button" class="mini-link" @click="selectAllTypes">全选</button>
-                  <button type="button" class="mini-link" @click="clearTypes">清空</button>
-                </div>
-
-                <div class="multi-option-grid">
-                  <label
-                    v-for="item in typeOptions"
-                    :key="item.value"
-                    class="multi-option"
-                    :class="{checked: form.typeCodes.includes(item.value)}"
-                  >
-                    <input v-model="form.typeCodes" class="multi-option-input" type="checkbox" :value="item.value" />
-                    <span class="multi-option-check" aria-hidden="true">
-                      <span class="multi-option-checkmark" />
-                    </span>
-                    <span class="multi-option-label">{{ item.label }}</span>
-                  </label>
-                </div>
+              <div class="multi-option-grid">
+                <label
+                  v-for="item in typeOptions"
+                  :key="item.value"
+                  class="multi-option"
+                  :class="{checked: form.typeCodes.includes(item.value)}"
+                >
+                  <input v-model="form.typeCodes" class="multi-option-input" type="checkbox" :value="item.value" />
+                  <span class="multi-option-check" aria-hidden="true">
+                    <span class="multi-option-checkmark" />
+                  </span>
+                  <span class="multi-option-label">{{ item.label }}</span>
+                </label>
               </div>
             </div>
           </div>
+        </div>
 
-          <div class="selected-type-row">
-            <span v-for="item in selectedTypeOptions" :key="item.value" class="selected-type-chip">{{ item.label }}</span>
-            <span v-if="!selectedTypeOptions.length" class="selected-type-empty">请选择至少一个日志类型</span>
+        <div class="selected-type-row">
+          <span v-for="item in selectedTypeOptions" :key="item.value" class="selected-type-chip">{{ item.label }}</span>
+          <span v-if="!selectedTypeOptions.length" class="selected-type-empty">请选择至少一个日志类型</span>
+        </div>
+
+        <div v-if="hasBusinessTripType" class="allowance-panel">
+          <div class="allowance-head">
+            <span>出差补助</span>
+            <strong>{{ formatMoneyText(calculatedBusinessTripAllowanceAmount) }}</strong>
           </div>
-
-          <div v-if="hasBusinessTripType" class="allowance-panel">
-            <div class="allowance-head">
-              <span>出差补助</span>
-              <strong>{{ formatMoneyText(calculatedBusinessTripAllowanceAmount) }}</strong>
-            </div>
-            <div v-if="hasOutOfCityBusinessTripType" class="allowance-segment" role="group" aria-label="市外出差补助场景">
-              <button
-                v-for="item in businessTripAllowanceSceneOptions"
-                :key="item.value"
-                type="button"
-                class="allowance-segment-btn"
-                :class="{active: form.businessTripAllowanceScene === item.value}"
-                @click="form.businessTripAllowanceScene = item.value"
-              >
-                <span>{{ item.label }}</span>
-                <strong>{{ formatMoneyText(item.amount) }}</strong>
-              </button>
-            </div>
-            <div v-else class="allowance-fixed-row">
-              <span>市内出差补助</span>
-              <strong>{{ formatMoneyText(100) }}</strong>
-            </div>
-            <label class="allowance-checkbox">
-              <input v-model="form.businessTripReimbursed" type="checkbox" />
-              <span>已报销</span>
-            </label>
-          </div>
-
-          <div class="form-inline-grid">
-            <label class="form-field">
-              <span>地点</span>
-              <select v-model="form.location" :disabled="!locationSelectOptions.length">
-                <option value="">{{ locationSelectOptions.length ? '请选择地点' : '暂无地点字典项' }}</option>
-                <option v-for="item in locationSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select>
-            </label>
-
-            <label class="form-field">
-              <span>所属项目</span>
-              <select v-model="form.projectCode" :disabled="!projectSelectOptions.length">
-                <option value="">{{ projectSelectOptions.length ? '请选择项目' : '暂无项目字典项' }}</option>
-                <option v-for="item in projectSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select>
-            </label>
-          </div>
-
-          <label class="form-field">
-            <span>工作内容</span>
-            <textarea v-model.trim="form.workItem" rows="4" required placeholder="填写当天的工作内容、处理结果或跟进结论" />
-          </label>
-
-          <div class="form-inline-grid">
-            <label class="form-field">
-              <span>禅道编号</span>
-              <input v-model.trim="form.zentaoNo" maxlength="255" placeholder="多个编号可用逗号分隔" />
-            </label>
-
-            <label class="form-field" v-if="isWeekendFormDate">
-              <span>加班时长</span>
-              <input v-model.number="form.manualOvertimeHours" type="number" step="0.5" min="0" placeholder="周末可手动填写" />
-            </label>
-
-            <template v-else>
-              <label class="form-field">
-                <span>实际下班时间</span>
-                <input v-model="form.offWorkTime" type="time" step="60" />
-              </label>
-
-              <label class="form-field readonly-field">
-                <span>自动统计加班</span>
-                <div class="readonly-value">{{ formatHoursText(calculatedOvertimeHours) }}</div>
-              </label>
-            </template>
-          </div>
-
-          <label class="form-field">
-            <span>备注</span>
-            <textarea v-model.trim="form.remark" rows="2" maxlength="500" placeholder="补充记录边界、风险、同步事项等" />
-          </label>
-
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" @click="closeDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存' : '更新') }}
+          <div v-if="hasOutOfCityBusinessTripType" class="allowance-segment" role="group" aria-label="市外出差补助场景">
+            <button
+              v-for="item in businessTripAllowanceSceneOptions"
+              :key="item.value"
+              type="button"
+              class="allowance-segment-btn"
+              :class="{active: form.businessTripAllowanceScene === item.value}"
+              @click="form.businessTripAllowanceScene = item.value"
+            >
+              <span>{{ item.label }}</span>
+              <strong>{{ formatMoneyText(item.amount) }}</strong>
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+          <div v-else class="allowance-fixed-row">
+            <span>市内出差补助</span>
+            <strong>{{ formatMoneyText(100) }}</strong>
+          </div>
+          <label class="allowance-checkbox">
+            <input v-model="form.businessTripReimbursed" type="checkbox" />
+            <span>已报销</span>
+          </label>
+        </div>
+
+        <div class="form-inline-grid">
+          <label class="form-field">
+            <span>地点</span>
+            <select v-model="form.location" :disabled="!locationSelectOptions.length">
+              <option value="">{{ locationSelectOptions.length ? '请选择地点' : '暂无地点字典项' }}</option>
+              <option v-for="item in locationSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+
+          <label class="form-field">
+            <span>所属项目</span>
+            <select v-model="form.projectCode" :disabled="!projectSelectOptions.length">
+              <option value="">{{ projectSelectOptions.length ? '请选择项目' : '暂无项目字典项' }}</option>
+              <option v-for="item in projectSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="form-field">
+          <span>工作内容</span>
+          <textarea v-model.trim="form.workItem" rows="4" required placeholder="填写当天的工作内容、处理结果或跟进结论" />
+        </label>
+
+        <div class="form-inline-grid">
+          <label class="form-field">
+            <span>禅道编号</span>
+            <input v-model.trim="form.zentaoNo" maxlength="255" placeholder="多个编号可用逗号分隔" />
+          </label>
+
+          <label class="form-field" v-if="isWeekendFormDate">
+            <span>加班时长</span>
+            <input v-model.number="form.manualOvertimeHours" type="number" step="0.5" min="0" placeholder="周末可手动填写" />
+          </label>
+
+          <template v-else>
+            <label class="form-field">
+              <span>实际下班时间</span>
+              <input v-model="form.offWorkTime" type="time" step="60" />
+            </label>
+
+            <label class="form-field readonly-field">
+              <span>自动统计加班</span>
+              <div class="readonly-value">{{ formatHoursText(calculatedOvertimeHours) }}</div>
+            </label>
+          </template>
+        </div>
+
+        <label class="form-field">
+          <span>备注</span>
+          <textarea v-model.trim="form.remark" rows="2" maxlength="500" placeholder="补充记录边界、风险、同步事项等" />
+        </label>
+      </form>
+
+      <template #footer>
+        <button type="button" class="ghost-btn" :disabled="submitting" @click="closeDialog">取消</button>
+        <button
+          type="submit"
+          class="action-btn"
+          form="work-log-dialog-form"
+          :disabled="submitting"
+        >
+          {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存' : '更新') }}
+        </button>
+      </template>
+    </MacDialog>
   </div>
 </template>
 
@@ -497,6 +505,7 @@
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createWorkLog,
   deleteWorkLog,
@@ -777,6 +786,9 @@ function joinUniqueValues(values) {
 
 export default {
   name: 'WorkLog',
+  components: {
+    MacDialog
+  },
   setup() {
     const router = useRouter()
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
@@ -1640,8 +1652,7 @@ export default {
 .hero-panel,
 .week-stats-panel,
 .month-view-panel,
-.detail-panel,
-.dialog {
+.detail-panel {
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
@@ -2267,34 +2278,6 @@ export default {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.42);
-}
-
-.dialog {
-  width: min(720px, 100%);
-  padding: 20px;
-  max-height: calc(100vh - 48px);
-  overflow: auto;
-}
-
-.dialog,
-.dialog * {
-  box-sizing: border-box;
-}
-
-.dialog h3 {
-  margin: 0 0 16px;
-  font-size: 22px;
-}
-
 .dialog-form {
   display: flex;
   flex-direction: column;
@@ -2574,18 +2557,6 @@ export default {
   accent-color: #52c789;
 }
 
-.dialog-actions {
-  position: sticky;
-  bottom: -20px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin: 4px -20px -20px;
-  padding: 12px 20px 16px;
-  background: linear-gradient(180deg, rgba(9, 24, 39, 0.72), rgba(8, 20, 33, 0.96));
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
 .table-wrap {
   overflow-x: auto;
 }
@@ -2711,15 +2682,6 @@ export default {
     grid-template-columns: 1fr;
   }
 
-  .dialog-mask {
-    align-items: flex-start;
-    padding: 16px;
-  }
-
-  .dialog {
-    width: 100%;
-  }
-
   .desktop-year-table {
     display: none;
   }
@@ -2753,8 +2715,7 @@ export default {
   .hero-panel,
   .week-stats-panel,
   .month-view-panel,
-  .detail-panel,
-  .dialog {
+  .detail-panel {
     border-radius: 16px;
   }
 
@@ -2817,18 +2778,6 @@ export default {
 
   .year-select {
     width: 100%;
-  }
-
-  .dialog-mask {
-    padding: 10px;
-  }
-
-  .dialog {
-    padding: 16px;
-  }
-
-  .dialog h3 {
-    font-size: 20px;
   }
 
   .form-inline-grid {
