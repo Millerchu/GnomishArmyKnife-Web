@@ -53,24 +53,44 @@ export default {
 .mac-window-controls {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-width: 54px;
+  gap: 2px;
 }
 
 .mac-window-dot {
-  width: 12px;
-  height: 12px;
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   border: 0;
   padding: 0;
   border-radius: 999px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1);
+  background: transparent;
   color: transparent;
   cursor: pointer;
   font: inherit;
   font-size: 12px;
   font-weight: 700;
-  line-height: 12px;
-  transition: color 120ms ease, filter 120ms ease;
+  line-height: 1;
+  transition: color 120ms ease;
+}
+
+.mac-window-dot::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1);
+  content: '';
+  transform: translate(-50%, -50%);
+  transition: filter 120ms ease, opacity 120ms ease;
 }
 
 .mac-window-controls:hover .mac-window-dot,
@@ -85,19 +105,22 @@ export default {
 
 .mac-window-dot:disabled {
   cursor: not-allowed;
+}
+
+.mac-window-dot:disabled::before {
   filter: grayscale(0.7);
   opacity: 0.45;
 }
 
-.mac-window-dot.close {
+.mac-window-dot.close::before {
   background: #ff5f57;
 }
 
-.mac-window-dot.minimize {
+.mac-window-dot.minimize::before {
   background: #febc2e;
 }
 
-.mac-window-dot.zoom {
+.mac-window-dot.zoom::before {
   background: #28c840;
 }
 </style>
