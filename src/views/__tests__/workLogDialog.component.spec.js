@@ -8,7 +8,6 @@ import WorkLog from '../WorkLog.vue'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   createWorkLog,
-  getWeeklyBrief,
   getWorkLogDetail,
   listWorkLogs,
   updateWorkLog
@@ -53,7 +52,6 @@ vi.mock('@/api/workLog', () => ({
   createWorkLog: vi.fn(),
   deleteWorkLog: vi.fn(),
   getWorkLogDetail: vi.fn(),
-  getWeeklyBrief: vi.fn(),
   listWorkLogs: vi.fn(),
   updateWorkLog: vi.fn()
 }))
@@ -66,6 +64,13 @@ const dictionaryOptionsByField = {
       itemValue: 'NORMAL',
       isDefault: true,
       sortNo: 1
+    },
+    {
+      itemCode: 'overtime',
+      itemLabel: '加班',
+      itemValue: 'OVERTIME',
+      isDefault: false,
+      sortNo: 2
     }
   ],
   location: [
@@ -181,21 +186,21 @@ async function fillValidCreateForm(panel, workItem = '完成 MacDialog 提交集
   const form = panel.querySelector('form#work-log-dialog-form')
   const logDateInput = form.querySelector('input[type="date"]')
   const personDayInput = form.querySelector('input[type="number"][step="0.1"]')
-  const workItemTextarea = form.querySelector('textarea[placeholder^="填写当天的工作内容"]')
+  const workItemInput = form.querySelector('.work-item-input-row input')
   const submitButton = panel.querySelector('.mac-dialog-actions button[type="submit"]')
 
   logDateInput.value = '2026-07-10'
   logDateInput.dispatchEvent(new Event('input', {bubbles: true}))
   personDayInput.value = '0'
   personDayInput.dispatchEvent(new Event('input', {bubbles: true}))
-  workItemTextarea.value = workItem
-  workItemTextarea.dispatchEvent(new Event('input', {bubbles: true}))
+  workItemInput.value = workItem
+  workItemInput.dispatchEvent(new Event('input', {bubbles: true}))
   await nextTick()
 
   return {
     form,
     submitButton,
-    workItemTextarea
+    workItemInput
   }
 }
 
@@ -226,7 +231,6 @@ beforeEach(() => {
     ...payload
   })))
   getWorkLogDetail.mockResolvedValue(buildApiResponse(editLogDetail))
-  getWeeklyBrief.mockResolvedValue(buildApiResponse([]))
   listWorkLogs.mockResolvedValue(buildApiResponse([]))
   updateWorkLog.mockImplementation((id, payload) => Promise.resolve(buildApiResponse({
     ...editLogDetail,
@@ -247,7 +251,7 @@ afterEach(() => {
 
 describe('WorkLog MacDialog integration', () => {
   it('renders the create form and footer submit button in the teleported MacDialog', async () => {
-    await mountWorkLogAndOpenCreateDialog()
+    const wrapper = await mountWorkLogAndOpenCreateDialog()
 
     const panel = document.body.querySelector('.mac-dialog-panel.work-log-dialog')
     expect(panel).not.toBeNull()
@@ -320,7 +324,7 @@ describe('WorkLog MacDialog integration', () => {
     expect(panel.querySelector('.multi-select-trigger').textContent).toContain('正常工作')
     expect(locationSelect.value).toBe(editLogDetail.location)
     expect(projectSelect.value).toBe(editLogDetail.projectCode)
-    expect(form.querySelector('textarea[rows="4"]').value).toBe(editLogDetail.workItem)
+    expect(form.querySelector('.work-item-input-row input').value).toBe(editLogDetail.workItem)
     expect(form.querySelector('textarea[rows="2"]').value).toBe(editLogDetail.remark)
     expect(submitButton.form).toBe(form)
     expect(form.checkValidity()).toBe(true)
@@ -406,7 +410,7 @@ describe('WorkLog MacDialog integration', () => {
     createWorkLog.mockReturnValueOnce(createRequest.promise)
     const wrapper = await mountWorkLogAndOpenCreateDialog()
     const panel = getDialogPanel()
-    const {form, submitButton, workItemTextarea} = await fillValidCreateForm(
+    const {form, submitButton, workItemInput} = await fillValidCreateForm(
       panel,
       '提交失败后保留的工作内容'
     )
@@ -427,6 +431,147 @@ describe('WorkLog MacDialog integration', () => {
     expect(wrapper.vm.showDialog).toBe(true)
     expect(getDialogPanel()).toBe(panel)
     expectDialogSubmissionLock(panel, false)
-    expect(workItemTextarea.value).toBe('提交失败后保留的工作内容')
+    expect(workItemInput.value).toBe('提交失败后保留的工作内容')
+  })
+
+  it('adds numbered work items and serializes them as newline text', async () => {
+    await mountWorkLogAndOpenCreateDialog()
+    const panel = getDialogPanel()
+    const {form, submitButton} = await fillValidCreateForm(panel, '第一项工作')
+
+    panel.querySelector('.work-item-add').click()
+    await nextTick()
+    const workItemRows = panel.querySelectorAll('.work-item-input-row')
+    expect(workItemRows).toHaveLength(2)
+    expect(workItemRows[0].querySelector('.work-item-index').textContent).toBe('1')
+    expect(workItemRows[1].querySelector('.work-item-index').textContent).toBe('2')
+    const secondInput = workItemRows[1].querySelector('input')
+    secondInput.value = '第二项工作'
+    secondInput.dispatchEvent(new Event('input', {bubbles: true}))
+    await nextTick()
+
+    expect(form.checkValidity()).toBe(true)
+    submitButton.click()
+    await flushPromises()
+
+    expect(createWorkLog).toHaveBeenCalledWith(expect.objectContaining({
+      workItem: '第一项工作\n第二项工作'
+    }))
+  })
+
+  it('shows remaining daily person-day and blocks values above it', async () => {
+    const alertSpy = vi.fn()
+    vi.stubGlobal('alert', alertSpy)
+    listWorkLogs.mockResolvedValue(buildApiResponse([{
+      id: 901,
+      userId: '1001',
+      logDate: '2026-07-10',
+      typeCodes: ['NORMAL'],
+      location: 'OFFICE',
+      projectCode: 'OTHER_PROJECT',
+      workItem: '已有工作',
+      personDay: 0.6,
+      overtimeHours: 0
+    }]))
+    const wrapper = await mountWorkLogAndOpenCreateDialog()
+    const panel = getDialogPanel()
+    const personDayInput = panel.querySelector('input[type="number"][step="0.1"]')
+
+    expect(personDayInput.max).toBe('0.4')
+    expect(panel.querySelector('.field-hint').textContent).toContain('剩余 0.4 人天')
+    await fillValidCreateForm(panel)
+    personDayInput.value = '0.5'
+    personDayInput.dispatchEvent(new Event('input', {bubbles: true}))
+    expect(personDayInput.checkValidity()).toBe(false)
+    await wrapper.vm.submitDialog()
+
+    expect(createWorkLog).not.toHaveBeenCalled()
+    expect(alertSpy).toHaveBeenCalledWith('当天剩余 0.4 人天，请调整人天投入')
+  })
+
+  it('groups day details by project and renders numbered work items', async () => {
+    const wrapper = await mountWorkLog()
+    listWorkLogs.mockResolvedValue(buildApiResponse([
+      {
+        id: 910,
+        userId: '1001',
+        logDate: '2026-07-10',
+        typeCodes: ['NORMAL', 'OVERTIME'],
+        location: 'OFFICE',
+        projectCode: 'PROJECT_ALPHA',
+        workItem: '接口开发\n单元测试',
+        personDay: 0.6,
+        overtimeHours: 1
+      },
+      {
+        id: 911,
+        userId: '1001',
+        logDate: '2026-07-10',
+        typeCodes: ['NORMAL'],
+        location: 'OFFICE',
+        projectCode: 'PROJECT_BETA',
+        workItem: '需求梳理',
+        personDay: 0.4,
+        overtimeHours: 0
+      }
+    ]))
+
+    await wrapper.vm.openDayDetail('2026-07-10')
+    await flushPromises()
+
+    const detailItems = wrapper.findAll('.detail-item')
+    expect(detailItems).toHaveLength(2)
+    expect(detailItems[0].findAll('.detail-work-list li').map((item) => item.text())).toEqual(['接口开发', '单元测试'])
+    expect(detailItems[0].find('.type-tone-overtime').exists()).toBe(true)
+  })
+
+  it('builds a de-duplicated weekly report by project and hides it in month view', async () => {
+    listWorkLogs.mockResolvedValue(buildApiResponse([
+      {
+        id: 920,
+        userId: '1001',
+        logDate: '2026-07-08',
+        typeCodes: ['NORMAL'],
+        location: 'OFFICE',
+        projectCode: 'PROJECT_ALPHA',
+        workItem: '需求梳理\n接口开发',
+        personDay: 0.5,
+        overtimeHours: 0
+      },
+      {
+        id: 921,
+        userId: '1001',
+        logDate: '2026-07-09',
+        typeCodes: ['NORMAL'],
+        location: 'OFFICE',
+        projectCode: 'PROJECT_ALPHA',
+        workItem: '1. 接口开发\n2. 单元测试',
+        personDay: 0.5,
+        overtimeHours: 0
+      }
+    ]))
+
+    const wrapper = await mountWorkLog()
+    const report = wrapper.find('.weekly-report-panel')
+
+    expect(report.exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('当前状态')
+    expect(report.find('.weekly-report-project h3').text()).toBe('项目 Alpha')
+    expect(report.findAll('.weekly-report-project li').map((item) => item.text())).toEqual([
+      '需求梳理;',
+      '接口开发;',
+      '单元测试;'
+    ])
+    expect(listWorkLogs).toHaveBeenCalledWith(expect.objectContaining({
+      userId: '1001',
+      startDate: expect.any(String),
+      endDate: expect.any(String)
+    }))
+
+    const monthButton = wrapper.findAll('button').find((button) => button.text() === '月视图')
+    await monthButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.weekly-report-panel').exists()).toBe(false)
   })
 })

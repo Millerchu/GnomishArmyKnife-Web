@@ -1,4 +1,15 @@
 const WEEK_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const WORK_LOG_TYPE_TONE_MAP = {
+  NORMAL: 'normal',
+  OVERTIME: 'overtime',
+  LEAVE: 'leave',
+  SICK_LEAVE: 'sick-leave',
+  CITY_BUSINESS_TRIP: 'city-business-trip',
+  OUT_OF_CITY_BUSINESS_TRIP: 'business-trip',
+  BUSINESS_TRIP: 'business-trip',
+  OTHER: 'other'
+}
+const WORK_ITEM_NUMBER_PREFIX = /^\s*(?:(?:\d+)[.、)]|[（(]\d+[）)])\s*/
 
 export function formatDate(date) {
   const year = date.getFullYear()
@@ -73,13 +84,48 @@ function pushUniqueValue(target, value) {
   }
 }
 
+export function getWorkLogTypeTone(typeCode) {
+  return WORK_LOG_TYPE_TONE_MAP[typeCode] || 'other'
+}
+
+export function parseWorkItemEntries(value) {
+  if (!value) {
+    return []
+  }
+  return String(value)
+    .split(/\r?\n/)
+    .map((item) => item.replace(WORK_ITEM_NUMBER_PREFIX, '').trim())
+    .filter(Boolean)
+}
+
+export function serializeWorkItemEntries(entries = []) {
+  return entries
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .join('\n')
+}
+
+export function mergeLogsByIdentity(logGroups = []) {
+  const mergedMap = new Map()
+  logGroups.flat().forEach((item) => {
+    if (!item?.logDate) {
+      return
+    }
+    const identity = item.id != null
+      ? `id:${item.id}`
+      : `fallback:${item.userId || ''}:${item.logDate}:${item.projectCode || ''}:${item.workItem || ''}`
+    if (!mergedMap.has(identity)) {
+      mergedMap.set(identity, item)
+    }
+  })
+  return Array.from(mergedMap.values())
+}
+
 export function calculateLogStats(logs = [], formatters = {}) {
   const formatProjectText = formatters.formatProjectText || ((value) => value || '-')
   const formatLocationText = formatters.formatLocationText || ((value) => value || '-')
-  const formatTypeCodeList = formatters.formatTypeCodeList || ((codes) => Array.isArray(codes) ? codes : [])
 
   const projects = []
-  const statuses = []
   const locations = []
   const workDates = new Set()
 
@@ -89,7 +135,6 @@ export function calculateLogStats(logs = [], formatters = {}) {
     }
     pushUniqueValue(projects, formatProjectText(item?.projectCode))
     pushUniqueValue(locations, formatLocationText(item?.location))
-    formatTypeCodeList(item?.typeCodes).forEach((status) => pushUniqueValue(statuses, status))
     return total + toNumber(item?.personDay, 0)
   }, 0)
 
@@ -107,7 +152,6 @@ export function calculateLogStats(logs = [], formatters = {}) {
 
   return {
     projects,
-    statuses,
     locations,
     workDays: workDates.size,
     personDayTotal,
@@ -120,15 +164,53 @@ export function calculateLogStats(logs = [], formatters = {}) {
   }
 }
 
+export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) => value || '未关联项目') {
+  const projectMap = new Map()
+  const sortedLogs = [...logs].sort((previous, next) => {
+    return String(previous?.logDate || '').localeCompare(String(next?.logDate || ''))
+  })
+
+  sortedLogs.forEach((item) => {
+    const projectCode = item?.projectCode || 'NO_PROJECT'
+    if (!projectMap.has(projectCode)) {
+      projectMap.set(projectCode, {
+        projectCode,
+        projectText: projectCode === 'NO_PROJECT' ? '未关联项目' : formatProjectText(projectCode),
+        items: [],
+        itemSet: new Set()
+      })
+    }
+
+    const project = projectMap.get(projectCode)
+    parseWorkItemEntries(item?.workItem).forEach((workItem) => {
+      if (project.itemSet.has(workItem)) {
+        return
+      }
+      project.itemSet.add(workItem)
+      project.items.push(workItem)
+    })
+  })
+
+  return Array.from(projectMap.values())
+    .filter((project) => project.items.length > 0)
+    .map(({itemSet, ...project}) => project)
+}
+
 export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {
   const formatProjectText = helpers.formatProjectText || ((value) => value || '-')
   const formatTypeCodeList = helpers.formatTypeCodeList || ((codes) => Array.isArray(codes) ? codes : [])
+  const formatTypeEntryList = helpers.formatTypeEntryList || ((codes) => {
+    return formatTypeCodeList(codes).map((formattedType, index) => {
+      if (formattedType && typeof formattedType === 'object') {
+        return formattedType
+      }
+      return {code: codes[index], label: formattedType}
+    })
+  })
   const joinUniqueValues = helpers.joinUniqueValues || ((values) => {
     const uniqueValues = Array.from(new Set(values.filter(Boolean)))
     return uniqueValues.length ? uniqueValues.join('、') : '-'
   })
-  const shortText = helpers.shortText || ((text) => text || '-')
-
   const groupedLogs = logs.reduce((grouped, item) => {
     if (!grouped[item.logDate]) {
       grouped[item.logDate] = []
@@ -139,12 +221,28 @@ export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {
 
   return days.reduce((summary, day) => {
     const list = groupedLogs[day.date] || []
+    const typeMap = new Map()
+    list.forEach((item) => {
+      const codes = Array.isArray(item.typeCodes) ? item.typeCodes : []
+      const formattedTypes = formatTypeEntryList(codes)
+      codes.forEach((code, index) => {
+        if (typeMap.has(code)) {
+          return
+        }
+        const formattedType = formattedTypes[index]
+        const label = typeof formattedType === 'object' ? formattedType.label : formattedType
+        typeMap.set(code, {
+          code,
+          label: label || code,
+          tone: getWorkLogTypeTone(code)
+        })
+      })
+    })
     summary[day.date] = {
       count: list.length,
       inCurrentMonth: Boolean(day.inCurrentMonth),
-      typeLabels: Array.from(new Set(list.flatMap((item) => formatTypeCodeList(item.typeCodes)).filter(Boolean))),
+      types: Array.from(typeMap.values()),
       projectsText: joinUniqueValues(list.map((item) => formatProjectText(item.projectCode)).filter((item) => item && item !== '-')),
-      workItemsText: shortText(joinUniqueValues(list.map((item) => item.workItem))),
       personDayTotal: list.reduce((total, item) => total + toNumber(item.personDay, 0), 0),
       overtimeHoursTotal: list.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0),
       businessTripAllowanceTotal: list.reduce((total, item) => total + toNumber(item.businessTripAllowanceAmount, 0), 0)

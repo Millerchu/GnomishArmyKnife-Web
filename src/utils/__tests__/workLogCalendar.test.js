@@ -2,9 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  buildDateSummaryMap,
   buildMonthCalendarDays,
+  buildWeeklyReportGroups,
   calculateLogStats,
+  getWorkLogTypeTone,
   getMonthRange,
+  mergeLogsByIdentity,
+  parseWorkItemEntries,
+  serializeWorkItemEntries,
   shiftMonthByOffset
 } from '../workLogCalendar.js'
 
@@ -44,7 +50,7 @@ test('buildMonthCalendarDays starts on Monday and marks outside-month placeholde
   assert.equal(result[4].inCurrentMonth, true)
 })
 
-test('calculateLogStats aggregates month logs and de-duplicates projects and statuses', () => {
+test('calculateLogStats aggregates month logs and de-duplicates projects', () => {
   const result = calculateLogStats([
     {
       logDate: '2026-05-01',
@@ -76,16 +82,10 @@ test('calculateLogStats aggregates month logs and de-duplicates projects and sta
     }
   ], {
     formatProjectText: (value) => ({GAK: '工具项目', OPS: '运维'}[value] || value),
-    formatLocationText: (value) => value,
-    formatTypeCodeList: (codes) => codes.map((code) => ({
-      NORMAL: '正常工作',
-      BUSINESS_TRIP: '出差',
-      LEAVE: '请假'
-    }[code] || code))
+    formatLocationText: (value) => value
   })
 
   assert.deepEqual(result.projects, ['工具项目', '运维'])
-  assert.deepEqual(result.statuses, ['正常工作', '出差', '请假'])
   assert.deepEqual(result.locations, ['上海办公室', '客户现场', '居家'])
   assert.equal(result.workDays, 3)
   assert.equal(result.logCount, 3)
@@ -95,4 +95,118 @@ test('calculateLogStats aggregates month logs and de-duplicates projects and sta
   assert.equal(result.businessTripAllowanceTotal, 270)
   assert.equal(result.reimbursedAllowanceTotal, 110)
   assert.equal(result.unreimbursedAllowanceTotal, 160)
+})
+
+test('buildWeeklyReportGroups groups projects chronologically and removes duplicate work items', () => {
+  const result = buildWeeklyReportGroups([
+    {
+      logDate: '2026-07-10',
+      projectCode: 'B',
+      workItem: '1. 联调接口\n2、回归测试'
+    },
+    {
+      logDate: '2026-07-08',
+      projectCode: 'A',
+      workItem: '需求梳理\n接口开发'
+    },
+    {
+      logDate: '2026-07-09',
+      projectCode: 'A',
+      workItem: '1. 接口开发\n2. 单元测试'
+    },
+    {
+      logDate: '2026-07-11',
+      projectCode: null,
+      workItem: '历史日志整理'
+    },
+    {
+      logDate: '2026-07-12',
+      projectCode: 'EMPTY',
+      workItem: '  '
+    }
+  ], (code) => ({A: 'A 项目', B: 'B 项目'}[code] || code))
+
+  assert.deepEqual(result, [
+    {
+      projectCode: 'A',
+      projectText: 'A 项目',
+      items: ['需求梳理', '接口开发', '单元测试']
+    },
+    {
+      projectCode: 'B',
+      projectText: 'B 项目',
+      items: ['联调接口', '回归测试']
+    },
+    {
+      projectCode: 'NO_PROJECT',
+      projectText: '未关联项目',
+      items: ['历史日志整理']
+    }
+  ])
+})
+
+test('work item helpers split legacy numbered lines and serialize without persisted numbers', () => {
+  assert.deepEqual(parseWorkItemEntries('1. 完成接口\n2、补充测试\n\n(3) 更新文档'), [
+    '完成接口',
+    '补充测试',
+    '更新文档'
+  ])
+  assert.equal(serializeWorkItemEntries([' 完成接口 ', '', '补充测试']), '完成接口\n补充测试')
+})
+
+test('mergeLogsByIdentity keeps multiple projects on the same date and removes duplicate responses', () => {
+  const result = mergeLogsByIdentity([
+    [
+      {id: 11, logDate: '2026-07-10', projectCode: 'GAK'},
+      {id: 12, logDate: '2026-07-10', projectCode: 'CLIENT'}
+    ],
+    [
+      {id: 11, logDate: '2026-07-10', projectCode: 'GAK'}
+    ]
+  ])
+
+  assert.deepEqual(result.map((item) => item.id), [11, 12])
+})
+
+test('buildDateSummaryMap exposes colored type entries without work content', () => {
+  const result = buildDateSummaryMap([
+    {date: '2026-07-10'}
+  ], [
+    {
+      id: 11,
+      logDate: '2026-07-10',
+      typeCodes: ['NORMAL', 'OVERTIME'],
+      projectCode: 'GAK',
+      workItem: '不应进入日卡',
+      personDay: 0.5,
+      overtimeHours: 2
+    },
+    {
+      id: 12,
+      logDate: '2026-07-10',
+      typeCodes: ['NORMAL'],
+      projectCode: 'CLIENT',
+      workItem: '同样不应进入日卡',
+      personDay: 0.5,
+      overtimeHours: 0
+    }
+  ], {
+    formatProjectText: (code) => code,
+    formatTypeCodeList: (codes) => codes.map((code) => ({code, label: code}))
+  })
+
+  assert.deepEqual(result['2026-07-10'].types, [
+    {code: 'NORMAL', label: 'NORMAL', tone: 'normal'},
+    {code: 'OVERTIME', label: 'OVERTIME', tone: 'overtime'}
+  ])
+  assert.equal(result['2026-07-10'].projectsText, 'GAK、CLIENT')
+  assert.equal(result['2026-07-10'].personDayTotal, 1)
+  assert.equal(Object.hasOwn(result['2026-07-10'], 'workItemsText'), false)
+})
+
+test('getWorkLogTypeTone returns stable tones including legacy and unknown types', () => {
+  assert.equal(getWorkLogTypeTone('NORMAL'), 'normal')
+  assert.equal(getWorkLogTypeTone('OVERTIME'), 'overtime')
+  assert.equal(getWorkLogTypeTone('BUSINESS_TRIP'), 'business-trip')
+  assert.equal(getWorkLogTypeTone('UNKNOWN'), 'other')
 })

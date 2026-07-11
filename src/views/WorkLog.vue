@@ -27,7 +27,7 @@
         </div>
       </div>
 
-      <div class="week-stats-grid">
+      <div class="week-stats-grid" :class="{'month-stats-grid': calendarView === 'month'}">
         <article class="stats-card stats-card-wide">
           <div class="stats-card-head">
             <span class="stats-label">参与项目</span>
@@ -37,17 +37,6 @@
             <span v-for="project in activeStats.projects" :key="project" class="stats-chip">{{ project }}</span>
           </div>
           <strong v-else class="stats-empty">暂无项目</strong>
-        </article>
-
-        <article class="stats-card stats-card-wide">
-          <div class="stats-card-head">
-            <span class="stats-label">当前状态</span>
-            <span class="stats-card-badge">Status</span>
-          </div>
-          <div v-if="activeStats.statuses.length" class="stats-chip-row stats-chip-row-dense">
-            <span v-for="status in activeStats.statuses" :key="status" class="stats-chip status-chip">{{ status }}</span>
-          </div>
-          <strong v-else class="stats-empty">暂无状态</strong>
         </article>
 
         <article class="stats-card stats-card-metric">
@@ -94,6 +83,30 @@
           </div>
         </article>
       </div>
+    </section>
+
+    <section v-if="calendarView === 'week'" class="weekly-report-panel">
+      <div class="panel-head weekly-report-head">
+        <div>
+          <h2 class="panel-title">周报统计</h2>
+          <p class="panel-tip">按本周参与项目自动合并工作内容，相同条目仅保留一次。</p>
+        </div>
+        <span class="weekly-report-range">{{ weekDays[0]?.date }} - {{ weekDays[6]?.date }}</span>
+      </div>
+
+      <div v-if="weeklyReportGroups.length" class="weekly-report-content">
+        <article
+          v-for="group in weeklyReportGroups"
+          :key="group.projectCode"
+          class="weekly-report-project"
+        >
+          <h3>{{ group.projectText }}</h3>
+          <ol>
+            <li v-for="workItem in group.items" :key="workItem"><span>{{ workItem }}</span><b>;</b></li>
+          </ol>
+        </article>
+      </div>
+      <div v-else class="weekly-report-empty">本周暂无可汇总的工作内容</div>
     </section>
 
     <div class="top-bar">
@@ -151,26 +164,37 @@
         </div>
 
         <div v-if="daySummaryMap[day.date]?.count" class="summary-wrap">
-          <div class="summary-chip-row summary-chip-row-dense">
-            <span v-for="type in daySummaryMap[day.date].typeLabels" :key="`${day.date}-${type}`" class="summary-chip">{{ type }}</span>
+            <div class="type-color-bar" aria-hidden="true">
+              <span
+                v-for="type in daySummaryMap[day.date].types"
+                :key="`${day.date}-${type.code}-bar`"
+                :class="`type-tone-${type.tone}`"
+              />
+            </div>
+            <div class="summary-chip-row summary-chip-row-dense">
+              <span
+                v-for="type in daySummaryMap[day.date].types"
+                :key="`${day.date}-${type.code}`"
+                class="summary-chip type-chip"
+                :class="`type-tone-${type.tone}`"
+              >{{ type.label }}</span>
+            </div>
+            <p class="summary-projects">{{ daySummaryMap[day.date].projectsText }}</p>
+            <div class="summary-metric-strip">
+              <span class="summary-metric">
+                <small>人天</small>
+                <strong>{{ formatPersonDayText(daySummaryMap[day.date].personDayTotal) }}</strong>
+              </span>
+              <span class="summary-metric">
+                <small>加班</small>
+                <strong>{{ formatHoursText(daySummaryMap[day.date].overtimeHoursTotal) }}</strong>
+              </span>
+            </div>
+            <div class="summary-foot">
+              <span>双击查看明细</span>
+              <span>{{ daySummaryMap[day.date].count }} 条</span>
+            </div>
           </div>
-          <p class="summary-projects">{{ daySummaryMap[day.date].projectsText }}</p>
-          <p class="summary-work">{{ daySummaryMap[day.date].workItemsText }}</p>
-          <div class="summary-metric-strip">
-            <span class="summary-metric">
-              <small>人天</small>
-              <strong>{{ formatPersonDayText(daySummaryMap[day.date].personDayTotal) }}</strong>
-            </span>
-            <span class="summary-metric">
-              <small>加班</small>
-              <strong>{{ formatHoursText(daySummaryMap[day.date].overtimeHoursTotal) }}</strong>
-            </span>
-          </div>
-          <div class="summary-foot">
-            <span>双击查看明细</span>
-            <span>{{ daySummaryMap[day.date].count }} 条</span>
-          </div>
-        </div>
 
         <div v-else class="empty-text">暂无日志</div>
       </div>
@@ -204,11 +228,22 @@
           </div>
 
           <div v-if="monthSummaryMap[day.date]?.count" class="summary-wrap month-summary-wrap">
+            <div class="type-color-bar" aria-hidden="true">
+              <span
+                v-for="type in monthSummaryMap[day.date].types"
+                :key="`${day.date}-${type.code}-bar`"
+                :class="`type-tone-${type.tone}`"
+              />
+            </div>
             <div class="summary-chip-row summary-chip-row-dense">
-              <span v-for="type in monthSummaryMap[day.date].typeLabels" :key="`${day.date}-${type}`" class="summary-chip">{{ type }}</span>
+              <span
+                v-for="type in monthSummaryMap[day.date].types"
+                :key="`${day.date}-${type.code}`"
+                class="summary-chip type-chip"
+                :class="`type-tone-${type.tone}`"
+              >{{ type.label }}</span>
             </div>
             <p class="summary-projects">{{ monthSummaryMap[day.date].projectsText }}</p>
-            <p class="summary-work">{{ monthSummaryMap[day.date].workItemsText }}</p>
             <div class="summary-metric-strip">
               <span class="summary-metric">
                 <small>人天</small>
@@ -229,39 +264,45 @@
     <div v-if="showDayDetail" class="detail-panel">
       <div class="detail-panel-head">
         <h2 class="panel-title">{{ detailDate }} 日志详情</h2>
-        <span class="panel-tip">双击周卡片可展开当天日志；当前按每天一条日志维护，保存后会自动定位到对应日期。</span>
+        <span class="panel-tip">按项目汇总当天日志；单击选择，双击可直接修改对应项目日志。</span>
       </div>
 
       <div v-if="detailDayLogs.length" class="detail-list">
         <article
-          v-for="item in detailDayLogs"
-          :key="item.id"
+          v-for="group in detailProjectGroups"
+          :key="group.projectCode"
           class="detail-item"
-          :class="{selected: selectedLog && selectedLog.id === item.id}"
-          @click="selectLog(item)"
-          @dblclick="openEditDialog(item)"
+          :class="{selected: group.logIds.includes(selectedLogId)}"
+          @click="selectLog(group.primaryLog)"
+          @dblclick="openEditDialog(group.primaryLog)"
         >
           <div class="detail-item-head">
-            <strong>{{ item.logDate }}</strong>
+            <strong>{{ group.projectText }}</strong>
             <div class="detail-type-row">
-              <span v-for="type in formatTypeCodeList(item.typeCodes)" :key="`${item.id}-${type}`" class="detail-type-chip">{{ type }}</span>
+              <span
+                v-for="type in group.types"
+                :key="`${group.projectCode}-${type.code}`"
+                class="detail-type-chip type-chip"
+                :class="`type-tone-${type.tone}`"
+              >{{ type.label }}</span>
             </div>
           </div>
 
           <div class="detail-meta-row">
-            <span v-if="item.location">{{ formatLocationText(item.location) }}</span>
-            <span v-if="item.projectCode">{{ formatProjectText(item.projectCode) }}</span>
-            <span v-if="item.zentaoNo">{{ item.zentaoNo }}</span>
+            <span>{{ group.logDate }}</span>
+            <span v-if="group.locationsText">{{ group.locationsText }}</span>
+            <span v-if="group.zentaoNosText">{{ group.zentaoNosText }}</span>
           </div>
 
-          <p class="detail-work">{{ item.workItem || '-' }}</p>
+          <ol class="detail-work-list">
+            <li v-for="(workItem, index) in group.workItems" :key="`${group.projectCode}-${index}`">{{ workItem }}</li>
+          </ol>
 
           <div class="detail-foot-row">
-            <span>{{ formatPersonDayText(item.personDay) }}</span>
-            <span>{{ formatHoursText(item.overtimeHours) }}</span>
-            <span v-if="item.businessTripAllowanceAmount">{{ formatBusinessTripAllowanceText(item) }}</span>
-            <span v-if="item.businessTripAllowanceAmount">{{ item.businessTripReimbursed ? '已报销' : '未报销' }}</span>
-            <span v-if="item.remark">{{ item.remark }}</span>
+            <span>{{ formatPersonDayText(group.personDayTotal) }}</span>
+            <span>{{ formatHoursText(group.overtimeHoursTotal) }}</span>
+            <span v-if="group.allowanceTotal">补助 {{ formatMoneyText(group.allowanceTotal) }}</span>
+            <span v-if="group.remarksText">{{ group.remarksText }}</span>
           </div>
         </article>
       </div>
@@ -304,7 +345,13 @@
             <td>{{ formatTypeCodes(item.typeCodes) }}</td>
             <td>{{ formatLocationText(item.location) }}</td>
             <td>{{ formatProjectText(item.projectCode) }}</td>
-            <td>{{ item.workItem || '-' }}</td>
+            <td>
+              <ol class="table-work-list">
+                <li v-for="(workItem, index) in parseWorkItemEntries(item.workItem)" :key="`${item.id}-table-${index}`">
+                  {{ workItem }}
+                </li>
+              </ol>
+            </td>
             <td>{{ item.zentaoNo || '-' }}</td>
             <td>{{ formatPersonDayText(item.personDay) }}</td>
             <td>{{ formatHoursText(item.overtimeHours) }}</td>
@@ -334,7 +381,11 @@
             <span v-if="item.projectCode">{{ formatProjectText(item.projectCode) }}</span>
             <span v-if="item.zentaoNo">{{ item.zentaoNo }}</span>
           </div>
-          <p class="mobile-log-work">{{ item.workItem || '-' }}</p>
+          <ol class="mobile-log-work detail-work-list">
+            <li v-for="(workItem, index) in parseWorkItemEntries(item.workItem)" :key="`${item.id}-mobile-${index}`">
+              {{ workItem }}
+            </li>
+          </ol>
           <div class="mobile-log-foot">
             <span>{{ formatPersonDayText(item.personDay) }}</span>
             <span>{{ formatHoursText(item.overtimeHours) }}</span>
@@ -359,12 +410,21 @@
         <div class="form-inline-grid">
           <label class="form-field">
             <span>日期</span>
-            <input v-model="form.logDate" type="date" required />
+            <input v-model="form.logDate" type="date" required @change="handleFormDateChange" />
           </label>
 
           <label class="form-field">
             <span>人天</span>
-            <input v-model.number="form.personDay" type="number" step="0.1" min="0" required placeholder="例如：1" />
+            <input
+              v-model.number="form.personDay"
+              type="number"
+              step="0.1"
+              min="0"
+              :max="formPersonDayMax"
+              required
+              placeholder="例如：0.5"
+            />
+            <small class="field-hint">{{ formPersonDayStatusText }}</small>
           </label>
         </div>
 
@@ -401,7 +461,12 @@
         </div>
 
         <div class="selected-type-row">
-          <span v-for="item in selectedTypeOptions" :key="item.value" class="selected-type-chip">{{ item.label }}</span>
+          <span
+            v-for="item in selectedTypeOptions"
+            :key="item.value"
+            class="selected-type-chip type-chip"
+            :class="`type-tone-${getWorkLogTypeTone(item.value)}`"
+          >{{ item.label }}</span>
           <span v-if="!selectedTypeOptions.length" class="selected-type-empty">请选择至少一个日志类型</span>
         </div>
 
@@ -451,10 +516,28 @@
           </label>
         </div>
 
-        <label class="form-field">
+        <div class="form-field">
           <span>工作内容</span>
-          <textarea v-model.trim="form.workItem" rows="4" required placeholder="填写当天的工作内容、处理结果或跟进结论" />
-        </label>
+          <div class="work-item-editor">
+            <div v-for="(workItem, index) in form.workItems" :key="index" class="work-item-input-row">
+              <span class="work-item-index">{{ index + 1 }}</span>
+              <input
+                v-model="form.workItems[index]"
+                type="text"
+                maxlength="4000"
+                :placeholder="index === 0 ? '填写工作内容、处理结果或跟进结论' : '继续添加工作事项'"
+              />
+              <button
+                type="button"
+                class="work-item-remove"
+                :disabled="form.workItems.length === 1"
+                title="移除该条工作内容"
+                @click="removeWorkItem(index)"
+              >移除</button>
+            </div>
+            <button type="button" class="work-item-add" @click="addWorkItem">+ 添加一条</button>
+          </div>
+        </div>
 
         <div class="form-inline-grid">
           <label class="form-field">
@@ -509,17 +592,21 @@ import {
   createWorkLog,
   deleteWorkLog,
   getWorkLogDetail,
-  getWeeklyBrief,
   listWorkLogs,
   updateWorkLog
 } from '@/api/workLog'
 import {
   buildDateSummaryMap,
   buildMonthCalendarDays,
+  buildWeeklyReportGroups,
   calculateLogStats,
   formatDate,
+  getWorkLogTypeTone,
   getMonthRange,
+  mergeLogsByIdentity,
   parseDate,
+  parseWorkItemEntries,
+  serializeWorkItemEntries,
   shiftMonthByOffset
 } from '@/utils/workLogCalendar'
 
@@ -544,11 +631,12 @@ const LEGACY_TYPE_LABELS = {
 }
 const DEFAULT_TYPE_OPTIONS = [
   {itemCode: 'normal', label: '正常工作', value: 'NORMAL', isDefault: true, sortNo: 1},
-  {itemCode: 'leave', label: '请假', value: 'LEAVE', isDefault: false, sortNo: 2},
-  {itemCode: 'city_business_trip', label: '市内出差', value: TYPE_CITY_BUSINESS_TRIP, isDefault: false, sortNo: 3},
-  {itemCode: 'out_of_city_business_trip', label: '市外出差', value: TYPE_OUT_OF_CITY_BUSINESS_TRIP, isDefault: false, sortNo: 4},
-  {itemCode: 'sick_leave', label: '病假', value: 'SICK_LEAVE', isDefault: false, sortNo: 5},
-  {itemCode: 'other', label: '其他', value: 'OTHER', isDefault: false, sortNo: 6}
+  {itemCode: 'overtime', label: '加班', value: 'OVERTIME', isDefault: false, sortNo: 2},
+  {itemCode: 'leave', label: '请假', value: 'LEAVE', isDefault: false, sortNo: 3},
+  {itemCode: 'city_business_trip', label: '市内出差', value: TYPE_CITY_BUSINESS_TRIP, isDefault: false, sortNo: 4},
+  {itemCode: 'out_of_city_business_trip', label: '市外出差', value: TYPE_OUT_OF_CITY_BUSINESS_TRIP, isDefault: false, sortNo: 5},
+  {itemCode: 'sick_leave', label: '病假', value: 'SICK_LEAVE', isDefault: false, sortNo: 6},
+  {itemCode: 'other', label: '其他', value: 'OTHER', isDefault: false, sortNo: 7}
 ]
 const BUSINESS_TRIP_ALLOWANCE_SCENE_OPTIONS = [
   {label: '往返机场/火车站', value: ALLOWANCE_SCENE_OUT_OF_CITY_TRANSIT, amount: OUT_OF_CITY_TRANSIT_ALLOWANCE},
@@ -771,16 +859,14 @@ function formatBusinessTripAllowanceScene(scene) {
   }[scene] || '出差补助'
 }
 
-function shortText(text, maxLength = 44) {
-  if (!text || text.length <= maxLength) {
-    return text || '-'
-  }
-  return `${text.slice(0, maxLength)}...`
-}
-
 function joinUniqueValues(values) {
   const set = new Set(values.filter(Boolean))
   return set.size ? Array.from(set).join('、') : '-'
+}
+
+function joinOptionalValues(values) {
+  const result = joinUniqueValues(values)
+  return result === '-' ? '' : result
 }
 
 export default {
@@ -815,6 +901,7 @@ export default {
     const monthlyLogs = ref([])
     const detailDayLogs = ref([])
     const yearLogs = ref([])
+    const formDayLogs = ref([])
 
     const yearFilter = ref(new Date().getFullYear())
 
@@ -828,7 +915,7 @@ export default {
       typeCodes: [],
       location: '',
       projectCode: '',
-      workItem: '',
+      workItems: [''],
       zentaoNo: '',
       personDay: 1,
       offWorkTime: STANDARD_OFF_WORK_TIME,
@@ -867,7 +954,7 @@ export default {
 
     const knownLogs = computed(() => {
       const map = new Map()
-      ;[...weeklyLogs.value, ...monthlyLogs.value, ...detailDayLogs.value, ...yearLogs.value].forEach((item) => {
+      ;[...weeklyLogs.value, ...monthlyLogs.value, ...detailDayLogs.value, ...yearLogs.value, ...formDayLogs.value].forEach((item) => {
         if (item?.id != null && !map.has(item.id)) {
           map.set(item.id, item)
         }
@@ -901,47 +988,92 @@ export default {
     const weeklyStats = computed(() => {
       return calculateLogStats(weeklyLogs.value, {
         formatProjectText,
-        formatLocationText,
-        formatTypeCodeList
+        formatLocationText
       })
     })
 
     const monthlyStats = computed(() => {
       return calculateLogStats(monthlyLogs.value, {
         formatProjectText,
-        formatLocationText,
-        formatTypeCodeList
+        formatLocationText
       })
+    })
+
+    const weeklyReportGroups = computed(() => {
+      return buildWeeklyReportGroups(weeklyLogs.value, formatProjectText)
     })
 
     const activeStats = computed(() => calendarView.value === 'month' ? monthlyStats.value : weeklyStats.value)
     const activeStatsTitle = computed(() => calendarView.value === 'month' ? '本月统计' : '本周统计')
     const activeStatsTip = computed(() => {
       if (calendarView.value === 'month') {
-        return '汇总当前月参与项目、状态、人天和加班情况，切换月份后会自动刷新。'
+        return '汇总当前月参与项目、人天和加班情况，切换月份后会自动刷新。'
       }
-      return '汇总当前周参与项目、状态、人天和加班情况，切换周次后会自动刷新。'
+      return '汇总当前周参与项目、人天和加班情况，切换周次后会自动刷新。'
     })
 
     const daySummaryMap = computed(() => {
       return buildDateSummaryMap(weekDays.value, weeklyLogs.value, {
         formatProjectText,
-        formatTypeCodeList,
-        joinUniqueValues,
-        shortText
+        formatTypeEntryList,
+        joinUniqueValues
       })
     })
 
     const monthSummaryMap = computed(() => {
       return buildDateSummaryMap(monthDays.value, monthlyLogs.value, {
         formatProjectText,
-        formatTypeCodeList,
-        joinUniqueValues,
-        shortText
+        formatTypeEntryList,
+        joinUniqueValues
       })
     })
 
     const selectedLog = computed(() => knownLogs.value.find((item) => item.id === selectedLogId.value) || null)
+
+    const detailProjectGroups = computed(() => {
+      const grouped = new Map()
+      detailDayLogs.value.forEach((item) => {
+        const projectCode = item.projectCode || 'NO_PROJECT'
+        if (!grouped.has(projectCode)) {
+          grouped.set(projectCode, [])
+        }
+        grouped.get(projectCode).push(item)
+      })
+      return Array.from(grouped.entries()).map(([projectCode, logs]) => {
+        const typeMap = new Map()
+        logs.flatMap((item) => formatTypeEntryList(item.typeCodes)).forEach((type) => {
+          if (!typeMap.has(type.code)) {
+            typeMap.set(type.code, type)
+          }
+        })
+        return {
+          projectCode,
+          projectText: projectCode === 'NO_PROJECT' ? '未关联项目' : formatProjectText(projectCode),
+          primaryLog: logs[0],
+          logIds: logs.map((item) => item.id),
+          logDate: logs[0]?.logDate || detailDate.value,
+          types: Array.from(typeMap.values()),
+          locationsText: joinOptionalValues(
+            logs.map((item) => formatLocationText(item.location)).filter((item) => item !== '-')
+          ),
+          zentaoNosText: joinOptionalValues(logs.map((item) => item.zentaoNo)),
+          remarksText: joinOptionalValues(logs.map((item) => item.remark)),
+          workItems: logs.flatMap((item) => parseWorkItemEntries(item.workItem)),
+          personDayTotal: logs.reduce((total, item) => total + toNumber(item.personDay, 0), 0),
+          overtimeHoursTotal: logs.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0),
+          allowanceTotal: logs.reduce((total, item) => total + toNumber(item.businessTripAllowanceAmount, 0), 0)
+        }
+      })
+    })
+
+    const formOtherDayLogs = computed(() => formDayLogs.value.filter((item) => item.id !== form.id))
+    const formUsedPersonDay = computed(() => {
+      return formOtherDayLogs.value.reduce((total, item) => total + toNumber(item.personDay, 0), 0)
+    })
+    const formPersonDayMax = computed(() => Math.max(0, Number((1 - formUsedPersonDay.value).toFixed(1))))
+    const formPersonDayStatusText = computed(() => {
+      return `当天已用 ${formatDecimal(formUsedPersonDay.value, 1)} 人天，剩余 ${formatDecimal(formPersonDayMax.value, 1)} 人天`
+    })
 
     const yearOptions = computed(() => {
       const yearSet = new Set([new Date().getFullYear()])
@@ -983,6 +1115,15 @@ export default {
       return list.map((code) => typeLabelMap.value[code] || LEGACY_TYPE_LABELS[code] || code)
     }
 
+    function formatTypeEntryList(codes) {
+      const list = normalizeTypeCodes(codes)
+      return list.map((code) => ({
+        code,
+        label: typeLabelMap.value[code] || LEGACY_TYPE_LABELS[code] || code,
+        tone: getWorkLogTypeTone(code)
+      }))
+    }
+
     function formatTypeCodes(codes) {
       const list = formatTypeCodeList(codes)
       return list.length ? list.join('、') : '-'
@@ -1021,23 +1162,10 @@ export default {
       return `${scene} ${formatMoneyText(item?.businessTripAllowanceAmount)}`
     }
 
-    function mergeLogsByDate(logGroups = []) {
-      const mergedMap = new Map()
-      logGroups.flat().forEach((item) => {
-        if (!item?.logDate) {
-          return
-        }
-        if (!mergedMap.has(item.logDate) || toSafeIdText(item.userId) === currentUserId) {
-          mergedMap.set(item.logDate, item)
-        }
-      })
-      return Array.from(mergedMap.values())
-    }
-
     async function requestLogsWithCompatibleUserIds(loader) {
       const userIds = Array.from(new Set([currentUserId, legacyRoundedUserId].filter(Boolean)))
       const responses = await Promise.all(userIds.map((userId) => loader(userId)))
-      return mergeLogsByDate(responses)
+      return mergeLogsByIdentity(responses)
     }
 
     function getDefaultOptionValue(options) {
@@ -1101,9 +1229,10 @@ export default {
       loading.value = true
       try {
         const list = await requestLogsWithCompatibleUserIds(async (userId) => {
-          const res = await getWeeklyBrief({
+          const res = await listWorkLogs({
             userId,
-            refDate: weekDays.value[0].date
+            startDate: weekDays.value[0].date,
+            endDate: weekDays.value[6].date
           })
           const data = unwrapData(res)
           const rawList = Array.isArray(data) ? data : []
@@ -1166,6 +1295,27 @@ export default {
       }
     }
 
+    async function fetchFormDayLogs(date) {
+      if (!currentUserId || !date) {
+        formDayLogs.value = []
+        return
+      }
+      try {
+        formDayLogs.value = await requestLogsWithCompatibleUserIds((userId) => listWorkLogs({
+          userId,
+          startDate: date,
+          endDate: date
+        }).then((res) => {
+          const data = unwrapData(res)
+          return (Array.isArray(data) ? data : []).map(normalizeLog)
+        }))
+      } catch (error) {
+        console.error(error)
+        formDayLogs.value = []
+        alert('加载当日人天使用情况失败')
+      }
+    }
+
     async function fetchYearLogs() {
       if (!currentUserId) {
         return
@@ -1194,7 +1344,7 @@ export default {
       form.typeCodes = []
       form.location = getDefaultOptionValue(locationSelectOptions.value)
       form.projectCode = getDefaultOptionValue(projectSelectOptions.value)
-      form.workItem = ''
+      form.workItems = ['']
       form.zentaoNo = ''
       form.personDay = 1
       form.offWorkTime = isWeekendDate(selectedDate.value) ? '' : STANDARD_OFF_WORK_TIME
@@ -1211,7 +1361,10 @@ export default {
       form.typeCodes = [...detail.typeCodes]
       form.location = detail.location
       form.projectCode = detail.projectCode
-      form.workItem = detail.workItem
+      form.workItems = parseWorkItemEntries(detail.workItem)
+      if (!form.workItems.length) {
+        form.workItems = ['']
+      }
       form.zentaoNo = detail.zentaoNo
       form.personDay = detail.personDay ?? 1
       form.offWorkTime = isWeekendDate(detail.logDate) ? '' : (detail.offWorkTime || STANDARD_OFF_WORK_TIME)
@@ -1324,11 +1477,13 @@ export default {
       }
     }
 
-    function openCreateDialog() {
+    async function openCreateDialog() {
       dialogMode.value = 'create'
       resetForm()
       showTypeDropdown.value = false
       showDialog.value = true
+      await fetchFormDayLogs(form.logDate)
+      form.personDay = formPersonDayMax.value
     }
 
     async function openEditDialog(targetLog) {
@@ -1346,6 +1501,7 @@ export default {
         fillForm(detail)
         showTypeDropdown.value = false
         showDialog.value = true
+        await fetchFormDayLogs(form.logDate)
       } catch (error) {
         console.error(error)
         alert('读取日志详情失败')
@@ -1369,6 +1525,22 @@ export default {
       form.typeCodes = []
     }
 
+    function addWorkItem() {
+      form.workItems.push('')
+    }
+
+    function removeWorkItem(index) {
+      if (form.workItems.length === 1) {
+        return
+      }
+      form.workItems.splice(index, 1)
+    }
+
+    async function handleFormDateChange() {
+      await fetchFormDayLogs(form.logDate)
+      form.personDay = Math.min(toNumber(form.personDay, 0), formPersonDayMax.value)
+    }
+
     async function submitDialog() {
       if (!form.typeCodes.length) {
         alert('请至少选择一个日志类型')
@@ -1382,8 +1554,22 @@ export default {
         alert('请选择所属项目')
         return
       }
-      if (!form.workItem) {
+      const workItem = serializeWorkItemEntries(form.workItems)
+      if (!workItem) {
         alert('请填写工作内容')
+        return
+      }
+      if (workItem.length > 4000) {
+        alert('工作内容合计不能超过 4000 个字符')
+        return
+      }
+      const duplicateProject = formOtherDayLogs.value.some((item) => item.projectCode === form.projectCode)
+      if (duplicateProject) {
+        alert('当前日期下已存在该项目的工作日志')
+        return
+      }
+      if (toNumber(form.personDay, 0) > formPersonDayMax.value) {
+        alert(`当天剩余 ${formatDecimal(formPersonDayMax.value, 1)} 人天，请调整人天投入`)
         return
       }
       if (hasCityBusinessTripType.value && hasOutOfCityBusinessTripType.value) {
@@ -1401,7 +1587,7 @@ export default {
         typeCodes: [...form.typeCodes],
         location: form.location,
         projectCode: form.projectCode,
-        workItem: form.workItem,
+        workItem,
         zentaoNo: form.zentaoNo,
         personDay: Number(form.personDay),
         overtimeHours,
@@ -1438,7 +1624,8 @@ export default {
         }
       } catch (error) {
         console.error(error)
-        alert(dialogMode.value === 'create' ? '新增日志失败' : '更新日志失败')
+        const fallbackMessage = dialogMode.value === 'create' ? '新增日志失败' : '更新日志失败'
+        alert(error?.response?.data?.message || error?.response?.data?.data?.message || fallbackMessage)
       } finally {
         submitting.value = false
       }
@@ -1529,6 +1716,7 @@ export default {
       weekDays,
       weekDaysText: WEEK_TEXT,
       weeklyStats,
+      weeklyReportGroups,
       monthlyStats,
       activeStats,
       activeStatsTitle,
@@ -1541,7 +1729,9 @@ export default {
       selectedDate,
       detailDate,
       detailDayLogs,
+      detailProjectGroups,
       selectedLog,
+      selectedLogId,
       showDayDetail,
       showYearList,
       showDialog,
@@ -1562,9 +1752,12 @@ export default {
       calculatedBusinessTripAllowanceAmount,
       isWeekendFormDate,
       calculatedOvertimeHours,
+      formPersonDayMax,
+      formPersonDayStatusText,
       dictionarySourceText,
       formatTypeCodeList,
       formatTypeCodes,
+      getWorkLogTypeTone,
       formatProjectText,
       formatLocationText,
       formatPersonDayText,
@@ -1572,7 +1765,7 @@ export default {
       formatHoursText,
       formatMoneyText,
       formatBusinessTripAllowanceText,
-      shortText,
+      parseWorkItemEntries,
       selectDay,
       selectMonthDay,
       openDayDetail,
@@ -1589,6 +1782,9 @@ export default {
       toggleTypeDropdown,
       selectAllTypes,
       clearTypes,
+      addWorkItem,
+      removeWorkItem,
+      handleFormDateChange,
       submitDialog,
       deleteSelectedLog,
       goBack
@@ -1650,6 +1846,7 @@ export default {
 
 .hero-panel,
 .week-stats-panel,
+.weekly-report-panel,
 .month-view-panel,
 .detail-panel {
   border-radius: 18px;
@@ -1800,6 +1997,7 @@ export default {
 }
 
 .week-stats-panel,
+.weekly-report-panel,
 .month-view-panel,
 .detail-panel {
   margin-bottom: 14px;
@@ -1831,8 +2029,12 @@ export default {
 
 .week-stats-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+}
+
+.month-stats-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .stats-card {
@@ -1940,8 +2142,68 @@ export default {
     linear-gradient(135deg, rgba(9, 32, 51, 0.96), rgba(15, 56, 58, 0.84));
 }
 
-.status-chip {
-  background: rgba(96, 173, 255, 0.14);
+.weekly-report-head {
+  align-items: center;
+}
+
+.weekly-report-range {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border: 1px solid rgba(118, 197, 255, 0.18);
+  border-radius: 6px;
+  color: rgba(184, 225, 255, 0.86);
+  background: rgba(85, 170, 237, 0.1);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.weekly-report-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px 24px;
+}
+
+.weekly-report-project {
+  min-width: 0;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid rgba(91, 191, 255, 0.74);
+}
+
+.weekly-report-project h3 {
+  margin: 0 0 10px;
+  color: #d6efff;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.weekly-report-project ol {
+  margin: 0;
+  padding-left: 22px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.weekly-report-project li {
+  margin: 0 0 7px;
+  padding-left: 3px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.weekly-report-project li:last-child {
+  margin-bottom: 0;
+}
+
+.weekly-report-project li b {
+  margin-left: 1px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.weekly-report-empty {
+  padding: 20px 0 6px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+  text-align: center;
 }
 
 .calendar-grid {
@@ -2024,10 +2286,6 @@ export default {
   gap: 6px;
 }
 
-.month-summary-wrap .summary-work {
-  -webkit-line-clamp: 2;
-}
-
 .day-card {
   position: relative;
   overflow: hidden;
@@ -2103,23 +2361,69 @@ export default {
   min-height: calc(100% - 38px);
 }
 
+.type-color-bar {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.type-color-bar span {
+  flex: 1 1 0;
+  min-width: 8px;
+  background: var(--type-color);
+}
+
+.type-chip {
+  color: var(--type-color);
+  background: var(--type-background);
+  border: 1px solid color-mix(in srgb, var(--type-color) 38%, transparent);
+}
+
+.type-tone-normal {
+  --type-color: #5bb7ef;
+  --type-background: rgba(91, 183, 239, 0.14);
+}
+
+.type-tone-overtime {
+  --type-color: #ff8a52;
+  --type-background: rgba(255, 138, 82, 0.14);
+}
+
+.type-tone-leave {
+  --type-color: #f2c94c;
+  --type-background: rgba(242, 201, 76, 0.14);
+}
+
+.type-tone-sick-leave {
+  --type-color: #ed7f8c;
+  --type-background: rgba(237, 127, 140, 0.14);
+}
+
+.type-tone-city-business-trip {
+  --type-color: #62c99b;
+  --type-background: rgba(98, 201, 155, 0.14);
+}
+
+.type-tone-business-trip {
+  --type-color: #43d0c5;
+  --type-background: rgba(67, 208, 197, 0.14);
+}
+
+.type-tone-other {
+  --type-color: #a9b5c0;
+  --type-background: rgba(169, 181, 192, 0.14);
+}
+
 .summary-projects {
   margin: 0;
   font-size: 13px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
   line-height: 1.45;
-}
-
-.summary-work {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.48;
-  color: rgba(255, 255, 255, 0.7);
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .summary-metric-strip {
@@ -2208,12 +2512,24 @@ export default {
   font-size: 12px;
 }
 
-.detail-work,
-.mobile-log-work {
+.detail-work-list,
+.mobile-log-work,
+.table-work-list {
   margin: 10px 0;
+  padding-left: 22px;
   color: rgba(255, 255, 255, 0.92);
   line-height: 1.6;
   font-size: 13px;
+}
+
+.detail-work-list li + li,
+.table-work-list li + li {
+  margin-top: 4px;
+}
+
+.table-work-list {
+  min-width: 180px;
+  margin: 0;
 }
 
 .year-head {
@@ -2298,6 +2614,57 @@ export default {
 .form-field > span {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.76);
+}
+
+.field-hint {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+}
+
+.work-item-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.work-item-input-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-item-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #9ed6ff;
+  background: rgba(78, 157, 219, 0.16);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.work-item-remove,
+.work-item-add {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+}
+
+.work-item-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.work-item-add {
+  justify-self: start;
+  color: #9ed6ff;
 }
 
 .readonly-field .readonly-value {
@@ -2584,6 +2951,7 @@ export default {
 
   .hero-panel,
   .week-stats-panel,
+  .weekly-report-panel,
   .month-view-panel,
   .detail-panel {
     padding: 15px;
@@ -2610,9 +2978,6 @@ export default {
     min-height: 176px;
   }
 
-  .summary-work {
-    -webkit-line-clamp: 3;
-  }
 }
 
 @media (max-width: 1100px) {
@@ -2701,9 +3066,6 @@ export default {
     grid-template-columns: 1fr;
   }
 
-  .summary-work {
-    -webkit-line-clamp: 3;
-  }
 }
 
 @media (max-width: 640px) {
@@ -2713,6 +3075,7 @@ export default {
 
   .hero-panel,
   .week-stats-panel,
+  .weekly-report-panel,
   .month-view-panel,
   .detail-panel {
     border-radius: 16px;
@@ -2720,6 +3083,7 @@ export default {
 
   .hero-panel,
   .week-stats-panel,
+  .weekly-report-panel,
   .month-view-panel,
   .detail-panel {
     padding: 14px 12px;
@@ -2727,6 +3091,14 @@ export default {
 
   .hero-tags {
     justify-content: flex-start;
+  }
+
+  .weekly-report-head {
+    align-items: flex-start;
+  }
+
+  .weekly-report-content {
+    grid-template-columns: 1fr;
   }
 
   .week-stats-grid {
@@ -2783,8 +3155,5 @@ export default {
     gap: 10px;
   }
 
-  .summary-work {
-    -webkit-line-clamp: 2;
-  }
 }
 </style>
