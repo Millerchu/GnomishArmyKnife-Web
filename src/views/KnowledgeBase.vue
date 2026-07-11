@@ -631,7 +631,10 @@ export default {
           showMessage('投稿已驳回，投稿人可继续修改', 'warning')
         }
         if (activeDetail.value?.id === item.id) {
-          closeDetailDialog()
+          // 审核成功属于内部完成流程，不受用户交互关闭锁影响。
+          showDetailDialog.value = false
+          activeDetail.value = null
+          reviewForm.reviewRemark = ''
         }
         await reloadAll()
       } catch (error) {
