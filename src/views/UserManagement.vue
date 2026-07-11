@@ -202,10 +202,15 @@
       </div>
     </section>
 
-    <div v-if="showEditDialog" class="dialog-mask" @click.self="closeEditDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ editMode === 'create' ? '新增用户' : '编辑用户' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitEditDialog">
+    <MacDialog
+      v-model="showEditDialog"
+      :title="editMode === 'create' ? '新增用户' : '编辑用户'"
+      width="560px"
+      :close-disabled="submitting"
+      panel-class="user-management-dialog"
+      @cancel="closeEditDialog"
+    >
+        <form id="user-edit-dialog-form" class="dialog-form" @submit.prevent="submitEditDialog">
           <label class="field-item">
             <span>用户名</span>
             <input
@@ -280,20 +285,29 @@
             />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeEditDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : '确认' }}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
 
-    <div v-if="showResetDialog" class="dialog-mask" @click.self="closeResetDialog">
-      <div class="dialog narrow">
-        <h3 class="dialog-title">重置密码</h3>
-        <form class="dialog-form" @submit.prevent="submitResetPassword">
+      <template #footer>
+        <button
+          type="submit"
+          class="action-btn"
+          form="user-edit-dialog-form"
+          :disabled="submitting"
+        >
+          {{ submitting ? '提交中...' : '确认' }}
+        </button>
+      </template>
+    </MacDialog>
+
+    <MacDialog
+      v-model="showResetDialog"
+      title="重置密码"
+      width="440px"
+      :close-disabled="submitting"
+      panel-class="user-password-dialog"
+      @cancel="closeResetDialog"
+    >
+        <form id="user-password-dialog-form" class="dialog-form" @submit.prevent="submitResetPassword">
           <p class="hint-text">用户：{{ resetForm.username }}</p>
           <label class="field-item">
             <span>新密码</span>
@@ -310,24 +324,29 @@
             <span>用户下次登录必须修改密码</span>
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="fillRandomPassword">
-              随机生成
-            </button>
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeResetDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : '确认重置' }}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+
+      <template #footer>
+        <button type="button" class="ghost-btn" :disabled="submitting" @click="fillRandomPassword">
+          随机生成
+        </button>
+        <button
+          type="submit"
+          class="action-btn"
+          form="user-password-dialog-form"
+          :disabled="submitting"
+        >
+          {{ submitting ? '提交中...' : '确认重置' }}
+        </button>
+      </template>
+    </MacDialog>
   </div>
 </template>
 
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createSystemUser,
   deleteSystemUser,
@@ -428,6 +447,9 @@ function generatePassword(length = 12) {
 
 export default {
   name: 'UserManagement',
+  components: {
+    MacDialog
+  },
   setup() {
     const router = useRouter()
 
@@ -1170,37 +1192,6 @@ export default {
   color: #222;
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  background: rgba(0, 0, 0, 0.42);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px;
-}
-
-.dialog {
-  width: 100%;
-  max-width: 560px;
-  max-height: calc(100vh - 30px);
-  overflow: auto;
-  border-radius: 12px;
-  background: rgba(13, 31, 56, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 14px 14px 12px;
-}
-
-.dialog.narrow {
-  max-width: 440px;
-}
-
-.dialog-title {
-  margin: 2px 0 12px;
-  font-size: 18px;
-}
-
 .dialog-form {
   display: flex;
   flex-direction: column;
@@ -1219,14 +1210,6 @@ export default {
   gap: 6px;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.9);
-}
-
-.dialog-actions {
-  margin-top: 4px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .ghost-btn,
@@ -1319,16 +1302,6 @@ export default {
     flex: 1 1 calc(50% - 4px);
   }
 
-  .dialog {
-    max-width: none;
-    padding: 12px;
-  }
-
-  .dialog-actions .ghost-btn,
-  .dialog-actions .action-btn {
-    flex: 1 1 calc(50% - 4px);
-  }
-
   .desktop-table-wrap {
     display: none;
   }
@@ -1356,9 +1329,7 @@ export default {
   .toolbar-left .action-btn,
   .toolbar-left .ghost-btn,
   .toolbar-left .danger-btn,
-  .pager-right .ghost-btn,
-  .dialog-actions .ghost-btn,
-  .dialog-actions .action-btn {
+  .pager-right .ghost-btn {
     flex-basis: 100%;
   }
 }

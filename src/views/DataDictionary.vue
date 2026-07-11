@@ -270,10 +270,15 @@
       </div>
     </section>
 
-    <div v-if="showDictionaryDialog" class="dialog-mask" @click.self="closeDictionaryDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ dictionaryDialogMode === 'create' ? '新增数据字典' : '编辑数据字典' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitDictionaryDialog">
+    <MacDialog
+      v-model="showDictionaryDialog"
+      :title="dictionaryDialogMode === 'create' ? '新增数据字典' : '编辑数据字典'"
+      width="560px"
+      :close-disabled="submitting"
+      panel-class="dictionary-editor-dialog"
+      @cancel="closeDictionaryDialog"
+    >
+        <form id="dictionary-editor-dialog-form" class="dialog-form" @submit.prevent="submitDictionaryDialog">
           <label class="field-item">
             <span>字典编号</span>
             <input
@@ -322,20 +327,29 @@
             />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeDictionaryDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : '确认' }}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
 
-    <div v-if="showItemDialog" class="dialog-mask" @click.self="closeItemDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ itemDialogMode === 'create' ? '新增字典项' : '编辑字典项' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitItemDialog">
+      <template #footer>
+        <button
+          type="submit"
+          class="action-btn"
+          form="dictionary-editor-dialog-form"
+          :disabled="submitting"
+        >
+          {{ submitting ? '提交中...' : '确认' }}
+        </button>
+      </template>
+    </MacDialog>
+
+    <MacDialog
+      v-model="showItemDialog"
+      :title="itemDialogMode === 'create' ? '新增字典项' : '编辑字典项'"
+      width="560px"
+      :close-disabled="submitting"
+      panel-class="dictionary-item-dialog"
+      @cancel="closeItemDialog"
+    >
+        <form id="dictionary-item-dialog-form" class="dialog-form" @submit.prevent="submitItemDialog">
           <label class="field-item">
             <span>字典项编码</span>
             <input
@@ -396,15 +410,19 @@
             />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeItemDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : '确认' }}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+
+      <template #footer>
+        <button
+          type="submit"
+          class="action-btn"
+          form="dictionary-item-dialog-form"
+          :disabled="submitting"
+        >
+          {{ submitting ? '提交中...' : '确认' }}
+        </button>
+      </template>
+    </MacDialog>
   </div>
 </template>
 
@@ -412,6 +430,7 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import GlassSelect from '@/components/GlassSelect.vue'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createDataDictionary,
   createDataDictionaryItem,
@@ -544,7 +563,8 @@ function extractEntityId(payload, candidates = ['id']) {
 export default {
   name: 'DataDictionary',
   components: {
-    GlassSelect
+    GlassSelect,
+    MacDialog
   },
   setup() {
     const router = useRouter()
@@ -1217,8 +1237,7 @@ export default {
 .filter-actions,
 .toolbar,
 .items-head,
-.pager,
-.dialog-actions {
+.pager {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1411,33 +1430,6 @@ export default {
 
 .pager-left option {
   color: #111;
-}
-
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px;
-  background: rgba(0, 0, 0, 0.44);
-}
-
-.dialog {
-  width: 100%;
-  max-width: 560px;
-  max-height: calc(100vh - 28px);
-  overflow: auto;
-  border-radius: 14px;
-  padding: 14px;
-  background: rgba(10, 27, 49, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-}
-
-.dialog-title {
-  margin: 2px 0 12px;
-  font-size: 18px;
 }
 
 .dialog-form {
@@ -1816,57 +1808,6 @@ export default {
   transform: translateY(-1px);
 }
 
-.dict-page .dialog-mask {
-  background: rgba(1, 8, 16, 0.42) !important;
-  backdrop-filter: blur(12px) saturate(130%) !important;
-}
-
-.dict-page .dialog {
-  position: relative;
-  border: 1px solid rgba(230, 244, 255, 0.2) !important;
-  border-radius: 24px !important;
-  background:
-    linear-gradient(180deg, rgba(26, 57, 72, 0.82), rgba(8, 22, 36, 0.86)),
-    rgba(10, 26, 40, 0.72) !important;
-  box-shadow:
-    0 34px 90px rgba(0, 7, 18, 0.48),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
-  backdrop-filter: blur(30px) saturate(160%) !important;
-}
-
-.dict-page .dialog::before {
-  content: "";
-  position: absolute;
-  top: 18px;
-  left: 20px;
-  width: 11px;
-  height: 11px;
-  border-radius: 999px;
-  background: #ff5f57;
-  box-shadow: 18px 0 0 #febc2e, 36px 0 0 #28c840;
-}
-
-.dict-page .dialog-title {
-  padding-left: 72px;
-  color: #f4fbff !important;
-  font-weight: 840 !important;
-}
-
-.dict-page .dialog-actions {
-  border-top: 1px solid rgba(226, 241, 255, 0.12);
-  position: sticky;
-  bottom: -1px;
-  z-index: 2;
-  margin: 2px -14px -14px;
-  padding: 16px 14px 14px !important;
-  border-color: rgba(226, 241, 255, 0.12) !important;
-  border-radius: 0 0 22px 22px;
-  background:
-    linear-gradient(180deg, rgba(10, 28, 42, 0), rgba(8, 22, 36, 0.88) 34%),
-    rgba(8, 22, 36, 0.56) !important;
-  backdrop-filter: blur(18px) saturate(145%) !important;
-}
-
 .dict-page .checkbox-item {
   color: rgba(225, 241, 251, 0.82) !important;
 }
@@ -1936,15 +1877,6 @@ export default {
     gap: 10px;
   }
 
-  .dialog {
-    max-width: none;
-    padding: 12px;
-  }
-
-  .dialog-actions .ghost-btn,
-  .dialog-actions .action-btn {
-    flex: 1 1 calc(50% - 4px);
-  }
 }
 
 @media (max-width: 480px) {
@@ -1962,9 +1894,7 @@ export default {
   .filter-actions .ghost-btn,
   .toolbar-left .action-btn,
   .toolbar-left .ghost-btn,
-  .pager-right .ghost-btn,
-  .dialog-actions .ghost-btn,
-  .dialog-actions .action-btn {
+  .pager-right .ghost-btn {
     flex-basis: 100%;
   }
 }

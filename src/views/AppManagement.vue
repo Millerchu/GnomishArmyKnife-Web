@@ -192,15 +192,15 @@
       </article>
     </section>
 
-    <div v-if="showEditorDialog" class="dialog-mask" @click.self="closeEditorDialog">
-      <div class="editor-dialog">
-        <div class="dialog-head">
-          <div>
-            <h3 class="dialog-title">{{ form.id ? '编辑应用' : '新增应用' }}</h3>
-            <p class="dialog-subtitle">应用编码建议稳定不变，权限管理将直接按应用编码授权。</p>
-          </div>
-          <button class="dialog-close" type="button" :disabled="saving || uploadLoading" @click="closeEditorDialog">×</button>
-        </div>
+    <MacDialog
+      v-model="showEditorDialog"
+      :title="form.id ? '编辑应用' : '新增应用'"
+      subtitle="应用编码建议稳定不变，权限管理将直接按应用编码授权。"
+      width="1040px"
+      :close-disabled="saving || uploadLoading"
+      panel-class="app-editor-dialog"
+      @cancel="closeEditorDialog"
+    >
 
         <div class="preview-card">
           <div class="preview-icon" :class="previewClassName(form.iconType)">
@@ -356,15 +356,13 @@
           <textarea v-model.trim="form.remark" class="textarea" maxlength="200" placeholder="可记录应用负责人、上线说明或注意事项"/>
         </label>
 
-        <div class="dialog-actions">
+      <template #footer>
           <button class="ghost-btn" type="button" :disabled="saving || uploadLoading" @click="resetEditor">重置</button>
-          <button class="ghost-btn" type="button" :disabled="saving || uploadLoading" @click="closeEditorDialog">取消</button>
           <button class="action-btn" type="button" :disabled="saving || uploadLoading" @click="submitApp">
             {{ saving ? '保存中...' : '保存应用' }}
           </button>
-        </div>
-      </div>
-    </div>
+      </template>
+    </MacDialog>
   </div>
 </template>
 
@@ -372,6 +370,7 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import AppIconImage from '@/components/AppIconImage.vue'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createSystemApp,
   listSystemApps,
@@ -499,7 +498,8 @@ function normalizeFormPayload(form) {
 export default {
   name: 'AppManagement',
   components: {
-    AppIconImage
+    AppIconImage,
+    MacDialog
   },
   setup() {
     const router = useRouter()
@@ -1002,8 +1002,7 @@ export default {
 .hero-panel,
 .filter-panel,
 .catalog-panel,
-.insight-card,
-.editor-dialog {
+.insight-card {
   border-radius: 18px;
   padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1022,7 +1021,6 @@ export default {
 .panel-head,
 .filter-actions,
 .pager,
-.dialog-head,
 .preview-card,
 .section-head {
   display: flex;
@@ -1033,7 +1031,6 @@ export default {
 .hero-panel,
 .panel-head,
 .pager,
-.dialog-head,
 .preview-card,
 .section-head {
   justify-content: space-between;
@@ -1041,7 +1038,6 @@ export default {
 
 .page-title,
 .panel-title,
-.dialog-title,
 .insight-title {
   margin: 0;
 }
@@ -1052,7 +1048,6 @@ export default {
 
 .page-subtitle,
 .panel-tip,
-.dialog-subtitle,
 .note-box p {
   margin: 6px 0 0;
   color: rgba(255, 255, 255, 0.76);
@@ -1105,8 +1100,7 @@ export default {
 }
 
 .filter-actions,
-.panel-actions,
-.dialog-actions {
+.panel-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1320,33 +1314,6 @@ export default {
   margin: 0;
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-  background: rgba(0, 0, 0, 0.45);
-}
-
-.editor-dialog {
-  width: min(1040px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-}
-
-.dialog-close {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 50%;
-  color: #fff;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.14);
-}
-
 .preview-card {
   margin-top: 18px;
   padding: 16px;
@@ -1474,15 +1441,13 @@ export default {
   .panel-head,
   .pager,
   .preview-card,
-  .dialog-head,
   .section-head {
     flex-direction: column;
     align-items: stretch;
   }
 
   .filter-actions,
-  .panel-actions,
-  .dialog-actions {
+  .panel-actions {
     justify-content: stretch;
   }
 

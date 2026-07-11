@@ -690,11 +690,7 @@ export default {
   }
 
   .mac-dialog-head {
-    grid-template-columns: 1fr;
-  }
-
-  .mac-dialog-head :deep(.mac-window-controls) {
-    display: none;
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .mac-dialog-minimized {

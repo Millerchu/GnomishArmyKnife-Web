@@ -324,5 +324,6 @@ describe('MacDialog real component behavior', () => {
     expect(componentSource.default).toContain('safe-area-inset-bottom')
     expect(componentSource.default).toContain('safe-area-inset-left')
     expect(componentSource.default).toContain('safe-area-inset-right')
+    expect(componentSource.default).not.toMatch(/mac-window-controls[^}]*display:\s*none/s)
   })
 })
