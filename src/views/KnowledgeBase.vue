@@ -178,19 +178,16 @@
       <div v-else class="empty-state">当前没有待审核投稿。</div>
     </section>
 
-    <div v-if="showEditDialog" class="dialog-mask" @click.self="closeEditDialog">
-      <div class="dialog">
-        <div class="dialog-head">
-          <div>
-            <h3 class="dialog-title">{{ editMode === 'create' ? (isAdmin ? '新增公共经验' : '投稿经验') : '编辑经验' }}</h3>
-            <p class="dialog-subtitle">
-              {{ isAdmin ? '管理员新增后会直接发布。' : '普通用户提交后会进入待审核队列。' }}
-            </p>
-          </div>
-          <button class="dialog-close" @click="closeEditDialog">×</button>
-        </div>
-
-        <form class="dialog-form" @submit.prevent="submitEditDialog">
+    <MacDialog
+      v-model="showEditDialog"
+      :title="editMode === 'create' ? (isAdmin ? '新增公共经验' : '投稿经验') : '编辑经验'"
+      :subtitle="isAdmin ? '管理员新增后会直接发布。' : '普通用户提交后会进入待审核队列。'"
+      width="820px"
+      panel-class="knowledge-entry-dialog"
+      :close-disabled="submitting"
+      @cancel="closeEditDialog"
+    >
+        <form id="knowledge-entry-dialog-form" class="dialog-form" @submit.prevent="submitEditDialog">
           <div class="form-grid">
             <label class="form-field">
               <span>标题</span>
@@ -230,26 +227,24 @@
             <textarea v-model.trim="form.content" class="input textarea content-textarea" rows="9" maxlength="2000" required />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeEditDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (editMode === 'create' ? (isAdmin ? '保存并发布' : '提交投稿') : '保存修改') }}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+        <template #footer>
+          <button form="knowledge-entry-dialog-form" type="submit" class="action-btn" :disabled="submitting">
+            {{ submitting ? '提交中...' : (editMode === 'create' ? (isAdmin ? '保存并发布' : '提交投稿') : '保存修改') }}
+          </button>
+        </template>
+    </MacDialog>
 
-    <div v-if="showDetailDialog" class="dialog-mask" @click.self="closeDetailDialog">
-      <div class="dialog detail-dialog">
-        <div class="dialog-head">
-          <div>
-            <h3 class="dialog-title">经验详情</h3>
-            <p class="dialog-subtitle">公共库、投稿状态和审核备注都在这里完整展示。</p>
-          </div>
-          <button class="dialog-close" @click="closeDetailDialog">×</button>
-        </div>
-
+    <MacDialog
+      v-model="showDetailDialog"
+      title="经验详情"
+      subtitle="公共库、投稿状态和审核备注都在这里完整展示。"
+      width="900px"
+      panel-class="knowledge-entry-detail-dialog"
+      :close-disabled="detailLoading || reviewSubmitting"
+      @cancel="closeDetailDialog"
+    >
+      <div class="detail-dialog">
         <div v-if="detailLoading" class="empty-state">详情加载中...</div>
         <div v-else-if="activeDetail" class="detail-content">
           <div class="detail-hero">
@@ -294,20 +289,20 @@
             </div>
           </div>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" @click="closeDetailDialog">关闭</button>
-            <button v-if="canEdit(activeDetail)" type="button" class="action-btn" @click="openEditDialog(activeDetail)">编辑当前条目</button>
-          </div>
         </div>
         <div v-else class="empty-state">未找到经验详情。</div>
       </div>
-    </div>
+      <template #footer>
+        <button v-if="activeDetail && canEdit(activeDetail)" type="button" class="action-btn" @click="openEditDialog(activeDetail)">编辑当前条目</button>
+      </template>
+    </MacDialog>
   </div>
 </template>
 
 <script>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createKnowledgeEntry,
   deleteKnowledgeEntry,
@@ -354,6 +349,7 @@ function shortText(text, maxLength = 60) {
 
 export default {
   name: 'KnowledgeBase',
+  components: {MacDialog},
   setup() {
     const router = useRouter()
     const currentUser = ref(normalizeCurrentUser(readAuthState(localStorage).user || {}))
@@ -719,8 +715,7 @@ export default {
 .back-home-btn,
 .ghost-btn,
 .action-btn,
-.mini-btn,
-.dialog-close {
+.mini-btn {
   border: none;
   cursor: pointer;
 }
@@ -738,8 +733,7 @@ export default {
 }
 
 .hero-panel,
-.panel-section,
-.dialog {
+.panel-section {
   border-radius: 26px;
   border: 1px solid rgba(148, 163, 184, 0.16);
   background: linear-gradient(145deg, rgba(8, 22, 38, 0.88), rgba(14, 37, 59, 0.76));
@@ -765,7 +759,6 @@ export default {
 
 .page-title,
 .panel-title,
-.dialog-title,
 .detail-title {
   margin: 0;
 }
@@ -776,7 +769,6 @@ export default {
 
 .page-subtitle,
 .panel-tip,
-.dialog-subtitle,
 .highlight-summary,
 .entry-summary,
 .detail-summary,
@@ -879,7 +871,6 @@ export default {
 .highlight-head,
 .entry-card-head,
 .submission-head,
-.dialog-head,
 .detail-hero {
   display: flex;
   justify-content: space-between;
@@ -1106,8 +1097,7 @@ export default {
 
 .ghost-btn,
 .action-btn,
-.mini-btn,
-.dialog-close {
+.mini-btn {
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
@@ -1153,41 +1143,6 @@ export default {
 .empty-state {
   padding: 22px 0 10px;
   color: #8ea4ba;
-}
-
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(2, 6, 23, 0.62);
-  backdrop-filter: blur(8px);
-}
-
-.dialog {
-  width: min(860px, 100%);
-  max-height: 92vh;
-  overflow: auto;
-  padding: 22px;
-}
-
-.detail-dialog {
-  width: min(960px, 100%);
-}
-
-.dialog-head {
-  align-items: flex-start;
-}
-
-.dialog-close {
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  color: #dbeafe;
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .dialog-form {

@@ -69,12 +69,12 @@
           <span class="app-count" :class="permissionBadgeClass">{{ appPermissionStatusText }}</span>
         </div>
 
-        <div v-if="surfaceNotice.message" ref="surfaceNoticeRef" class="surface-notice" :class="surfaceNotice.type">
+        <div v-if="surfaceNotice.message" class="surface-notice" :class="surfaceNotice.type">
           <div>
             <strong>{{ surfaceNotice.title }}</strong>
             <p>{{ surfaceNotice.message }}</p>
           </div>
-          <button type="button" class="notice-close" @click="clearSurfaceNotice">关闭</button>
+          <button type="button" class="notice-close" @click="clearSurfaceNotice">收起提示</button>
         </div>
 
         <div v-if="appPermissionLoading" class="home-state">
@@ -126,27 +126,29 @@
       </section>
     </main>
 
-    <div v-if="logoutPending" class="confirm-mask" @click.self="cancelLogoutRequest">
-      <div ref="logoutDialogRef" class="confirm-dialog">
-        <div class="confirm-head">
-          <strong>确认退出当前账号？</strong>
-          <button type="button" class="notice-close" @click="cancelLogoutRequest">关闭</button>
-        </div>
-        <p class="confirm-copy">退出后会返回登录页，本地登录态会被清理。</p>
-        <div class="notice-actions">
-          <button type="button" class="ghost-btn" @click="cancelLogoutRequest">取消</button>
+    <MacDialog
+      v-model="logoutPending"
+      title="确认退出当前账号？"
+      subtitle="退出后会返回登录页，本地登录态会被清理。"
+      width="440px"
+      panel-class="home-logout-dialog"
+      :close-disabled="false"
+      @cancel="cancelLogoutRequest"
+    >
+      <p class="confirm-copy">请确认是否退出当前账号。</p>
+      <template #footer>
           <button type="button" class="action-btn" @click="confirmLogout">确认退出</button>
-        </div>
-      </div>
-    </div>
+      </template>
+    </MacDialog>
 
-    <div v-if="showUserDialog" class="dialog-mask" @click.self="closeUserDialog">
-      <div class="user-dialog">
-        <div class="dialog-head">
-          <h3 class="dialog-title">个人中心</h3>
-          <button class="dialog-close" @click="closeUserDialog">x</button>
-        </div>
-
+    <MacDialog
+      v-model="showUserDialog"
+      title="个人中心"
+      width="520px"
+      panel-class="home-profile-dialog"
+      :close-disabled="dialogLoading"
+      @cancel="closeUserDialog"
+    >
         <div class="tab-row">
           <button
             class="tab-btn"
@@ -166,6 +168,7 @@
 
         <form
           v-if="activeDialogTab === 'profile'"
+          id="home-profile-dialog-form"
           class="dialog-form"
           @submit.prevent="submitProfile"
         >
@@ -186,16 +189,11 @@
             <input v-model.trim="profileForm.email" type="email" maxlength="64"/>
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="dialogLoading" @click="closeUserDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="dialogLoading">
-              {{ dialogLoading ? '保存中...' : '保存信息' }}
-            </button>
-          </div>
         </form>
 
         <form
           v-else
+          id="home-password-dialog-form"
           class="dialog-form"
           @submit.prevent="submitPassword"
         >
@@ -233,15 +231,28 @@
             />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="dialogLoading" @click="closeUserDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="dialogLoading">
-              {{ dialogLoading ? '提交中...' : '修改密码' }}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+        <template #footer>
+          <button
+            v-if="activeDialogTab === 'profile'"
+            form="home-profile-dialog-form"
+            type="submit"
+            class="action-btn"
+            :disabled="dialogLoading"
+          >
+            {{ dialogLoading ? '保存中...' : '保存信息' }}
+          </button>
+          <button
+            v-else
+            form="home-password-dialog-form"
+            type="submit"
+            class="action-btn"
+            :disabled="dialogLoading"
+          >
+            {{ dialogLoading ? '提交中...' : '修改密码' }}
+          </button>
+        </template>
+    </MacDialog>
   </div>
 </template>
 
@@ -250,6 +261,7 @@ import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {changePasswordApi, getPasswordPublicKeyApi} from '@/api/auth'
 import AppIconImage from '@/components/AppIconImage.vue'
+import MacDialog from '@/components/MacDialog.vue'
 import {getCurrentUserAccessibleApps} from '@/api/permission'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
@@ -406,7 +418,8 @@ function buildNotice(type = '', title = '', message = '') {
 
 export default {
   components: {
-    AppIconImage
+    AppIconImage,
+    MacDialog
   },
   setup() {
     const router = useRouter()
@@ -428,8 +441,6 @@ export default {
     const suppressNextToolOpen = ref(false)
     const isMobileViewport = ref(false)
     const systemMenuRef = ref(null)
-    const surfaceNoticeRef = ref(null)
-    const logoutDialogRef = ref(null)
     const easterEggClickCount = ref(0)
     const logoutPending = ref(false)
     let easterEggTimer = null
@@ -629,10 +640,7 @@ export default {
     }
 
     const requestLogout = () => {
-      clearSurfaceNotice()
-      if (window.confirm('确定要退出登录吗？')) {
-        logout()
-      }
+      logoutPending.value = true
     }
 
     const cancelLogoutRequest = () => {
@@ -720,22 +728,14 @@ export default {
 
     const handleDocumentClick = (event) => {
       const container = systemMenuRef.value
-      const notice = surfaceNoticeRef.value
-      const logoutDialog = logoutDialogRef.value
       if (showSystemMenu.value && container && !container.contains(event.target)) {
         closeSystemMenu()
-      }
-      if (logoutPending.value && logoutDialog && !logoutDialog.contains(event.target)) {
-        cancelLogoutRequest()
       }
     }
 
     const handleEscapeKey = (event) => {
       if (event.key !== 'Escape') {
         return
-      }
-      if (logoutPending.value) {
-        cancelLogoutRequest()
       }
       clearSurfaceNotice()
       closeSystemMenu()
@@ -976,8 +976,6 @@ export default {
       user,
       showSystemMenu,
       systemMenuRef,
-      surfaceNoticeRef,
-      logoutDialogRef,
       currentDateText,
       currentUserRole,
       appPermissionLoading,
@@ -1305,35 +1303,6 @@ export default {
   border-color: rgba(248, 113, 113, 0.24);
 }
 
-.confirm-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 24;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.confirm-dialog {
-  width: min(420px, 100%);
-  border-radius: 18px;
-  padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(135deg, rgba(13, 30, 52, 0.94), rgba(11, 25, 42, 0.92));
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
-  backdrop-filter: blur(18px);
-}
-
-.confirm-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.confirm-head strong,
 .confirm-copy {
   margin: 0;
 }
@@ -1341,12 +1310,6 @@ export default {
 .confirm-copy {
   margin-top: 10px;
   color: rgba(255, 255, 255, 0.74);
-}
-
-.notice-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .notice-close {
@@ -1471,53 +1434,6 @@ export default {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.38);
-}
-
-.user-dialog {
-  width: 100%;
-  max-width: 440px;
-  max-height: calc(100vh - 32px);
-  overflow: auto;
-  border-radius: 14px;
-  padding: 16px 16px 14px;
-  color: #fff;
-  background: rgba(13, 30, 52, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(16px);
-}
-
-.dialog-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.dialog-title {
-  margin: 0;
-  font-size: 18px;
-}
-
-.dialog-close {
-  border: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.2);
 }
 
 .tab-row {
@@ -1779,10 +1695,6 @@ export default {
   .current-date,
   .user-name-text {
     width: auto;
-  }
-
-  .user-dialog {
-    padding: 14px 12px 12px;
   }
 
   .dialog-actions .ghost-btn,

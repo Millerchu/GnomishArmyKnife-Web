@@ -129,10 +129,15 @@
       </div>
     </section>
 
-    <div v-if="showEditDialog" class="dialog-mask" @click.self="closeEditDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ editMode === 'create' ? '新增账号备忘录' : '编辑账号备忘录' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitEditDialog">
+    <MacDialog
+      v-model="showEditDialog"
+      :title="editMode === 'create' ? '新增账号备忘录' : '编辑账号备忘录'"
+      width="720px"
+      panel-class="password-memo-edit-dialog"
+      :close-disabled="submitting"
+      @cancel="closeEditDialog"
+    >
+        <form id="password-memo-edit-dialog-form" class="dialog-form" @submit.prevent="submitEditDialog">
           <label class="form-field">
             <span>网站名</span>
             <input v-model.trim="form.siteName" class="input" maxlength="64" placeholder="例如：GitHub" required />
@@ -172,26 +177,24 @@
             <textarea v-model.trim="form.remark" class="input textarea" rows="3" maxlength="200" placeholder="备注（可选）" />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeEditDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (editMode === 'create' ? '保存' : '更新') }}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+        <template #footer>
+          <button form="password-memo-edit-dialog-form" type="submit" class="action-btn" :disabled="submitting">
+            {{ submitting ? '提交中...' : (editMode === 'create' ? '保存' : '更新') }}
+          </button>
+        </template>
+    </MacDialog>
 
-    <div v-if="showDetailDialog" class="dialog-mask" @click.self="closeDetailDialog">
-      <div class="dialog detail-dialog">
-        <div class="detail-head">
-          <div>
-            <h3 class="dialog-title">账号详情</h3>
-            <p class="detail-subtitle">关闭详情后再次打开，需要重新输入当前用户密码才能查看完整密码。</p>
-          </div>
-          <button class="dialog-close" @click="closeDetailDialog">x</button>
-        </div>
-
+    <MacDialog
+      v-model="showDetailDialog"
+      title="账号详情"
+      subtitle="关闭详情后再次打开，需要重新输入当前用户密码才能查看完整密码。"
+      width="760px"
+      panel-class="password-memo-verify-dialog"
+      :close-disabled="detailLoading || verifyingPassword"
+      @cancel="closeDetailDialog"
+    >
+      <div class="detail-dialog">
         <div v-if="detailLoading" class="empty-state detail-empty">详情加载中...</div>
 
         <div v-else-if="activeDetail" class="detail-content">
@@ -209,10 +212,9 @@
               <p class="password-label">密码</p>
               <p class="password-value">{{ revealedPassword || activeDetail.maskedPassword || maskPassword(activeDetail.password) }}</p>
             </div>
-            <button class="ghost-btn" :disabled="!revealedPassword" @click="copyPassword">复制密码</button>
           </div>
 
-          <form class="verify-form" @submit.prevent="verifyAndRevealPassword">
+          <form id="password-memo-verify-form" class="verify-form" @submit.prevent="verifyAndRevealPassword">
             <label class="form-field">
               <span>输入当前用户密码后显示完整密码</span>
               <input
@@ -225,23 +227,25 @@
               />
             </label>
 
-            <div class="dialog-actions verify-actions">
-              <button type="submit" class="action-btn" :disabled="verifyingPassword">
-                {{ verifyingPassword ? '校验中...' : '验证并显示密码' }}
-              </button>
-            </div>
           </form>
 
           <p v-if="detailErrorMessage" class="error-tip">{{ detailErrorMessage }}</p>
         </div>
       </div>
-    </div>
+      <template #footer>
+        <button type="button" class="ghost-btn" :disabled="!revealedPassword || verifyingPassword" @click="copyPassword">复制密码</button>
+        <button form="password-memo-verify-form" type="submit" class="action-btn" :disabled="verifyingPassword || detailLoading || !activeDetail">
+          {{ verifyingPassword ? '校验中...' : '验证并显示密码' }}
+        </button>
+      </template>
+    </MacDialog>
   </div>
 </template>
 
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createPasswordMemo,
   deletePasswordMemo,
@@ -309,6 +313,7 @@ function extractErrorMessage(error, fallback) {
 
 export default {
   name: 'PasswordMemo',
+  components: {MacDialog},
   setup() {
     const router = useRouter()
 
@@ -690,7 +695,6 @@ export default {
 .row-actions,
 .mobile-card-actions,
 .dialog-actions,
-.detail-head,
 .password-box {
   display: flex;
   align-items: center;
@@ -702,7 +706,6 @@ export default {
 .filter-panel,
 .toolbar,
 .list-panel,
-.dialog,
 .password-box {
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
@@ -723,7 +726,6 @@ export default {
 .panel-head,
 .toolbar,
 .pager,
-.detail-head,
 .password-box {
   justify-content: space-between;
 }
@@ -740,7 +742,6 @@ export default {
 
 .page-title,
 .panel-title,
-.dialog-title,
 .mobile-card-title {
   margin: 0;
 }
@@ -751,7 +752,6 @@ export default {
 
 .page-subtitle,
 .panel-tip,
-.detail-subtitle,
 .mobile-card-link {
   margin: 6px 0 0;
   color: rgba(255, 255, 255, 0.74);
@@ -834,8 +834,7 @@ export default {
 
 .ghost-btn,
 .action-btn,
-.mini-btn,
-.dialog-close {
+.mini-btn {
   border: none;
   border-radius: 10px;
   color: #fff;
@@ -990,29 +989,6 @@ export default {
   color: rgba(255, 255, 255, 0.68);
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  padding: 18px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(1, 8, 16, 0.58);
-}
-
-.dialog {
-  width: min(680px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-  padding: 20px;
-  border-radius: 20px;
-}
-
-.detail-dialog {
-  width: min(760px, 100%);
-}
-
 .dialog-form,
 .detail-content,
 .verify-form {
@@ -1025,16 +1001,6 @@ export default {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-}
-
-.detail-subtitle {
-  font-size: 13px;
-}
-
-.dialog-close {
-  width: 34px;
-  height: 34px;
-  background: rgba(255, 255, 255, 0.12);
 }
 
 .password-box {
@@ -1085,7 +1051,6 @@ export default {
   .panel-head,
   .toolbar,
   .pager,
-  .detail-head,
   .password-box {
     flex-direction: column;
     align-items: stretch;
@@ -1130,8 +1095,7 @@ export default {
   .top-bar,
   .hero-panel,
   .filter-panel,
-  .list-panel,
-  .dialog {
+  .list-panel {
     padding: 14px;
     border-radius: 16px;
   }
@@ -1142,10 +1106,6 @@ export default {
 
   .password-value {
     font-size: 22px;
-  }
-
-  .dialog-mask {
-    padding: 10px;
   }
 
   .actions .action-btn,

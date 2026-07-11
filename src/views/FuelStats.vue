@@ -330,13 +330,17 @@
       </div>
     </section>
 
-    <div v-if="showDetailDialog && detailRecord" class="dialog-mask" @click.self="closeDetailDialog">
-      <div class="dialog detail-dialog">
+    <MacDialog
+      v-model="showDetailDialog"
+      title="加油记录详情"
+      :subtitle="detailRecord ? `${detailRecord.vehicleName} · ${detailRecord.fuelDate}` : ''"
+      width="880px"
+      panel-class="fuel-record-detail-dialog"
+      :close-disabled="false"
+      @cancel="closeDetailDialog"
+    >
+      <div v-if="detailRecord" class="detail-dialog">
         <div class="detail-dialog-head">
-          <div>
-            <h3 class="dialog-title">加油记录详情</h3>
-            <p class="detail-dialog-subtitle">{{ detailRecord.vehicleName }} · {{ detailRecord.fuelDate }}</p>
-          </div>
           <span class="consumption-chip" :class="consumptionClassMap[getConsumptionLevel(detailRecord.fuelConsumption)]">
             {{ formatConsumption(detailRecord.fuelConsumption) }}
           </span>
@@ -358,17 +362,21 @@
           <p class="wide"><span>备注</span><strong>{{ detailRecord.note || '-' }}</strong></p>
         </div>
 
-        <div class="dialog-actions">
-          <button type="button" class="ghost-btn" @click="closeDetailDialog">关闭</button>
-          <button type="button" class="action-btn" @click="openEditDialog(detailRecord)">编辑记录</button>
-        </div>
       </div>
-    </div>
+      <template #footer>
+        <button v-if="detailRecord" type="button" class="action-btn" @click="openEditDialog(detailRecord)">编辑记录</button>
+      </template>
+    </MacDialog>
 
-    <div v-if="showDialog" class="dialog-mask" @click.self="closeDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ dialogMode === 'create' ? '新增加油记录' : '编辑加油记录' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitDialog">
+    <MacDialog
+      v-model="showDialog"
+      :title="dialogMode === 'create' ? '新增加油记录' : '编辑加油记录'"
+      width="760px"
+      panel-class="fuel-record-dialog"
+      :close-disabled="submitting"
+      @cancel="closeDialog"
+    >
+        <form id="fuel-record-dialog-form" class="dialog-form" @submit.prevent="submitDialog">
           <div class="form-inline-grid">
             <label class="form-field">
               <span>车辆名称</span>
@@ -436,21 +444,20 @@
             <textarea v-model.trim="form.note" class="input textarea" rows="3" maxlength="240" placeholder="记录路况、油价变化或保养说明" />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存记录' : '更新记录') }}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+        <template #footer>
+          <button form="fuel-record-dialog-form" type="submit" class="action-btn" :disabled="submitting">
+            {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存记录' : '更新记录') }}
+          </button>
+        </template>
+    </MacDialog>
   </div>
 </template>
 
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createFuelRecord,
   deleteFuelRecord,
@@ -613,6 +620,7 @@ function buildYearlyCostReport(records = []) {
 
 export default {
   name: 'FuelStats',
+  components: {MacDialog},
   setup() {
     const router = useRouter()
 
@@ -1205,8 +1213,7 @@ export default {
 .price-panel,
 .list-panel,
 .insight-panel,
-.report-panel,
-.dialog {
+.report-panel {
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
@@ -1374,7 +1381,6 @@ export default {
 
 .page-title,
 .panel-title,
-.dialog-title,
 .insight-title,
 .mobile-record-title {
   margin: 0;
@@ -1921,25 +1927,6 @@ export default {
   color: #222;
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  padding: 18px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(1, 8, 16, 0.58);
-}
-
-.dialog {
-  width: min(720px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-  padding: 20px;
-  border-radius: 20px;
-}
-
 .dialog-form {
   display: flex;
   flex-direction: column;
@@ -1951,21 +1938,12 @@ export default {
   flex-wrap: wrap;
 }
 
-.detail-dialog {
-  width: min(840px, 100%);
-}
-
 .detail-dialog-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 16px;
-}
-
-.detail-dialog-subtitle {
-  margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.72);
 }
 
 .detail-grid {
@@ -2125,8 +2103,5 @@ export default {
     flex-basis: 100%;
   }
 
-  .dialog-mask {
-    padding: 10px;
-  }
 }
 </style>
