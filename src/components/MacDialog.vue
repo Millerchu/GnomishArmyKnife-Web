@@ -17,34 +17,34 @@
         <section
           ref="dialogPanel"
           class="mac-dialog-panel"
-          :class="[panelClass, {maximized: dialogViewState.maximized}]"
+          :class="[panelClass, {maximized: dialogViewState.maximized, dragging: isDragging}]"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="titleId"
-          :style="{maxWidth: width, width: width}"
+          :style="panelStyle"
           tabindex="-1"
         >
-          <header class="mac-dialog-head">
-            <MacWindowControls
-              :close-disabled="closeDisabled"
-              :maximized="isMaximized"
-              @close="requestClose"
-              @minimize="minimize"
-              @toggle-maximize="toggleMaximize"
-            />
+          <header
+            class="mac-dialog-head"
+            :class="{draggable: isDesktopDragAvailable}"
+            @pointerdown="startDrag"
+            @pointermove="moveDrag"
+            @pointerup="endDrag"
+            @pointercancel="endDrag"
+          >
+            <div class="mac-dialog-window-controls" @pointerdown.stop>
+              <MacWindowControls
+                :close-disabled="closeDisabled"
+                :maximized="isMaximized"
+                @close="requestClose"
+                @minimize="minimize"
+                @toggle-maximize="toggleMaximize"
+              />
+            </div>
             <div class="mac-dialog-title-block">
               <h3 :id="titleId" class="mac-dialog-title">{{ title }}</h3>
               <p v-if="subtitle" class="mac-dialog-subtitle">{{ subtitle }}</p>
             </div>
-            <button
-              class="mac-dialog-close"
-              type="button"
-              :disabled="closeDisabled"
-              aria-label="取消并关闭弹窗"
-              @click="requestClose"
-            >
-              ×
-            </button>
           </header>
 
           <div class="mac-dialog-body">
@@ -92,6 +92,7 @@ const DIALOG_Z_INDEX_BASE = 90
 const DIALOG_Z_INDEX_STEP = 2
 const DOCK_BOTTOM_BASE_PX = 20
 const DOCK_VERTICAL_STEP_PX = 60
+const DIALOG_DRAG_GUTTER_PX = 12
 const FOCUSABLE_ELEMENT_SELECTOR = [
   'button:not(:disabled)',
   'a[href]',
@@ -151,7 +152,10 @@ export default {
       dialogId: dialogIdSeed,
       dialogViewState: createDialogViewState(),
       focusReturnElement: null,
-      isKeydownListening: false
+      isKeydownListening: false,
+      viewportWidth: typeof window === 'undefined' ? 0 : window.innerWidth,
+      dragOffset: {x: 0, y: 0},
+      dragState: null
     }
   },
   computed: {
@@ -160,6 +164,22 @@ export default {
     },
     isMaximized() {
       return this.dialogViewState.maximized
+    },
+    isDragging() {
+      return this.dragState !== null
+    },
+    isDesktopDragAvailable() {
+      return !this.isMinimized
+        && !this.isMaximized
+        && this.viewportWidth > 720
+    },
+    panelStyle() {
+      return {
+        maxWidth: this.width,
+        width: this.width,
+        '--mac-dialog-drag-x': `${this.dragOffset.x}px`,
+        '--mac-dialog-drag-y': `${this.dragOffset.y}px`
+      }
     },
     dialogStackIndex() {
       return activeDialogIdStack.indexOf(this.dialogId)
@@ -190,12 +210,14 @@ export default {
     }
   },
   mounted() {
+    window.addEventListener('resize', this.updateViewportWidth)
     if (this.modelValue) {
       this.activateDialog()
       this.addKeydownListener()
     }
   },
   beforeUnmount() {
+    window.removeEventListener('resize', this.updateViewportWidth)
     this.deactivateDialog()
   },
   methods: {
@@ -204,6 +226,11 @@ export default {
         this.dialogViewState,
         DIALOG_VIEW_ACTION.RESET
       )
+      this.resetDragOffset()
+    },
+    resetDragOffset() {
+      this.dragOffset = {x: 0, y: 0}
+      this.dragState = null
     },
     requestClose() {
       const canClose = canRequestDialogClose({
@@ -270,6 +297,7 @@ export default {
         return
       }
 
+      this.resetDragOffset()
       const dialogPanel = this.$refs.dialogPanel
       const activeElement = document.activeElement
       this.focusReturnElement = dialogPanel?.contains(activeElement)
@@ -322,6 +350,7 @@ export default {
       this.focusReturnElement = null
     },
     toggleMaximize() {
+      this.resetDragOffset()
       this.dialogViewState = reduceDialogViewState(
         this.dialogViewState,
         DIALOG_VIEW_ACTION.TOGGLE_MAXIMIZE,
@@ -329,6 +358,66 @@ export default {
       )
       this.activateDialog()
       this.$emit('maximize-change', this.dialogViewState.maximized)
+    },
+    startDrag(event) {
+      if (
+        !this.isDesktopDragAvailable
+        || event.button !== 0
+        || event.isPrimary === false
+        || event.target.closest('button, a, input, select, textarea, [data-dialog-no-drag]')
+      ) {
+        return
+      }
+
+      const dialogPanel = this.$refs.dialogPanel
+      const dialogMask = this.$refs.dialogMask
+      if (!dialogPanel || !dialogMask) {
+        return
+      }
+
+      const panelRect = dialogPanel.getBoundingClientRect()
+      const maskRect = dialogMask.getBoundingClientRect()
+      const minX = this.dragOffset.x + maskRect.left + DIALOG_DRAG_GUTTER_PX - panelRect.left
+      const maxX = this.dragOffset.x + maskRect.right - DIALOG_DRAG_GUTTER_PX - panelRect.right
+      const minY = this.dragOffset.y + maskRect.top + DIALOG_DRAG_GUTTER_PX - panelRect.top
+      const maxY = this.dragOffset.y + maskRect.bottom - DIALOG_DRAG_GUTTER_PX - panelRect.bottom
+
+      this.dragState = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: this.dragOffset.x,
+        originY: this.dragOffset.y,
+        minX: Math.min(minX, maxX),
+        maxX: Math.max(minX, maxX),
+        minY: Math.min(minY, maxY),
+        maxY: Math.max(minY, maxY)
+      }
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+      event.preventDefault()
+    },
+    moveDrag(event) {
+      if (!this.dragState || event.pointerId !== this.dragState.pointerId) {
+        return
+      }
+
+      const x = this.dragState.originX + event.clientX - this.dragState.startX
+      const y = this.dragState.originY + event.clientY - this.dragState.startY
+      this.dragOffset = {
+        x: Math.min(this.dragState.maxX, Math.max(this.dragState.minX, x)),
+        y: Math.min(this.dragState.maxY, Math.max(this.dragState.minY, y))
+      }
+    },
+    endDrag(event) {
+      if (!this.dragState || event.pointerId !== this.dragState.pointerId) {
+        return
+      }
+
+      event.currentTarget.releasePointerCapture?.(event.pointerId)
+      this.dragState = null
+    },
+    updateViewportWidth() {
+      this.viewportWidth = window.innerWidth
     },
     handleMaskClick() {
       if (this.closeOnMask) {
@@ -384,6 +473,7 @@ export default {
     inset 0 1px 0 rgba(255, 255, 255, 0.16);
   backdrop-filter: blur(30px) saturate(160%);
   overflow: hidden;
+  transform: translate3d(var(--mac-dialog-drag-x, 0px), var(--mac-dialog-drag-y, 0px), 0);
 }
 
 .mac-dialog-panel.maximized {
@@ -398,16 +488,31 @@ export default {
   );
   max-width: none !important;
   max-height: none;
+  transform: none;
 }
 
 .mac-dialog-head {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 14px;
   align-items: start;
   padding: 18px 20px;
   border-bottom: 1px solid rgba(226, 241, 255, 0.12);
+}
+
+.mac-dialog-head.draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.mac-dialog-panel.dragging,
+.mac-dialog-panel.dragging .mac-dialog-head {
+  cursor: grabbing;
+}
+
+.mac-dialog-panel.dragging {
+  transition: none !important;
 }
 
 .mac-dialog-title {
@@ -422,27 +527,6 @@ export default {
   color: rgba(219, 235, 247, 0.68);
   font-size: 13px;
   line-height: 1.5;
-}
-
-.mac-dialog-close {
-  width: 34px;
-  height: 34px;
-  border: 1px solid rgba(226, 241, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(238, 248, 255, 0.9);
-  cursor: pointer;
-  transition: opacity 160ms ease, background 160ms ease, border-color 160ms ease;
-}
-
-.mac-dialog-close:hover:not(:disabled) {
-  border-color: rgba(118, 221, 230, 0.46);
-  background: rgba(86, 202, 214, 0.18);
-}
-
-.mac-dialog-close:disabled {
-  opacity: 0.42;
-  cursor: not-allowed;
 }
 
 .mac-dialog-body {
@@ -606,7 +690,7 @@ export default {
   }
 
   .mac-dialog-head {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
   }
 
   .mac-dialog-head :deep(.mac-window-controls) {

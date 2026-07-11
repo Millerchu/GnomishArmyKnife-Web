@@ -70,7 +70,7 @@ afterEach(() => {
 })
 
 describe('MacDialog real component behavior', () => {
-  it('emits update, cancel and close in order from the close button', async () => {
+  it('emits update, cancel and close in order from the left window close control', async () => {
     const eventOrder = []
     const wrapper = mountDialog({
       'onUpdate:modelValue': (value) => eventOrder.push(['update:modelValue', value]),
@@ -78,7 +78,7 @@ describe('MacDialog real component behavior', () => {
       onClose: () => eventOrder.push(['close'])
     })
 
-    await clickElement(document.body.querySelector('.mac-dialog-close'))
+    await clickElement(document.body.querySelector('.mac-window-dot.close'))
 
     expect(eventOrder).toEqual([
       ['update:modelValue', false],
@@ -90,12 +90,18 @@ describe('MacDialog real component behavior', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
+  it('has no redundant right-side close button', async () => {
+    mountDialog()
+
+    expect(document.body.querySelector('.mac-dialog-close')).toBeNull()
+    expect(document.body.querySelector('.mac-dialog-head')).not.toBeNull()
+  })
+
   it('blocks every close and minimize entry while allowing maximize', async () => {
     const wrapper = mountDialog({closeDisabled: true})
     const panel = document.body.querySelector('.mac-dialog-panel')
 
     await clickElement(panel.querySelector('.mac-window-dot.close'))
-    await clickElement(document.body.querySelector('.mac-dialog-close'))
     await clickElement(panel.querySelector('.mac-window-dot.minimize'))
     panel.closest('.mac-dialog-mask').click()
     dispatchEscape()
@@ -110,6 +116,94 @@ describe('MacDialog real component behavior', () => {
 
     expect(panel.classList.contains('maximized')).toBe(true)
     expect(wrapper.emitted('maximize-change')).toEqual([[true]])
+  })
+
+  it('moves the desktop dialog from the header and ignores window controls', async () => {
+    const wrapper = mountDialog()
+    const panel = document.body.querySelector('.mac-dialog-panel')
+    const mask = panel.closest('.mac-dialog-mask')
+    const header = panel.querySelector('.mac-dialog-head')
+    const closeControl = panel.querySelector('.mac-window-dot.close')
+    const originalInnerWidth = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', {configurable: true, value: 1024})
+    wrapper.vm.updateViewportWidth()
+    panel.getBoundingClientRect = () => ({left: 200, top: 180, right: 920, bottom: 580})
+    mask.getBoundingClientRect = () => ({left: 0, top: 0, right: 1200, bottom: 760})
+
+    const dragStart = new MouseEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 400,
+      clientY: 240
+    })
+    Object.defineProperty(dragStart, 'pointerId', {value: 1})
+    header.dispatchEvent(dragStart)
+
+    const dragMove = new MouseEvent('pointermove', {
+      bubbles: true,
+      clientX: 452,
+      clientY: 268
+    })
+    Object.defineProperty(dragMove, 'pointerId', {value: 1})
+    header.dispatchEvent(dragMove)
+    await nextTick()
+
+    expect(panel.style.getPropertyValue('--mac-dialog-drag-x')).toBe('52px')
+    expect(panel.style.getPropertyValue('--mac-dialog-drag-y')).toBe('28px')
+
+    const dragEnd = new MouseEvent('pointerup', {bubbles: true})
+    Object.defineProperty(dragEnd, 'pointerId', {value: 1})
+    header.dispatchEvent(dragEnd)
+    expect(wrapper.vm.isDragging).toBe(false)
+
+    const controlStart = new MouseEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 230,
+      clientY: 205
+    })
+    Object.defineProperty(controlStart, 'pointerId', {value: 2})
+    closeControl.dispatchEvent(controlStart)
+    expect(wrapper.vm.isDragging).toBe(false)
+    Object.defineProperty(window, 'innerWidth', {configurable: true, value: originalInnerWidth})
+  })
+
+  it('does not start a drag while maximized or on mobile', async () => {
+    const wrapper = mountDialog()
+    const panel = document.body.querySelector('.mac-dialog-panel')
+    const header = panel.querySelector('.mac-dialog-head')
+    const originalInnerWidth = window.innerWidth
+
+    await clickElement(panel.querySelector('.mac-window-dot.zoom'))
+    wrapper.vm.startDrag({
+      button: 0,
+      isPrimary: true,
+      target: header,
+      currentTarget: header,
+      pointerId: 1,
+      clientX: 300,
+      clientY: 200,
+      preventDefault: vi.fn()
+    })
+    expect(wrapper.vm.isDragging).toBe(false)
+
+    await clickElement(panel.querySelector('.mac-window-dot.zoom'))
+    Object.defineProperty(window, 'innerWidth', {configurable: true, value: 720})
+    wrapper.vm.updateViewportWidth()
+    wrapper.vm.startDrag({
+      button: 0,
+      isPrimary: true,
+      target: header,
+      currentTarget: header,
+      pointerId: 2,
+      clientX: 300,
+      clientY: 200,
+      preventDefault: vi.fn()
+    })
+    expect(wrapper.vm.isDragging).toBe(false)
+    Object.defineProperty(window, 'innerWidth', {configurable: true, value: originalInnerWidth})
   })
 
   it('keeps slot DOM, input value and scroll position while restoring focus', async () => {

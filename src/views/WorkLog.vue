@@ -487,7 +487,6 @@
       </form>
 
       <template #footer>
-        <button type="button" class="ghost-btn" :disabled="submitting" @click="closeDialog">取消</button>
         <button
           type="submit"
           class="action-btn"

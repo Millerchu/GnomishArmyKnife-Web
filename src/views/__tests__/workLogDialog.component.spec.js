@@ -146,8 +146,6 @@ function expectDialogSubmissionLock(panel, locked) {
   expect(panel.querySelector('.mac-window-dot.close').disabled).toBe(locked)
   expect(panel.querySelector('.mac-window-dot.minimize').disabled).toBe(locked)
   expect(panel.querySelector('.mac-window-dot.zoom').disabled).toBe(false)
-  expect(panel.querySelector('.mac-dialog-close').disabled).toBe(locked)
-  expect(panel.querySelector('.mac-dialog-actions .ghost-btn').disabled).toBe(locked)
   expect(panel.querySelector('.mac-dialog-actions button[type="submit"]').disabled).toBe(locked)
 }
 
@@ -275,20 +273,14 @@ describe('WorkLog MacDialog integration', () => {
     ]))
   })
 
-  it('closes the teleported dialog from the footer cancel button', async () => {
-    const wrapper = await mountWorkLogAndOpenCreateDialog()
+  it('keeps the footer focused on the single submit action', async () => {
+    await mountWorkLogAndOpenCreateDialog()
 
-    const cancelButton = document.body.querySelector(
-      '.mac-dialog-panel.work-log-dialog .mac-dialog-actions .ghost-btn'
+    const footerButtons = document.body.querySelectorAll(
+      '.mac-dialog-panel.work-log-dialog .mac-dialog-actions button'
     )
-    expect(cancelButton).not.toBeNull()
-
-    cancelButton.click()
-    await nextTick()
-    await nextTick()
-
-    expect(wrapper.vm.showDialog).toBe(false)
-    expect(document.body.querySelector('.mac-dialog-panel.work-log-dialog')).toBeNull()
+    expect(footerButtons).toHaveLength(1)
+    expect(footerButtons[0].type).toBe('submit')
   })
 
   it('submits a valid create form from the teleported footer button', async () => {
@@ -352,11 +344,11 @@ describe('WorkLog MacDialog integration', () => {
     expect(getDialogPanel()).toBeNull()
   })
 
-  it('closes the edit dialog from the footer cancel button', async () => {
+  it('closes the edit dialog from the left window close control', async () => {
     const wrapper = await mountWorkLog()
     const panel = await openEditDialog(wrapper)
 
-    panel.querySelector('.mac-dialog-actions .ghost-btn').click()
+    panel.querySelector('.mac-window-dot.close').click()
     await nextTick()
     await nextTick()
 
