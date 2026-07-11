@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "npm run test:unit && npm run test:component",
     "test:unit": "node --test src/utils/__tests__/*.test.js src/constants/__tests__/*.test.js src/components/__tests__/*.test.js",
-    "test:component": "vitest run src/components/__tests__/macDialog.component.spec.js src/views/__tests__/workLogDialog.component.spec.js src/views/__tests__/systemDialogMigration.component.spec.js --exclude .worktrees/**"
+    "test:component": "vitest run src/components/__tests__/*.component.spec.js src/views/__tests__/*.component.spec.js --exclude .worktrees/**"
   },
   "dependencies": {
     "axios": "^1.13.2",

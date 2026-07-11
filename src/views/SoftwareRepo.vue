@@ -252,10 +252,15 @@
       </aside>
     </div>
 
-    <div v-if="showSoftwareDialog" class="dialog-mask" @click.self="closeSoftwareDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ softwareDialogMode === 'create' ? '新增软件' : '编辑软件' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitSoftwareDialog">
+    <MacDialog
+      v-model="showSoftwareDialog"
+      :title="softwareDialogMode === 'create' ? '新增软件' : '编辑软件'"
+      width="720px"
+      :close-disabled="submitting"
+      panel-class="software-editor-dialog"
+      @cancel="closeSoftwareDialog"
+    >
+      <form id="software-dialog-form" class="dialog-form" @submit.prevent="submitSoftwareDialog">
           <div class="form-inline-grid">
             <label class="form-field">
               <span>软件名</span>
@@ -289,21 +294,28 @@
             <span>描述</span>
             <textarea v-model.trim="softwareForm.description" class="input textarea" rows="3" maxlength="200" placeholder="记录适用场景、用途等" />
           </label>
+      </form>
+      <template #footer>
+        <button
+          type="submit"
+          class="action-btn"
+          form="software-dialog-form"
+          :disabled="submitting"
+        >
+          {{ submitting ? '提交中...' : (softwareDialogMode === 'create' ? '保存软件' : '更新软件') }}
+        </button>
+      </template>
+    </MacDialog>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeSoftwareDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (softwareDialogMode === 'create' ? '保存软件' : '更新软件') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div v-if="showVersionDialog" class="dialog-mask" @click.self="closeVersionDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ versionDialogMode === 'create' ? '新增版本' : '编辑版本' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitVersionDialog">
+    <MacDialog
+      v-model="showVersionDialog"
+      :title="versionDialogMode === 'create' ? '新增版本' : '编辑版本'"
+      width="760px"
+      :close-disabled="submitting"
+      panel-class="software-version-dialog"
+      @cancel="closeVersionDialog"
+    >
+      <form id="software-version-dialog-form" class="dialog-form" @submit.prevent="submitVersionDialog">
           <div class="form-inline-grid">
             <label class="form-field">
               <span>版本号</span>
@@ -377,22 +389,25 @@
             <span>更新说明</span>
             <textarea v-model.trim="versionForm.changelog" class="input textarea" rows="3" maxlength="240" placeholder="记录该版本的主要更新" />
           </label>
-
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeVersionDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (versionDialogMode === 'create' ? '保存版本' : '更新版本') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+      <template #footer>
+        <button
+          type="submit"
+          class="action-btn"
+          form="software-version-dialog-form"
+          :disabled="submitting"
+        >
+          {{ submitting ? '提交中...' : (versionDialogMode === 'create' ? '保存版本' : '更新版本') }}
+        </button>
+      </template>
+    </MacDialog>
   </div>
 </template>
 
 <script>
 import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createSoftwarePackage,
   createSoftwareVersion,
@@ -552,6 +567,9 @@ function buildSummary(packages = []) {
 
 export default {
   name: 'SoftwareRepo',
+  components: {
+    MacDialog
+  },
   setup() {
     const router = useRouter()
 
@@ -1136,8 +1154,7 @@ export default {
 .hero-panel,
 .filter-panel,
 .list-panel,
-.insight-panel,
-.dialog {
+.insight-panel {
   border-radius: 18px;
   padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1158,7 +1175,6 @@ export default {
 .insight-head,
 .distribution-row,
 .recent-item,
-.dialog-actions,
 .mobile-card-actions,
 .software-head {
   display: flex;
@@ -1178,7 +1194,6 @@ export default {
 
 .page-title,
 .panel-title,
-.dialog-title,
 .insight-title,
 .software-title,
 .mobile-card-title {
@@ -1566,25 +1581,6 @@ export default {
   display: none;
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  padding: 18px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(1, 8, 16, 0.58);
-}
-
-.dialog {
-  width: min(760px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-  padding: 20px;
-  border-radius: 20px;
-}
-
 .dialog-form {
   display: flex;
   flex-direction: column;
@@ -1593,11 +1589,6 @@ export default {
 
 .form-inline-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.dialog-actions {
-  justify-content: flex-end;
-  flex-wrap: wrap;
 }
 
 .empty-state {
@@ -1634,7 +1625,6 @@ export default {
   .filter-panel,
   .toolbar,
   .pager,
-  .dialog-actions,
   .software-head {
     flex-direction: column;
     align-items: stretch;
@@ -1654,9 +1644,7 @@ export default {
   .filter-actions .ghost-btn,
   .toolbar-left .action-btn,
   .toolbar-left .ghost-btn,
-  .pager-right .ghost-btn,
-  .dialog-actions .action-btn,
-  .dialog-actions .ghost-btn {
+  .pager-right .ghost-btn {
     flex: 1 1 calc(50% - 6px);
   }
 
@@ -1714,8 +1702,7 @@ export default {
   .hero-panel,
   .filter-panel,
   .list-panel,
-  .insight-panel,
-  .dialog {
+  .insight-panel {
     padding: 14px;
     border-radius: 16px;
   }
@@ -1746,8 +1733,5 @@ export default {
     gap: 8px;
   }
 
-  .dialog-mask {
-    padding: 10px;
-  }
 }
 </style>

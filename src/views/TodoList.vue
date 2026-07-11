@@ -257,10 +257,15 @@
       </aside>
     </div>
 
-    <div v-if="showDialog" class="dialog-mask" @click.self="closeDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ dialogMode === 'create' ? '新增待办任务' : '编辑待办任务' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitDialog">
+    <MacDialog
+      v-model="showDialog"
+      :title="dialogMode === 'create' ? '新增待办任务' : '编辑待办任务'"
+      width="760px"
+      :close-disabled="submitting"
+      panel-class="todo-editor-dialog"
+      @cancel="closeDialog"
+    >
+      <form id="todo-task-dialog-form" class="dialog-form" @submit.prevent="submitDialog">
           <label class="form-field">
             <span>任务标题</span>
             <input v-model.trim="form.title" class="input" maxlength="100" placeholder="例如：整理本周工作清单" required />
@@ -346,22 +351,25 @@
             </div>
             <div v-else class="subtle-empty">还没有子任务，可以先添加 1-3 个执行动作。</div>
           </div>
-
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存任务' : '更新任务') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+      <template #footer>
+        <button
+          type="submit"
+          class="action-btn"
+          form="todo-task-dialog-form"
+          :disabled="submitting"
+        >
+          {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存任务' : '更新任务') }}
+        </button>
+      </template>
+    </MacDialog>
   </div>
 </template>
 
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   clearCompletedTodoTasks,
   createTodoTask,
@@ -524,6 +532,9 @@ function normalizeReminderPayload(value) {
 
 export default {
   name: 'TodoList',
+  components: {
+    MacDialog
+  },
   setup() {
     const router = useRouter()
 
@@ -972,7 +983,6 @@ export default {
 .filter-panel,
 .list-panel,
 .insight-panel,
-.dialog,
 .steps-panel {
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
@@ -995,7 +1005,6 @@ export default {
 .insight-head,
 .distribution-row,
 .mobile-card-actions,
-.dialog-actions,
 .steps-create,
 .step-item {
   display: flex;
@@ -1026,7 +1035,6 @@ export default {
 
 .page-title,
 .panel-title,
-.dialog-title,
 .insight-title,
 .steps-title {
   margin: 0;
@@ -1079,8 +1087,7 @@ export default {
 .action-btn,
 .mini-btn,
 .icon-btn,
-.task-check-btn,
-.dialog-close {
+.task-check-btn {
   border: none;
   color: #fff;
   cursor: pointer;
@@ -1429,25 +1436,6 @@ export default {
   color: #222;
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  padding: 18px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(1, 8, 16, 0.58);
-}
-
-.dialog {
-  width: min(760px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-  padding: 20px;
-  border-radius: 20px;
-}
-
 .dialog-form {
   display: flex;
   flex-direction: column;
@@ -1596,8 +1584,6 @@ export default {
   .toolbar-left .action-btn,
   .toolbar-left .ghost-btn,
   .pager-right .ghost-btn,
-  .dialog-actions .action-btn,
-  .dialog-actions .ghost-btn,
   .steps-create .action-btn {
     flex: 1 1 calc(50% - 6px);
   }
@@ -1620,8 +1606,7 @@ export default {
   .hero-panel,
   .filter-panel,
   .list-panel,
-  .insight-panel,
-  .dialog {
+  .insight-panel {
     padding: 14px;
     border-radius: 16px;
   }
@@ -1640,15 +1625,10 @@ export default {
   .toolbar-left .action-btn,
   .toolbar-left .ghost-btn,
   .pager-right .ghost-btn,
-  .dialog-actions .action-btn,
-  .dialog-actions .ghost-btn,
   .steps-create .action-btn,
   .mobile-card-actions .mini-btn {
     flex-basis: 100%;
   }
 
-  .dialog-mask {
-    padding: 10px;
-  }
 }
 </style>

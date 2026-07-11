@@ -290,10 +290,15 @@
       </aside>
     </div>
 
-    <div v-if="showBillDialog" class="dialog-mask" @click.self="closeBillDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ billDialogMode === 'create' ? '新增账单' : '编辑账单' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitBillDialog">
+    <MacDialog
+      v-model="showBillDialog"
+      :title="billDialogMode === 'create' ? '新增账单' : '编辑账单'"
+      width="720px"
+      :close-disabled="submitting"
+      panel-class="personal-bill-dialog"
+      @cancel="closeBillDialog"
+    >
+      <form id="personal-bill-dialog-form" class="dialog-form" @submit.prevent="submitBillDialog">
           <div class="form-inline-grid">
             <label class="form-field">
               <span>账单类型</span>
@@ -346,21 +351,28 @@
             <span>备注</span>
             <textarea v-model.trim="billForm.note" class="input textarea" rows="3" maxlength="160" placeholder="补充记录用途、场景等" />
           </label>
+      </form>
+      <template #footer>
+        <button
+          type="submit"
+          class="action-btn"
+          form="personal-bill-dialog-form"
+          :disabled="submitting"
+        >
+          {{ submitting ? '提交中...' : (billDialogMode === 'create' ? '保存账单' : '更新账单') }}
+        </button>
+      </template>
+    </MacDialog>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeBillDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (billDialogMode === 'create' ? '保存账单' : '更新账单') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div v-if="showBudgetDialog" class="dialog-mask" @click.self="closeBudgetDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ budgetDialogMode === 'create' ? '新增年度预算' : '编辑年度预算' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitBudgetDialog">
+    <MacDialog
+      v-model="showBudgetDialog"
+      :title="budgetDialogMode === 'create' ? '新增年度预算' : '编辑年度预算'"
+      width="680px"
+      :close-disabled="budgetSubmitting"
+      panel-class="personal-budget-dialog"
+      @cancel="closeBudgetDialog"
+    >
+      <form id="personal-budget-dialog-form" class="dialog-form" @submit.prevent="submitBudgetDialog">
           <div class="form-inline-grid">
             <label class="form-field">
               <span>预算年份</span>
@@ -391,22 +403,25 @@
             <span>备注</span>
             <textarea v-model.trim="budgetForm.note" class="input textarea" rows="3" maxlength="120" placeholder="例如：餐饮全年控制在 1.5 万内" />
           </label>
-
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="budgetSubmitting" @click="closeBudgetDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="budgetSubmitting">
-              {{ budgetSubmitting ? '提交中...' : (budgetDialogMode === 'create' ? '保存预算' : '更新预算') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+      <template #footer>
+        <button
+          type="submit"
+          class="action-btn"
+          form="personal-budget-dialog-form"
+          :disabled="budgetSubmitting"
+        >
+          {{ budgetSubmitting ? '提交中...' : (budgetDialogMode === 'create' ? '保存预算' : '更新预算') }}
+        </button>
+      </template>
+    </MacDialog>
   </div>
 </template>
 
 <script>
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createAnnualBudget,
   createPersonalBill,
@@ -530,6 +545,9 @@ function normalizeBudgetProgress(payload) {
 
 export default {
   name: 'PersonalBills',
+  components: {
+    MacDialog
+  },
   setup() {
     const router = useRouter()
 
@@ -1024,8 +1042,7 @@ export default {
 .budget-panel,
 .filter-panel,
 .list-panel,
-.insight-panel,
-.dialog {
+.insight-panel {
   border-radius: 18px;
   padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1047,7 +1064,6 @@ export default {
 .insight-head,
 .distribution-row,
 .recent-item,
-.dialog-actions,
 .mobile-card-actions,
 .budget-card-head {
   display: flex;
@@ -1067,7 +1083,6 @@ export default {
 
 .page-title,
 .panel-title,
-.dialog-title,
 .insight-title,
 .mobile-card-title {
   margin: 0;
@@ -1445,25 +1460,6 @@ export default {
   min-height: 92px;
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  padding: 18px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(1, 8, 16, 0.58);
-}
-
-.dialog {
-  width: min(760px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-  padding: 20px;
-  border-radius: 20px;
-}
-
 .dialog-form {
   display: flex;
   flex-direction: column;
@@ -1472,11 +1468,6 @@ export default {
 
 .form-inline-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.dialog-actions {
-  justify-content: flex-end;
-  flex-wrap: wrap;
 }
 
 .empty-state {
@@ -1511,8 +1502,7 @@ export default {
   .budget-panel,
   .filter-panel,
   .toolbar,
-  .pager,
-  .dialog-actions {
+  .pager {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1529,9 +1519,7 @@ export default {
   .filter-actions .ghost-btn,
   .toolbar-left .action-btn,
   .toolbar-left .ghost-btn,
-  .pager-right .ghost-btn,
-  .dialog-actions .action-btn,
-  .dialog-actions .ghost-btn {
+  .pager-right .ghost-btn {
     flex: 1 1 calc(50% - 6px);
   }
 
@@ -1558,8 +1546,7 @@ export default {
   .budget-panel,
   .filter-panel,
   .list-panel,
-  .insight-panel,
-  .dialog {
+  .insight-panel {
     padding: 14px;
     border-radius: 16px;
   }
@@ -1568,8 +1555,5 @@ export default {
     font-size: 24px;
   }
 
-  .dialog-mask {
-    padding: 10px;
-  }
 }
 </style>
