@@ -534,12 +534,16 @@ export default {
       showDetailDialog.value = false
     }
 
+    const completeEditDialog = () => {
+      showEditDialog.value = false
+      resetForm()
+    }
+
     const closeEditDialog = () => {
       if (submitting.value) {
         return
       }
-      showEditDialog.value = false
-      resetForm()
+      completeEditDialog()
     }
 
     const submitEditDialog = async () => {
@@ -564,7 +568,7 @@ export default {
           await updateKnowledgeEntry(editingId.value, payload)
           showMessage(isAdmin.value ? '经验已更新' : '投稿修改已保存，并重新进入待审核', 'success')
         }
-        closeEditDialog()
+        completeEditDialog()
         await reloadAll()
       } catch (error) {
         console.error(error)

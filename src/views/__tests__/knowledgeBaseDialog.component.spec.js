@@ -6,6 +6,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import KnowledgeBase from '../KnowledgeBase.vue'
 import {
+  createKnowledgeEntry,
   getKnowledgeEntryDetail,
   getKnowledgeHighlights,
   listKnowledgeEntries,
@@ -110,6 +111,52 @@ describe('KnowledgeBase MacDialog review flow', () => {
     expect(wrapper.vm.showDetailDialog).toBe(true)
     expect(wrapper.vm.activeDetail?.id).toBe(18)
     expect(wrapper.vm.reviewSubmitting).toBe(false)
+    expect(panel).not.toBeNull()
+    expect(panel.querySelector('.mac-window-dot.close').disabled).toBe(false)
+  })
+})
+
+describe('KnowledgeBase MacDialog edit flow', () => {
+  it('新增保存成功后关闭弹窗并清理表单', async () => {
+    createKnowledgeEntry.mockResolvedValue(buildApiResponse({id: 21}))
+    const wrapper = await openPendingDetail()
+    wrapper.vm.closeDetailDialog()
+    wrapper.vm.openCreateDialog()
+    Object.assign(wrapper.vm.form, {
+      title: '新增经验',
+      category: '工作',
+      scenario: '集成测试',
+      source: '组件测试',
+      tagsText: '弹窗,保存',
+      summary: '验证成功后关闭',
+      content: '保存成功后应清理编辑状态'
+    })
+
+    await wrapper.vm.submitEditDialog()
+    await flushPromises()
+    await nextTick()
+
+    expect(createKnowledgeEntry).toHaveBeenCalledTimes(1)
+    expect(wrapper.vm.showEditDialog).toBe(false)
+    expect(wrapper.vm.form.title).toBe('')
+    expect(document.body.querySelector('.mac-dialog-panel.knowledge-entry-dialog')).toBeNull()
+  })
+
+  it('新增保存失败后保留弹窗并解除关闭锁定', async () => {
+    createKnowledgeEntry.mockRejectedValue(new Error('create failed'))
+    const wrapper = await openPendingDetail()
+    wrapper.vm.closeDetailDialog()
+    wrapper.vm.openCreateDialog()
+    wrapper.vm.form.title = '保留的草稿'
+
+    await wrapper.vm.submitEditDialog()
+    await flushPromises()
+    await nextTick()
+
+    const panel = document.body.querySelector('.mac-dialog-panel.knowledge-entry-dialog')
+    expect(wrapper.vm.showEditDialog).toBe(true)
+    expect(wrapper.vm.form.title).toBe('保留的草稿')
+    expect(wrapper.vm.submitting).toBe(false)
     expect(panel).not.toBeNull()
     expect(panel.querySelector('.mac-window-dot.close').disabled).toBe(false)
   })
