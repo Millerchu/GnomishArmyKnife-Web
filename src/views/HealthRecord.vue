@@ -750,12 +750,16 @@ export default {
       showRecordDialog.value = true
     }
 
+    const completeRecordDialog = () => {
+      showRecordDialog.value = false
+      resetRecordForm()
+    }
+
     const closeRecordDialog = () => {
       if (submitting.value) {
         return
       }
-      showRecordDialog.value = false
-      resetRecordForm()
+      completeRecordDialog()
     }
 
     const submitRecordDialog = async () => {
@@ -790,7 +794,7 @@ export default {
         } else {
           await updateHealthRecord(editingRecordId.value, payload)
         }
-        closeRecordDialog()
+        completeRecordDialog()
         await loadPage()
       } catch (error) {
         console.error(error)
@@ -840,12 +844,16 @@ export default {
       showVisitDialog.value = true
     }
 
+    const completeVisitDialog = () => {
+      showVisitDialog.value = false
+      resetVisitForm()
+    }
+
     const closeVisitDialog = () => {
       if (submitting.value) {
         return
       }
-      showVisitDialog.value = false
-      resetVisitForm()
+      completeVisitDialog()
     }
 
     const submitVisitDialog = async () => {
@@ -873,7 +881,7 @@ export default {
         } else {
           await updateHealthVisit(editingVisitId.value, payload)
         }
-        closeVisitDialog()
+        completeVisitDialog()
         await loadPage()
       } catch (error) {
         console.error(error)
@@ -919,12 +927,16 @@ export default {
       showReportDialog.value = true
     }
 
+    const completeReportDialog = () => {
+      showReportDialog.value = false
+      resetReportForm()
+    }
+
     const closeReportDialog = () => {
       if (submitting.value) {
         return
       }
-      showReportDialog.value = false
-      resetReportForm()
+      completeReportDialog()
     }
 
     const submitReportDialog = async () => {
@@ -948,7 +960,7 @@ export default {
         } else {
           await updateHealthReport(editingReportId.value, payload)
         }
-        closeReportDialog()
+        completeReportDialog()
         await loadPage()
       } catch (error) {
         console.error(error)
