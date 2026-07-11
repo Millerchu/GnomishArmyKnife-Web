@@ -309,10 +309,15 @@
       </aside>
     </div>
 
-    <div v-if="showDialog" class="dialog-mask" @click.self="closeDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ dialogMode === 'create' ? '新增角色信息' : '编辑角色信息' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitDialog">
+    <MacDialog
+      v-model="showDialog"
+      :title="dialogMode === 'create' ? '新增角色信息' : '编辑角色信息'"
+      width="980px"
+      panel-class="wow-character-dialog"
+      :close-disabled="submitting"
+      @close="closeDialog"
+    >
+        <form id="wow-character-dialog-form" class="dialog-form" @submit.prevent="submitDialog">
           <div class="form-inline-grid">
             <label class="form-field">
               <span>角色名</span>
@@ -558,36 +563,34 @@
             <textarea v-model.trim="form.note" class="input textarea" rows="3" maxlength="160" placeholder="补充记录当前版本定位、账号用途等" />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">
-              {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存角色' : '更新角色') }}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+        <template #footer>
+          <button type="submit" form="wow-character-dialog-form" class="action-btn" :disabled="submitting">
+            {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存角色' : '更新角色') }}
+          </button>
+        </template>
+    </MacDialog>
 
-    <div v-if="showKeybindingDialog" class="dialog-mask keybinding-mask" @click.self="closeKeybindingDialog">
-      <div class="keybinding-dialog">
-        <div class="dialog-block-head">
-          <div>
-            <h3 class="dialog-title">{{ activeKeybinding?.specNameLabel || '专精键位' }}</h3>
-            <p class="dialog-block-tip">键位字符串默认隐藏，只在这里查看、粘贴和复制。</p>
-          </div>
-        </div>
-        <textarea
-          v-model="activeKeybinding.bindingContent"
-          class="input textarea keybinding-textarea"
-          rows="10"
-          placeholder="粘贴插件导出的键位字符串"
-        />
-        <div class="dialog-actions">
-          <button type="button" class="ghost-btn" @click="closeKeybindingDialog">关闭</button>
-          <button type="button" class="action-btn" @click="copyActiveKeybinding">复制</button>
-        </div>
-      </div>
-    </div>
+    <MacDialog
+      v-model="showKeybindingDialog"
+      :title="activeKeybinding?.specNameLabel || '专精键位'"
+      subtitle="键位字符串默认隐藏，只在这里查看、粘贴和复制。"
+      width="720px"
+      panel-class="wow-keybinding-dialog"
+      :close-disabled="false"
+      @close="closeKeybindingDialog"
+    >
+      <textarea
+        v-if="activeKeybinding"
+        v-model="activeKeybinding.bindingContent"
+        class="input textarea keybinding-textarea"
+        rows="10"
+        placeholder="粘贴插件导出的键位字符串"
+      />
+      <template #footer>
+        <button v-if="activeKeybinding" type="button" class="action-btn" @click="copyActiveKeybinding">复制</button>
+      </template>
+    </MacDialog>
 
     <div
       v-if="activeFeaturedScoreItem"
@@ -629,6 +632,7 @@
 <script>
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
+import MacDialog from '@/components/MacDialog.vue'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   WOW_CLASS_RULES,
@@ -917,6 +921,7 @@ function normalizeOverview(payload = {}, dungeonOptions = []) {
 
 export default {
   name: 'WowCharacterStats',
+  components: {MacDialog},
   setup() {
     const router = useRouter()
 
@@ -1819,8 +1824,7 @@ export default {
 .spotlight-panel,
 .filter-panel,
 .list-panel,
-.insight-panel,
-.dialog {
+.insight-panel {
   border-radius: 18px;
   padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1841,7 +1845,6 @@ export default {
 .pager,
 .insight-head,
 .stats-row,
-.dialog-actions,
 .mobile-card-actions,
 .weekly-vault-head,
 .dialog-block-head {
@@ -1863,7 +1866,6 @@ export default {
 
 .page-title,
 .panel-title,
-.dialog-title,
 .insight-title,
 .dialog-block-title,
 .mobile-card-title,
@@ -2553,25 +2555,6 @@ export default {
   min-height: 92px;
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  padding: 18px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(1, 8, 16, 0.58);
-}
-
-.dialog {
-  width: min(980px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: auto;
-  padding: 20px;
-  border-radius: 20px;
-}
-
 .dialog-form {
   display: flex;
   flex-direction: column;
@@ -3111,30 +3094,12 @@ export default {
   color: #86efac;
 }
 
-.keybinding-mask {
-  z-index: 70;
-}
-
-.keybinding-dialog {
-  width: min(720px, 100%);
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(135deg, rgba(5, 18, 33, 0.98), rgba(15, 40, 66, 0.96));
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
-}
-
 .keybinding-textarea {
   margin-top: 12px;
   min-height: 220px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
   word-break: break-all;
-}
-
-.dialog-actions {
-  justify-content: flex-end;
-  flex-wrap: wrap;
 }
 
 .empty-state {
@@ -3222,7 +3187,6 @@ button:disabled {
   .filter-panel,
   .toolbar,
   .pager,
-  .dialog-actions,
   .dialog-block-head,
   .weekly-vault-head {
     flex-direction: column;
@@ -3231,8 +3195,7 @@ button:disabled {
 
   .hero-panel,
   .filter-panel,
-  .list-panel,
-  .dialog {
+  .list-panel {
     padding: 10px;
     border-radius: 12px;
   }
@@ -3334,9 +3297,7 @@ button:disabled {
   .filter-actions .ghost-btn,
   .toolbar-left .action-btn,
   .toolbar-left .ghost-btn,
-  .pager-right .ghost-btn,
-  .dialog-actions .action-btn,
-  .dialog-actions .ghost-btn {
+  .pager-right .ghost-btn {
     flex: 1 1 calc(50% - 6px);
   }
 
@@ -3415,20 +3376,8 @@ button:disabled {
     font-size: 12px;
   }
 
-  .dialog-mask {
-    padding: 8px;
-  }
-
-  .dialog {
-    max-height: calc(100vh - 16px);
-  }
-
   .dialog-form {
     gap: 10px;
-  }
-
-  .dialog-title {
-    font-size: 17px;
   }
 
   .dialog-block {
@@ -3545,11 +3494,6 @@ button:disabled {
     padding: 8px;
   }
 
-  .keybinding-dialog {
-    padding: 12px;
-    border-radius: 14px;
-  }
-
   .keybinding-textarea {
     min-height: 180px;
   }
@@ -3560,8 +3504,7 @@ button:disabled {
   .spotlight-panel,
   .filter-panel,
   .list-panel,
-  .insight-panel,
-  .dialog {
+  .insight-panel {
     padding: 9px;
     border-radius: 12px;
   }
@@ -3578,9 +3521,7 @@ button:disabled {
   .filter-actions .ghost-btn,
   .toolbar-left .action-btn,
   .toolbar-left .ghost-btn,
-  .pager-right .ghost-btn,
-  .dialog-actions .action-btn,
-  .dialog-actions .ghost-btn {
+  .pager-right .ghost-btn {
     flex-basis: 100%;
   }
 }

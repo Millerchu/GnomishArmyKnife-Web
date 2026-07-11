@@ -185,10 +185,15 @@
       </section>
     </div>
 
-    <div v-if="showRecordDialog" class="dialog-mask" @click.self="closeRecordDialog">
-      <div class="dialog large-dialog">
-        <h3 class="dialog-title">{{ recordDialogMode === 'create' ? '新增健康指标记录' : '编辑健康指标记录' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitRecordDialog">
+    <MacDialog
+      v-model="showRecordDialog"
+      :title="recordDialogMode === 'create' ? '新增健康指标记录' : '编辑健康指标记录'"
+      width="960px"
+      panel-class="health-record-dialog"
+      :close-disabled="submitting"
+      @close="closeRecordDialog"
+    >
+        <form id="health-record-dialog-form" class="dialog-form" @submit.prevent="submitRecordDialog">
           <div class="form-inline-grid">
             <label class="form-field">
               <span>记录日期</span>
@@ -276,18 +281,21 @@
             <textarea v-model.trim="recordForm.note" class="input textarea" rows="3" maxlength="255" placeholder="例如：晨起空腹、体检前一周作息规律" />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeRecordDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存记录' }}</button>
-          </div>
         </form>
-      </div>
-    </div>
+        <template #footer>
+          <button type="submit" form="health-record-dialog-form" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存记录' }}</button>
+        </template>
+    </MacDialog>
 
-    <div v-if="showVisitDialog" class="dialog-mask" @click.self="closeVisitDialog">
-      <div class="dialog large-dialog">
-        <h3 class="dialog-title">{{ visitDialogMode === 'create' ? '新增医院就诊' : '编辑医院就诊' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitVisitDialog">
+    <MacDialog
+      v-model="showVisitDialog"
+      :title="visitDialogMode === 'create' ? '新增医院就诊' : '编辑医院就诊'"
+      width="960px"
+      panel-class="health-visit-dialog"
+      :close-disabled="submitting"
+      @close="closeVisitDialog"
+    >
+        <form id="health-visit-dialog-form" class="dialog-form" @submit.prevent="submitVisitDialog">
           <div class="form-inline-grid">
             <label class="form-field">
               <span>就诊日期</span>
@@ -352,18 +360,21 @@
             <textarea v-model.trim="visitForm.note" class="input textarea" rows="2" maxlength="255" />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeVisitDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存就诊' }}</button>
-          </div>
         </form>
-      </div>
-    </div>
+        <template #footer>
+          <button type="submit" form="health-visit-dialog-form" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存就诊' }}</button>
+        </template>
+    </MacDialog>
 
-    <div v-if="showReportDialog" class="dialog-mask" @click.self="closeReportDialog">
-      <div class="dialog">
-        <h3 class="dialog-title">{{ reportDialogMode === 'create' ? '新增报告单' : '编辑报告单' }}</h3>
-        <form class="dialog-form" @submit.prevent="submitReportDialog">
+    <MacDialog
+      v-model="showReportDialog"
+      :title="reportDialogMode === 'create' ? '新增报告单' : '编辑报告单'"
+      width="760px"
+      panel-class="health-report-dialog"
+      :close-disabled="submitting"
+      @close="closeReportDialog"
+    >
+        <form id="health-report-dialog-form" class="dialog-form" @submit.prevent="submitReportDialog">
           <div class="form-inline-grid">
             <label class="form-field">
               <span>报告日期</span>
@@ -408,19 +419,18 @@
             <textarea v-model.trim="reportForm.doctorAdvice" class="input textarea" rows="3" maxlength="240" />
           </label>
 
-          <div class="dialog-actions">
-            <button type="button" class="ghost-btn" :disabled="submitting" @click="closeReportDialog">取消</button>
-            <button type="submit" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存报告' }}</button>
-          </div>
         </form>
-      </div>
-    </div>
+        <template #footer>
+          <button type="submit" form="health-report-dialog-form" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存报告' }}</button>
+        </template>
+    </MacDialog>
   </div>
 </template>
 
 <script>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import MacDialog from '@/components/MacDialog.vue'
 import {
   createHealthRecord,
   createHealthReport,
@@ -501,6 +511,7 @@ function buildNumericPayload(rawForm, fieldConfigs) {
 
 export default {
   name: 'HealthRecord',
+  components: {MacDialog},
   setup() {
     const router = useRouter()
 
@@ -1178,7 +1189,6 @@ export default {
 .toolbar-left,
 .trend-switch,
 .mobile-card-actions,
-.dialog-actions,
 .upload-row {
   display: flex;
   flex-wrap: wrap;
@@ -1376,38 +1386,6 @@ export default {
   padding-bottom: 0;
 }
 
-.dialog-mask {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(15, 23, 42, 0.42);
-  z-index: 90;
-}
-
-.dialog {
-  width: min(720px, 100%);
-  max-height: 92vh;
-  overflow: auto;
-  border-radius: 24px;
-  padding: 20px;
-  color: #edf4ff;
-  background: linear-gradient(135deg, rgba(8, 20, 34, 0.96), rgba(15, 37, 58, 0.94));
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
-}
-
-.large-dialog {
-  width: min(980px, 100%);
-}
-
-.dialog-title {
-  margin: 0 0 14px;
-  font-size: 22px;
-}
-
 .dialog-form {
   display: grid;
   gap: 12px;
@@ -1514,10 +1492,6 @@ button:disabled {
   .trend-list,
   .form-inline-grid {
     grid-template-columns: 1fr;
-  }
-
-  .dialog {
-    padding: 18px;
   }
 }
 </style>
