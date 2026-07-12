@@ -66,7 +66,12 @@
             <h1 class="home-title">侏儒军刀</h1>
             <p class="home-subtitle">{{ permissionHintText }}</p>
           </div>
-          <span class="app-count" :class="permissionBadgeClass">{{ appPermissionStatusText }}</span>
+          <div class="panel-actions">
+            <span class="app-count" :class="permissionBadgeClass">{{ appPermissionStatusText }}</span>
+            <button class="quick-create-trigger" type="button" :disabled="appPermissionLoading || !quickCreateTypes.length" @click="showQuickCreateDialog = true">
+              <span>＋</span>快速新增
+            </button>
+          </div>
         </div>
 
         <div v-if="surfaceNotice.message" class="surface-notice" :class="surfaceNotice.type">
@@ -124,7 +129,15 @@
             : '当前账号暂无可见应用，请先在权限管理中完成授权。' }}
         </div>
       </section>
+      <button class="mobile-quick-create" type="button" :disabled="appPermissionLoading || !quickCreateTypes.length" aria-label="快速新增" @click="showQuickCreateDialog = true">＋</button>
     </main>
+
+    <QuickCreateDialog
+      v-model="showQuickCreateDialog"
+      :types="quickCreateTypes"
+      :current-user="user"
+      @success="handleQuickCreateSuccess"
+    />
 
     <MacDialog
       v-model="logoutPending"
@@ -262,6 +275,7 @@ import {useRouter} from 'vue-router'
 import {changePasswordApi, getPasswordPublicKeyApi} from '@/api/auth'
 import AppIconImage from '@/components/AppIconImage.vue'
 import MacDialog from '@/components/MacDialog.vue'
+import QuickCreateDialog from '@/components/QuickCreateDialog.vue'
 import {getCurrentUserAccessibleApps} from '@/api/permission'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
@@ -270,6 +284,7 @@ import {clearAuthState, readAuthState, writeAuthState} from '@/utils/authStorage
 import {sortHomeTools} from '@/utils/homeToolOrder'
 import {resolvePermissionViewState} from '@/utils/permissionAccess'
 import {encryptPasswordByPublicKey} from '@/utils/rsaEncrypt'
+import {resolveQuickCreateTypes} from '@/constants/quickCreateRegistry'
 
 const WEEK_LABELS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
 const APP_COLOR_PALETTE = [
@@ -419,7 +434,8 @@ function buildNotice(type = '', title = '', message = '') {
 export default {
   components: {
     AppIconImage,
-    MacDialog
+    MacDialog,
+    QuickCreateDialog
   },
   setup() {
     const router = useRouter()
@@ -443,6 +459,7 @@ export default {
     const systemMenuRef = ref(null)
     const easterEggClickCount = ref(0)
     const logoutPending = ref(false)
+    const showQuickCreateDialog = ref(false)
     let easterEggTimer = null
     let surfaceNoticeTimer = null
 
@@ -531,6 +548,11 @@ export default {
       const nextTools = desktopVisibleDefinitions.map((item, index) => buildToolEntry(item, index))
       return sortHomeTools(nextTools, customToolOrder.value)
     })
+    const quickCreateTypes = computed(() => resolveQuickCreateTypes(accessibleFeatureCodes.value))
+
+    const handleQuickCreateSuccess = (message) => {
+      showSurfaceNotice('success', '快速新增成功', message)
+    }
 
     const syncProfileForm = () => {
       const currentUser = normalizeCurrentUser(user.value || {})
@@ -997,6 +1019,9 @@ export default {
       passwordForm,
       surfaceNotice,
       logoutPending,
+      showQuickCreateDialog,
+      quickCreateTypes,
+      handleQuickCreateSuccess,
       logout,
       requestLogout,
       cancelLogoutRequest,
@@ -1222,6 +1247,43 @@ export default {
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 18px;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quick-create-trigger,
+.mobile-quick-create {
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  color: #fff;
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.94), rgba(37, 99, 235, 0.92));
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.24);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.quick-create-trigger {
+  min-height: 36px;
+  padding: 0 15px;
+  border-radius: 12px;
+}
+
+.quick-create-trigger span {
+  margin-right: 5px;
+  font-size: 18px;
+}
+
+.quick-create-trigger:disabled,
+.mobile-quick-create:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mobile-quick-create {
+  display: none;
 }
 
 .home-title {
@@ -1590,6 +1652,19 @@ export default {
 
   .panel-head {
     display: none;
+  }
+
+  .mobile-quick-create {
+    position: fixed;
+    right: 18px;
+    bottom: 22px;
+    z-index: 20;
+    display: grid;
+    width: 52px;
+    height: 52px;
+    place-items: center;
+    border-radius: 17px;
+    font-size: 28px;
   }
 
   .surface-notice {

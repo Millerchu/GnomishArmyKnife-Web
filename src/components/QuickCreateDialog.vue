@@ -1,0 +1,278 @@
+<template>
+  <MacDialog
+    :model-value="modelValue"
+    title="快速新增"
+    subtitle="选择新增类型后，直接填写对应应用的数据。"
+    width="920px"
+    panel-class="quick-create-dialog"
+    :close-disabled="submitting"
+    @update:model-value="handleVisibleChange"
+    @cancel="requestClose"
+  >
+    <div class="quick-create-shell">
+      <label class="type-picker">
+        <span>新增类型</span>
+        <select :value="selectedTypeCode" :disabled="submitting" @change="handleTypeChange">
+          <option value="">请先选择新增类型</option>
+          <optgroup v-for="group in groupedTypes" :key="group.name" :label="group.name">
+            <option v-for="item in group.items" :key="item.typeCode" :value="item.typeCode">{{ item.label }}</option>
+          </optgroup>
+        </select>
+      </label>
+
+      <div v-if="!types.length" class="quick-empty">当前账号没有可快速新增的应用权限。</div>
+      <div v-else-if="!activeType" class="quick-empty">
+        <strong>从一个小动作开始</strong>
+        <span>选择上方类型，表单会在这里展开。</span>
+      </div>
+
+      <form v-else id="quick-create-form" class="quick-form" @submit.prevent="submit">
+        <header class="form-heading">
+          <div class="form-mark">{{ activeType.appName.slice(0, 1) }}</div>
+          <div><strong>{{ activeType.label }}</strong><span>{{ activeType.appName }}</span></div>
+        </header>
+        <p v-if="loadError" class="form-error">{{ loadError }}</p>
+        <div class="field-grid">
+          <label v-for="field in activeType.fields" :key="field.key" class="form-field" :class="{'wide-field': ['textarea', 'work-items'].includes(field.type)}">
+            <span>{{ field.label }}<b v-if="field.required"> *</b></span>
+            <textarea v-if="field.type === 'textarea'" v-model.trim="form[field.key]" :rows="field.rows || 3" :maxlength="field.maxlength" :placeholder="field.placeholder" />
+            <select v-else-if="field.type === 'select'" v-model="form[field.key]" :required="field.required">
+              <option v-for="option in field.options" :key="option[0]" :value="option[0]">{{ option[1] }}</option>
+            </select>
+            <select v-else-if="field.type === 'package-select'" v-model="form[field.key]" :required="field.required" :disabled="loadingDependencies">
+              <option value="">{{ loadingDependencies ? '正在加载软件列表...' : '请选择所属软件' }}</option>
+              <option v-for="item in packages" :key="item.id" :value="item.id">{{ item.softwareName || item.name }}</option>
+            </select>
+            <select v-else-if="field.type === 'dictionary-select'" v-model="form[field.key]" :required="field.required" :disabled="loadingDependencies || !dictionaryOptions[field.key]?.length">
+              <option value="">{{ loadingDependencies ? '正在加载字典...' : (dictionaryOptions[field.key]?.length ? '请选择' : '暂无可用字典项') }}</option>
+              <option v-for="item in dictionaryOptions[field.key]" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+            <div v-else-if="field.type === 'dictionary-multi'" class="dictionary-checks">
+              <label v-for="item in dictionaryOptions[field.key]" :key="item.value" :class="{selected: form[field.key]?.includes(item.value)}">
+                <input v-model="form[field.key]" type="checkbox" :value="item.value" /><span>{{ item.label }}</span>
+              </label>
+              <span v-if="!loadingDependencies && !dictionaryOptions[field.key]?.length" class="dictionary-empty">暂无可用字典项</span>
+            </div>
+            <div v-else-if="field.type === 'work-items'" class="work-item-editor">
+              <div v-for="(workItem, index) in form[field.key]" :key="index" class="work-item-row">
+                <span class="work-item-index">{{ index + 1 }}</span>
+                <input
+                  v-model="form[field.key][index]"
+                  type="text"
+                  maxlength="4000"
+                  :placeholder="index === 0 ? '填写工作内容、处理结果或跟进结论' : '继续添加工作事项'"
+                />
+                <button type="button" :disabled="form[field.key].length === 1" @click.prevent="removeWorkItem(field.key, index)">移除</button>
+              </div>
+              <button type="button" class="work-item-add" @click.prevent="addWorkItem(field.key)">＋ 添加一条</button>
+            </div>
+            <label v-else-if="field.type === 'checkbox'" class="check-control">
+              <input v-model="form[field.key]" type="checkbox" /><span>是</span>
+            </label>
+            <input v-else v-model="form[field.key]" :type="field.inputType || field.type" :required="field.required" :min="field.min" :max="field.max" :step="field.step" :maxlength="field.maxlength" :placeholder="field.placeholder" />
+          </label>
+        </div>
+        <p v-if="submitError" class="form-error">{{ submitError }}</p>
+      </form>
+    </div>
+    <template #footer>
+      <button v-if="activeType" form="quick-create-form" type="submit" class="quick-submit" :disabled="submitting || loadingDependencies">
+        {{ submitting ? '提交中...' : '保存新增' }}
+      </button>
+    </template>
+  </MacDialog>
+</template>
+
+<script setup>
+import {computed, reactive, ref, watch} from 'vue'
+import MacDialog from '@/components/MacDialog.vue'
+import {createWorkLog} from '@/api/workLog'
+import {createPasswordMemo} from '@/api/passwordMemo'
+import {createTodoTask} from '@/api/todoList'
+import {createFuelRecord} from '@/api/fuelStats'
+import {createWowCharacter} from '@/api/wowCharacter'
+import {createAnnualBudget, createPersonalBill} from '@/api/personalBills'
+import {createKnowledgeEntry} from '@/api/knowledgeBase'
+import {createSoftwarePackage, createSoftwareVersion, listSoftwarePackages} from '@/api/softwareRepo'
+import {createHealthRecord, createHealthReport, createHealthVisit} from '@/api/healthRecord'
+import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
+import {serializeWorkItemEntries} from '@/utils/workLogCalendar'
+
+const props = defineProps({modelValue: Boolean, types: {type: Array, default: () => []}, currentUser: {type: Object, default: () => ({})}})
+const emit = defineEmits(['update:modelValue', 'success'])
+const selectedTypeCode = ref('')
+const submitting = ref(false)
+const loadingDependencies = ref(false)
+const submitError = ref('')
+const loadError = ref('')
+const packages = ref([])
+const dictionaryOptions = reactive({})
+const form = reactive({})
+const initialSnapshot = ref('{}')
+
+const activeType = computed(() => props.types.find((item) => item.typeCode === selectedTypeCode.value) || null)
+const groupedTypes = computed(() => {
+  const groups = new Map()
+  props.types.forEach((item) => groups.set(item.appName, [...(groups.get(item.appName) || []), item]))
+  return Array.from(groups, ([name, items]) => ({name, items}))
+})
+const isDirty = computed(() => Boolean(activeType.value) && JSON.stringify(form) !== initialSnapshot.value)
+
+function unwrapData(response) {
+  const payload = response?.data
+  return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload
+}
+
+function resetForm(type = activeType.value) {
+  Object.keys(form).forEach((key) => delete form[key])
+  if (type) Object.assign(form, type.defaults())
+  initialSnapshot.value = JSON.stringify(form)
+  submitError.value = ''
+  loadError.value = ''
+}
+
+async function loadDependencies(type) {
+  packages.value = []
+  Object.keys(dictionaryOptions).forEach((key) => delete dictionaryOptions[key])
+  const dictionaryFields = type?.fields?.filter((field) => field.dictionaryUsage) || []
+  if (!type?.loadPackages && !dictionaryFields.length) return
+  loadingDependencies.value = true
+  try {
+    const tasks = []
+    if (type.loadPackages) {
+      tasks.push(listSoftwarePackages({pageNo: 1, pageSize: 100}).then((response) => {
+        const payload = unwrapData(response) || {}
+        packages.value = payload.list || payload.records || payload.items || (Array.isArray(payload) ? payload : [])
+      }))
+    }
+    dictionaryFields.forEach((field) => {
+      tasks.push(listDataDictionaryOptionsByUsage(field.dictionaryUsage).then((response) => {
+        const payload = unwrapData(response)
+        const list = Array.isArray(payload) ? payload : payload?.list || payload?.items || []
+        dictionaryOptions[field.key] = list.map((item) => ({
+          value: item.itemValue || item.value || item.itemCode || item.code || '',
+          label: item.itemLabel || item.label || item.itemValue || item.value || '',
+          isDefault: Boolean(item.isDefault)
+        })).filter((item) => item.value && item.label)
+        const currentValue = form[field.key]
+        if (field.type === 'dictionary-multi' && !currentValue?.length) {
+          form[field.key] = dictionaryOptions[field.key].filter((item) => item.isDefault).map((item) => item.value)
+        } else if (field.type === 'dictionary-select' && !currentValue) {
+          form[field.key] = dictionaryOptions[field.key].find((item) => item.isDefault)?.value || ''
+        }
+      }))
+    })
+    await Promise.all(tasks)
+    initialSnapshot.value = JSON.stringify(form)
+  } catch (error) {
+    loadError.value = error?.response?.data?.message || '表单选项加载失败，请稍后重试。'
+  } finally {
+    loadingDependencies.value = false
+  }
+}
+
+async function handleTypeChange(event) {
+  const nextCode = event.target.value
+  if (isDirty.value && !window.confirm('当前填写内容尚未保存，确认切换新增类型吗？')) {
+    event.target.value = selectedTypeCode.value
+    return
+  }
+  selectedTypeCode.value = nextCode
+  resetForm()
+  await loadDependencies(activeType.value)
+}
+
+function requestClose() {
+  if (submitting.value) return
+  if (isDirty.value && !window.confirm('当前填写内容尚未保存，确认关闭吗？')) return
+  emit('update:modelValue', false)
+}
+
+function handleVisibleChange(value) {
+  if (!value) requestClose()
+}
+
+function nullable(value) { return value === '' || value === undefined ? null : value }
+function numeric(value) { return value === '' || value === null ? null : Number(value) }
+function addWorkItem(fieldKey) { form[fieldKey].push('') }
+function removeWorkItem(fieldKey, index) {
+  if (form[fieldKey].length > 1) form[fieldKey].splice(index, 1)
+}
+
+function buildPayload(type) {
+  const payload = {...form}
+  if (type.api === 'workLog') {
+    payload.userId = props.currentUser.id ?? props.currentUser.userId
+    payload.typeCodes = Array.isArray(form.typeCodes) ? [...form.typeCodes] : []
+    payload.personDay = Number(form.personDay)
+    payload.overtimeHours = Number(form.overtimeHours || 0)
+    payload.workItem = serializeWorkItemEntries(form.workItems)
+    delete payload.workItems
+  }
+  if (type.api === 'todo') {
+    payload.steps = `${form.stepsText}`.split('\n').map((title) => title.trim()).filter(Boolean).map((title, index) => ({title, done: false, sortNo: index + 1}))
+    delete payload.stepsText
+    payload.reminderAt = nullable(payload.reminderAt)
+    payload.dueDate = nullable(payload.dueDate)
+  }
+  if (type.api === 'fuel') ['odometerKm', 'fuelVolume', 'totalAmount', 'discountedAmount', 'unitPrice'].forEach((key) => { payload[key] = numeric(payload[key]) })
+  if (type.api === 'wow') {
+    Object.assign(payload, {level: Number(form.level), itemLevel: Number(form.itemLevel), mythicBestLevel: Number(form.mythicBestLevel || 0), mythicRuns: [], weeklyVaults: [], keybindings: []})
+  }
+  if (type.api === 'knowledge') {
+    payload.tags = `${form.tagsText}`.split(/[,，]/).map((item) => item.trim()).filter(Boolean)
+    delete payload.tagsText
+    payload.source = nullable(payload.source)
+  }
+  if (type.api === 'healthRecord') Object.keys(payload).filter((key) => !['measureDate', 'note'].includes(key)).forEach((key) => { payload[key] = numeric(payload[key]) })
+  if (type.api === 'healthVisit' || type.api === 'healthReport') Object.keys(payload).forEach((key) => { if (key !== 'visitId') payload[key] = nullable(payload[key]) })
+  if (type.api === 'healthReport') payload.visitId = numeric(payload.visitId)
+  return payload
+}
+
+const apiHandlers = {
+  workLog: (payload) => createWorkLog(payload), passwordMemo: (payload) => createPasswordMemo(payload), todo: (payload) => createTodoTask(payload),
+  fuel: (payload) => createFuelRecord(payload), wow: (payload) => createWowCharacter(payload), bill: (payload) => createPersonalBill(payload),
+  budget: (payload) => createAnnualBudget(payload), knowledge: (payload) => createKnowledgeEntry(payload), software: (payload) => createSoftwarePackage(payload),
+  softwareVersion: (payload) => { const packageId = payload.packageId; delete payload.packageId; return createSoftwareVersion(packageId, payload) },
+  healthRecord: (payload) => createHealthRecord(payload), healthVisit: (payload) => createHealthVisit(payload), healthReport: (payload) => createHealthReport(payload)
+}
+
+async function submit() {
+  if (!activeType.value || submitting.value) return
+  submitError.value = ''
+  const passwordIdentityMissing = activeType.value.api === 'passwordMemo' && !form.username && !form.registeredPhone && !form.registeredEmail
+  if (passwordIdentityMissing) { submitError.value = '用户名、注册手机、注册邮箱至少填写一项。'; return }
+  if (activeType.value.api === 'fuel' && Number(form.discountedAmount) > Number(form.totalAmount)) { submitError.value = '优惠后金额不能大于加油金额。'; return }
+  if (activeType.value.api === 'workLog' && !serializeWorkItemEntries(form.workItems)) { submitError.value = '请至少填写一条工作内容。'; return }
+  submitting.value = true
+  try {
+    await apiHandlers[activeType.value.api](buildPayload(activeType.value))
+    const message = activeType.value.api === 'knowledge' && `${props.currentUser.roleCode || props.currentUser.role}`.toUpperCase() !== 'ADMIN'
+      ? '投稿已提交，等待管理员审核'
+      : `${activeType.value.label}成功`
+    emit('success', message)
+    emit('update:modelValue', false)
+    selectedTypeCode.value = ''
+    resetForm(null)
+  } catch (error) {
+    submitError.value = error?.response?.data?.message || error?.message || '保存失败，请检查后重试。'
+  } finally {
+    submitting.value = false
+  }
+}
+
+watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.value) resetForm(null) })
+</script>
+
+<style scoped>
+.quick-create-shell{display:grid;gap:20px;color:#edf8ff}.type-picker{display:grid;gap:8px;padding:16px 18px;border:1px solid rgba(125,211,252,.2);border-radius:16px;background:linear-gradient(135deg,rgba(17,54,75,.78),rgba(13,44,61,.68))}
+.type-picker>span,.form-field>span{font-size:13px;font-weight:700;color:#d9edf8}.type-picker select,.form-field input,.form-field select,.form-field textarea{width:100%;box-sizing:border-box;border:1px solid rgba(148,190,211,.42);border-radius:10px;background:#f8fcff;color:#172333;padding:10px 12px;font:inherit;outline:none}
+.type-picker select:focus,.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:#0f766e;box-shadow:0 0 0 3px rgba(15,118,110,.12)}
+.quick-empty{min-height:210px;display:grid;place-content:center;text-align:center;gap:7px;color:rgba(219,235,247,.72);border:1px dashed rgba(125,211,252,.26);border-radius:18px;background:rgba(8,31,46,.36)}.quick-empty strong{font-size:20px;color:#f2f9ff}.quick-empty span{font-size:14px}
+.quick-form{display:grid;gap:18px}.form-heading{display:flex;align-items:center;gap:12px}.form-heading>div:last-child{display:grid;gap:2px}.form-heading strong{font-size:20px;color:#f2f9ff}.form-heading span{font-size:12px;color:rgba(219,235,247,.72)}.form-mark{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(135deg,#0f766e,#2563eb);color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(15,118,110,.22)}
+.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.form-field{display:grid;align-content:start;gap:7px}.form-field b{color:#dc2626}.wide-field{grid-column:1/-1}.form-field textarea{resize:vertical;min-height:86px}.check-control{display:flex!important;align-items:center;gap:8px;min-height:41px}.check-control input{width:18px!important;height:18px}.form-error{margin:0;padding:10px 12px;border-radius:10px;background:#fff1f2;color:#be123c;font-size:13px}.quick-submit{border:0;border-radius:11px;background:linear-gradient(135deg,#0f766e,#2563eb);color:#fff;padding:11px 22px;font-weight:800;cursor:pointer}.quick-submit:disabled{opacity:.55;cursor:not-allowed}
+.dictionary-checks{display:flex;flex-wrap:wrap;gap:8px;min-height:42px;padding:7px;border:1px solid rgba(148,190,211,.28);border-radius:10px;background:rgba(8,31,46,.38)}.dictionary-checks label{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid rgba(148,190,211,.28);border-radius:999px;color:#d9edf8;cursor:pointer}.dictionary-checks label.selected{border-color:#5eead4;background:rgba(15,118,110,.36);color:#fff}.dictionary-checks input{width:15px!important;height:15px}.dictionary-empty{padding:5px 8px;color:rgba(219,235,247,.58);font-size:13px}
+.work-item-editor{display:grid;gap:10px}.work-item-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px}.work-item-index{display:grid;width:28px;height:28px;place-items:center;border-radius:9px;background:rgba(94,234,212,.14);color:#99f6e4;font-size:12px;font-weight:800}.work-item-row button,.work-item-add{border:1px solid rgba(148,190,211,.3);border-radius:9px;background:rgba(8,31,46,.52);color:#d9edf8;padding:9px 12px;cursor:pointer}.work-item-row button:disabled{opacity:.38;cursor:not-allowed}.work-item-add{justify-self:start;border-color:rgba(94,234,212,.38);color:#99f6e4;font-weight:700}
+@media(max-width:640px){.field-grid{grid-template-columns:1fr}.wide-field{grid-column:auto}.type-picker{padding:13px}.quick-empty{min-height:160px}.work-item-row{grid-template-columns:26px minmax(0,1fr)}.work-item-row button{grid-column:2;justify-self:end;padding:6px 10px}}
+</style>
