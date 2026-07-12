@@ -26,14 +26,14 @@
         <span>选择上方类型，表单会在这里展开。</span>
       </div>
 
-      <form v-else id="quick-create-form" class="quick-form" @submit.prevent="submit">
+      <form v-else id="quick-create-form" class="quick-form" :class="{'personal-bill-quick-form': activeType.typeCode === 'PERSONAL_BILL'}" @submit.prevent="submit">
         <header class="form-heading">
           <div class="form-mark">{{ activeType.appName.slice(0, 1) }}</div>
           <div><strong>{{ activeType.label }}</strong><span>{{ activeType.appName }}</span></div>
         </header>
         <p v-if="loadError" class="form-error">{{ loadError }}</p>
         <div class="field-grid">
-          <label v-for="field in activeType.fields" :key="field.key" class="form-field" :class="{'wide-field': ['textarea', 'work-items'].includes(field.type)}">
+          <label v-for="field in activeType.fields" :key="field.key" class="form-field" :class="[{'wide-field': ['textarea', 'work-items'].includes(field.type)}, `field-${field.key}`]">
             <span>{{ field.label }}<b v-if="field.required"> *</b></span>
             <textarea v-if="field.type === 'textarea'" v-model.trim="form[field.key]" :rows="field.rows || 3" :maxlength="field.maxlength" :placeholder="field.placeholder" />
             <select v-else-if="field.type === 'select'" v-model="form[field.key]" :required="field.required">
@@ -216,6 +216,7 @@ function buildPayload(type) {
     payload.dueDate = nullable(payload.dueDate)
   }
   if (type.api === 'fuel') ['odometerKm', 'fuelVolume', 'totalAmount', 'discountedAmount', 'unitPrice'].forEach((key) => { payload[key] = numeric(payload[key]) })
+  if (type.api === 'bill') payload.amount = numeric(payload.amount)
   if (type.api === 'wow') {
     Object.assign(payload, {level: Number(form.level), itemLevel: Number(form.itemLevel), mythicBestLevel: Number(form.mythicBestLevel || 0), mythicRuns: [], weeklyVaults: [], keybindings: []})
   }
@@ -244,6 +245,7 @@ async function submit() {
   const passwordIdentityMissing = activeType.value.api === 'passwordMemo' && !form.username && !form.registeredPhone && !form.registeredEmail
   if (passwordIdentityMissing) { submitError.value = '用户名、注册手机、注册邮箱至少填写一项。'; return }
   if (activeType.value.api === 'fuel' && Number(form.discountedAmount) > Number(form.totalAmount)) { submitError.value = '优惠后金额不能大于加油金额。'; return }
+  if (activeType.value.api === 'bill' && Number(form.amount) <= 0) { submitError.value = '账单金额必须大于 0。'; return }
   if (activeType.value.api === 'workLog' && !serializeWorkItemEntries(form.workItems)) { submitError.value = '请至少填写一条工作内容。'; return }
   submitting.value = true
   try {
@@ -274,5 +276,8 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
 .field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.form-field{display:grid;align-content:start;gap:7px}.form-field b{color:#dc2626}.wide-field{grid-column:1/-1}.form-field textarea{resize:vertical;min-height:86px}.check-control{display:flex!important;align-items:center;gap:8px;min-height:41px}.check-control input{width:18px!important;height:18px}.form-error{margin:0;padding:10px 12px;border-radius:10px;background:#fff1f2;color:#be123c;font-size:13px}.quick-submit{border:0;border-radius:11px;background:linear-gradient(135deg,#0f766e,#2563eb);color:#fff;padding:11px 22px;font-weight:800;cursor:pointer}.quick-submit:disabled{opacity:.55;cursor:not-allowed}
 .dictionary-checks{display:flex;flex-wrap:wrap;gap:8px;min-height:42px;padding:7px;border:1px solid rgba(148,190,211,.28);border-radius:10px;background:rgba(8,31,46,.38)}.dictionary-checks label{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid rgba(148,190,211,.28);border-radius:999px;color:#d9edf8;cursor:pointer}.dictionary-checks label.selected{border-color:#5eead4;background:rgba(15,118,110,.36);color:#fff}.dictionary-checks input{width:15px!important;height:15px}.dictionary-empty{padding:5px 8px;color:rgba(219,235,247,.58);font-size:13px}
 .work-item-editor{display:grid;gap:10px}.work-item-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px}.work-item-index{display:grid;width:28px;height:28px;place-items:center;border-radius:9px;background:rgba(94,234,212,.14);color:#99f6e4;font-size:12px;font-weight:800}.work-item-row button,.work-item-add{border:1px solid rgba(148,190,211,.3);border-radius:9px;background:rgba(8,31,46,.52);color:#d9edf8;padding:9px 12px;cursor:pointer}.work-item-row button:disabled{opacity:.38;cursor:not-allowed}.work-item-add{justify-self:start;border-color:rgba(94,234,212,.38);color:#99f6e4;font-weight:700}
-@media(max-width:640px){.field-grid{grid-template-columns:1fr}.wide-field{grid-column:auto}.type-picker{padding:13px}.quick-empty{min-height:160px}.work-item-row{grid-template-columns:26px minmax(0,1fr)}.work-item-row button{grid-column:2;justify-self:end;padding:6px 10px}}
+.personal-bill-quick-form{padding:18px;border:1px solid rgba(82,177,232,.2);border-radius:20px;background:radial-gradient(circle at 100% 0,rgba(37,99,235,.18),transparent 38%),rgba(5,25,39,.48)}
+.personal-bill-quick-form .field-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.personal-bill-quick-form .field-amount,.personal-bill-quick-form .field-categoryName{grid-column:span 2}.personal-bill-quick-form .field-accountName,.personal-bill-quick-form .field-paymentMethod,.personal-bill-quick-form .field-merchantName{grid-column:span 2}.personal-bill-quick-form .field-note{grid-column:1/-1}
+.personal-bill-quick-form .form-field input,.personal-bill-quick-form .form-field select,.personal-bill-quick-form .form-field textarea{background:rgba(7,30,47,.84);border-color:rgba(114,174,207,.3);color:#edf9ff;color-scheme:dark}.personal-bill-quick-form .field-amount{position:relative}.personal-bill-quick-form .field-amount input{height:58px;padding-right:42px;font-size:25px;font-weight:800;border-color:rgba(83,182,239,.48)}.personal-bill-quick-form .field-amount:after{content:'¥';position:absolute;right:14px;bottom:13px;color:#65d5df;font-size:21px;font-weight:900}
+@media(max-width:640px){.field-grid{grid-template-columns:1fr}.wide-field{grid-column:auto}.type-picker{padding:13px}.quick-empty{min-height:160px}.work-item-row{grid-template-columns:26px minmax(0,1fr)}.work-item-row button{grid-column:2;justify-self:end;padding:6px 10px}.personal-bill-quick-form{padding:13px}.personal-bill-quick-form .field-grid{grid-template-columns:1fr}.personal-bill-quick-form .field-amount,.personal-bill-quick-form .field-categoryName,.personal-bill-quick-form .field-accountName,.personal-bill-quick-form .field-paymentMethod,.personal-bill-quick-form .field-merchantName{grid-column:auto}}
 </style>

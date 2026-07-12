@@ -3156,4 +3156,41 @@ export default {
   }
 
 }
+
+/* 移动设备横屏时高度比宽度更能反映可用空间，避免继续套用五列桌面统计布局。 */
+@media (max-height: 640px) and (orientation: landscape) {
+  .work-log-page {
+    width: 100%;
+    padding: 10px 12px 24px;
+  }
+
+  .hero-panel,
+  .week-stats-panel,
+  .weekly-report-panel,
+  .month-view-panel,
+  .detail-panel {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .week-stats-grid,
+  .month-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .stats-card,
+  .stats-card-wide {
+    grid-column: span 1;
+    min-height: 112px;
+    padding: 11px;
+  }
+
+  .weekly-report-content,
+  .calendar-grid,
+  .month-calendar-grid,
+  .month-week-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 </style>

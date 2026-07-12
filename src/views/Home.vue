@@ -1681,12 +1681,14 @@ export default {
   .tool-item {
     min-height: 0 !important;
     padding: 0 !important;
-    border: none;
-    border-radius: 0;
+    border: none !important;
+    border-radius: 0 !important;
     align-items: flex-start;
     justify-content: center;
-    background: transparent;
-    box-shadow: none;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     cursor: pointer;
     text-align: center;
     -webkit-user-drag: none;
@@ -1695,16 +1697,22 @@ export default {
 
   .tool-item:hover {
     transform: none;
-    border-color: transparent;
-    background: transparent;
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+
+  .tool-item:active .icon-box {
+    transform: scale(0.94);
+    filter: brightness(0.9);
   }
 
   .tool-item.dragging,
   .tool-item.drag-over {
     opacity: 1;
     transform: none;
-    box-shadow: none;
-    background: transparent;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    background: transparent !important;
   }
 
   .tool-layout {
@@ -1718,6 +1726,7 @@ export default {
     height: 68px !important;
     flex-basis: 68px;
     border-radius: 18px !important;
+    transition: transform 120ms ease, filter 120ms ease;
   }
 
   .icon-text {

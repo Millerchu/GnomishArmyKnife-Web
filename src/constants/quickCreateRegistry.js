@@ -59,9 +59,9 @@ export const QUICK_CREATE_TYPES = [
       {...dictionary('professionSecondary', '专业 2', 'APP_WOW_CHARACTER', 'WOW_CHARACTER'), dictionaryUsage: {appCode: 'APP_WOW_CHARACTER', moduleCode: 'WOW_CHARACTER', bizFieldCode: 'professionPrimary'}}, area('note', '备注')]
   },
   {
-    typeCode: 'PERSONAL_BILL', featureCode: 'APP_PERSONAL_BILLS', appName: '个人账单', label: '新增账单', api: 'bill',
+    typeCode: 'PERSONAL_BILL', featureCode: 'APP_PERSONAL_BILLS', appName: '个人账单', label: '快速记一笔', api: 'bill',
     defaults: () => ({billType: 'EXPENSE', categoryName: '', amount: '', accountName: '', paymentMethod: '', merchantName: '', billDate: today(), note: ''}),
-    fields: [select('billType', '账单类型', [['EXPENSE', '支出'], ['INCOME', '收入']]), dictionary('categoryName', '分类', 'APP_PERSONAL_BILLS', 'PERSONAL_BILLS', true), number('amount', '金额', true, {min: 0, step: '0.01'}),
+    fields: [select('billType', '账单类型', [['EXPENSE', '支出'], ['INCOME', '收入']], true), dictionary('categoryName', '分类', 'APP_PERSONAL_BILLS', 'PERSONAL_BILLS', true), number('amount', '金额', true, {min: 0.01, step: '0.01', placeholder: '0.00'}),
       {key: 'billDate', label: '日期', type: 'date', required: true}, text('accountName', '账户'), dictionary('paymentMethod', '支付方式', 'APP_PERSONAL_BILLS', 'PERSONAL_BILLS'), text('merchantName', '商户 / 对象'), area('note', '备注')]
   },
   {

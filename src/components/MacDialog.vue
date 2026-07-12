@@ -533,6 +533,9 @@ export default {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   padding: 20px;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
@@ -567,6 +570,7 @@ export default {
     linear-gradient(180deg, rgba(10, 28, 42, 0), rgba(8, 22, 36, 0.88) 34%),
     rgba(8, 22, 36, 0.56);
   backdrop-filter: blur(18px) saturate(145%);
+  padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
 }
 
 .mac-dialog-minimized {
@@ -663,6 +667,11 @@ export default {
   }
 
   .mac-dialog-panel {
+    height: calc(100vh - 16px);
+    height: calc(100dvh - 16px);
+    height: calc(
+      100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    );
     max-width: calc(100vw - 16px) !important;
     max-width: calc(
       100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
@@ -673,6 +682,26 @@ export default {
       100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
     );
     border-radius: 22px;
+  }
+
+  .mac-dialog-head {
+    padding: 14px 16px;
+  }
+
+  .mac-dialog-body {
+    padding: 16px;
+    scrollbar-gutter: auto;
+  }
+
+  .mac-dialog-actions {
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .mac-dialog-actions > * {
+    min-height: 42px;
   }
 
   .mac-dialog-panel.maximized {
@@ -698,6 +727,31 @@ export default {
     bottom: 12px;
     left: 12px;
     max-width: none;
+  }
+}
+
+@media (max-height: 640px) and (orientation: landscape) {
+  .mac-dialog-mask {
+    align-items: center;
+    padding: 8px;
+  }
+
+  .mac-dialog-panel {
+    height: calc(100dvh - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 18px;
+  }
+
+  .mac-dialog-head {
+    padding: 10px 14px;
+  }
+
+  .mac-dialog-body {
+    padding: 12px 14px;
+  }
+
+  .mac-dialog-actions {
+    padding: 9px 14px max(9px, env(safe-area-inset-bottom, 0px));
   }
 }
 
