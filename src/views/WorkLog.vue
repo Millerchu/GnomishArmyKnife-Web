@@ -138,10 +138,8 @@
           {{ calendarView === 'month' ? '下一月' : '下一周' }}
         </button>
         <button class="action-btn" :disabled="loading" @click="openCreateDialog">新增</button>
-        <button class="action-btn" :disabled="!selectedLog || loading" @click="openEditDialog()">修改</button>
-        <button class="action-btn danger" :disabled="!selectedLog || loading" @click="deleteSelectedLog">删除</button>
         <button class="action-btn" :disabled="loading" @click="toggleYearList">
-          {{ showYearList ? '收起更多' : '更多' }}
+          {{ showYearList ? '收起年度' : '年度列表' }}
         </button>
       </div>
     </div>
@@ -160,7 +158,14 @@
             <strong>{{ day.weekLabel }}</strong>
             <span>{{ day.date }}</span>
           </div>
-          <span class="day-count-badge">{{ formatPersonDayBadgeText(daySummaryMap[day.date]?.personDayTotal) }}</span>
+          <div v-if="daySummaryMap[day.date]?.count" class="day-type-summary">
+            <span
+              v-for="type in daySummaryMap[day.date].types"
+              :key="`${day.date}-${type.code}-head`"
+              class="day-type-badge type-chip"
+              :class="`type-tone-${type.tone}`"
+            >{{ type.label }}</span>
+          </div>
         </div>
 
         <div v-if="daySummaryMap[day.date]?.count" class="summary-wrap">
@@ -170,14 +175,6 @@
                 :key="`${day.date}-${type.code}-bar`"
                 :class="`type-tone-${type.tone}`"
               />
-            </div>
-            <div class="summary-chip-row summary-chip-row-dense">
-              <span
-                v-for="type in daySummaryMap[day.date].types"
-                :key="`${day.date}-${type.code}`"
-                class="summary-chip type-chip"
-                :class="`type-tone-${type.tone}`"
-              >{{ type.label }}</span>
             </div>
             <p class="summary-projects">{{ daySummaryMap[day.date].projectsText }}</p>
             <div class="summary-metric-strip">
@@ -224,7 +221,14 @@
               <strong>{{ day.dayNumber }}</strong>
               <span>{{ day.date }}</span>
             </div>
-            <span class="day-count-badge">{{ formatPersonDayBadgeText(monthSummaryMap[day.date]?.personDayTotal) }}</span>
+            <div v-if="monthSummaryMap[day.date]?.count" class="day-type-summary">
+              <span
+                v-for="type in monthSummaryMap[day.date].types"
+                :key="`${day.date}-${type.code}-head`"
+                class="day-type-badge type-chip"
+                :class="`type-tone-${type.tone}`"
+              >{{ type.label }}</span>
+            </div>
           </div>
 
           <div v-if="monthSummaryMap[day.date]?.count" class="summary-wrap month-summary-wrap">
@@ -234,14 +238,6 @@
                 :key="`${day.date}-${type.code}-bar`"
                 :class="`type-tone-${type.tone}`"
               />
-            </div>
-            <div class="summary-chip-row summary-chip-row-dense">
-              <span
-                v-for="type in monthSummaryMap[day.date].types"
-                :key="`${day.date}-${type.code}`"
-                class="summary-chip type-chip"
-                :class="`type-tone-${type.tone}`"
-              >{{ type.label }}</span>
             </div>
             <p class="summary-projects">{{ monthSummaryMap[day.date].projectsText }}</p>
             <div class="summary-metric-strip">
@@ -259,54 +255,6 @@
           <div v-else class="empty-text">{{ day.inCurrentMonth ? '暂无日志' : '非本月' }}</div>
         </div>
       </div>
-    </div>
-
-    <div v-if="showDayDetail" class="detail-panel">
-      <div class="detail-panel-head">
-        <h2 class="panel-title">{{ detailDate }} 日志详情</h2>
-        <span class="panel-tip">按项目汇总当天日志；单击选择，双击可直接修改对应项目日志。</span>
-      </div>
-
-      <div v-if="detailDayLogs.length" class="detail-list">
-        <article
-          v-for="group in detailProjectGroups"
-          :key="group.projectCode"
-          class="detail-item"
-          :class="{selected: group.logIds.includes(selectedLogId)}"
-          @click="selectLog(group.primaryLog)"
-          @dblclick="openEditDialog(group.primaryLog)"
-        >
-          <div class="detail-item-head">
-            <strong>{{ group.projectText }}</strong>
-            <div class="detail-type-row">
-              <span
-                v-for="type in group.types"
-                :key="`${group.projectCode}-${type.code}`"
-                class="detail-type-chip type-chip"
-                :class="`type-tone-${type.tone}`"
-              >{{ type.label }}</span>
-            </div>
-          </div>
-
-          <div class="detail-meta-row">
-            <span>{{ group.logDate }}</span>
-            <span v-if="group.locationsText">{{ group.locationsText }}</span>
-            <span v-if="group.zentaoNosText">{{ group.zentaoNosText }}</span>
-          </div>
-
-          <ol class="detail-work-list">
-            <li v-for="(workItem, index) in group.workItems" :key="`${group.projectCode}-${index}`">{{ workItem }}</li>
-          </ol>
-
-          <div class="detail-foot-row">
-            <span>{{ formatPersonDayText(group.personDayTotal) }}</span>
-            <span>{{ formatHoursText(group.overtimeHoursTotal) }}</span>
-            <span v-if="group.allowanceTotal">补助 {{ formatMoneyText(group.allowanceTotal) }}</span>
-            <span v-if="group.remarksText">{{ group.remarksText }}</span>
-          </div>
-        </article>
-      </div>
-      <div v-else class="empty-text">当前日期无明细</div>
     </div>
 
     <div v-if="showYearList" class="detail-panel">
@@ -332,6 +280,7 @@
             <th>补助</th>
             <th>报销</th>
             <th>备注</th>
+            <th>操作</th>
           </tr>
           </thead>
           <tbody>
@@ -358,6 +307,16 @@
             <td>{{ item.businessTripAllowanceAmount ? formatBusinessTripAllowanceText(item) : '-' }}</td>
             <td>{{ item.businessTripAllowanceAmount ? (item.businessTripReimbursed ? '已报销' : '未报销') : '-' }}</td>
             <td>{{ item.remark || '-' }}</td>
+            <td>
+              <div class="log-row-actions">
+                <button type="button" class="mini-btn" @click.stop="openEditDialog(item)">修改</button>
+                <button
+                  type="button"
+                  class="mini-btn danger"
+                  @click.stop="deleteLogEntry(item, `${item.logDate} ${formatProjectText(item.projectCode)}日志`)"
+                >删除</button>
+              </div>
+            </td>
           </tr>
           </tbody>
         </table>
@@ -393,10 +352,88 @@
             <span v-if="item.businessTripAllowanceAmount">{{ item.businessTripReimbursed ? '已报销' : '未报销' }}</span>
             <span v-if="item.remark">{{ item.remark }}</span>
           </div>
+          <div class="log-row-actions mobile-log-actions">
+            <button type="button" class="mini-btn" @click.stop="openEditDialog(item)">修改</button>
+            <button
+              type="button"
+              class="mini-btn danger"
+              @click.stop="deleteLogEntry(item, `${item.logDate} ${formatProjectText(item.projectCode)}日志`)"
+            >删除</button>
+          </div>
         </article>
       </div>
       <div v-else class="empty-text">{{ yearFilter }} 年暂无日志</div>
     </div>
+
+    <MacDialog
+      v-model="showDayDetail"
+      :title="`${detailDate} 日志详情`"
+      subtitle="选择一条项目日志后进入修改"
+      width="860px"
+      panel-class="work-log-day-detail-dialog"
+      @cancel="closeDayDetail"
+    >
+      <div class="day-detail-dialog-content">
+        <div class="day-detail-toolbar">
+          <span>共 {{ detailDayLogs.length }} 条日志</span>
+          <button type="button" class="action-btn day-detail-add-btn" @click="openCreateDialogFromDayDetail">
+            新增日志
+          </button>
+        </div>
+        <div v-if="detailDayLogs.length" class="detail-list">
+          <article
+            v-for="group in detailProjectGroups"
+            :key="group.projectCode"
+            class="detail-item"
+            :class="{selected: group.logIds.includes(selectedLogId)}"
+            role="button"
+            tabindex="0"
+            @click="openEditDialog(group.primaryLog)"
+            @keydown.enter.prevent="openEditDialog(group.primaryLog)"
+          >
+            <div class="detail-item-head">
+              <strong>{{ group.projectText }}</strong>
+              <div class="detail-item-actions">
+                <div class="detail-type-row">
+                  <span
+                    v-for="type in group.types"
+                    :key="`${group.projectCode}-${type.code}`"
+                    class="detail-type-chip type-chip"
+                    :class="`type-tone-${type.tone}`"
+                  >{{ type.label }}</span>
+                </div>
+                <button
+                  type="button"
+                  class="detail-delete-btn"
+                  :aria-label="`删除${group.projectText}日志`"
+                  @click.stop="deleteLogEntry(group.primaryLog, `${group.projectText}日志`)"
+                  @keydown.enter.stop
+                >删除</button>
+              </div>
+            </div>
+
+            <div class="detail-meta-row">
+              <span>{{ group.logDate }}</span>
+              <span v-if="group.locationsText">{{ group.locationsText }}</span>
+              <span v-if="group.zentaoNosText">{{ group.zentaoNosText }}</span>
+            </div>
+
+            <ol class="detail-work-list">
+              <li v-for="(workItem, index) in group.workItems" :key="`${group.projectCode}-${index}`">{{ workItem }}</li>
+            </ol>
+
+            <div class="detail-foot-row">
+              <span>{{ formatPersonDayText(group.personDayTotal) }}</span>
+              <span>{{ formatHoursText(group.overtimeHoursTotal) }}</span>
+              <span v-if="group.allowanceTotal">补助 {{ formatMoneyText(group.allowanceTotal) }}</span>
+              <span v-if="group.remarksText">{{ group.remarksText }}</span>
+              <strong class="detail-edit-cue">编辑 ›</strong>
+            </div>
+          </article>
+        </div>
+        <div v-else class="day-detail-empty">当前日期无明细</div>
+      </div>
+    </MacDialog>
 
     <MacDialog
       v-model="showDialog"
@@ -1149,10 +1186,6 @@ export default {
       return `${formatDecimal(value, 1)} 人天`
     }
 
-    function formatPersonDayBadgeText(value) {
-      return `${formatDecimal(value, 1)}天`
-    }
-
     function formatHoursText(value) {
       return `${formatDecimal(value, 2)} h`
     }
@@ -1390,9 +1423,8 @@ export default {
       detailDate.value = date
       selectedDate.value = date
       selectedLogId.value = null
+      await fetchDayDetails(date)
       showDayDetail.value = true
-      const dayLogs = await fetchDayDetails(date)
-      selectedLogId.value = dayLogs[0]?.id ?? null
     }
 
     async function openMonthDayDetail(day) {
@@ -1405,6 +1437,11 @@ export default {
     function selectLog(log) {
       selectedLogId.value = log.id
       selectedDate.value = log.logDate
+    }
+
+    function closeDayDetail() {
+      showDayDetail.value = false
+      selectedLogId.value = null
     }
 
     async function refreshActiveCalendarLogs() {
@@ -1484,6 +1521,11 @@ export default {
       showDialog.value = true
       await fetchFormDayLogs(form.logDate)
       form.personDay = formPersonDayMax.value
+    }
+
+    async function openCreateDialogFromDayDetail() {
+      selectedDate.value = detailDate.value
+      await openCreateDialog()
     }
 
     async function openEditDialog(targetLog) {
@@ -1631,18 +1673,20 @@ export default {
       }
     }
 
-    async function deleteSelectedLog() {
-      if (!selectedLog.value) {
-        alert('请先在列表中选择一条日志')
+    async function deleteLogEntry(log, description = '当前日志') {
+      if (!log?.id) {
+        alert('未找到要删除的日志')
         return
       }
-      if (!window.confirm('确认删除当前日志吗？')) {
+      if (!window.confirm(`确认删除${description}吗？`)) {
         return
       }
 
       try {
-        await deleteWorkLog(selectedLog.value.id)
-        selectedLogId.value = null
+        await deleteWorkLog(log.id)
+        if (selectedLogId.value === log.id) {
+          selectedLogId.value = null
+        }
         await refreshActiveCalendarLogs()
         if (showDayDetail.value) {
           await fetchDayDetails(detailDate.value)
@@ -1761,7 +1805,6 @@ export default {
       formatProjectText,
       formatLocationText,
       formatPersonDayText,
-      formatPersonDayBadgeText,
       formatHoursText,
       formatMoneyText,
       formatBusinessTripAllowanceText,
@@ -1771,12 +1814,14 @@ export default {
       openDayDetail,
       openMonthDayDetail,
       selectLog,
+      closeDayDetail,
       switchCalendarView,
       changeWeek,
       changeMonth,
       changeCalendarRange,
       toggleYearList,
       openCreateDialog,
+      openCreateDialogFromDayDetail,
       openEditDialog,
       closeDialog,
       toggleTypeDropdown,
@@ -1786,7 +1831,7 @@ export default {
       removeWorkItem,
       handleFormDateChange,
       submitDialog,
-      deleteSelectedLog,
+      deleteLogEntry,
       goBack
     }
   }
@@ -2339,19 +2384,23 @@ export default {
   color: rgba(255, 255, 255, 0.58);
 }
 
-.day-count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 800;
-  color: rgba(236, 247, 255, 0.94);
-  background: rgba(77, 146, 203, 0.2);
-  border: 1px solid rgba(114, 184, 242, 0.16);
+.day-type-summary {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: 68%;
+}
+
+.day-type-badge {
+  min-width: 0;
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .summary-wrap {
@@ -2485,6 +2534,18 @@ export default {
   cursor: pointer;
 }
 
+.detail-item {
+  outline: none;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.detail-item:hover,
+.detail-item:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(103, 180, 255, 0.64);
+  background: rgba(24, 64, 100, 0.3);
+}
+
 .detail-item.selected,
 .mobile-log-card.selectedMobileCard,
 .log-table tbody tr.selectedRow {
@@ -2499,6 +2560,46 @@ export default {
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 10px;
+}
+
+.day-detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 12px;
+}
+
+.day-detail-add-btn {
+  min-height: 34px;
+}
+
+.detail-item-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.detail-delete-btn {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 135, 135, 0.24);
+  border-radius: 6px;
+  color: rgba(255, 193, 193, 0.94);
+  background: rgba(191, 67, 67, 0.18);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.detail-delete-btn:hover,
+.detail-delete-btn:focus-visible {
+  border-color: rgba(255, 135, 135, 0.52);
+  background: rgba(191, 67, 67, 0.3);
 }
 
 .detail-meta-row,
@@ -2525,6 +2626,30 @@ export default {
 .detail-work-list li + li,
 .table-work-list li + li {
   margin-top: 4px;
+}
+
+.detail-edit-cue {
+  margin-left: auto;
+  color: rgba(154, 214, 255, 0.92);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.day-detail-empty {
+  padding: 34px 12px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+  text-align: center;
+}
+
+.log-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mobile-log-actions {
+  margin-top: 10px;
 }
 
 .table-work-list {

@@ -8,6 +8,7 @@ import WorkLog from '../WorkLog.vue'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   createWorkLog,
+  deleteWorkLog,
   getWorkLogDetail,
   listWorkLogs,
   updateWorkLog
@@ -230,6 +231,7 @@ beforeEach(() => {
     businessTripAllowanceAmount: 0,
     ...payload
   })))
+  deleteWorkLog.mockResolvedValue(buildApiResponse(null))
   getWorkLogDetail.mockResolvedValue(buildApiResponse(editLogDetail))
   listWorkLogs.mockResolvedValue(buildApiResponse([]))
   updateWorkLog.mockImplementation((id, payload) => Promise.resolve(buildApiResponse({
@@ -250,6 +252,17 @@ afterEach(() => {
 })
 
 describe('WorkLog MacDialog integration', () => {
+  it('keeps only range navigation, create, and annual list actions in the top toolbar', async () => {
+    const wrapper = await mountWorkLog()
+
+    expect(wrapper.find('.actions').findAll('button').map((button) => button.text())).toEqual([
+      '上一周',
+      '下一周',
+      '新增',
+      '年度列表'
+    ])
+  })
+
   it('renders the create form and footer submit button in the teleported MacDialog', async () => {
     const wrapper = await mountWorkLogAndOpenCreateDialog()
 
@@ -489,7 +502,7 @@ describe('WorkLog MacDialog integration', () => {
     expect(alertSpy).toHaveBeenCalledWith('当天剩余 0.4 人天，请调整人天投入')
   })
 
-  it('groups day details by project and renders numbered work items', async () => {
+  it('opens month day details in a dialog and opens the selected log editor', async () => {
     const wrapper = await mountWorkLog()
     listWorkLogs.mockResolvedValue(buildApiResponse([
       {
@@ -516,13 +529,48 @@ describe('WorkLog MacDialog integration', () => {
       }
     ]))
 
-    await wrapper.vm.openDayDetail('2026-07-10')
+    await wrapper.vm.openMonthDayDetail({
+      date: '2026-07-10',
+      inCurrentMonth: true
+    })
     await flushPromises()
 
-    const detailItems = wrapper.findAll('.detail-item')
+    const detailPanel = document.body.querySelector('.work-log-day-detail-dialog')
+    const detailItems = [...detailPanel.querySelectorAll('.detail-item')]
+    expect(detailPanel).not.toBeNull()
     expect(detailItems).toHaveLength(2)
-    expect(detailItems[0].findAll('.detail-work-list li').map((item) => item.text())).toEqual(['接口开发', '单元测试'])
-    expect(detailItems[0].find('.type-tone-overtime').exists()).toBe(true)
+    expect([...detailItems[0].querySelectorAll('.detail-work-list li')].map((item) => item.textContent)).toEqual([
+      '接口开发',
+      '单元测试'
+    ])
+    expect(detailItems[0].querySelector('.type-tone-overtime')).not.toBeNull()
+
+    const addButton = detailPanel.querySelector('.day-detail-add-btn')
+    addButton.dispatchEvent(new MouseEvent('click', {bubbles: true}))
+    await flushPromises()
+    expect(document.body.querySelector('.work-log-dialog .mac-dialog-title').textContent).toBe('新增工作日志')
+    wrapper.vm.closeDialog()
+    await nextTick()
+
+    const confirmSpy = vi.fn(() => true)
+    window.confirm = confirmSpy
+    detailItems[1].querySelector('.detail-delete-btn').dispatchEvent(new MouseEvent('click', {bubbles: true}))
+    await flushPromises()
+    expect(confirmSpy).toHaveBeenCalledWith('确认删除PROJECT_BETA日志吗？')
+    expect(deleteWorkLog).toHaveBeenCalledWith(911)
+    expect(getWorkLogDetail).not.toHaveBeenCalled()
+
+    const refreshedDetailItem = document.body.querySelector('.work-log-day-detail-dialog .detail-item')
+    refreshedDetailItem.dispatchEvent(new MouseEvent('click', {bubbles: true}))
+    await flushPromises()
+
+    expect(getWorkLogDetail).toHaveBeenCalledWith(910)
+    expect(document.body.querySelector('.mac-dialog-panel.work-log-dialog')).not.toBeNull()
+    expect(document.body.querySelector('.work-log-day-detail-dialog')).not.toBeNull()
+
+    wrapper.vm.closeDialog()
+    await nextTick()
+    expect(document.body.querySelector('.work-log-day-detail-dialog')).not.toBeNull()
   })
 
   it('builds a de-duplicated weekly report by project and hides it in month view', async () => {
