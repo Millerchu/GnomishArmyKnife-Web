@@ -135,6 +135,7 @@
     <QuickCreateDialog
       v-model="showQuickCreateDialog"
       :types="quickCreateTypes"
+      :apps="tools"
       :current-user="user"
       @success="handleQuickCreateSuccess"
     />

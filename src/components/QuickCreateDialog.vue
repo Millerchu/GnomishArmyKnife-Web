@@ -28,7 +28,17 @@
 
       <form v-else id="quick-create-form" class="quick-form" :class="{'personal-bill-quick-form': activeType.typeCode === 'PERSONAL_BILL'}" @submit.prevent="submit">
         <header class="form-heading">
-          <div class="form-mark">{{ activeType.appName.slice(0, 1) }}</div>
+          <div class="form-mark" :style="activeApp?.iconStyle">
+            <AppIconImage
+              v-if="usesImageIcon(activeApp?.iconType) && activeApp?.iconUrl"
+              img-class="form-mark-image"
+              :src="activeApp.iconUrl"
+              :alt="activeType.appName"
+              :chroma-key="activeApp.iconChromaKey"
+            />
+            <span v-else-if="activeApp?.iconType === 'PRESET'" class="form-mark-preset" v-html="getPresetIconSvg(activeApp.iconPreset)" />
+            <span v-else>{{ activeApp?.iconText || activeType.appName.slice(0, 1) }}</span>
+          </div>
           <div><strong>{{ activeType.label }}</strong><span>{{ activeType.appName }}</span></div>
         </header>
         <p v-if="loadError" class="form-error">{{ loadError }}</p>
@@ -86,6 +96,7 @@
 <script setup>
 import {computed, reactive, ref, watch} from 'vue'
 import MacDialog from '@/components/MacDialog.vue'
+import AppIconImage from '@/components/AppIconImage.vue'
 import {createWorkLog} from '@/api/workLog'
 import {createPasswordMemo} from '@/api/passwordMemo'
 import {createTodoTask} from '@/api/todoList'
@@ -97,8 +108,14 @@ import {createSoftwarePackage, createSoftwareVersion, listSoftwarePackages} from
 import {createHealthRecord, createHealthReport, createHealthVisit} from '@/api/healthRecord'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {serializeWorkItemEntries} from '@/utils/workLogCalendar'
+import {getPresetIconSvg} from '@/constants/appIconLibrary'
 
-const props = defineProps({modelValue: Boolean, types: {type: Array, default: () => []}, currentUser: {type: Object, default: () => ({})}})
+const props = defineProps({
+  modelValue: Boolean,
+  types: {type: Array, default: () => []},
+  apps: {type: Array, default: () => []},
+  currentUser: {type: Object, default: () => ({})}
+})
 const emit = defineEmits(['update:modelValue', 'success'])
 const selectedTypeCode = ref('')
 const submitting = ref(false)
@@ -111,6 +128,7 @@ const form = reactive({})
 const initialSnapshot = ref('{}')
 
 const activeType = computed(() => props.types.find((item) => item.typeCode === selectedTypeCode.value) || null)
+const activeApp = computed(() => props.apps.find((item) => item.featureCode === activeType.value?.featureCode) || null)
 const groupedTypes = computed(() => {
   const groups = new Map()
   props.types.forEach((item) => groups.set(item.appName, [...(groups.get(item.appName) || []), item]))
@@ -194,6 +212,7 @@ function handleVisibleChange(value) {
 
 function nullable(value) { return value === '' || value === undefined ? null : value }
 function numeric(value) { return value === '' || value === null ? null : Number(value) }
+function usesImageIcon(iconType) { return ['UPLOAD', 'URL'].includes(iconType) }
 function addWorkItem(fieldKey) { form[fieldKey].push('') }
 function removeWorkItem(fieldKey, index) {
   if (form[fieldKey].length > 1) form[fieldKey].splice(index, 1)
@@ -272,7 +291,7 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
 .type-picker>span,.form-field>span{font-size:13px;font-weight:700;color:#d9edf8}.type-picker select,.form-field input,.form-field select,.form-field textarea{width:100%;box-sizing:border-box;border:1px solid rgba(148,190,211,.42);border-radius:10px;background:#f8fcff;color:#172333;padding:10px 12px;font:inherit;outline:none}
 .type-picker select:focus,.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:#0f766e;box-shadow:0 0 0 3px rgba(15,118,110,.12)}
 .quick-empty{min-height:210px;display:grid;place-content:center;text-align:center;gap:7px;color:rgba(219,235,247,.72);border:1px dashed rgba(125,211,252,.26);border-radius:18px;background:rgba(8,31,46,.36)}.quick-empty strong{font-size:20px;color:#f2f9ff}.quick-empty span{font-size:14px}
-.quick-form{display:grid;gap:18px}.form-heading{display:flex;align-items:center;gap:12px}.form-heading>div:last-child{display:grid;gap:2px}.form-heading strong{font-size:20px;color:#f2f9ff}.form-heading span{font-size:12px;color:rgba(219,235,247,.72)}.form-mark{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(135deg,#0f766e,#2563eb);color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(15,118,110,.22)}
+.quick-form{display:grid;gap:18px}.form-heading{display:flex;align-items:center;gap:12px}.form-heading>div:last-child{display:grid;gap:2px}.form-heading strong{font-size:20px;color:#f2f9ff}.form-heading span{font-size:12px;color:rgba(219,235,247,.72)}.form-mark{width:42px;height:42px;display:grid;place-items:center;overflow:hidden;border-radius:13px;background:linear-gradient(135deg,#0f766e,#2563eb);color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(15,118,110,.22)}.form-mark-image{width:100%;height:100%;object-fit:cover}.form-mark-preset{display:grid;width:24px;height:24px;place-items:center}.form-mark-preset:deep(svg){width:24px;height:24px;fill:currentColor}
 .field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.form-field{display:grid;align-content:start;gap:7px}.form-field b{color:#dc2626}.wide-field{grid-column:1/-1}.form-field textarea{resize:vertical;min-height:86px}.check-control{display:flex!important;align-items:center;gap:8px;min-height:41px}.check-control input{width:18px!important;height:18px}.form-error{margin:0;padding:10px 12px;border-radius:10px;background:#fff1f2;color:#be123c;font-size:13px}.quick-submit{border:0;border-radius:11px;background:linear-gradient(135deg,#0f766e,#2563eb);color:#fff;padding:11px 22px;font-weight:800;cursor:pointer}.quick-submit:disabled{opacity:.55;cursor:not-allowed}
 .dictionary-checks{display:flex;flex-wrap:wrap;gap:8px;min-height:42px;padding:7px;border:1px solid rgba(148,190,211,.28);border-radius:10px;background:rgba(8,31,46,.38)}.dictionary-checks label{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid rgba(148,190,211,.28);border-radius:999px;color:#d9edf8;cursor:pointer}.dictionary-checks label.selected{border-color:#5eead4;background:rgba(15,118,110,.36);color:#fff}.dictionary-checks input{width:15px!important;height:15px}.dictionary-empty{padding:5px 8px;color:rgba(219,235,247,.58);font-size:13px}
 .work-item-editor{display:grid;gap:10px}.work-item-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px}.work-item-index{display:grid;width:28px;height:28px;place-items:center;border-radius:9px;background:rgba(94,234,212,.14);color:#99f6e4;font-size:12px;font-weight:800}.work-item-row button,.work-item-add{border:1px solid rgba(148,190,211,.3);border-radius:9px;background:rgba(8,31,46,.52);color:#d9edf8;padding:9px 12px;cursor:pointer}.work-item-row button:disabled{opacity:.38;cursor:not-allowed}.work-item-add{justify-self:start;border-color:rgba(94,234,212,.38);color:#99f6e4;font-weight:700}
