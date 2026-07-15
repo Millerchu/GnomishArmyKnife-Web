@@ -334,7 +334,7 @@
       v-model="showDetailDialog"
       title="加油记录详情"
       :subtitle="detailRecord ? `${detailRecord.vehicleName} · ${detailRecord.fuelDate}` : ''"
-      width="880px"
+      width="960px"
       panel-class="fuel-record-detail-dialog"
       :close-disabled="false"
       @cancel="closeDetailDialog"
@@ -371,13 +371,13 @@
     <MacDialog
       v-model="showDialog"
       :title="dialogMode === 'create' ? '新增加油记录' : '编辑加油记录'"
-      width="760px"
+      width="1040px"
       panel-class="fuel-record-dialog"
       :close-disabled="submitting"
       @cancel="closeDialog"
     >
-        <form id="fuel-record-dialog-form" class="dialog-form" @submit.prevent="submitDialog">
-          <div class="form-inline-grid">
+        <form id="fuel-record-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitDialog">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>车辆名称</span>
               <input v-model.trim="form.vehicleName" class="input" maxlength="40" placeholder="例如：Model Y" required />
@@ -389,7 +389,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>当前里程(km)</span>
               <input v-model.number="form.odometerKm" class="input" type="number" min="0" step="1" placeholder="例如：15236" required />
@@ -401,7 +401,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>加油金额</span>
               <input v-model.number="form.totalAmount" class="input" type="number" min="0" step="0.01" placeholder="例如：312.5" required />
@@ -413,7 +413,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>单价（可选，留空自动计算）</span>
               <input v-model.number="form.unitPrice" class="input" type="number" min="0" step="0.001" placeholder="例如：8.110" />
@@ -434,12 +434,12 @@
             </label>
           </div>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-3">
             <span>油站名称</span>
             <input v-model.trim="form.stationName" class="input" maxlength="60" placeholder="例如：中国石化滨江站" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>备注</span>
             <textarea v-model.trim="form.note" class="input textarea" rows="3" maxlength="240" placeholder="记录路况、油价变化或保养说明" />
           </label>
@@ -1948,7 +1948,7 @@ export default {
 
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1993,6 +1993,10 @@ export default {
 @media (max-width: 860px) {
   .price-grid,
   .line-chart-labels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

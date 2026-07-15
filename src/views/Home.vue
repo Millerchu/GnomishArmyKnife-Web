@@ -158,7 +158,7 @@
     <MacDialog
       v-model="showUserDialog"
       title="个人中心"
-      width="520px"
+      width="720px"
       panel-class="home-profile-dialog"
       :close-disabled="dialogLoading"
       @cancel="closeUserDialog"
@@ -183,7 +183,7 @@
         <form
           v-if="activeDialogTab === 'profile'"
           id="home-profile-dialog-form"
-          class="dialog-form"
+          class="dialog-form dialog-density-grid dialog-grid-cols-2"
           @submit.prevent="submitProfile"
         >
           <label class="form-item">

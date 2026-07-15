@@ -273,12 +273,12 @@
     <MacDialog
       v-model="showDictionaryDialog"
       :title="dictionaryDialogMode === 'create' ? '新增数据字典' : '编辑数据字典'"
-      width="560px"
+      width="820px"
       :close-disabled="submitting"
       panel-class="dictionary-editor-dialog"
       @cancel="closeDictionaryDialog"
     >
-        <form id="dictionary-editor-dialog-form" class="dialog-form" @submit.prevent="submitDictionaryDialog">
+        <form id="dictionary-editor-dialog-form" class="dialog-form dialog-density-grid" @submit.prevent="submitDictionaryDialog">
           <label class="field-item">
             <span>字典编号</span>
             <input
@@ -307,7 +307,7 @@
             <span>作用范围</span>
             <GlassSelect v-model="dictionaryForm.dictScope" :options="scopeOptions" :disabled="submitting"/>
           </label>
-          <label class="field-item">
+          <label class="field-item dialog-span-2">
             <span>引用应用</span>
             <input
               v-model.trim="dictionaryForm.referenceAppsText"
@@ -316,7 +316,7 @@
               placeholder="多个应用用逗号分隔，如 工作日志,用户管理"
             />
           </label>
-          <label class="field-item">
+          <label class="field-item dialog-span-all">
             <span>说明</span>
             <textarea
               v-model.trim="dictionaryForm.description"
@@ -344,12 +344,12 @@
     <MacDialog
       v-model="showItemDialog"
       :title="itemDialogMode === 'create' ? '新增字典项' : '编辑字典项'"
-      width="560px"
+      width="820px"
       :close-disabled="submitting"
       panel-class="dictionary-item-dialog"
       @cancel="closeItemDialog"
     >
-        <form id="dictionary-item-dialog-form" class="dialog-form" @submit.prevent="submitItemDialog">
+        <form id="dictionary-item-dialog-form" class="dialog-form dialog-density-grid" @submit.prevent="submitItemDialog">
           <label class="field-item">
             <span>字典项编码</span>
             <input
@@ -399,7 +399,7 @@
             <input v-model="itemForm.isDefault" type="checkbox" :disabled="submitting"/>
             <span>设为默认项</span>
           </label>
-          <label class="field-item">
+          <label class="field-item dialog-span-all">
             <span>说明</span>
             <textarea
               v-model.trim="itemForm.description"

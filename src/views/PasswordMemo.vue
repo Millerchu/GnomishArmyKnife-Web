@@ -132,23 +132,23 @@
     <MacDialog
       v-model="showEditDialog"
       :title="editMode === 'create' ? '新增账号备忘录' : '编辑账号备忘录'"
-      width="720px"
+      width="960px"
       panel-class="password-memo-edit-dialog"
       :close-disabled="submitting"
       @cancel="closeEditDialog"
     >
-        <form id="password-memo-edit-dialog-form" class="dialog-form" @submit.prevent="submitEditDialog">
-          <label class="form-field">
+        <form id="password-memo-edit-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitEditDialog">
+          <label class="form-field dialog-span-2">
             <span>网站名</span>
             <input v-model.trim="form.siteName" class="input" maxlength="64" placeholder="例如：GitHub" required />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-2">
             <span>地址</span>
             <input v-model.trim="form.siteUrl" class="input" maxlength="255" placeholder="例如：https://github.com" required />
           </label>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>用户名</span>
               <input v-model.trim="form.username" class="input" maxlength="64" placeholder="用户名（可选）" />
@@ -160,7 +160,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>注册手机</span>
               <input v-model.trim="form.registeredPhone" class="input" maxlength="32" placeholder="注册手机（可选）" />
@@ -172,7 +172,7 @@
             </label>
           </div>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>备注</span>
             <textarea v-model.trim="form.remark" class="input textarea" rows="3" maxlength="200" placeholder="备注（可选）" />
           </label>
@@ -189,7 +189,7 @@
       v-model="showDetailDialog"
       title="账号详情"
       subtitle="关闭详情后再次打开，需要重新输入当前用户密码才能查看完整密码。"
-      width="760px"
+      width="900px"
       panel-class="password-memo-verify-dialog"
       :close-disabled="detailLoading || verifyingPassword"
       @cancel="closeDetailDialog"
@@ -203,7 +203,7 @@
             <p><span>地址</span><strong>{{ activeDetail.siteUrl || '-' }}</strong></p>
             <p><span>用户名</span><strong>{{ activeDetail.username || '-' }}</strong></p>
             <p><span>注册手机</span><strong>{{ activeDetail.registeredPhone || '-' }}</strong></p>
-            <p class="wide"><span>注册邮箱</span><strong>{{ activeDetail.registeredEmail || '-' }}</strong></p>
+            <p><span>注册邮箱</span><strong>{{ activeDetail.registeredEmail || '-' }}</strong></p>
             <p class="wide"><span>备注</span><strong>{{ activeDetail.remark || '-' }}</strong></p>
           </div>
 
@@ -932,6 +932,10 @@ export default {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 12px;
   margin-top: 12px;
+}
+
+.detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .mobile-card-grid p,

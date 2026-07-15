@@ -182,14 +182,14 @@
       v-model="showEditDialog"
       :title="editMode === 'create' ? (isAdmin ? '新增公共经验' : '投稿经验') : '编辑经验'"
       :subtitle="isAdmin ? '管理员新增后会直接发布。' : '普通用户提交后会进入待审核队列。'"
-      width="820px"
+      width="1040px"
       panel-class="knowledge-entry-dialog"
       :close-disabled="submitting"
       @cancel="closeEditDialog"
     >
-        <form id="knowledge-entry-dialog-form" class="dialog-form" @submit.prevent="submitEditDialog">
-          <div class="form-grid">
-            <label class="form-field">
+        <form id="knowledge-entry-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitEditDialog">
+          <div class="form-grid dialog-grid-group">
+            <label class="form-field dialog-span-3">
               <span>标题</span>
               <input v-model.trim="form.title" class="input" maxlength="64" required />
             </label>
@@ -201,28 +201,28 @@
             </label>
           </div>
 
-          <div class="form-grid">
-            <label class="form-field">
+          <div class="form-grid dialog-grid-group">
+            <label class="form-field dialog-span-2">
               <span>适用场景</span>
               <input v-model.trim="form.scenario" class="input" maxlength="80" required />
             </label>
-            <label class="form-field">
+            <label class="form-field dialog-span-2">
               <span>来源</span>
               <input v-model.trim="form.source" class="input" maxlength="80" />
             </label>
           </div>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>标签</span>
             <input v-model.trim="form.tagsText" class="input" maxlength="120" placeholder="多个标签用逗号分隔" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>摘要</span>
             <textarea v-model.trim="form.summary" class="input textarea" rows="3" maxlength="180" required />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>详细内容</span>
             <textarea v-model.trim="form.content" class="input textarea content-textarea" rows="9" maxlength="2000" required />
           </label>
@@ -239,7 +239,7 @@
       v-model="showDetailDialog"
       title="经验详情"
       subtitle="公共库、投稿状态和审核备注都在这里完整展示。"
-      width="900px"
+      width="1040px"
       panel-class="knowledge-entry-detail-dialog"
       :close-disabled="detailLoading || reviewSubmitting"
       @cancel="closeDetailDialog"
@@ -1072,6 +1072,10 @@ export default {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 16px;
   margin-top: 14px;
+}
+
+.detail-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .entry-meta-grid p,

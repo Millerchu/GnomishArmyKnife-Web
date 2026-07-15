@@ -205,12 +205,12 @@
     <MacDialog
       v-model="showEditDialog"
       :title="editMode === 'create' ? '新增用户' : '编辑用户'"
-      width="560px"
+      width="820px"
       :close-disabled="submitting"
       panel-class="user-management-dialog"
       @cancel="closeEditDialog"
     >
-        <form id="user-edit-dialog-form" class="dialog-form" @submit.prevent="submitEditDialog">
+        <form id="user-edit-dialog-form" class="dialog-form dialog-density-grid" @submit.prevent="submitEditDialog">
           <label class="field-item">
             <span>用户名</span>
             <input
@@ -274,7 +274,7 @@
               <option value="DISABLED">禁用</option>
             </select>
           </label>
-          <label class="field-item">
+          <label class="field-item dialog-span-all">
             <span>备注</span>
             <textarea
               v-model.trim="editForm.remark"

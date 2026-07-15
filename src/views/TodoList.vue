@@ -260,18 +260,18 @@
     <MacDialog
       v-model="showDialog"
       :title="dialogMode === 'create' ? '新增待办任务' : '编辑待办任务'"
-      width="760px"
+      width="960px"
       :close-disabled="submitting"
       panel-class="todo-editor-dialog"
       @cancel="closeDialog"
     >
-      <form id="todo-task-dialog-form" class="dialog-form" @submit.prevent="submitDialog">
-          <label class="form-field">
+      <form id="todo-task-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitDialog">
+          <label class="form-field dialog-span-all">
             <span>任务标题</span>
             <input v-model.trim="form.title" class="input" maxlength="100" placeholder="例如：整理本周工作清单" required />
           </label>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>所属清单</span>
               <select v-model="form.listCode" class="input">
@@ -287,7 +287,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>状态</span>
               <select v-model="form.status" class="input">
@@ -304,24 +304,24 @@
             </div>
           </div>
 
-          <div class="form-inline-grid">
-            <label class="form-field">
+          <div class="form-inline-grid dialog-grid-group">
+            <label class="form-field dialog-span-2">
               <span>截止日期</span>
               <input v-model="form.dueDate" class="input" type="date" />
             </label>
 
-            <label class="form-field">
+            <label class="form-field dialog-span-2">
               <span>提醒时间</span>
               <input v-model="form.reminderAt" class="input" type="datetime-local" />
             </label>
           </div>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>备注</span>
             <textarea v-model.trim="form.note" class="input textarea" rows="3" maxlength="300" placeholder="补充描述、链接或执行要点" />
           </label>
 
-          <div class="steps-panel">
+          <div class="steps-panel dialog-span-all">
             <div class="steps-head">
               <div>
                 <h4 class="steps-title">子任务</h4>

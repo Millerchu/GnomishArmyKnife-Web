@@ -193,8 +193,8 @@
       :close-disabled="submitting"
       @close="closeRecordDialog"
     >
-        <form id="health-record-dialog-form" class="dialog-form" @submit.prevent="submitRecordDialog">
-          <div class="form-inline-grid">
+        <form id="health-record-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitRecordDialog">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>记录日期</span>
               <input v-model="recordForm.measureDate" class="input" type="date" required />
@@ -209,7 +209,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>体脂率(%)</span>
               <input v-model="recordForm.bodyFatRate" class="input" type="number" min="0" step="0.1" />
@@ -224,7 +224,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>总胆固醇</span>
               <input v-model="recordForm.totalCholesterol" class="input" type="number" min="0" step="0.01" />
@@ -239,7 +239,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>低密度脂蛋白</span>
               <input v-model="recordForm.ldlCholesterol" class="input" type="number" min="0" step="0.01" />
@@ -254,7 +254,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>尿酸</span>
               <input v-model="recordForm.uricAcid" class="input" type="number" min="0" step="1" />
@@ -269,14 +269,14 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>γ-GT</span>
               <input v-model="recordForm.gammaGlutamylTransferase" class="input" type="number" min="0" step="1" />
             </label>
           </div>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>备注</span>
             <textarea v-model.trim="recordForm.note" class="input textarea" rows="3" maxlength="255" placeholder="例如：晨起空腹、体检前一周作息规律" />
           </label>
@@ -295,8 +295,8 @@
       :close-disabled="submitting"
       @close="closeVisitDialog"
     >
-        <form id="health-visit-dialog-form" class="dialog-form" @submit.prevent="submitVisitDialog">
-          <div class="form-inline-grid">
+        <form id="health-visit-dialog-form" class="dialog-form dialog-density-grid" @submit.prevent="submitVisitDialog">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>就诊日期</span>
               <input v-model="visitForm.visitDate" class="input" type="date" required />
@@ -311,7 +311,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>医生</span>
               <input v-model.trim="visitForm.doctorName" class="input" maxlength="64" />
@@ -325,27 +325,27 @@
             </label>
           </div>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>主诉</span>
             <textarea v-model.trim="visitForm.chiefComplaint" class="input textarea" rows="2" maxlength="240" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>诊断摘要</span>
             <textarea v-model.trim="visitForm.diagnosisSummary" class="input textarea" rows="3" maxlength="500" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>处置方案</span>
             <textarea v-model.trim="visitForm.treatmentPlan" class="input textarea" rows="3" maxlength="500" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>医生建议</span>
             <textarea v-model.trim="visitForm.doctorAdvice" class="input textarea" rows="3" maxlength="500" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>病历附件</span>
             <div class="upload-row">
               <input :value="visitForm.caseRecordFileName" class="input upload-display" placeholder="未上传病历附件" readonly />
@@ -355,7 +355,7 @@
             <input ref="visitUploadInputRef" class="hidden-input" type="file" accept=".pdf,image/*,.doc,.docx" @change="handleVisitFileSelected" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>备注</span>
             <textarea v-model.trim="visitForm.note" class="input textarea" rows="2" maxlength="255" />
           </label>
@@ -374,8 +374,8 @@
       :close-disabled="submitting"
       @close="closeReportDialog"
     >
-        <form id="health-report-dialog-form" class="dialog-form" @submit.prevent="submitReportDialog">
-          <div class="form-inline-grid">
+        <form id="health-report-dialog-form" class="dialog-form dialog-density-grid" @submit.prevent="submitReportDialog">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>报告日期</span>
               <input v-model="reportForm.examDate" class="input" type="date" required />
@@ -386,7 +386,7 @@
             </label>
           </div>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-2">
             <span>关联就诊</span>
             <select v-model="reportForm.visitId" class="input">
               <option value="">不关联</option>
@@ -399,7 +399,7 @@
             <input v-model.trim="reportForm.reportTitle" class="input" maxlength="64" required />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>报告附件</span>
             <div class="upload-row">
               <input :value="reportForm.reportFileName" class="input upload-display" placeholder="未上传报告附件" readonly />
@@ -409,12 +409,12 @@
             <input ref="reportUploadInputRef" class="hidden-input" type="file" accept=".pdf,image/*,.doc,.docx" @change="handleReportFileSelected" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>报告摘要</span>
             <textarea v-model.trim="reportForm.summary" class="input textarea" rows="3" maxlength="240" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>医生建议</span>
             <textarea v-model.trim="reportForm.doctorAdvice" class="input textarea" rows="3" maxlength="240" />
           </label>

@@ -255,29 +255,29 @@
     <MacDialog
       v-model="showSoftwareDialog"
       :title="softwareDialogMode === 'create' ? '新增软件' : '编辑软件'"
-      width="720px"
+      width="960px"
       :close-disabled="submitting"
       panel-class="software-editor-dialog"
       @cancel="closeSoftwareDialog"
     >
-      <form id="software-dialog-form" class="dialog-form" @submit.prevent="submitSoftwareDialog">
-          <div class="form-inline-grid">
-            <label class="form-field">
+      <form id="software-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitSoftwareDialog">
+          <div class="form-inline-grid dialog-grid-group">
+            <label class="form-field dialog-span-2">
               <span>软件名</span>
               <input v-model.trim="softwareForm.softwareName" class="input" maxlength="48" required />
             </label>
-            <label class="form-field">
+            <label class="form-field dialog-span-2">
               <span>厂商</span>
               <input v-model.trim="softwareForm.vendorName" class="input" maxlength="48" />
             </label>
           </div>
 
-          <div class="form-inline-grid">
-            <label class="form-field">
+          <div class="form-inline-grid dialog-grid-group">
+            <label class="form-field dialog-span-2">
               <span>分类</span>
               <input v-model.trim="softwareForm.categoryName" class="input" maxlength="32" placeholder="例如：开发 / 系统工具" required />
             </label>
-            <label class="form-field">
+            <label class="form-field dialog-span-2">
               <span>平台</span>
               <select v-model="softwareForm.platformCode" class="input" required>
                 <option v-for="item in platformOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
@@ -285,12 +285,12 @@
             </label>
           </div>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>官网地址</span>
             <input v-model.trim="softwareForm.officialSite" class="input" maxlength="255" placeholder="例如：https://code.visualstudio.com/" />
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>描述</span>
             <textarea v-model.trim="softwareForm.description" class="input textarea" rows="3" maxlength="200" placeholder="记录适用场景、用途等" />
           </label>
@@ -310,13 +310,13 @@
     <MacDialog
       v-model="showVersionDialog"
       :title="versionDialogMode === 'create' ? '新增版本' : '编辑版本'"
-      width="760px"
+      width="960px"
       :close-disabled="submitting"
       panel-class="software-version-dialog"
       @cancel="closeVersionDialog"
     >
-      <form id="software-version-dialog-form" class="dialog-form" @submit.prevent="submitVersionDialog">
-          <div class="form-inline-grid">
+      <form id="software-version-dialog-form" class="dialog-form dialog-density-grid" @submit.prevent="submitVersionDialog">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>版本号</span>
               <input v-model.trim="versionForm.versionName" class="input" maxlength="32" required />
@@ -329,7 +329,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>包类型</span>
               <input v-model.trim="versionForm.packageType" class="input" maxlength="16" placeholder="例如：EXE / ZIP / DMG" />
@@ -340,7 +340,7 @@
             </label>
           </div>
 
-          <div class="form-inline-grid">
+          <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>发布日期</span>
               <input v-model="versionForm.releaseDate" class="input" type="date" />
@@ -351,7 +351,7 @@
             </label>
           </div>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>本地安装包</span>
             <div class="upload-row">
               <input
@@ -375,17 +375,17 @@
             <small class="field-tip">上传后将优先使用本地文件服务器地址下载；后端未联通时仅临时记录文件名和当前会话下载链接。</small>
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>外部下载地址</span>
             <input v-model.trim="versionForm.downloadUrl" class="input" maxlength="255" placeholder="本地文件不可用时的备用下载地址，可留空" />
           </label>
 
-          <label class="form-field checkbox-field">
+          <label class="form-field checkbox-field dialog-span-all">
             <input v-model="versionForm.isRecommended" type="checkbox" />
             <span>设为推荐版本</span>
           </label>
 
-          <label class="form-field">
+          <label class="form-field dialog-span-all">
             <span>更新说明</span>
             <textarea v-model.trim="versionForm.changelog" class="input textarea" rows="3" maxlength="240" placeholder="记录该版本的主要更新" />
           </label>

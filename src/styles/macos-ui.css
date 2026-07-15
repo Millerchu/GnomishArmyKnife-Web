@@ -604,3 +604,67 @@ textarea:focus {
     border-radius: var(--macos-radius-sm) !important;
   }
 }
+/* Business dialogs share a dense field grid while keeping long-form controls full width. */
+.dialog-density-grid {
+  --dialog-grid-columns: 3;
+  display: grid !important;
+  grid-template-columns: repeat(var(--dialog-grid-columns), minmax(0, 1fr)) !important;
+  gap: 10px 12px !important;
+}
+
+.dialog-density-grid.dialog-grid-cols-2 {
+  --dialog-grid-columns: 2;
+}
+
+.dialog-density-grid.dialog-grid-cols-4 {
+  --dialog-grid-columns: 4;
+}
+
+.dialog-density-grid > .dialog-grid-group {
+  display: contents !important;
+}
+
+.dialog-density-grid > *,
+.dialog-density-grid > .dialog-grid-group > * {
+  min-width: 0;
+  margin-bottom: 0 !important;
+}
+
+.dialog-density-grid .dialog-span-2 {
+  grid-column: span 2;
+}
+
+.dialog-density-grid .dialog-span-3 {
+  grid-column: span 3;
+}
+
+.dialog-density-grid .dialog-span-all {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 960px) {
+  .dialog-density-grid,
+  .dialog-density-grid.dialog-grid-cols-2,
+  .dialog-density-grid.dialog-grid-cols-4 {
+    --dialog-grid-columns: 2;
+  }
+
+  .dialog-density-grid .dialog-span-3 {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .dialog-density-grid,
+  .dialog-density-grid.dialog-grid-cols-2,
+  .dialog-density-grid.dialog-grid-cols-4 {
+    --dialog-grid-columns: 1;
+    gap: 10px !important;
+  }
+
+  .dialog-density-grid .dialog-span-2,
+  .dialog-density-grid .dialog-span-3,
+  .dialog-density-grid .dialog-span-all {
+    grid-column: auto;
+  }
+}

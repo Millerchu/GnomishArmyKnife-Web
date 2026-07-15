@@ -438,13 +438,13 @@
     <MacDialog
       v-model="showDialog"
       :title="dialogMode === 'create' ? '新增工作日志' : '修改工作日志'"
-      width="920px"
+      width="1080px"
       :close-disabled="submitting"
       panel-class="work-log-dialog"
       @cancel="closeDialog"
     >
-      <form id="work-log-dialog-form" class="dialog-form" @submit.prevent="submitDialog">
-        <div class="form-inline-grid">
+      <form id="work-log-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitDialog">
+        <div class="form-inline-grid dialog-grid-group">
           <label class="form-field">
             <span>日期</span>
             <input v-model="form.logDate" type="date" required @change="handleFormDateChange" />
@@ -463,9 +463,25 @@
             />
             <small class="field-hint">{{ formPersonDayStatusText }}</small>
           </label>
+
+          <label class="form-field">
+            <span>地点</span>
+            <select v-model="form.location" :disabled="!locationSelectOptions.length">
+              <option value="">{{ locationSelectOptions.length ? '请选择地点' : '暂无地点字典项' }}</option>
+              <option v-for="item in locationSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+
+          <label class="form-field">
+            <span>所属项目</span>
+            <select v-model="form.projectCode" :disabled="!projectSelectOptions.length">
+              <option value="">{{ projectSelectOptions.length ? '请选择项目' : '暂无项目字典项' }}</option>
+              <option v-for="item in projectSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
         </div>
 
-        <div class="form-field">
+        <div class="form-field dialog-span-2">
           <span>日志类型</span>
           <div class="multi-select" :class="{open: showTypeDropdown}">
             <button type="button" class="multi-select-trigger" @click="toggleTypeDropdown">
@@ -497,17 +513,12 @@
           </div>
         </div>
 
-        <div class="selected-type-row">
-          <span
-            v-for="item in selectedTypeOptions"
-            :key="item.value"
-            class="selected-type-chip type-chip"
-            :class="`type-tone-${getWorkLogTypeTone(item.value)}`"
-          >{{ item.label }}</span>
-          <span v-if="!selectedTypeOptions.length" class="selected-type-empty">请选择至少一个日志类型</span>
-        </div>
+        <label class="form-field dialog-span-2">
+          <span>禅道编号</span>
+          <input v-model.trim="form.zentaoNo" maxlength="255" placeholder="多个编号可用逗号分隔" />
+        </label>
 
-        <div v-if="hasBusinessTripType" class="allowance-panel">
+        <div v-if="hasBusinessTripType" class="allowance-panel dialog-span-all">
           <div class="allowance-head">
             <span>出差补助</span>
             <strong>{{ formatMoneyText(calculatedBusinessTripAllowanceAmount) }}</strong>
@@ -535,25 +546,7 @@
           </label>
         </div>
 
-        <div class="form-inline-grid">
-          <label class="form-field">
-            <span>地点</span>
-            <select v-model="form.location" :disabled="!locationSelectOptions.length">
-              <option value="">{{ locationSelectOptions.length ? '请选择地点' : '暂无地点字典项' }}</option>
-              <option v-for="item in locationSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-            </select>
-          </label>
-
-          <label class="form-field">
-            <span>所属项目</span>
-            <select v-model="form.projectCode" :disabled="!projectSelectOptions.length">
-              <option value="">{{ projectSelectOptions.length ? '请选择项目' : '暂无项目字典项' }}</option>
-              <option v-for="item in projectSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="form-field">
+        <div class="form-field dialog-span-all">
           <span>工作内容</span>
           <div class="work-item-editor">
             <div v-for="(workItem, index) in form.workItems" :key="index" class="work-item-input-row">
@@ -576,31 +569,26 @@
           </div>
         </div>
 
-        <div class="form-inline-grid">
-          <label class="form-field">
-            <span>禅道编号</span>
-            <input v-model.trim="form.zentaoNo" maxlength="255" placeholder="多个编号可用逗号分隔" />
-          </label>
-
-          <label class="form-field" v-if="isWeekendFormDate">
+        <div class="form-inline-grid dialog-grid-group">
+          <label class="form-field dialog-span-2" v-if="isWeekendFormDate">
             <span>加班时长</span>
             <input v-model.number="form.manualOvertimeHours" type="number" step="0.5" min="0" placeholder="周末可手动填写" />
           </label>
 
           <template v-else>
-            <label class="form-field">
+            <label class="form-field dialog-span-2">
               <span>实际下班时间</span>
               <input v-model="form.offWorkTime" type="time" step="60" />
             </label>
 
-            <label class="form-field readonly-field">
+            <label class="form-field readonly-field dialog-span-2">
               <span>自动统计加班</span>
               <div class="readonly-value">{{ formatHoursText(calculatedOvertimeHours) }}</div>
             </label>
           </template>
         </div>
 
-        <label class="form-field">
+        <label class="form-field dialog-span-all">
           <span>备注</span>
           <textarea v-model.trim="form.remark" rows="2" maxlength="500" placeholder="补充记录边界、风险、同步事项等" />
         </label>
@@ -1936,8 +1924,7 @@ export default {
 .hero-tag,
 .stats-chip,
 .summary-chip,
-.detail-type-chip,
-.selected-type-chip {
+.detail-type-chip {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
@@ -2155,16 +2142,14 @@ export default {
 }
 
 .stats-card small,
-.stats-empty,
-.selected-type-empty {
+.stats-empty {
   color: rgba(255, 255, 255, 0.72);
   font-size: 12px;
 }
 
 .stats-chip-row,
 .summary-chip-row,
-.detail-type-row,
-.selected-type-row {
+.detail-type-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -2724,6 +2709,18 @@ export default {
   gap: 14px;
 }
 
+#work-log-dialog-form {
+  gap: 8px 10px !important;
+}
+
+#work-log-dialog-form .form-field {
+  gap: 5px;
+}
+
+#work-log-dialog-form textarea {
+  min-height: 64px;
+}
+
 .form-inline-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2962,10 +2959,6 @@ export default {
   font-size: 13px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.94);
-}
-
-.selected-type-row {
-  min-height: 22px;
 }
 
 .allowance-panel {
