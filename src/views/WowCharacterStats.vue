@@ -318,10 +318,26 @@
       @close="closeDialog"
     >
         <form id="wow-character-dialog-form" class="dialog-form" @submit.prevent="submitDialog">
-          <div class="form-inline-grid">
+          <section class="character-fields-section">
+            <div class="character-fields-head">
+              <div>
+                <h4 class="dialog-block-title">角色资料</h4>
+                <p class="dialog-block-tip">集中维护身份、成长与当前赛季信息。</p>
+              </div>
+              <label class="featured-toggle">
+                <input v-model="form.isFeatured" class="checkbox-input" type="checkbox" />
+                <span>主角色展示</span>
+              </label>
+            </div>
+
+            <div class="character-fields-grid">
             <label class="form-field">
               <span>角色名</span>
               <input v-model.trim="form.characterName" class="input" maxlength="32" placeholder="例如：风渐渐" required />
+            </label>
+            <label class="form-field">
+              <span>服务器</span>
+              <input v-model.trim="form.realmName" class="input" maxlength="32" placeholder="例如：影之哀伤" required />
             </label>
             <label class="form-field">
               <span>职业</span>
@@ -329,9 +345,6 @@
                 <option v-for="item in classOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
               </select>
             </label>
-          </div>
-
-          <div class="form-inline-grid">
             <label class="form-field">
               <span>专精</span>
               <select v-model="form.specName" class="input" required>
@@ -346,22 +359,12 @@
                 <option v-for="item in availableRaceOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
               </select>
             </label>
-          </div>
-
-          <div class="form-inline-grid">
-            <label class="form-field">
-              <span>服务器</span>
-              <input v-model.trim="form.realmName" class="input" maxlength="32" placeholder="例如：影之哀伤" required />
-            </label>
             <label class="form-field">
               <span>阵营</span>
               <select v-model="form.faction" class="input" required>
                 <option v-for="item in formFactionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
               </select>
             </label>
-          </div>
-
-          <div class="form-inline-grid">
             <label class="form-field">
               <span>等级</span>
               <input v-model.number="form.level" class="input" type="number" min="1" max="90" required />
@@ -370,27 +373,33 @@
               <span>装等</span>
               <input v-model.number="form.itemLevel" class="input" type="number" min="0" max="999" step="0.01" required />
             </label>
-          </div>
-
-          <div class="form-inline-grid">
-            <label class="form-field switch-field">
-              <span>作为主角色展示</span>
-              <input v-model="form.isFeatured" class="checkbox-input" type="checkbox" />
+            <label class="form-field">
+              <span>专业 1</span>
+              <select v-model="form.professionPrimary" class="input">
+                <option value="">未设置</option>
+                <option v-for="item in availablePrimaryProfessionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
             </label>
-            <div class="form-inline-grid two-field-nested">
-              <label class="form-field">
-                <span>当前钥匙层数</span>
-                <input v-model.number="form.mythicBestLevel" class="input" type="number" min="0" max="40" step="1" />
-              </label>
-              <label class="form-field">
-                <span>当前钥匙副本</span>
-                <select v-model="form.mythicDungeonName" class="input">
-                  <option value="">未设置</option>
-                  <option v-for="item in mythicDungeonOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-                </select>
-              </label>
+            <label class="form-field">
+              <span>专业 2</span>
+              <select v-model="form.professionSecondary" class="input">
+                <option value="">未设置</option>
+                <option v-for="item in availableSecondaryProfessionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>当前钥匙层数</span>
+              <input v-model.number="form.mythicBestLevel" class="input" type="number" min="0" max="40" step="1" />
+            </label>
+            <label class="form-field">
+              <span>当前钥匙副本</span>
+              <select v-model="form.mythicDungeonName" class="input">
+                <option value="">未设置</option>
+                <option v-for="item in mythicDungeonOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+            </label>
             </div>
-          </div>
+          </section>
 
           <section v-if="showEndgameSections" class="dialog-block">
             <div class="dialog-block-head">
@@ -523,39 +532,27 @@
             </div>
           </section>
 
-          <div class="form-inline-grid">
-            <label class="form-field">
-              <span>专业 1</span>
-              <select v-model="form.professionPrimary" class="input">
-                <option value="">未设置</option>
-                <option v-for="item in availablePrimaryProfessionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select>
-            </label>
-            <label class="form-field">
-              <span>专业 2</span>
-              <select v-model="form.professionSecondary" class="input">
-                <option value="">未设置</option>
-                <option v-for="item in availableSecondaryProfessionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select>
-            </label>
-          </div>
-
           <section class="dialog-block">
             <div class="dialog-block-head">
               <div>
-                <h4 class="dialog-block-title">专精键位</h4>
-                <p class="dialog-block-tip">按当前职业的每个专精保存插件导出的键位字符串，列表只展示保存状态。</p>
+                <h4 class="dialog-block-title">键位方案</h4>
+                <p class="dialog-block-tip">可保存多套用户命名的插件键位字符串，内容默认隐藏。</p>
               </div>
+              <button type="button" class="ghost-btn" @click="openKeybindingDialog()">新增方案</button>
             </div>
-            <div class="keybinding-list">
-              <div v-for="item in form.keybindings" :key="item.specName" class="keybinding-row">
+            <div v-if="form.keybindings.length" class="keybinding-list">
+              <div v-for="(item, index) in form.keybindings" :key="item.localKey" class="keybinding-row">
                 <div>
-                  <strong>{{ item.specNameLabel }}</strong>
+                  <strong>{{ item.bindingName }}</strong>
                   <span :class="{ saved: item.bindingContent }">{{ item.bindingContent ? '已保存键位' : '未保存键位' }}</span>
                 </div>
-                <button type="button" class="mini-btn" @click="openKeybindingDialog(item)">复制键位</button>
+                <div class="keybinding-actions">
+                  <button type="button" class="mini-btn" @click="openKeybindingDialog(item)">编辑 / 复制</button>
+                  <button type="button" class="mini-btn danger" @click="removeKeybinding(index)">删除</button>
+                </div>
               </div>
             </div>
+            <div v-else class="empty-inline keybinding-empty">还没有键位方案</div>
           </section>
 
           <label class="form-field">
@@ -573,22 +570,31 @@
 
     <MacDialog
       v-model="showKeybindingDialog"
-      :title="activeKeybinding?.specNameLabel || '专精键位'"
-      subtitle="键位字符串默认隐藏，只在这里查看、粘贴和复制。"
+      :title="activeKeybinding?.bindingName || '新增键位方案'"
+      subtitle="设置一个容易识别的名称，键位字符串只在这里显示。"
       width="720px"
       panel-class="wow-keybinding-dialog"
       :close-disabled="false"
       @close="closeKeybindingDialog"
     >
-      <textarea
-        v-if="activeKeybinding"
-        v-model="activeKeybinding.bindingContent"
-        class="input textarea keybinding-textarea"
-        rows="10"
-        placeholder="粘贴插件导出的键位字符串"
-      />
+      <div v-if="activeKeybinding" class="keybinding-editor">
+        <label class="form-field">
+          <span>方案名称</span>
+          <input v-model.trim="activeKeybinding.bindingName" class="input" maxlength="64" placeholder="例如：团本治疗、大秘境输出" />
+        </label>
+        <label class="form-field">
+          <span>键位字符串</span>
+          <textarea
+            v-model="activeKeybinding.bindingContent"
+            class="input textarea keybinding-textarea"
+            rows="10"
+            placeholder="粘贴插件导出的键位字符串"
+          />
+        </label>
+      </div>
       <template #footer>
-        <button v-if="activeKeybinding" type="button" class="action-btn" @click="copyActiveKeybinding">复制</button>
+        <button v-if="activeKeybinding" type="button" class="ghost-btn" @click="copyActiveKeybinding">复制字符串</button>
+        <button v-if="activeKeybinding" type="button" class="action-btn" @click="saveActiveKeybinding">保存方案</button>
       </template>
     </MacDialog>
 
@@ -823,30 +829,20 @@ function normalizeMythicRunList(rawRuns, dungeonOptions) {
   }))
 }
 
-function normalizeKeybindingList(rawKeybindings, specOptions) {
-  const keybindingMap = new Map()
-  if (Array.isArray(rawKeybindings)) {
-    rawKeybindings.forEach((item) => {
-      const normalizedValue = findOptionByAny(specOptions, item?.specName)?.value || item?.specName || ''
-      if (!normalizedValue) {
-        return
-      }
-      keybindingMap.set(normalizedValue, {
-        specName: normalizedValue,
-        bindingContent: item?.bindingContent || '',
-        hasKeybinding: Boolean(item?.hasKeybinding || item?.bindingContent)
-      })
-    })
+function createKeybindingDraft(source = {}, fallbackName = '') {
+  return {
+    localKey: source.localKey || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    bindingName: source.bindingName || source.specNameLabel || source.specName || fallbackName,
+    bindingContent: source.bindingContent || '',
+    hasKeybinding: Boolean(source.hasKeybinding || source.bindingContent)
   }
-  return specOptions.map((option) => {
-    const matched = keybindingMap.get(option.value)
-    return {
-      specName: option.value,
-      specNameLabel: option.label,
-      bindingContent: matched?.bindingContent || '',
-      hasKeybinding: Boolean(matched?.hasKeybinding)
-    }
-  })
+}
+
+function normalizeKeybindingList(rawKeybindings) {
+  if (!Array.isArray(rawKeybindings)) {
+    return []
+  }
+  return rawKeybindings.map((item, index) => createKeybindingDraft(item, `键位方案 ${index + 1}`))
 }
 
 function normalizeCharacter(item = {}, dungeonOptions = []) {
@@ -939,6 +935,7 @@ export default {
     const mythicRunsExpanded = ref(false)
     const weeklyVaultsExpanded = ref(false)
     const activeKeybinding = ref(null)
+    const activeKeybindingIndex = ref(-1)
     const dialogMode = ref('create')
     const editingId = ref('')
     const factionOptions = ref([])
@@ -1048,7 +1045,7 @@ export default {
     const getDefaultClassValue = () => classOptions.value.find((item) => item.isDefault)?.value || classOptions.value[0]?.value || ''
 
     const createDefaultMythicRuns = () => normalizeMythicRunList([], mythicDungeonOptions.value)
-    const createDefaultKeybindings = () => normalizeKeybindingList([], availableSpecOptions.value)
+    const createDefaultKeybindings = () => []
 
     const normalizeFormSelections = () => {
       form.className = normalizeSelectedValue(classOptions.value, form.className, getDefaultClassValue())
@@ -1120,7 +1117,7 @@ export default {
       } else {
         form.mythicRuns = normalizeMythicRunList(form.mythicRuns, mythicDungeonOptions.value)
       }
-      form.keybindings = normalizeKeybindingList(form.keybindings, availableSpecOptions.value)
+      form.keybindings = normalizeKeybindingList(form.keybindings)
       normalizeFormSelections()
       } catch (error) {
         factionOptions.value = []
@@ -1237,7 +1234,7 @@ export default {
       form.weeklyVaults = Array.isArray(record.weeklyVaults)
         ? record.weeklyVaults.map((item) => createWeeklyVaultDraft(item))
         : []
-      form.keybindings = normalizeKeybindingList(record.keybindings || [], availableSpecOptions.value)
+      form.keybindings = normalizeKeybindingList(record.keybindings || [])
       form.professionPrimary = normalizeSelectedValue(professionOptions.value, record.professionPrimary, '')
       form.professionSecondary = normalizeSelectedValue(professionOptions.value, record.professionSecondary, '')
       form.note = record.note || ''
@@ -1263,20 +1260,59 @@ export default {
       mythicRunsExpanded.value = !mythicRunsExpanded.value
     }
 
-    const openKeybindingDialog = (item) => {
-      activeKeybinding.value = item
+    const openKeybindingDialog = (item = null) => {
+      activeKeybindingIndex.value = item
+        ? form.keybindings.findIndex((current) => current.localKey === item.localKey)
+        : -1
+      activeKeybinding.value = createKeybindingDraft(item || {})
       showKeybindingDialog.value = true
     }
 
     const closeKeybindingDialog = () => {
       showKeybindingDialog.value = false
       activeKeybinding.value = null
+      activeKeybindingIndex.value = -1
+    }
+
+    const saveActiveKeybinding = () => {
+      const bindingName = `${activeKeybinding.value?.bindingName || ''}`.trim()
+      if (!bindingName) {
+        alert('请输入键位方案名称')
+        return
+      }
+      const normalizedName = bindingName.toLocaleLowerCase()
+      const hasDuplicateName = form.keybindings.some((item, index) => (
+        index !== activeKeybindingIndex.value
+        && `${item.bindingName || ''}`.trim().toLocaleLowerCase() === normalizedName
+      ))
+      if (hasDuplicateName) {
+        alert('键位方案名称不能重复')
+        return
+      }
+      const savedKeybinding = createKeybindingDraft({
+        ...activeKeybinding.value,
+        bindingName
+      })
+      if (activeKeybindingIndex.value >= 0) {
+        form.keybindings.splice(activeKeybindingIndex.value, 1, savedKeybinding)
+      } else {
+        form.keybindings.push(savedKeybinding)
+      }
+      closeKeybindingDialog()
+    }
+
+    const removeKeybinding = (index) => {
+      const item = form.keybindings[index]
+      if (!item || !window.confirm(`确认删除键位方案【${item.bindingName}】吗？`)) {
+        return
+      }
+      form.keybindings.splice(index, 1)
     }
 
     const copyActiveKeybinding = async () => {
       const content = activeKeybinding.value?.bindingContent || ''
       if (!content) {
-        alert('当前专精还没有保存键位')
+        alert('当前方案还没有保存键位字符串')
         return
       }
       try {
@@ -1340,7 +1376,7 @@ export default {
         note: item.note || ''
       })) : [],
       keybindings: form.keybindings.map((item) => ({
-        specName: item.specName,
+        bindingName: item.bindingName,
         bindingContent: item.bindingContent || ''
       })),
       professionPrimary: form.professionPrimary || null,
@@ -1367,6 +1403,20 @@ export default {
       if (!form.faction) {
         alert('阵营字典未加载完成')
         return
+      }
+      const keybindingNames = new Set()
+      for (const item of form.keybindings) {
+        const bindingName = `${item.bindingName || ''}`.trim()
+        if (!bindingName) {
+          alert('键位方案名称不能为空')
+          return
+        }
+        const normalizedName = bindingName.toLocaleLowerCase()
+        if (keybindingNames.has(normalizedName)) {
+          alert('键位方案名称不能重复')
+          return
+        }
+        keybindingNames.add(normalizedName)
       }
       if (!form.characterName) {
         alert('请输入角色名')
@@ -1617,7 +1667,6 @@ export default {
       if (form.raceName && !availableRaceOptions.value.some((item) => item.value === form.raceName)) {
         form.raceName = ''
       }
-      form.keybindings = normalizeKeybindingList(form.keybindings, availableSpecOptions.value)
     })
 
     watch(() => form.faction, () => {
@@ -1744,6 +1793,8 @@ export default {
       toggleMythicRuns,
       openKeybindingDialog,
       closeKeybindingDialog,
+      saveActiveKeybinding,
+      removeKeybinding,
       copyActiveKeybinding,
       goBack,
       formatFactionText,
@@ -2561,6 +2612,46 @@ export default {
   gap: 14px;
 }
 
+.character-fields-section {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.character-fields-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.character-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.featured-toggle {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.featured-toggle span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .form-inline-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -2573,24 +2664,11 @@ export default {
   font-size: 16px;
 }
 
-.switch-field {
-  justify-content: center;
-  min-height: 100%;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .checkbox-input {
   width: 18px;
   height: 18px;
   margin: 2px 0 0;
   accent-color: #38bdf8;
-}
-
-.two-field-nested {
-  gap: 10px;
 }
 
 .mythic-run-row {
@@ -3094,8 +3172,23 @@ export default {
   color: #86efac;
 }
 
-.keybinding-textarea {
+.keybinding-actions {
+  flex-direction: row !important;
+  flex-shrink: 0;
+  gap: 6px !important;
+}
+
+.keybinding-empty {
   margin-top: 12px;
+}
+
+.keybinding-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.keybinding-textarea {
   min-height: 220px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
@@ -3128,6 +3221,10 @@ button:disabled {
 }
 
 @media (max-width: 960px) {
+  .character-fields-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .filter-grid,
   .summary-grid,
   .keybinding-list,
@@ -3360,9 +3457,23 @@ button:disabled {
   }
 
   .form-inline-grid,
+  .character-fields-grid,
   .overview-metrics,
   .spotlight-grid {
     grid-template-columns: 1fr;
+  }
+
+  .character-fields-section {
+    padding: 10px;
+  }
+
+  .character-fields-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .featured-toggle {
+    justify-content: space-between;
   }
 
   .pager {
@@ -3491,7 +3602,17 @@ button:disabled {
   }
 
   .keybinding-row {
+    align-items: stretch;
+    flex-direction: column;
     padding: 8px;
+  }
+
+  .keybinding-actions {
+    width: 100%;
+  }
+
+  .keybinding-actions .mini-btn {
+    flex: 1;
   }
 
   .keybinding-textarea {

@@ -58,8 +58,7 @@ describe('WowCharacterStats MacDialog integration', () => {
     wrapper.vm.openCreateDialog()
     wrapper.vm.form.characterName = '风渐渐'
     wrapper.vm.openKeybindingDialog({
-      specName: 'balance',
-      specNameLabel: '平衡',
+      bindingName: '团本输出',
       bindingContent: 'SHIFT-1'
     })
     await nextTick()
@@ -79,5 +78,29 @@ describe('WowCharacterStats MacDialog integration', () => {
     await nextTick()
 
     expect(document.body.querySelector('.mac-dialog-panel.wow-character-dialog')).toBeNull()
+  })
+
+  it('可以保存多套用户命名的键位方案', async () => {
+    const wrapper = mount(WowCharacterStats, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+
+    wrapper.vm.openCreateDialog()
+    wrapper.vm.openKeybindingDialog()
+    wrapper.vm.activeKeybinding.bindingName = '团本治疗'
+    wrapper.vm.activeKeybinding.bindingContent = 'RAID-BINDINGS'
+    wrapper.vm.saveActiveKeybinding()
+
+    wrapper.vm.openKeybindingDialog()
+    wrapper.vm.activeKeybinding.bindingName = '大秘境治疗'
+    wrapper.vm.activeKeybinding.bindingContent = 'MYTHIC-BINDINGS'
+    wrapper.vm.saveActiveKeybinding()
+
+    expect(wrapper.vm.form.keybindings).toHaveLength(2)
+    expect(wrapper.vm.form.keybindings.map((item) => item.bindingName)).toEqual(['团本治疗', '大秘境治疗'])
+    expect(wrapper.vm.form.keybindings.every((item) => item.hasKeybinding)).toBe(true)
   })
 })
