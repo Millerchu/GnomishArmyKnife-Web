@@ -64,7 +64,8 @@ test('MacWindowControls exposes accessible window control buttons', () => {
   assert.match(closeButton, /\baria-label="取消并关闭弹窗"/)
   assert.match(closeButton, /\btitle="取消并关闭"/)
   assert.match(closeButton, /@click="\$emit\('close'\)"/)
-  assert.match(closeButton, />\s*×\s*<\/button>/)
+  assert.match(closeButton, /class="mac-window-glyph close-glyph"/)
+  assert.match(closeButton, /\baria-hidden="true"/)
 
   const minimizeButton = extractButtonByClass('minimize')
   assert.match(minimizeButton, /\btype="button"/)
@@ -72,7 +73,8 @@ test('MacWindowControls exposes accessible window control buttons', () => {
   assert.match(minimizeButton, /\baria-label="收起弹窗"/)
   assert.match(minimizeButton, /\btitle="收起"/)
   assert.match(minimizeButton, /@click="\$emit\('minimize'\)"/)
-  assert.match(minimizeButton, />\s*−\s*<\/button>/)
+  assert.match(minimizeButton, /class="mac-window-glyph minimize-glyph"/)
+  assert.match(minimizeButton, /\baria-hidden="true"/)
 
   const zoomButton = extractButtonByClass('zoom')
   assert.match(zoomButton, /\btype="button"/)
@@ -80,7 +82,8 @@ test('MacWindowControls exposes accessible window control buttons', () => {
   assert.match(zoomButton, /:aria-label="maximized \? '还原弹窗' : '最大化弹窗'"/)
   assert.match(zoomButton, /:title="maximized \? '还原' : '最大化'"/)
   assert.match(zoomButton, /@click="\$emit\('toggle-maximize'\)"/)
-  assert.match(zoomButton, />\s*\+\s*<\/button>/)
+  assert.match(zoomButton, /class="mac-window-glyph zoom-glyph"/)
+  assert.match(zoomButton, /\baria-hidden="true"/)
 })
 
 test('MacWindowControls declares independent props and exact emitted events', () => {
@@ -131,4 +134,22 @@ test('MacWindowControls keeps a 12px dot inside each 24px control target', () =>
   const disabledDotRule = extractStyleRule('.mac-window-dot:disabled::before')
   assert.match(disabledDotRule, /\bfilter:\s*grayscale\(0\.7\)\s*;/)
   assert.match(disabledDotRule, /\bopacity:\s*0\.45\s*;/)
+})
+
+test('MacWindowControls draws glyphs from the exact center instead of a font baseline', () => {
+  const glyphRule = extractStyleRule('.mac-window-glyph')
+  assert.match(glyphRule, /\bposition:\s*absolute\s*;/)
+  assert.match(glyphRule, /\btop:\s*50%\s*;/)
+  assert.match(glyphRule, /\bleft:\s*50%\s*;/)
+  assert.match(glyphRule, /\btransform:\s*translate\(-50%,\s*-50%\)\s*;/)
+
+  const glyphBeforeRule = extractStyleRule('.mac-window-glyph::before')
+  assert.match(glyphBeforeRule, /\btop:\s*50%\s*;/)
+  assert.match(glyphBeforeRule, /\bleft:\s*50%\s*;/)
+  assert.match(glyphBeforeRule, /\bheight:\s*1\.5px\s*;/)
+
+  const glyphAfterRule = extractStyleRule('.mac-window-glyph::after')
+  assert.match(glyphAfterRule, /\btop:\s*50%\s*;/)
+  assert.match(glyphAfterRule, /\bleft:\s*50%\s*;/)
+  assert.match(glyphAfterRule, /\bheight:\s*1\.5px\s*;/)
 })

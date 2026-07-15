@@ -8,7 +8,7 @@
       title="取消并关闭"
       @click="$emit('close')"
     >
-      ×
+      <span class="mac-window-glyph close-glyph" aria-hidden="true"></span>
     </button>
     <button
       type="button"
@@ -18,7 +18,7 @@
       title="收起"
       @click="$emit('minimize')"
     >
-      −
+      <span class="mac-window-glyph minimize-glyph" aria-hidden="true"></span>
     </button>
     <button
       type="button"
@@ -27,7 +27,7 @@
       :title="maximized ? '还原' : '最大化'"
       @click="$emit('toggle-maximize')"
     >
-      +
+      <span class="mac-window-glyph zoom-glyph" aria-hidden="true"></span>
     </button>
   </div>
 </template>
@@ -70,13 +70,7 @@ export default {
   padding: 0;
   border-radius: 999px;
   background: transparent;
-  color: transparent;
   cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  transition: color 120ms ease;
 }
 
 .mac-window-dot::before {
@@ -93,9 +87,46 @@ export default {
   transition: filter 120ms ease, opacity 120ms ease;
 }
 
-.mac-window-controls:hover .mac-window-dot,
-.mac-window-dot:focus-visible {
-  color: rgba(15, 23, 42, 0.72);
+.mac-window-glyph {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 120ms ease;
+}
+
+.mac-window-glyph::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  content: '';
+  transform: translate(-50%, -50%);
+}
+
+.mac-window-glyph::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  content: '';
+  transform: translate(-50%, -50%);
+}
+
+.mac-window-controls:hover .mac-window-glyph,
+.mac-window-dot:focus-visible .mac-window-glyph {
+  opacity: 1;
 }
 
 .mac-window-dot:focus-visible {
@@ -112,6 +143,10 @@ export default {
   opacity: 0.45;
 }
 
+.mac-window-dot:disabled .mac-window-glyph {
+  opacity: 0.28;
+}
+
 .mac-window-dot.close::before {
   background: #ff5f57;
 }
@@ -122,5 +157,21 @@ export default {
 
 .mac-window-dot.zoom::before {
   background: #28c840;
+}
+
+.close-glyph::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.close-glyph::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.minimize-glyph::after {
+  display: none;
+}
+
+.zoom-glyph::after {
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 </style>
