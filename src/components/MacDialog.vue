@@ -659,6 +659,8 @@ export default {
 @media (max-width: 720px) {
   .mac-dialog-mask {
     align-items: flex-end;
+    min-height: 0;
+    overflow: hidden;
     padding: 12px;
     padding-top: max(8px, env(safe-area-inset-top, 0px));
     padding-right: max(8px, env(safe-area-inset-right, 0px));
@@ -667,6 +669,7 @@ export default {
   }
 
   .mac-dialog-panel {
+    min-height: 0;
     height: calc(100vh - 16px);
     height: calc(100dvh - 16px);
     height: calc(
@@ -689,6 +692,13 @@ export default {
   }
 
   .mac-dialog-body {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y pinch-zoom;
     padding: 16px;
     scrollbar-gutter: auto;
   }
@@ -696,6 +706,7 @@ export default {
   .mac-dialog-actions {
     position: relative;
     z-index: 1;
+    flex: 0 0 auto;
     flex-wrap: wrap;
     padding: 12px 16px max(12px, env(safe-area-inset-bottom, 0px));
   }

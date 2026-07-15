@@ -19,7 +19,7 @@
       </div>
     </div>
 
-    <section class="week-stats-panel">
+    <section class="week-stats-panel" :class="{'is-week-stats': calendarView === 'week'}">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">{{ activeStatsTitle }}</h2>
@@ -138,7 +138,7 @@
           {{ calendarView === 'month' ? '下一月' : '下一周' }}
         </button>
         <button class="action-btn" :disabled="loading" @click="openCreateDialog">新增</button>
-        <button class="action-btn" :disabled="loading" @click="toggleYearList">
+        <button class="action-btn year-list-action" :disabled="loading" @click="toggleYearList">
           {{ showYearList ? '收起年度' : '年度列表' }}
         </button>
       </div>
@@ -149,9 +149,9 @@
         v-for="day in weekDays"
         :key="day.date"
         class="day-card"
-        :class="{active: selectedDate === day.date}"
-        @click="selectDay(day.date)"
-        @dblclick="openDayDetail(day.date)"
+        :class="{active: selectedDate === day.date, empty: !daySummaryMap[day.date]?.count}"
+        @click="handleDayClick(day.date)"
+        @dblclick="handleDayDoubleClick(day.date)"
       >
         <div class="day-head">
           <div class="day-head-main">
@@ -200,7 +200,8 @@
     <div v-else class="month-view-panel">
       <div class="month-view-head">
         <h2 class="panel-title">{{ monthLabel }}</h2>
-        <span class="panel-tip">单击选择日期，双击当月日期查看当天日志详情。</span>
+        <span class="panel-tip desktop-calendar-tip">单击选择日期，双击当月日期查看当天日志详情。</span>
+        <span class="panel-tip mobile-calendar-tip">轻触当月日期查看当天日志详情。</span>
       </div>
 
       <div class="month-week-row">
@@ -213,8 +214,8 @@
           :key="day.date"
           class="month-day-card"
           :class="{active: selectedDate === day.date, muted: !day.inCurrentMonth}"
-          @click="selectMonthDay(day)"
-          @dblclick="openMonthDayDetail(day)"
+          @click="handleMonthDayClick(day)"
+          @dblclick="handleMonthDayDoubleClick(day)"
         >
           <div class="day-head month-day-head">
             <div class="day-head-main">
@@ -636,6 +637,7 @@ import {
 } from '@/utils/workLogCalendar'
 
 const WEEK_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const MOBILE_MEDIA_QUERY = '(max-width: 720px)'
 const STANDARD_OFF_WORK_TIME = '18:00'
 const WORK_LOG_APP_CODE = 'APP_WORK_LOG'
 const WORK_LOG_MODULE_CODE = 'WORK_LOG'
@@ -1407,6 +1409,41 @@ export default {
       selectDay(day.date)
     }
 
+    function isMobileViewport() {
+      return typeof window !== 'undefined' && window.matchMedia(MOBILE_MEDIA_QUERY).matches
+    }
+
+    async function handleDayClick(date) {
+      if (isMobileViewport()) {
+        await openDayDetail(date)
+        return
+      }
+      selectDay(date)
+    }
+
+    async function handleMonthDayClick(day) {
+      if (!day.inCurrentMonth) {
+        return
+      }
+      if (isMobileViewport()) {
+        await openMonthDayDetail(day)
+        return
+      }
+      selectMonthDay(day)
+    }
+
+    async function handleDayDoubleClick(date) {
+      if (!isMobileViewport()) {
+        await openDayDetail(date)
+      }
+    }
+
+    async function handleMonthDayDoubleClick(day) {
+      if (!isMobileViewport()) {
+        await openMonthDayDetail(day)
+      }
+    }
+
     async function openDayDetail(date) {
       detailDate.value = date
       selectedDate.value = date
@@ -1799,6 +1836,10 @@ export default {
       parseWorkItemEntries,
       selectDay,
       selectMonthDay,
+      handleDayClick,
+      handleMonthDayClick,
+      handleDayDoubleClick,
+      handleMonthDayDoubleClick,
       openDayDetail,
       openMonthDayDetail,
       selectLog,
@@ -1828,13 +1869,17 @@ export default {
 
 <style scoped>
 .work-log-page {
-  min-height: 100vh;
+  min-height: 0;
   height: 100%;
   color: #fff;
   width: min(100%, 1480px);
   margin: 0 auto;
   padding: 18px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .page-nav {
@@ -3061,6 +3106,10 @@ export default {
   display: none;
 }
 
+.mobile-calendar-tip {
+  display: none;
+}
+
 @media (max-width: 1280px) {
   .work-log-page {
     width: 100%;
@@ -3186,9 +3235,319 @@ export default {
 
 }
 
+@media (max-width: 720px) {
+  .work-log-page {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    padding: 8px 8px max(24px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .week-stats-panel.is-week-stats {
+    display: none;
+  }
+
+  .week-stats-panel:not(.is-week-stats) {
+    margin-bottom: 8px;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .week-stats-panel:not(.is-week-stats) .panel-head {
+    margin-bottom: 8px;
+  }
+
+  .month-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .month-stats-grid .stats-card {
+    min-width: 0;
+    padding: 8px;
+    gap: 5px;
+    border-radius: 10px;
+  }
+
+  .month-stats-grid .stats-card-wide {
+    grid-column: 1 / -1;
+    min-height: 54px;
+  }
+
+  .month-stats-grid .stats-card-metric {
+    min-height: 72px;
+  }
+
+  .month-stats-grid .stats-card-badge {
+    display: none;
+  }
+
+  .month-stats-grid .stats-label {
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+
+  .month-stats-grid .stats-card strong {
+    font-size: 17px;
+    letter-spacing: 0;
+  }
+
+  .month-stats-grid .stats-card small,
+  .month-stats-grid .stats-empty {
+    font-size: 10px;
+  }
+
+  .month-stats-grid .stats-chip-row {
+    gap: 4px;
+  }
+
+  .month-stats-grid .stats-chip {
+    min-height: 20px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .hero-panel,
+  .weekly-report-panel,
+  .month-view-panel,
+  .detail-panel {
+    margin-bottom: 8px;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .hero-panel {
+    gap: 7px;
+  }
+
+  .page-subtitle {
+    display: none;
+  }
+
+  .hero-tags {
+    gap: 4px;
+  }
+
+  .hero-tag {
+    min-height: 20px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .panel-head,
+  .month-view-head,
+  .year-head {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .weekly-report-range {
+    padding: 5px 7px;
+    font-size: 10px;
+  }
+
+  .weekly-report-content {
+    gap: 10px;
+  }
+
+  .weekly-report-project {
+    padding-left: 10px;
+  }
+
+  .weekly-report-project h3 {
+    margin-bottom: 5px;
+    font-size: 13px;
+  }
+
+  .weekly-report-project ol {
+    padding-left: 18px;
+    font-size: 12px;
+  }
+
+  .weekly-report-project li {
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+
+  .weekly-report-empty {
+    padding: 10px 0 2px;
+    font-size: 11px;
+  }
+
+  .top-bar {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .view-switch {
+    width: 100%;
+    padding: 3px;
+    border-radius: 10px;
+  }
+
+  .view-switch-btn {
+    flex: 1;
+    min-height: 30px;
+    padding: 0 8px;
+    border-radius: 7px;
+    font-size: 12px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 5px;
+  }
+
+  .actions .action-btn,
+  .actions .ghost-btn {
+    min-height: 34px;
+    min-width: 0;
+    padding: 0 5px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .year-list-action {
+    display: none;
+  }
+
+  .calendar-grid {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .day-card {
+    min-height: 112px;
+    padding: 9px;
+    border-radius: 12px;
+  }
+
+  .day-card.empty {
+    min-height: 72px;
+  }
+
+  .day-head {
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .day-type-summary {
+    gap: 3px;
+    max-width: 72%;
+  }
+
+  .day-type-badge {
+    padding: 2px 5px;
+    font-size: 9px;
+  }
+
+  .summary-wrap {
+    gap: 5px;
+    min-height: 0;
+  }
+
+  .summary-projects {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .summary-metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .summary-metric {
+    gap: 2px;
+    padding: 5px 6px;
+    border-radius: 7px;
+  }
+
+  .summary-metric strong {
+    font-size: 11px;
+  }
+
+  .summary-foot {
+    justify-content: flex-end;
+    font-size: 10px;
+  }
+
+  .summary-foot span:first-child {
+    display: none;
+  }
+
+  .month-week-row,
+  .month-calendar-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .desktop-calendar-tip {
+    display: none !important;
+  }
+
+  .mobile-calendar-tip {
+    display: block;
+  }
+
+  .month-week-row {
+    margin-bottom: 4px;
+  }
+
+  .month-week-row span {
+    padding: 0;
+    overflow: hidden;
+    font-size: 9px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .month-day-card {
+    min-height: 58px;
+    padding: 5px;
+    border-radius: 8px;
+  }
+
+  .month-day-head {
+    margin-bottom: 0;
+  }
+
+  .month-day-head .day-head-main strong {
+    font-size: 13px;
+  }
+
+  .month-day-head .day-head-main span,
+  .month-day-card .day-type-summary,
+  .month-summary-wrap .summary-projects,
+  .month-summary-wrap .summary-metric-strip {
+    display: none;
+  }
+
+  .month-summary-wrap {
+    min-height: 0;
+  }
+
+  .type-color-bar {
+    height: 3px;
+  }
+
+  .detail-list,
+  .mobile-year-list {
+    gap: 8px;
+  }
+
+  .detail-item,
+  .mobile-log-card {
+    padding: 9px;
+    border-radius: 10px;
+  }
+}
+
 @media (max-width: 640px) {
   .work-log-page {
-    padding: 12px;
+    padding: 8px 8px max(24px, env(safe-area-inset-bottom, 0px));
   }
 
   .hero-panel,
@@ -3196,7 +3555,7 @@ export default {
   .weekly-report-panel,
   .month-view-panel,
   .detail-panel {
-    border-radius: 16px;
+    border-radius: 12px;
   }
 
   .hero-panel,
@@ -3204,7 +3563,7 @@ export default {
   .weekly-report-panel,
   .month-view-panel,
   .detail-panel {
-    padding: 14px 12px;
+    padding: 10px;
   }
 
   .hero-tags {
@@ -3221,7 +3580,7 @@ export default {
 
   .week-stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
   }
 
   .stats-card,
@@ -3230,16 +3589,20 @@ export default {
   }
 
   .stats-card {
-    padding: 12px;
+    padding: 8px;
   }
 
   .stats-card strong {
-    font-size: 20px;
+    font-size: 17px;
   }
 
   .stats-card-badge {
     min-width: 38px;
     font-size: 9px;
+  }
+
+  .month-stats-grid .stats-card-wide {
+    grid-column: 1 / -1;
   }
 
   .calendar-grid {
@@ -3249,20 +3612,7 @@ export default {
   .day-card,
   .detail-item,
   .mobile-log-card {
-    padding: 11px;
-  }
-
-  .actions .action-btn,
-  .actions .ghost-btn {
-    flex: 1 1 100%;
-  }
-
-  .view-switch {
-    width: 100%;
-  }
-
-  .view-switch-btn {
-    flex: 1;
+    padding: 9px;
   }
 
   .year-select {

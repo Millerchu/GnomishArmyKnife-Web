@@ -252,6 +252,31 @@ afterEach(() => {
 })
 
 describe('WorkLog MacDialog integration', () => {
+  it('opens day details with a single tap in the mobile viewport', async () => {
+    const matchMediaMock = vi.fn(() => ({matches: true}))
+    vi.stubGlobal('matchMedia', matchMediaMock)
+    listWorkLogs.mockResolvedValue(buildApiResponse([
+      {
+        id: 930,
+        userId: '1001',
+        logDate: '2026-07-15',
+        typeCodes: ['NORMAL'],
+        location: 'OFFICE',
+        projectCode: 'PROJECT_ALPHA',
+        workItem: '移动端单击查看',
+        personDay: 1,
+        overtimeHours: 0
+      }
+    ]))
+    const wrapper = await mountWorkLog()
+
+    await wrapper.vm.handleDayClick('2026-07-15')
+    await flushPromises()
+
+    expect(matchMediaMock).toHaveBeenCalledWith('(max-width: 720px)')
+    expect(document.body.querySelector('.work-log-day-detail-dialog')).not.toBeNull()
+  })
+
   it('keeps only range navigation, create, and annual list actions in the top toolbar', async () => {
     const wrapper = await mountWorkLog()
 
