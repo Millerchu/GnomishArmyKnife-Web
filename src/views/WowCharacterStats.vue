@@ -129,7 +129,7 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">角色列表</h2>
-            <p class="panel-tip">列表只保留核心字段，阵营用行底色区分；更多资料进入编辑详情维护。</p>
+            <p class="panel-tip">点击字段可依次切换降序、升序和取消排序；更多资料进入编辑详情维护。</p>
           </div>
         </div>
 
@@ -150,13 +150,24 @@
             <table class="character-table">
               <thead>
               <tr>
-                <th>角色名</th>
-                <th>专精</th>
-                <th>等级</th>
-                <th>服务器</th>
-                <th>装等</th>
-                <th>当前钥匙</th>
-                <th>M+ 总分</th>
+                <th
+                  v-for="column in sortColumns"
+                  :key="column.field"
+                  :class="{'faction-column': column.field === 'faction'}"
+                >
+                  <button
+                    class="sort-header-btn"
+                    :class="{active: query.sortField === column.field}"
+                    type="button"
+                    :title="getSortButtonTitle(column)"
+                    :aria-label="getSortButtonTitle(column)"
+                    :disabled="loading"
+                    @click="toggleSort(column.field)"
+                  >
+                    <span>{{ column.label }}</span>
+                    <span class="sort-indicator" aria-hidden="true">{{ getSortIndicator(column.field) }}</span>
+                  </button>
+                </th>
                 <th>操作</th>
               </tr>
               </thead>
@@ -167,6 +178,14 @@
                 class="character-row"
                 :class="buildFactionRowClass(item)"
               >
+                <td class="faction-column">
+                  <img
+                    class="faction-icon"
+                    :src="getFactionIcon(item.faction)"
+                    :alt="`${formatFactionText(item.faction)}图标`"
+                    :title="formatFactionText(item.faction)"
+                  >
+                </td>
                 <td>
                   <span class="name-badge" :style="buildNameBadgeStyle(item)">
                     {{ item.characterName }}
@@ -194,6 +213,23 @@
             </table>
           </div>
 
+          <div v-if="pagedRecords.length" class="mobile-sort-bar" aria-label="角色列表排序">
+            <button
+              v-for="column in sortColumns"
+              :key="column.field"
+              class="mobile-sort-btn"
+              :class="{active: query.sortField === column.field}"
+              type="button"
+              :title="getSortButtonTitle(column)"
+              :aria-label="getSortButtonTitle(column)"
+              :disabled="loading"
+              @click="toggleSort(column.field)"
+            >
+              <span>{{ column.mobileLabel || column.label }}</span>
+              <span aria-hidden="true">{{ getSortIndicator(column.field) }}</span>
+            </button>
+          </div>
+
           <div v-if="pagedRecords.length" class="mobile-list">
             <article
               v-for="item in pagedRecords"
@@ -203,9 +239,16 @@
               :style="buildMobileCardStyle(item)"
             >
               <div class="mobile-card-head">
-                <div>
-                  <h3 class="mobile-card-title">{{ item.characterName }}</h3>
-                  <p class="mobile-card-subtitle">{{ formatSpecText(item.specName) || '-' }} · {{ item.realmName }}</p>
+                <div class="mobile-card-identity">
+                  <img
+                    class="faction-icon mobile-faction-icon"
+                    :src="getFactionIcon(item.faction)"
+                    :alt="`${formatFactionText(item.faction)}图标`"
+                  >
+                  <div>
+                    <h3 class="mobile-card-title">{{ item.characterName }}</h3>
+                    <p class="mobile-card-subtitle">{{ formatSpecText(item.specName) || '-' }} · {{ item.realmName }}</p>
+                  </div>
                 </div>
               </div>
 
@@ -241,70 +284,76 @@
       </section>
 
       <aside class="insight-panel">
-        <div class="panel-head">
+        <div class="panel-head insight-panel-head">
           <div>
             <h2 class="panel-title">角色概览</h2>
-            <p class="panel-tip">压缩展示关键账号规模和分布。</p>
+            <p class="panel-tip">账号规模与角色分布</p>
           </div>
         </div>
 
         <div class="overview-metrics">
           <article class="overview-metric">
-            <strong>{{ overview.totalCharacters }}</strong>
             <span>角色</span>
+            <strong>{{ overview.totalCharacters }}</strong>
           </article>
           <article class="overview-metric">
-            <strong>{{ formatDecimal(overview.averageItemLevel) }}</strong>
             <span>平均装等</span>
+            <strong>{{ formatDecimal(overview.averageItemLevel) }}</strong>
           </article>
           <article class="overview-metric">
-            <strong>{{ formatDecimal(overview.highestMythicScore) }}</strong>
             <span>最高评分</span>
+            <strong>{{ formatDecimal(overview.highestMythicScore) }}</strong>
           </article>
           <article class="overview-metric">
-            <strong>{{ overview.totalRealms }}</strong>
             <span>服务器</span>
+            <strong>{{ overview.totalRealms }}</strong>
           </article>
         </div>
 
-        <div class="insight-block compact-insight-block">
-          <div class="insight-head">
-            <h3 class="insight-title">阵营 / 服务器</h3>
-          </div>
-          <div class="stats-list compact-stats-list">
-            <div v-for="item in factionStats" :key="item.label" class="stats-row compact-stats-row">
-              <div>
-                <strong>{{ item.label }}</strong>
-                <span>{{ item.count }} 个角色</span>
-              </div>
-              <b>{{ item.ratio }}</b>
+        <div class="insight-detail-grid">
+          <section class="insight-block compact-insight-block">
+            <div class="insight-head">
+              <h3 class="insight-title">阵营与服务器</h3>
+              <span class="insight-head-meta">服务器 Top 3</span>
             </div>
-            <div v-for="item in realmStats.slice(0, 3)" :key="item.realmName" class="stats-row compact-stats-row">
-              <div>
+            <div class="faction-summary-grid">
+              <div v-for="item in factionStats" :key="item.label" class="faction-summary-item">
+                <div>
+                  <strong>{{ item.label }}</strong>
+                  <span>{{ item.count }} 角色</span>
+                </div>
+                <b>{{ item.ratio }}</b>
+              </div>
+            </div>
+            <div class="realm-summary-list">
+              <div v-for="item in realmStats.slice(0, 3)" :key="item.realmName" class="realm-summary-row">
                 <strong>{{ item.realmName }}</strong>
-                <span>{{ item.count }} 个角色</span>
+                <span>{{ item.count }} 角色</span>
+                <b>最高 {{ formatDecimal(item.highestItemLevel) }}</b>
               </div>
-              <b>最高 {{ formatDecimal(item.highestItemLevel) }}</b>
             </div>
-          </div>
-        </div>
+          </section>
 
-        <div class="insight-block compact-insight-block">
-          <div class="insight-head">
-            <h3 class="insight-title">职业分布</h3>
-            <span>{{ classStats.length }} 职业</span>
-          </div>
-          <div class="class-stat-list">
-            <div
-              v-for="item in classStats"
-              :key="item.className"
-              class="class-stat-item"
-              :style="buildClassStatStyle(item.className)"
-            >
-              <strong>{{ item.className }}</strong>
-              <span>{{ item.count }} 个角色 · 平均装等 {{ formatDecimal(item.averageItemLevel) }}</span>
+          <section class="insight-block compact-insight-block">
+            <div class="insight-head">
+              <h3 class="insight-title">职业分布</h3>
+              <span class="insight-head-meta">{{ classStats.length }} 职业</span>
             </div>
-          </div>
+            <div class="class-stat-list compact-class-stat-grid">
+              <div
+                v-for="item in classStats"
+                :key="item.className"
+                class="class-stat-item compact-class-stat-item"
+                :style="buildClassStatStyle(item.className)"
+              >
+                <div class="class-stat-main">
+                  <strong>{{ item.className }}</strong>
+                  <b>{{ item.count }}</b>
+                </div>
+                <span>平均装等 {{ formatDecimal(item.averageItemLevel) }}</span>
+              </div>
+            </div>
+          </section>
         </div>
       </aside>
     </div>
@@ -656,6 +705,16 @@ import {
 import {shouldShowEndgameSections} from '@/utils/wowCharacterDisplay'
 
 const PAGE_SIZE_OPTIONS = [12, 20, 40]
+const CHARACTER_SORT_COLUMNS = [
+  {field: 'faction', label: '阵营'},
+  {field: 'characterName', label: '角色名', mobileLabel: '角色'},
+  {field: 'specName', label: '专精'},
+  {field: 'level', label: '等级'},
+  {field: 'realmName', label: '服务器'},
+  {field: 'itemLevel', label: '装等'},
+  {field: 'currentKey', label: '当前钥匙', mobileLabel: '钥匙'},
+  {field: 'mythicScore', label: 'M+ 总分', mobileLabel: '评分'}
+]
 const WOW_APP_CODE = 'APP_WOW_CHARACTER'
 const WOW_MODULE_CODE = 'WOW_CHARACTER'
 const FACTION_FIELD_CODE = 'faction'
@@ -873,14 +932,6 @@ function normalizeCharacter(item = {}, dungeonOptions = []) {
   }
 }
 
-function sortCharacters(list = []) {
-  return [...list].sort((prev, next) => (
-    Number(next.itemLevel || 0) - Number(prev.itemLevel || 0)
-    || Number(next.mythicScore || 0) - Number(prev.mythicScore || 0)
-    || `${prev.characterName}`.localeCompare(`${next.characterName}`)
-  ))
-}
-
 function normalizeOverview(payload = {}, dungeonOptions = []) {
   return {
     totalCharacters: toNumber(payload.totalCharacters, 0),
@@ -950,7 +1001,9 @@ export default {
       faction: '',
       className: '',
       pageNo: 1,
-      pageSize: PAGE_SIZE_OPTIONS[0]
+      pageSize: PAGE_SIZE_OPTIONS[0],
+      sortField: '',
+      sortDirection: ''
     })
 
     const form = reactive({
@@ -994,6 +1047,7 @@ export default {
       top: `${featuredScorePopoverPosition.top}px`
     }))
     const pageSizeOptions = PAGE_SIZE_OPTIONS
+    const sortColumns = CHARACTER_SORT_COLUMNS
     const classMetaMap = computed(() => classOptions.value.reduce((result, item) => {
       const style = WOW_CLASS_RULES[item.itemCode]?.style || {color: '#64748b', textColor: '#ffffff'}
       const meta = {
@@ -1175,13 +1229,15 @@ export default {
           pageSize: query.pageSize,
           keyword: query.keyword || undefined,
           faction: query.faction || undefined,
-          className: query.className || undefined
+          className: query.className || undefined,
+          sortField: query.sortField || undefined,
+          sortDirection: query.sortDirection || undefined
         })
         const payload = unwrapData(listRes) || {}
         const rawList = Array.isArray(payload)
           ? payload
           : (payload.list || payload.records || payload.rows || [])
-        const normalizedList = sortCharacters(rawList.map((item) => normalizeCharacter(item, mythicDungeonOptions.value)))
+        const normalizedList = rawList.map((item) => normalizeCharacter(item, mythicDungeonOptions.value))
         pagedRecords.value = normalizedList
         total.value = toNumber(payload.total ?? payload.count, normalizedList.length)
       } catch (error) {
@@ -1509,7 +1565,42 @@ export default {
       query.className = ''
       query.pageNo = 1
       query.pageSize = PAGE_SIZE_OPTIONS[0]
+      query.sortField = ''
+      query.sortDirection = ''
       loadCharacters()
+    }
+
+    const toggleSort = async (field) => {
+      if (loading.value) {
+        return
+      }
+      if (query.sortField !== field) {
+        query.sortField = field
+        query.sortDirection = 'DESC'
+      } else if (query.sortDirection === 'DESC') {
+        query.sortDirection = 'ASC'
+      } else {
+        query.sortField = ''
+        query.sortDirection = ''
+      }
+      query.pageNo = 1
+      await loadCharacters()
+    }
+
+    const getSortIndicator = (field) => {
+      if (query.sortField !== field) {
+        return '↕'
+      }
+      return query.sortDirection === 'DESC' ? '↓' : '↑'
+    }
+
+    const getSortButtonTitle = (column) => {
+      if (query.sortField !== column.field) {
+        return `${column.label}：点击按降序排列`
+      }
+      return query.sortDirection === 'DESC'
+        ? `${column.label}：当前降序，点击切换为升序`
+        : `${column.label}：当前升序，点击取消排序`
     }
 
     const changePage = (offset) => {
@@ -1531,6 +1622,9 @@ export default {
     }
 
     const formatFactionText = (value) => getOptionLabel(factionOptions.value, value, value || '-')
+    const getFactionIcon = (value) => value === 'HORDE'
+      ? '/brand/wow-horde-faction-icon.png'
+      : '/brand/wow-alliance-faction-icon.png'
     const formatSpecText = (value) => value ? getOptionLabel(specOptions.value, value, value) : ''
     const formatRaceText = (value) => value ? getOptionLabel(raceOptions.value, value, value) : '-'
     const formatProfessionValue = (value) => value ? getOptionLabel(professionOptions.value, value, value) : ''
@@ -1756,6 +1850,7 @@ export default {
       weeklyVaultsExpanded,
       dialogMode,
       pageSizeOptions,
+      sortColumns,
       factionOptions,
       classOptions,
       raceOptions,
@@ -1779,6 +1874,9 @@ export default {
       formatScore,
       handleSearch,
       resetQuery,
+      toggleSort,
+      getSortIndicator,
+      getSortButtonTitle,
       changePage,
       handlePageSizeChange,
       openCreateDialog,
@@ -1798,6 +1896,7 @@ export default {
       copyActiveKeybinding,
       goBack,
       formatFactionText,
+      getFactionIcon,
       formatSpecText,
       formatRaceText,
       formatCurrentKey,
@@ -2273,7 +2372,18 @@ export default {
 .content-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.72fr) minmax(320px, 0.98fr);
+  align-items: start;
   gap: 14px;
+}
+
+.insight-panel {
+  min-width: 0;
+  align-self: start;
+}
+
+.insight-panel-head {
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .summary-grid {
@@ -2283,9 +2393,9 @@ export default {
 
 .overview-metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .summary-card,
@@ -2303,19 +2413,28 @@ export default {
 .overview-metric {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-height: 72px;
-  padding: 12px;
+  gap: 3px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px;
+  border-radius: 8px;
 }
 
 .overview-metric strong {
-  font-size: 20px;
+  overflow: hidden;
+  font-size: 16px;
   line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #ffd76e;
 }
 
 .overview-metric span {
-  font-size: 12px;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: rgba(255, 255, 255, 0.72);
 }
 
@@ -2336,7 +2455,154 @@ export default {
 }
 
 .compact-insight-block {
-  margin-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.insight-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.compact-insight-block .insight-head {
+  min-height: 24px;
+  gap: 8px;
+}
+
+.compact-insight-block .insight-title {
+  font-size: 14px;
+}
+
+.insight-head-meta {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 11px;
+}
+
+.faction-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.faction-summary-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.faction-summary-item > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.faction-summary-item strong,
+.faction-summary-item span,
+.faction-summary-item b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.faction-summary-item strong {
+  font-size: 12px;
+}
+
+.faction-summary-item span {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+}
+
+.faction-summary-item b {
+  color: #ffd76e;
+  font-size: 12px;
+}
+
+.realm-summary-list {
+  margin-top: 5px;
+}
+
+.realm-summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 5px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.realm-summary-row:last-child {
+  border-bottom: 0;
+}
+
+.realm-summary-row strong,
+.realm-summary-row span,
+.realm-summary-row b {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.realm-summary-row span {
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.realm-summary-row b {
+  color: rgba(255, 215, 110, 0.9);
+  font-weight: 600;
+}
+
+.class-stat-list.compact-class-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.class-stat-item.compact-class-stat-item {
+  min-width: 0;
+  gap: 2px;
+  padding: 7px 8px;
+  border-radius: 8px;
+}
+
+.class-stat-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.class-stat-main strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.class-stat-main b {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.compact-class-stat-item span {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stats-list,
@@ -2441,7 +2707,7 @@ export default {
 
 .character-table {
   width: 100%;
-  min-width: 780px;
+  min-width: 860px;
   border-collapse: collapse;
 }
 
@@ -2456,6 +2722,57 @@ export default {
 .character-table th {
   color: rgba(255, 255, 255, 0.88);
   font-weight: 600;
+}
+
+.faction-column {
+  width: 58px;
+  text-align: center !important;
+}
+
+.sort-header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+}
+
+.sort-header-btn:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.sort-header-btn.active,
+.sort-header-btn:hover {
+  color: #f8cf62;
+}
+
+.sort-indicator {
+  width: 12px;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 12px;
+  text-align: center;
+}
+
+.sort-header-btn.active .sort-indicator {
+  color: #f8cf62;
+}
+
+.faction-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  border: 1px solid rgba(248, 207, 98, 0.46);
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
 }
 
 .character-row {
@@ -2506,8 +2823,12 @@ export default {
   color: #fecaca;
 }
 
+.mobile-sort-bar,
 .mobile-list {
   display: none;
+}
+
+.mobile-list {
   margin-top: 14px;
   gap: 8px;
 }
@@ -2533,6 +2854,23 @@ export default {
   display: flex;
   justify-content: space-between;
   gap: 10px;
+}
+
+.mobile-card-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.mobile-card-identity > div {
+  min-width: 0;
+}
+
+.mobile-faction-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
 }
 
 .mobile-card-grid {
@@ -3218,6 +3556,11 @@ button:disabled {
   .content-layout {
     grid-template-columns: 1fr;
   }
+
+  .insight-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
 }
 
 @media (max-width: 960px) {
@@ -3402,6 +3745,41 @@ button:disabled {
     display: none;
   }
 
+  .mobile-sort-bar {
+    display: flex;
+    margin: 8px -1px 0;
+    padding: 0 1px 5px;
+    gap: 5px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .mobile-sort-btn {
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-height: 29px;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 11px;
+    cursor: pointer;
+    background: rgba(8, 20, 34, 0.62);
+  }
+
+  .mobile-sort-btn.active {
+    border-color: rgba(248, 207, 98, 0.62);
+    color: #ffe39a;
+    background: rgba(108, 73, 17, 0.48);
+  }
+
+  .mobile-sort-btn:disabled {
+    cursor: wait;
+    opacity: 0.62;
+  }
+
   .mobile-list {
     display: grid;
     margin-top: 8px;
@@ -3415,6 +3793,15 @@ button:disabled {
 
   .mobile-card-head {
     gap: 6px;
+  }
+
+  .mobile-card-identity {
+    gap: 7px;
+  }
+
+  .mobile-faction-icon {
+    width: 27px;
+    height: 27px;
   }
 
   .mobile-card-title {
