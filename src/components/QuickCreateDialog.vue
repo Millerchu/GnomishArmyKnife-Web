@@ -29,8 +29,13 @@
       <form v-else id="quick-create-form" class="quick-form" :class="{'personal-bill-quick-form': activeType.typeCode === 'PERSONAL_BILL'}" @submit.prevent="submit">
         <header class="form-heading">
           <div class="form-mark" :style="activeApp?.iconStyle">
+            <AuthenticatedImage
+              v-if="activeApp?.iconType === 'UPLOAD' && activeApp?.iconAttachmentId"
+              :attachment-id="activeApp.iconAttachmentId"
+              :alt="activeType.appName"
+            />
             <AppIconImage
-              v-if="usesImageIcon(activeApp?.iconType) && activeApp?.iconUrl"
+              v-else-if="usesImageIcon(activeApp?.iconType) && activeApp?.iconUrl"
               img-class="form-mark-image"
               :src="activeApp.iconUrl"
               :alt="activeType.appName"
@@ -97,6 +102,7 @@
 import {computed, reactive, ref, watch} from 'vue'
 import MacDialog from '@/components/MacDialog.vue'
 import AppIconImage from '@/components/AppIconImage.vue'
+import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import {createWorkLog} from '@/api/workLog'
 import {createPasswordMemo} from '@/api/passwordMemo'
 import {createTodoTask} from '@/api/todoList'

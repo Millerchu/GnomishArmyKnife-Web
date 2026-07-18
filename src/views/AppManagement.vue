@@ -102,8 +102,13 @@
             <article v-for="item in apps" :key="item.id" class="table-row" role="row">
               <div class="cell app-cell" role="cell" data-label="应用">
                 <div class="app-icon" :class="previewClassName(item.iconType)">
+                  <AuthenticatedImage
+                    v-if="item.iconType === 'UPLOAD' && item.iconAttachmentId"
+                    :attachment-id="item.iconAttachmentId"
+                    :alt="item.name"
+                  />
                   <AppIconImage
-                    v-if="usesImageIcon(item.iconType) && item.iconUrl"
+                    v-else-if="usesImageIcon(item.iconType) && item.iconUrl"
                     :src="item.iconUrl"
                     :alt="item.name"
                     :chroma-key="item.iconChromaKey"
@@ -204,8 +209,13 @@
 
         <div class="preview-card">
           <div class="preview-icon" :class="previewClassName(form.iconType)">
+            <AuthenticatedImage
+              v-if="form.iconType === 'UPLOAD' && form.iconAttachmentId"
+              :attachment-id="form.iconAttachmentId"
+              :alt="form.name || '应用图标'"
+            />
             <AppIconImage
-              v-if="usesImageIcon(form.iconType) && form.iconUrl"
+              v-else-if="usesImageIcon(form.iconType) && form.iconUrl"
               :src="form.iconUrl"
               :alt="form.name || '应用图标'"
               :chroma-key="form.iconChromaKey"
@@ -371,13 +381,14 @@ import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import AppIconImage from '@/components/AppIconImage.vue'
 import MacDialog from '@/components/MacDialog.vue'
+import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import {
   createSystemApp,
   listSystemApps,
   updateSystemApp,
   updateSystemAppStatus,
-  uploadSystemAppIcon
 } from '@/api/appManagement'
+import {uploadAttachment} from '@/api/attachment'
 import {resolveGenericAppIcon} from '@/constants/appIconAssets'
 import {APP_PRESET_ICONS, getPresetIconSvg} from '@/constants/appIconLibrary'
 import {
@@ -445,6 +456,7 @@ function createEmptyForm() {
     iconStorageType: genericIcon.iconStorageType,
     iconFileName: genericIcon.iconFileName,
     iconChromaKey: genericIcon.iconChromaKey,
+    iconAttachmentId: null,
     sortNo: 10,
     status: 'ENABLED',
     description: '',
@@ -482,6 +494,7 @@ function normalizeFormPayload(form) {
     iconUrl: ['UPLOAD', 'URL'].includes(iconType) ? `${form.iconUrl || ''}`.trim() : '',
     iconStorageType: ['UPLOAD', 'URL'].includes(iconType) ? `${form.iconStorageType || (iconType === 'UPLOAD' ? 'LOCAL_DRAFT' : '')}`.trim() : '',
     iconFileName: ['UPLOAD', 'URL'].includes(iconType) ? `${form.iconFileName || ''}`.trim() : '',
+    iconAttachmentId: iconType === 'UPLOAD' ? form.iconAttachmentId : null,
     iconChromaKey: ['UPLOAD', 'URL'].includes(iconType) ? `${form.iconChromaKey || ''}`.trim() : '',
     enabled: form.status === 'ENABLED',
     status: form.status,
@@ -499,6 +512,7 @@ export default {
   name: 'AppManagement',
   components: {
     AppIconImage,
+    AuthenticatedImage,
     MacDialog
   },
   setup() {
@@ -587,6 +601,7 @@ export default {
       form.iconStorageType = normalized.iconStorageType || ''
       form.iconFileName = normalized.iconFileName || ''
       form.iconChromaKey = normalized.iconChromaKey || ''
+      form.iconAttachmentId = normalized.iconAttachmentId || normalized.attachments?.[0]?.id || null
       form.sortNo = normalized.sortNo || 10
       form.status = normalized.enabled ? 'ENABLED' : 'DISABLED'
       form.description = normalized.description || ''
@@ -701,6 +716,7 @@ export default {
       form.iconStorageType = ''
       form.iconFileName = ''
       form.iconChromaKey = ''
+      form.iconAttachmentId = null
     }
 
     const clearUploadedIcon = () => {
@@ -708,6 +724,7 @@ export default {
       form.iconStorageType = ''
       form.iconFileName = ''
       form.iconChromaKey = ''
+      form.iconAttachmentId = null
     }
 
     const handleIconFileChange = async (event) => {
@@ -723,30 +740,21 @@ export default {
 
       uploadLoading.value = true
       try {
-        const res = await uploadSystemAppIcon(file)
+        const res = await uploadAttachment(file, 'ICON')
         const payload = unwrapData(res) || {}
-        const iconUrl = payload.iconUrl || payload.url || payload.fileUrl || ''
-        if (!iconUrl) {
-          throw new Error('图标上传成功但未返回可访问地址')
-        }
         form.iconType = 'UPLOAD'
-        form.iconUrl = iconUrl
-        form.iconStorageType = payload.iconStorageType || payload.storageType || 'FILE_SERVER'
-        form.iconFileName = payload.iconFileName || payload.fileName || file.name
-        form.iconChromaKey = payload.iconChromaKey || ''
+        form.iconAttachmentId = payload.id
+        form.iconUrl = `/api/attachments/${payload.id}/content`
+        form.iconStorageType = 'FILE_SERVER'
+        form.iconFileName = payload.originalFileName || file.name
+        form.iconChromaKey = ''
       } catch (error) {
         const backendMessage = error?.response?.data?.message || error?.response?.data?.msg || ''
         if (backendMessage) {
           alert(backendMessage)
           return
         }
-        const dataUrl = await readFileAsDataUrl(file)
-        form.iconType = 'UPLOAD'
-        form.iconUrl = `${dataUrl}`
-        form.iconStorageType = 'LOCAL_DRAFT'
-        form.iconFileName = file.name
-        form.iconChromaKey = ''
-        alert(extractErrorMessage(error, '后端上传接口暂未接通，已保存本地预览草稿'))
+        alert(extractErrorMessage(error, '图标上传失败'))
       } finally {
         uploadLoading.value = false
         event.target.value = ''
@@ -769,7 +777,7 @@ export default {
       if (form.iconType === 'PRESET' && !form.iconPreset) {
         return '请选择一个预设图标'
       }
-      if (form.iconType === 'UPLOAD' && !form.iconUrl) {
+      if (form.iconType === 'UPLOAD' && !form.iconAttachmentId && !form.iconUrl) {
         return '请先上传一个本地图标'
       }
       if (form.iconType === 'URL' && !/^(https?:\/\/|\/)/.test(form.iconUrl || '')) {

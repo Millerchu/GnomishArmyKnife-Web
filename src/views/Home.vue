@@ -14,6 +14,13 @@
 
         <div class="top-right-wrap">
           <div class="welcome-wrap">
+            <AuthenticatedImage
+              v-if="avatarAttachment"
+              class="header-avatar"
+              :attachment-id="avatarAttachment.id"
+              :alt="`${user.displayName || user.username || '用户'}的头像`"
+            />
+            <span v-else class="header-avatar avatar-fallback">{{ avatarInitial }}</span>
             <span class="welcome-label">欢迎，</span>
             <span class="user-name-text">
               {{ user.displayName || user.username || '用户' }}
@@ -105,8 +112,13 @@
           >
             <div class="tool-layout">
               <div class="icon-box" :style="tool.iconStyle">
+                <AuthenticatedImage
+                  v-if="tool.iconType === 'UPLOAD' && tool.iconAttachmentId"
+                  :attachment-id="tool.iconAttachmentId"
+                  :alt="tool.name"
+                />
                 <AppIconImage
-                  v-if="usesImageIcon(tool.iconType) && tool.iconUrl"
+                  v-else-if="usesImageIcon(tool.iconType) && tool.iconUrl"
                   :img-class="'icon-image'"
                   :src="tool.iconUrl"
                   :alt="tool.name"
@@ -186,6 +198,27 @@
           class="dialog-form dialog-density-grid dialog-grid-cols-2"
           @submit.prevent="submitProfile"
         >
+          <section class="profile-identity-card">
+            <div class="profile-avatar-preview">
+              <AuthenticatedImage
+                v-if="profileAvatarAttachments[0]"
+                :attachment-id="profileAvatarAttachments[0].id"
+                :alt="`${profileForm.displayName || profileForm.username || '用户'}的头像`"
+              />
+              <span v-else>{{ profileAvatarInitial }}</span>
+            </div>
+            <div class="profile-identity-copy">
+              <strong>{{ profileForm.displayName || profileForm.username || '设置你的昵称' }}</strong>
+              <span>支持 JPEG、PNG、WebP、GIF，头像将通过鉴权附件接口保存。</span>
+            </div>
+          </section>
+          <AttachmentManager
+            v-model="profileAvatarAttachments"
+            usage-type="IMAGE"
+            :max-count="1"
+            title="个人头像"
+            hint="选择一张图片作为头像；移除后保存即可恢复为文字头像。"
+          />
           <label class="form-item">
             <span>用户名</span>
             <input v-model="profileForm.username" disabled/>
@@ -275,6 +308,8 @@ import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {changePasswordApi, getPasswordPublicKeyApi} from '@/api/auth'
 import AppIconImage from '@/components/AppIconImage.vue'
+import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
+import AttachmentManager from '@/components/AttachmentManager.vue'
 import MacDialog from '@/components/MacDialog.vue'
 import QuickCreateDialog from '@/components/QuickCreateDialog.vue'
 import {getCurrentUserAccessibleApps} from '@/api/permission'
@@ -286,6 +321,7 @@ import {sortHomeTools} from '@/utils/homeToolOrder'
 import {resolvePermissionViewState} from '@/utils/permissionAccess'
 import {encryptPasswordByPublicKey} from '@/utils/rsaEncrypt'
 import {resolveQuickCreateTypes} from '@/constants/quickCreateRegistry'
+import {getMyAvatarAttachments, saveMyAvatarAttachments} from '@/api/attachment'
 
 const WEEK_LABELS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
 const APP_COLOR_PALETTE = [
@@ -435,6 +471,8 @@ function buildNotice(type = '', title = '', message = '') {
 export default {
   components: {
     AppIconImage,
+    AuthenticatedImage,
+    AttachmentManager,
     MacDialog,
     QuickCreateDialog
   },
@@ -461,6 +499,8 @@ export default {
     const easterEggClickCount = ref(0)
     const logoutPending = ref(false)
     const showQuickCreateDialog = ref(false)
+    const avatarAttachments = ref([])
+    const profileAvatarAttachments = ref([])
     let easterEggTimer = null
     let surfaceNoticeTimer = null
 
@@ -482,6 +522,9 @@ export default {
 
     const currentDateText = computed(() => formatDateText(currentTime.value))
     const currentUserRole = computed(() => `${normalizeCurrentUser(user.value || {}).roleCode || 'USER'}`.toUpperCase())
+    const avatarAttachment = computed(() => avatarAttachments.value[0] || null)
+    const avatarInitial = computed(() => Array.from(user.value.displayName || user.value.username || '我')[0])
+    const profileAvatarInitial = computed(() => Array.from(profileForm.displayName || profileForm.username || '我')[0])
     const appPermissionStatusText = computed(() => {
       if (appPermissionLoading.value) {
         return '权限加载中'
@@ -561,6 +604,14 @@ export default {
       profileForm.displayName = currentUser.displayName || ''
       profileForm.phone = currentUser.phone || ''
       profileForm.email = currentUser.email || ''
+      profileAvatarAttachments.value = avatarAttachments.value.map((item) => ({...item}))
+    }
+
+    const loadCurrentUserAvatar = async () => {
+      const response = await getMyAvatarAttachments()
+      const attachments = unwrapData(response)
+      avatarAttachments.value = Array.isArray(attachments) ? attachments : []
+      profileAvatarAttachments.value = avatarAttachments.value.map((item) => ({...item}))
     }
 
     const resetPasswordForm = () => {
@@ -845,7 +896,7 @@ export default {
 
       dialogLoading.value = true
       try {
-        await loadCurrentUserProfile()
+        await Promise.all([loadCurrentUserProfile(), loadCurrentUserAvatar()])
       } catch (error) {
         console.warn('加载当前用户资料失败，继续使用本地缓存数据', error)
         showSurfaceNotice('warning', '资料同步失败', '个人中心暂时无法刷新最新资料，当前先展示本地登录信息。')
@@ -890,6 +941,8 @@ export default {
         }
 
         const res = await updateSystemUser(currentUser.id, payload)
+        const avatarResponse = await saveMyAvatarAttachments(profileAvatarAttachments.value.map((item) => item.id))
+        avatarAttachments.value = Array.isArray(unwrapData(avatarResponse)) ? unwrapData(avatarResponse) : []
         const savedUser = normalizeCurrentUser(unwrapData(res) || {})
         persistUser({
           ...savedUser,
@@ -980,6 +1033,9 @@ export default {
       document.addEventListener('click', handleDocumentClick)
       document.addEventListener('keydown', handleEscapeKey)
       loadCurrentUserAccessibleApps()
+      loadCurrentUserAvatar().catch(() => {
+        avatarAttachments.value = []
+      })
     })
 
     onBeforeUnmount(() => {
@@ -1001,6 +1057,10 @@ export default {
       systemMenuRef,
       currentDateText,
       currentUserRole,
+      avatarAttachment,
+      avatarInitial,
+      profileAvatarAttachments,
+      profileAvatarInitial,
       appPermissionLoading,
       appPermissionStatusText,
       permissionHintText,
@@ -1214,6 +1274,53 @@ export default {
   align-items: center;
   gap: 6px;
 }
+
+.header-avatar {
+  width: 34px;
+  height: 34px;
+  border: 2px solid rgba(255, 255, 255, 0.52);
+  border-radius: 50%;
+  box-shadow: 0 8px 20px rgba(2, 12, 27, 0.22);
+}
+
+.avatar-fallback {
+  display: inline-grid;
+  place-items: center;
+  color: #082f49;
+  font-weight: 900;
+  background: linear-gradient(145deg, #fef3c7, #67e8f9);
+}
+
+.profile-identity-card {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(14, 116, 144, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(236, 254, 255, 0.9), rgba(248, 250, 252, 0.76));
+}
+
+.profile-avatar-preview {
+  width: 70px;
+  height: 70px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 24px;
+  color: #164e63;
+  font-size: 26px;
+  font-weight: 900;
+  background: linear-gradient(145deg, #fde68a, #67e8f9);
+  box-shadow: 0 12px 28px rgba(14, 116, 144, 0.16);
+}
+
+.profile-identity-copy { display: grid; gap: 5px; }
+.profile-identity-copy strong { color: #0f172a; font-size: 17px; }
+.profile-identity-copy span { color: #64748b; font-size: 12px; line-height: 1.55; }
 
 .welcome-label {
   font-weight: 500;
