@@ -13,7 +13,7 @@
         <p class="page-subtitle">按周或按月查看与维护日志，类型、地点和项目优先使用数据字典配置，视图切换后同步展示对应统计。</p>
       </div>
       <div class="hero-tags">
-        <span class="hero-tag">{{ calendarRangeText }}</span>
+        <span v-if="calendarView === 'month'" class="hero-tag">{{ calendarRangeText }}</span>
         <span class="hero-tag">{{ showYearList ? '已展开年度列表' : (calendarView === 'month' ? '月视图' : '周视图') }}</span>
         <span class="hero-tag">{{ dictionarySourceText }}</span>
       </div>
@@ -25,6 +25,7 @@
           <h2 class="panel-title">{{ activeStatsTitle }}</h2>
           <p class="panel-tip">{{ activeStatsTip }}</p>
         </div>
+        <span v-if="calendarView === 'week'" class="calendar-range-badge">{{ calendarRangeText }}</span>
       </div>
 
       <div class="week-stats-grid" :class="{'month-stats-grid': calendarView === 'month'}">
@@ -177,6 +178,22 @@
               />
             </div>
             <p class="summary-projects">{{ daySummaryMap[day.date].projectsText }}</p>
+            <div class="daily-work-summary">
+              <div class="daily-work-summary-head">
+                <span>工作内容</span>
+                <strong>{{ daySummaryMap[day.date].workItems.length }} 项</strong>
+              </div>
+              <ol v-if="daySummaryMap[day.date].workItems.length" class="daily-work-list">
+                <li
+                  v-for="(workItem, index) in daySummaryMap[day.date].workItems.slice(0, 3)"
+                  :key="`${day.date}-work-${index}`"
+                >{{ workItem }}</li>
+              </ol>
+              <p v-else class="daily-work-empty">当天日志尚未填写具体工作内容</p>
+              <span v-if="daySummaryMap[day.date].workItems.length > 3" class="daily-work-more">
+                另有 {{ daySummaryMap[day.date].workItems.length - 3 }} 项，双击查看全部
+              </span>
+            </div>
             <div class="summary-metric-strip">
               <span class="summary-metric">
                 <small>人天</small>
@@ -2221,7 +2238,8 @@ export default {
   align-items: center;
 }
 
-.weekly-report-range {
+.weekly-report-range,
+.calendar-range-badge {
   flex: 0 0 auto;
   padding: 7px 10px;
   border: 1px solid rgba(118, 197, 255, 0.18);
@@ -3110,6 +3128,368 @@ export default {
   display: none;
 }
 
+/* 工作日志统一使用全局语义色，避免局部深蓝材质破坏明暗主题的一致性。 */
+.work-log-page {
+  color: var(--theme-text);
+}
+
+.back-home-btn {
+  color: var(--theme-text-soft);
+  background: var(--theme-surface);
+  border-color: var(--theme-border);
+  box-shadow: var(--theme-shadow-xs);
+}
+
+.back-home-btn:hover {
+  color: var(--theme-text);
+  background: var(--theme-surface-raised);
+  border-color: var(--theme-border-strong);
+}
+
+.back-home-icon,
+.view-switch,
+.ghost-btn,
+.mini-btn {
+  background: var(--theme-control-surface);
+}
+
+.hero-panel,
+.week-stats-panel,
+.weekly-report-panel,
+.month-view-panel,
+.detail-panel {
+  border-color: var(--theme-border);
+  background: linear-gradient(180deg, var(--theme-surface-strong), var(--theme-surface));
+  box-shadow: var(--theme-shadow-sm);
+}
+
+.page-subtitle,
+.panel-tip,
+.stats-card small,
+.stats-empty,
+.weekly-report-empty,
+.month-week-row span,
+.day-head-main span,
+.summary-foot,
+.empty-text,
+.day-detail-toolbar,
+.day-detail-empty,
+.field-hint {
+  color: var(--theme-text-muted);
+}
+
+.hero-tag,
+.stats-chip,
+.summary-chip,
+.detail-type-chip {
+  color: var(--theme-text-soft);
+  background: var(--theme-highlight-soft);
+  border: 1px solid var(--theme-divider);
+}
+
+.view-switch {
+  border-color: var(--theme-border);
+}
+
+.view-switch-btn {
+  color: var(--theme-text-muted);
+}
+
+.view-switch-btn:hover:not(:disabled) {
+  color: var(--theme-text);
+  background: var(--theme-highlight-soft);
+}
+
+.view-switch-btn.active,
+.action-btn {
+  color: #fff;
+  background: var(--theme-accent);
+  box-shadow: none;
+}
+
+.view-switch-btn.active:hover:not(:disabled),
+.action-btn:hover:not(:disabled) {
+  background: var(--theme-accent-strong);
+}
+
+.ghost-btn,
+.mini-btn {
+  color: var(--theme-text-soft);
+}
+
+.action-btn.danger,
+.mini-btn.danger {
+  color: var(--theme-danger);
+  background: var(--theme-danger-soft);
+}
+
+.stats-card {
+  background: var(--theme-surface-raised);
+  border-color: var(--theme-border);
+  box-shadow: var(--theme-shadow-xs), inset 0 1px 0 var(--theme-highlight-soft);
+}
+
+.stats-card::before {
+  background: linear-gradient(90deg, var(--theme-accent), transparent);
+}
+
+.stats-card-badge,
+.weekly-report-range {
+  color: var(--theme-link);
+  background: var(--theme-accent-soft);
+  border-color: color-mix(in srgb, var(--theme-accent) 24%, transparent);
+}
+
+.stats-label {
+  color: var(--theme-text-muted);
+}
+
+.travel-allowance-card {
+  border-color: color-mix(in srgb, var(--theme-success) 28%, var(--theme-border));
+  background: linear-gradient(180deg, var(--theme-success-soft), var(--theme-surface-raised));
+}
+
+.weekly-report-project {
+  border-left-color: var(--theme-accent);
+}
+
+.weekly-report-project h3,
+.weekly-report-project ol,
+.summary-projects,
+.summary-metric strong,
+.detail-work-list,
+.mobile-log-work,
+.table-work-list {
+  color: var(--theme-text-soft);
+}
+
+.weekly-report-project li b {
+  color: var(--theme-text-muted);
+}
+
+.month-day-card,
+.day-card {
+  background: var(--theme-surface-strong);
+  border-color: var(--theme-border);
+  box-shadow: var(--theme-shadow-xs), inset 0 1px 0 var(--theme-highlight-soft);
+}
+
+.month-day-card:hover:not(.muted),
+.day-card:hover {
+  border-color: var(--theme-border-strong);
+  background: var(--theme-surface-raised);
+}
+
+.month-day-card.active,
+.day-card.active {
+  border-color: var(--theme-accent);
+  background: linear-gradient(180deg, var(--theme-accent-soft), var(--theme-surface-raised));
+  box-shadow: 0 0 0 1px var(--theme-focus-ring), var(--theme-shadow-xs);
+}
+
+.day-head,
+.day-head-main strong {
+  color: var(--theme-text);
+}
+
+.type-color-bar {
+  background: var(--theme-divider);
+}
+
+.summary-metric {
+  background: var(--theme-surface-muted);
+  border-color: var(--theme-divider);
+}
+
+.summary-metric small {
+  color: var(--theme-text-muted);
+}
+
+.daily-work-summary {
+  display: grid;
+  gap: 7px;
+  padding: 9px 0;
+  border-top: 1px solid var(--theme-divider);
+  border-bottom: 1px solid var(--theme-divider);
+}
+
+.daily-work-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--theme-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.daily-work-summary-head strong {
+  color: var(--theme-link);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.daily-work-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 17px;
+  color: var(--theme-text-soft);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.daily-work-list li {
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.daily-work-empty,
+.daily-work-more {
+  margin: 0;
+  color: var(--theme-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.daily-work-more {
+  color: var(--theme-link);
+}
+
+.detail-item,
+.mobile-log-card {
+  background: var(--theme-surface-muted);
+  border-color: var(--theme-divider);
+}
+
+.detail-item:hover,
+.detail-item:focus-visible,
+.detail-item.selected,
+.mobile-log-card.selectedMobileCard,
+.log-table tbody tr.selectedRow,
+.log-table tbody tr:hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 55%, var(--theme-border));
+  background: var(--theme-surface-hover);
+}
+
+.detail-delete-btn {
+  color: var(--theme-danger);
+  background: var(--theme-danger-soft);
+  border-color: color-mix(in srgb, var(--theme-danger) 28%, transparent);
+}
+
+.detail-meta-row,
+.mobile-log-meta,
+.detail-foot-row,
+.mobile-log-foot,
+.form-field > span {
+  color: var(--theme-text-muted);
+}
+
+.detail-edit-cue,
+.work-item-index,
+.work-item-add,
+.mini-link {
+  color: var(--theme-link);
+}
+
+.year-select,
+.form-field input,
+.form-field textarea,
+.form-field select,
+.multi-select-trigger {
+  color: var(--theme-text);
+  background: var(--theme-field-surface);
+  border-color: var(--theme-border);
+}
+
+.log-table th,
+.log-table td {
+  border-bottom-color: var(--theme-table-divider);
+}
+
+.log-table th {
+  color: var(--theme-table-head-text);
+}
+
+.work-item-index,
+.mini-link {
+  background: var(--theme-accent-soft);
+}
+
+.work-item-remove,
+.work-item-add,
+.readonly-field .readonly-value,
+.multi-option,
+.allowance-segment-btn {
+  color: var(--theme-text-soft);
+  background: var(--theme-control-surface);
+  border-color: var(--theme-border);
+}
+
+.multi-select.open .multi-select-trigger {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px var(--theme-focus-ring);
+  background: var(--theme-field-surface);
+}
+
+.multi-select-panel {
+  background: var(--theme-popover-surface);
+  border-color: var(--theme-border-strong);
+  box-shadow: var(--theme-shadow-md);
+}
+
+.multi-option:hover,
+.multi-option.checked {
+  border-color: color-mix(in srgb, var(--theme-accent) 46%, var(--theme-border));
+  background: var(--theme-accent-soft);
+}
+
+.multi-option-check {
+  border-color: var(--theme-border-strong);
+  background: var(--theme-field-surface);
+  box-shadow: none;
+}
+
+.multi-option.checked .multi-option-check {
+  border-color: var(--theme-accent);
+  background: var(--theme-accent);
+}
+
+.multi-option-label {
+  color: var(--theme-text-soft);
+}
+
+.allowance-panel {
+  border-color: color-mix(in srgb, var(--theme-success) 26%, var(--theme-border));
+  background: var(--theme-success-soft);
+}
+
+.allowance-head span,
+.allowance-fixed-row span,
+.allowance-checkbox span {
+  color: var(--theme-text-soft);
+}
+
+.allowance-head strong,
+.allowance-fixed-row strong,
+.allowance-segment-btn strong {
+  color: var(--theme-success);
+}
+
+.allowance-segment-btn.active {
+  border-color: var(--theme-success);
+  background: var(--theme-success-soft);
+}
+
+.allowance-checkbox input {
+  accent-color: var(--theme-success);
+}
+
 @media (max-width: 1280px) {
   .work-log-page {
     width: 100%;
@@ -3342,7 +3722,8 @@ export default {
     margin-bottom: 8px;
   }
 
-  .weekly-report-range {
+  .weekly-report-range,
+  .calendar-range-badge {
     padding: 5px 7px;
     font-size: 10px;
   }

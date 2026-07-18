@@ -41,7 +41,8 @@ export function normalizeKnowledgeEntry(item = {}) {
     reviewedAt: item.reviewedAt || '',
     reviewRemark: item.reviewRemark || '',
     createdAt: item.createdAt || '',
-    updatedAt: item.updatedAt || ''
+    updatedAt: item.updatedAt || '',
+    attachments: Array.isArray(item.attachments) ? item.attachments : []
   }
 }
 

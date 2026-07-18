@@ -227,6 +227,14 @@
             <textarea v-model.trim="form.content" class="input textarea content-textarea" rows="9" maxlength="2000" required />
           </label>
 
+          <AttachmentManager
+            v-model="form.attachments"
+            usage-type="IMAGE"
+            :max-count="9"
+            title="经验图片"
+            hint="最多 9 张，发布后所有登录用户可查看。"
+          />
+
         </form>
         <template #footer>
           <button form="knowledge-entry-dialog-form" type="submit" class="action-btn" :disabled="submitting">
@@ -274,6 +282,11 @@
             <p>{{ activeDetail.content || '-' }}</p>
           </div>
 
+          <div v-if="activeDetail.attachments?.length" class="detail-body">
+            <h4>相关图片 · {{ activeDetail.attachments.length }}</h4>
+            <AttachmentGallery :attachments="activeDetail.attachments" />
+          </div>
+
           <div v-if="isAdmin && activeDetail.status === 'PENDING'" class="review-box">
             <label class="form-field">
               <span>审核备注</span>
@@ -303,6 +316,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import AttachmentManager from '@/components/AttachmentManager.vue'
+import AttachmentGallery from '@/components/AttachmentGallery.vue'
 import {
   createKnowledgeEntry,
   deleteKnowledgeEntry,
@@ -349,7 +364,7 @@ function shortText(text, maxLength = 60) {
 
 export default {
   name: 'KnowledgeBase',
-  components: {MacDialog},
+  components: {MacDialog, AttachmentManager, AttachmentGallery},
   setup() {
     const router = useRouter()
     const currentUser = ref(normalizeCurrentUser(readAuthState(localStorage).user || {}))
@@ -387,7 +402,8 @@ export default {
       source: '',
       tagsText: '',
       summary: '',
-      content: ''
+      content: '',
+      attachments: []
     })
 
     const reviewForm = reactive({
@@ -416,7 +432,8 @@ export default {
         source: '',
         tagsText: '',
         summary: '',
-        content: ''
+        content: '',
+        attachments: []
       })
     }
 
@@ -428,7 +445,8 @@ export default {
         source: item.source || '',
         tagsText: (item.tags || []).join(', '),
         summary: item.summary || '',
-        content: item.content || ''
+        content: item.content || '',
+        attachments: [...(item.attachments || [])]
       })
     }
 
@@ -559,7 +577,8 @@ export default {
           source: form.source || null,
           tags: normalizeKnowledgeTags(form.tagsText),
           summary: form.summary,
-          content: form.content
+          content: form.content,
+          attachmentIds: form.attachments.map((item) => item.id)
         }
         if (editMode.value === 'create') {
           await createKnowledgeEntry(payload)

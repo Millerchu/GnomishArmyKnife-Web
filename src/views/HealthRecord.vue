@@ -139,8 +139,9 @@
               <p><span>处置</span><strong>{{ item.treatmentPlan || '-' }}</strong></p>
               <p><span>建议</span><strong>{{ item.doctorAdvice || '-' }}</strong></p>
             </div>
+            <AttachmentGallery v-if="item.attachments?.length" :attachments="item.attachments" />
             <div class="mobile-card-actions">
-              <button class="mini-btn" :disabled="!item.caseRecordUrl" @click="openFile(item.caseRecordUrl)">病历附件</button>
+              <span class="visit-count-chip">{{ item.attachments?.length || 0 }} 个附件</span>
               <button class="mini-btn" @click="openEditVisitDialog(item)">编辑</button>
               <button class="mini-btn danger" @click="removeVisit(item)">删除</button>
             </div>
@@ -174,8 +175,9 @@
               <p><span>医生建议</span><strong>{{ item.doctorAdvice || '-' }}</strong></p>
               <p><span>文件</span><strong>{{ item.reportFileName || '未上传文件' }}</strong></p>
             </div>
+            <AttachmentGallery v-if="item.attachments?.length" :attachments="item.attachments" />
             <div class="mobile-card-actions">
-              <button class="mini-btn" :disabled="!item.reportUrl" @click="openFile(item.reportUrl)">查看文件</button>
+              <span class="visit-count-chip">{{ item.attachments?.length || 0 }} 个附件</span>
               <button class="mini-btn" @click="openEditReportDialog(item)">编辑</button>
               <button class="mini-btn danger" @click="removeReport(item)">删除</button>
             </div>
@@ -345,15 +347,14 @@
             <textarea v-model.trim="visitForm.doctorAdvice" class="input textarea" rows="3" maxlength="500" />
           </label>
 
-          <label class="form-field dialog-span-all">
-            <span>病历附件</span>
-            <div class="upload-row">
-              <input :value="visitForm.caseRecordFileName" class="input upload-display" placeholder="未上传病历附件" readonly />
-              <button type="button" class="ghost-btn upload-btn" :disabled="submitting" @click="openVisitUploadPicker">选择文件</button>
-              <button v-if="visitForm.caseRecordFileName" type="button" class="mini-btn" :disabled="submitting" @click="clearVisitFile">清除</button>
-            </div>
-            <input ref="visitUploadInputRef" class="hidden-input" type="file" accept=".pdf,image/*,.doc,.docx" @change="handleVisitFileSelected" />
-          </label>
+          <AttachmentManager
+            v-model="visitForm.attachments"
+            usage-type="ATTACHMENT"
+            :max-count="10"
+            accept="image/*,.pdf,.docx,.xlsx,.pptx,.txt,.csv,.zip"
+            title="病历附件"
+            hint="最多 10 个文件，单文件不超过 50MB。"
+          />
 
           <label class="form-field dialog-span-all">
             <span>备注</span>
@@ -399,15 +400,14 @@
             <input v-model.trim="reportForm.reportTitle" class="input" maxlength="64" required />
           </label>
 
-          <label class="form-field dialog-span-all">
-            <span>报告附件</span>
-            <div class="upload-row">
-              <input :value="reportForm.reportFileName" class="input upload-display" placeholder="未上传报告附件" readonly />
-              <button type="button" class="ghost-btn upload-btn" :disabled="submitting" @click="openReportUploadPicker">选择文件</button>
-              <button v-if="reportForm.reportFileName" type="button" class="mini-btn" :disabled="submitting" @click="clearReportFile">清除</button>
-            </div>
-            <input ref="reportUploadInputRef" class="hidden-input" type="file" accept=".pdf,image/*,.doc,.docx" @change="handleReportFileSelected" />
-          </label>
+          <AttachmentManager
+            v-model="reportForm.attachments"
+            usage-type="ATTACHMENT"
+            :max-count="10"
+            accept="image/*,.pdf,.docx,.xlsx,.pptx,.txt,.csv,.zip"
+            title="报告附件"
+            hint="最多 10 个文件，支持报告、表格和影像资料。"
+          />
 
           <label class="form-field dialog-span-all">
             <span>报告摘要</span>
@@ -431,6 +431,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import AttachmentManager from '@/components/AttachmentManager.vue'
+import AttachmentGallery from '@/components/AttachmentGallery.vue'
 import {
   createHealthRecord,
   createHealthReport,
@@ -511,7 +513,7 @@ function buildNumericPayload(rawForm, fieldConfigs) {
 
 export default {
   name: 'HealthRecord',
-  components: {MacDialog},
+  components: {MacDialog, AttachmentManager, AttachmentGallery},
   setup() {
     const router = useRouter()
 
@@ -575,6 +577,7 @@ export default {
       doctorAdvice: '',
       caseRecordFileName: '',
       caseRecordUrl: '',
+      attachments: [],
       note: ''
     })
 
@@ -586,7 +589,8 @@ export default {
       summary: '',
       doctorAdvice: '',
       reportFileName: '',
-      reportUrl: ''
+      reportUrl: '',
+      attachments: []
     })
 
     const latestRecord = computed(() => records.value[0] || null)
@@ -701,6 +705,7 @@ export default {
         doctorAdvice: '',
         caseRecordFileName: '',
         caseRecordUrl: '',
+        attachments: [],
         note: ''
       })
     }
@@ -714,7 +719,8 @@ export default {
         summary: '',
         doctorAdvice: '',
         reportFileName: '',
-        reportUrl: ''
+        reportUrl: '',
+        attachments: []
       })
     }
 
@@ -839,6 +845,7 @@ export default {
         doctorAdvice: item.doctorAdvice || '',
         caseRecordFileName: item.caseRecordFileName || '',
         caseRecordUrl: item.caseRecordUrl || '',
+        attachments: [...(item.attachments || [])],
         note: item.note || ''
       })
       showVisitDialog.value = true
@@ -872,7 +879,8 @@ export default {
         doctorAdvice: visitForm.doctorAdvice || null,
         caseRecordFileName: visitForm.caseRecordFileName || null,
         caseRecordUrl: visitForm.caseRecordUrl || null,
-        note: visitForm.note || null
+        note: visitForm.note || null,
+        attachmentIds: visitForm.attachments.map((item) => item.id)
       }
       submitting.value = true
       try {
@@ -922,7 +930,8 @@ export default {
         summary: item.summary || '',
         doctorAdvice: item.doctorAdvice || '',
         reportFileName: item.reportFileName || '',
-        reportUrl: item.reportUrl || ''
+        reportUrl: item.reportUrl || '',
+        attachments: [...(item.attachments || [])]
       })
       showReportDialog.value = true
     }
@@ -951,7 +960,8 @@ export default {
         summary: reportForm.summary || null,
         doctorAdvice: reportForm.doctorAdvice || null,
         reportFileName: reportForm.reportFileName || null,
-        reportUrl: reportForm.reportUrl || null
+        reportUrl: reportForm.reportUrl || null,
+        attachmentIds: reportForm.attachments.map((item) => item.id)
       }
       submitting.value = true
       try {

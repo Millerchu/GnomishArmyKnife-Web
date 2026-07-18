@@ -144,34 +144,34 @@ export default {
   width: 100%;
   min-height: 40px;
   padding: 0 13px 0 15px;
-  border: 1px solid rgba(214, 232, 246, 0.28);
+  border: 1px solid var(--theme-border-strong);
   border-radius: 14px;
-  color: #eef8ff;
+  color: var(--theme-text);
   cursor: pointer;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.08)),
-    rgba(11, 29, 42, 0.52);
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-field-surface);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 12px 28px rgba(0, 10, 22, 0.22);
+    inset 0 1px 0 var(--theme-highlight-soft),
+    var(--theme-shadow-xs);
   backdrop-filter: blur(18px) saturate(150%);
   transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .glass-select-trigger:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: rgba(132, 211, 255, 0.48);
+  border-color: color-mix(in srgb, var(--theme-accent) 48%, var(--theme-border));
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.23), rgba(255, 255, 255, 0.1)),
-    rgba(9, 36, 52, 0.62);
+    linear-gradient(180deg, var(--theme-highlight), transparent),
+    var(--theme-surface-hover);
 }
 
 .glass-select-trigger:focus-visible {
   outline: none;
-  border-color: rgba(72, 201, 196, 0.8);
+  border-color: var(--theme-accent);
   box-shadow:
-    0 0 0 3px rgba(72, 201, 196, 0.2),
-    0 14px 30px rgba(0, 10, 22, 0.28);
+    0 0 0 3px var(--theme-focus-ring),
+    var(--theme-shadow-sm);
 }
 
 .glass-select-trigger:disabled {
@@ -181,7 +181,7 @@ export default {
 
 .glass-select-value {
   overflow: hidden;
-  color: #edf8ff;
+  color: var(--theme-text);
   font-size: 14px;
   font-weight: 750;
   line-height: 1;
@@ -190,15 +190,15 @@ export default {
 }
 
 .glass-select-value.placeholder {
-  color: rgba(226, 240, 251, 0.56);
+  color: var(--theme-text-muted);
 }
 
 .glass-select-chevron {
   width: 8px;
   height: 8px;
   flex: 0 0 auto;
-  border-right: 2px solid rgba(230, 246, 255, 0.78);
-  border-bottom: 2px solid rgba(230, 246, 255, 0.78);
+  border-right: 2px solid var(--theme-text-muted);
+  border-bottom: 2px solid var(--theme-text-muted);
   transform: translateY(-2px) rotate(45deg);
 }
 
@@ -212,14 +212,14 @@ export default {
   max-height: 260px;
   overflow: auto;
   padding: 7px;
-  border: 1px solid rgba(217, 236, 249, 0.26);
+  border: 1px solid var(--theme-border-strong);
   border-radius: 16px;
   background:
-    linear-gradient(180deg, rgba(24, 53, 70, 0.8), rgba(9, 24, 38, 0.82)),
-    rgba(7, 18, 29, 0.68);
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-popover-surface);
   box-shadow:
-    0 22px 50px rgba(0, 7, 18, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    var(--theme-shadow-md),
+    inset 0 1px 0 var(--theme-highlight-soft);
   backdrop-filter: blur(26px) saturate(165%);
 }
 
@@ -233,7 +233,7 @@ export default {
   padding: 0 10px;
   border: 0;
   border-radius: 11px;
-  color: rgba(237, 248, 255, 0.86);
+  color: var(--theme-text-soft);
   cursor: pointer;
   background: transparent;
   font-size: 13px;
@@ -245,15 +245,15 @@ export default {
 
 .glass-select-option:hover,
 .glass-select-option.active {
-  color: #ffffff;
-  background: rgba(74, 208, 197, 0.2);
+  color: var(--theme-text);
+  background: var(--theme-accent-soft);
 }
 
 .glass-select-check {
   width: 8px;
   height: 13px;
-  border-right: 2px solid rgba(93, 239, 217, 0.9);
-  border-bottom: 2px solid rgba(93, 239, 217, 0.9);
+  border-right: 2px solid var(--theme-accent);
+  border-bottom: 2px solid var(--theme-accent);
   transform: rotate(40deg);
 }
 

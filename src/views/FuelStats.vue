@@ -339,14 +339,14 @@
       :close-disabled="false"
       @cancel="closeDetailDialog"
     >
-      <div v-if="detailRecord" class="detail-dialog">
+        <div v-if="detailRecord" class="detail-dialog">
         <div class="detail-dialog-head">
           <span class="consumption-chip" :class="consumptionClassMap[getConsumptionLevel(detailRecord.fuelConsumption)]">
             {{ formatConsumption(detailRecord.fuelConsumption) }}
           </span>
         </div>
 
-        <div class="detail-grid">
+          <div class="detail-grid">
           <p><span>车辆名称</span><strong>{{ detailRecord.vehicleName || '-' }}</strong></p>
           <p><span>加油日期</span><strong>{{ detailRecord.fuelDate || '-' }}</strong></p>
           <p><span>当前里程</span><strong>{{ formatNumber(detailRecord.odometerKm) }} km</strong></p>
@@ -361,6 +361,8 @@
           <p><span>油站名称</span><strong>{{ detailRecord.stationName || '-' }}</strong></p>
           <p class="wide"><span>备注</span><strong>{{ detailRecord.note || '-' }}</strong></p>
         </div>
+
+        <AttachmentGallery v-if="detailRecord.attachments?.length" :attachments="detailRecord.attachments" />
 
       </div>
       <template #footer>
@@ -388,7 +390,6 @@
               <input v-model="form.fuelDate" class="input" type="date" required />
             </label>
           </div>
-
           <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>当前里程(km)</span>
@@ -444,6 +445,14 @@
             <textarea v-model.trim="form.note" class="input textarea" rows="3" maxlength="240" placeholder="记录路况、油价变化或保养说明" />
           </label>
 
+          <AttachmentManager
+            v-model="form.attachments"
+            usage-type="IMAGE"
+            :max-count="3"
+            title="加油凭证"
+            hint="最多 3 张，可上传小票、仪表盘或加油机照片。"
+          />
+
         </form>
         <template #footer>
           <button form="fuel-record-dialog-form" type="submit" class="action-btn" :disabled="submitting">
@@ -458,6 +467,8 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import AttachmentManager from '@/components/AttachmentManager.vue'
+import AttachmentGallery from '@/components/AttachmentGallery.vue'
 import {
   createFuelRecord,
   deleteFuelRecord,
@@ -512,7 +523,8 @@ function normalizeRecord(item = {}) {
     createdAt: item.createdAt || item.createTime || '',
     updatedAt: item.updatedAt || item.updateTime || item.createdAt || item.createTime || '',
     distanceKm: Number(item.distanceKm ?? 0),
-    fuelConsumption: item.fuelConsumption != null ? Number(item.fuelConsumption) : null
+    fuelConsumption: item.fuelConsumption != null ? Number(item.fuelConsumption) : null,
+    attachments: Array.isArray(item.attachments) ? item.attachments : []
   }
 }
 
@@ -620,7 +632,7 @@ function buildYearlyCostReport(records = []) {
 
 export default {
   name: 'FuelStats',
-  components: {MacDialog},
+  components: {MacDialog, AttachmentManager, AttachmentGallery},
   setup() {
     const router = useRouter()
 
@@ -679,7 +691,8 @@ export default {
       fuelType: '95',
       fillType: 'FULL',
       stationName: '',
-      note: ''
+      note: '',
+      attachments: []
     })
 
     const pageSizeOptions = PAGE_SIZE_OPTIONS
@@ -936,6 +949,7 @@ export default {
       form.fillType = 'FULL'
       form.stationName = ''
       form.note = ''
+      form.attachments = []
     }
 
     const fillForm = (record) => {
@@ -950,6 +964,7 @@ export default {
       form.fillType = record.fillType || 'FULL'
       form.stationName = record.stationName || ''
       form.note = record.note || ''
+      form.attachments = [...(record.attachments || [])]
     }
 
     const openCreateDialog = () => {
@@ -1000,7 +1015,8 @@ export default {
         fuelType: form.fuelType,
         fillType: form.fillType,
         stationName: form.stationName,
-        note: form.note
+        note: form.note,
+        attachmentIds: form.attachments.map((item) => item.id)
       }
     }
 

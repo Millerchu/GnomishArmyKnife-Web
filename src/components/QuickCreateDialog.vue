@@ -29,8 +29,13 @@
       <form v-else id="quick-create-form" class="quick-form" :class="{'personal-bill-quick-form': activeType.typeCode === 'PERSONAL_BILL'}" @submit.prevent="submit">
         <header class="form-heading">
           <div class="form-mark" :style="activeApp?.iconStyle">
+            <AuthenticatedImage
+              v-if="activeApp?.iconType === 'UPLOAD' && activeApp?.iconAttachmentId"
+              :attachment-id="activeApp.iconAttachmentId"
+              :alt="activeType.appName"
+            />
             <AppIconImage
-              v-if="usesImageIcon(activeApp?.iconType) && activeApp?.iconUrl"
+              v-else-if="usesImageIcon(activeApp?.iconType) && activeApp?.iconUrl"
               img-class="form-mark-image"
               :src="activeApp.iconUrl"
               :alt="activeType.appName"
@@ -85,8 +90,8 @@
         <p v-if="submitError" class="form-error">{{ submitError }}</p>
       </form>
     </div>
-    <template #footer>
-      <button v-if="activeType" form="quick-create-form" type="submit" class="quick-submit" :disabled="submitting || loadingDependencies">
+    <template v-if="activeType" #footer>
+      <button form="quick-create-form" type="submit" class="quick-submit" :disabled="submitting || loadingDependencies">
         {{ submitting ? '提交中...' : '保存新增' }}
       </button>
     </template>
@@ -97,6 +102,7 @@
 import {computed, reactive, ref, watch} from 'vue'
 import MacDialog from '@/components/MacDialog.vue'
 import AppIconImage from '@/components/AppIconImage.vue'
+import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import {createWorkLog} from '@/api/workLog'
 import {createPasswordMemo} from '@/api/passwordMemo'
 import {createTodoTask} from '@/api/todoList'
@@ -287,16 +293,407 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
 </script>
 
 <style scoped>
-.quick-create-shell{display:grid;gap:20px;color:#edf8ff}.type-picker{display:grid;gap:8px;padding:16px 18px;border:1px solid rgba(125,211,252,.2);border-radius:16px;background:linear-gradient(135deg,rgba(17,54,75,.78),rgba(13,44,61,.68))}
-.type-picker>span,.form-field>span{font-size:13px;font-weight:700;color:#d9edf8}.type-picker select,.form-field input,.form-field select,.form-field textarea{width:100%;box-sizing:border-box;border:1px solid rgba(148,190,211,.42);border-radius:10px;background:#f8fcff;color:#172333;padding:10px 12px;font:inherit;outline:none}
-.type-picker select:focus,.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:#0f766e;box-shadow:0 0 0 3px rgba(15,118,110,.12)}
-.quick-empty{min-height:210px;display:grid;place-content:center;text-align:center;gap:7px;color:rgba(219,235,247,.72);border:1px dashed rgba(125,211,252,.26);border-radius:18px;background:rgba(8,31,46,.36)}.quick-empty strong{font-size:20px;color:#f2f9ff}.quick-empty span{font-size:14px}
-.quick-form{display:grid;gap:18px}.form-heading{display:flex;align-items:center;gap:12px}.form-heading>div:last-child{display:grid;gap:2px}.form-heading strong{font-size:20px;color:#f2f9ff}.form-heading span{font-size:12px;color:rgba(219,235,247,.72)}.form-mark{width:42px;height:42px;display:grid;place-items:center;overflow:hidden;border-radius:13px;background:linear-gradient(135deg,#0f766e,#2563eb);color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(15,118,110,.22)}.form-mark-image{width:100%;height:100%;object-fit:cover}.form-mark-preset{display:grid;width:24px;height:24px;place-items:center}.form-mark-preset:deep(svg){width:24px;height:24px;fill:currentColor}
-.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.form-field{display:grid;align-content:start;gap:7px}.form-field b{color:#dc2626}.wide-field{grid-column:1/-1}.form-field textarea{resize:vertical;min-height:86px}.check-control{display:flex!important;align-items:center;gap:8px;min-height:41px}.check-control input{width:18px!important;height:18px}.form-error{margin:0;padding:10px 12px;border-radius:10px;background:#fff1f2;color:#be123c;font-size:13px}.quick-submit{border:0;border-radius:11px;background:linear-gradient(135deg,#0f766e,#2563eb);color:#fff;padding:11px 22px;font-weight:800;cursor:pointer}.quick-submit:disabled{opacity:.55;cursor:not-allowed}
-.dictionary-checks{display:flex;flex-wrap:wrap;gap:8px;min-height:42px;padding:7px;border:1px solid rgba(148,190,211,.28);border-radius:10px;background:rgba(8,31,46,.38)}.dictionary-checks label{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid rgba(148,190,211,.28);border-radius:999px;color:#d9edf8;cursor:pointer}.dictionary-checks label.selected{border-color:#5eead4;background:rgba(15,118,110,.36);color:#fff}.dictionary-checks input{width:15px!important;height:15px}.dictionary-empty{padding:5px 8px;color:rgba(219,235,247,.58);font-size:13px}
-.work-item-editor{display:grid;gap:10px}.work-item-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px}.work-item-index{display:grid;width:28px;height:28px;place-items:center;border-radius:9px;background:rgba(94,234,212,.14);color:#99f6e4;font-size:12px;font-weight:800}.work-item-row button,.work-item-add{border:1px solid rgba(148,190,211,.3);border-radius:9px;background:rgba(8,31,46,.52);color:#d9edf8;padding:9px 12px;cursor:pointer}.work-item-row button:disabled{opacity:.38;cursor:not-allowed}.work-item-add{justify-self:start;border-color:rgba(94,234,212,.38);color:#99f6e4;font-weight:700}
-.personal-bill-quick-form{padding:18px;border:1px solid rgba(82,177,232,.2);border-radius:20px;background:radial-gradient(circle at 100% 0,rgba(37,99,235,.18),transparent 38%),rgba(5,25,39,.48)}
-.personal-bill-quick-form .field-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.personal-bill-quick-form .field-amount,.personal-bill-quick-form .field-categoryName{grid-column:span 2}.personal-bill-quick-form .field-accountName,.personal-bill-quick-form .field-paymentMethod,.personal-bill-quick-form .field-merchantName{grid-column:span 2}.personal-bill-quick-form .field-note{grid-column:1/-1}
-.personal-bill-quick-form .form-field input,.personal-bill-quick-form .form-field select,.personal-bill-quick-form .form-field textarea{background:rgba(7,30,47,.84);border-color:rgba(114,174,207,.3);color:#edf9ff;color-scheme:dark}.personal-bill-quick-form .field-amount{position:relative}.personal-bill-quick-form .field-amount input{height:58px;padding-right:42px;font-size:25px;font-weight:800;border-color:rgba(83,182,239,.48)}.personal-bill-quick-form .field-amount:after{content:'¥';position:absolute;right:14px;bottom:13px;color:#65d5df;font-size:21px;font-weight:900}
-@media(max-width:640px){.field-grid{grid-template-columns:1fr}.wide-field{grid-column:auto}.type-picker{padding:13px}.quick-empty{min-height:160px}.work-item-row{grid-template-columns:26px minmax(0,1fr)}.work-item-row button{grid-column:2;justify-self:end;padding:6px 10px}.personal-bill-quick-form{padding:13px}.personal-bill-quick-form .field-grid{grid-template-columns:1fr}.personal-bill-quick-form .field-amount,.personal-bill-quick-form .field-categoryName,.personal-bill-quick-form .field-accountName,.personal-bill-quick-form .field-paymentMethod,.personal-bill-quick-form .field-merchantName{grid-column:auto}}
+.quick-create-shell {
+  display: grid;
+  gap: 18px;
+  color: var(--theme-text);
+}
+
+.type-picker {
+  display: grid;
+  gap: 9px;
+  padding: 16px 18px;
+  border: 1px solid var(--theme-border);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-surface-muted);
+  box-shadow:
+    var(--theme-shadow-xs),
+    inset 0 1px 0 var(--theme-highlight-soft);
+}
+
+.type-picker > span,
+.form-field > span {
+  color: var(--theme-text-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.type-picker select,
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--theme-border-strong);
+  border-radius: 12px;
+  background: var(--theme-field-surface);
+  color: var(--theme-text);
+  font: inherit;
+  outline: none;
+}
+
+.type-picker select:focus,
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px var(--theme-focus-ring);
+}
+
+.quick-empty {
+  min-height: 210px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px;
+  border: 1px dashed var(--theme-border-strong);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 34%, var(--theme-accent-soft), transparent 28%),
+    var(--theme-surface-muted);
+  color: var(--theme-text-muted);
+  text-align: center;
+}
+
+.quick-empty::before {
+  content: '+';
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 28%, var(--theme-border));
+  border-radius: 13px;
+  background: var(--theme-accent-soft);
+  color: var(--theme-accent);
+  font-size: 25px;
+  font-weight: 500;
+}
+
+.quick-empty strong {
+  color: var(--theme-text);
+  font-size: 20px;
+}
+
+.quick-empty span {
+  font-size: 14px;
+}
+
+.quick-form {
+  display: grid;
+  gap: 18px;
+}
+
+.form-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--theme-divider);
+}
+
+.form-heading > div:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.form-heading strong {
+  color: var(--theme-text);
+  font-size: 20px;
+}
+
+.form-heading span {
+  color: var(--theme-text-muted);
+  font-size: 12px;
+}
+
+.form-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--theme-border);
+  border-radius: 13px;
+  background: linear-gradient(145deg, var(--theme-accent), var(--theme-accent-strong));
+  box-shadow: var(--theme-shadow-xs);
+  color: #fff;
+  font-weight: 800;
+}
+
+.form-mark-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.form-mark-preset {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+}
+
+.form-mark-preset:deep(svg) {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.form-field {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.form-field b {
+  color: var(--theme-danger);
+}
+
+.wide-field {
+  grid-column: 1 / -1;
+}
+
+.form-field textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+.check-control {
+  min-height: 41px;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.check-control input {
+  width: 18px !important;
+  height: 18px;
+}
+
+.form-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--theme-danger) 26%, transparent);
+  border-radius: 10px;
+  background: var(--theme-danger-soft);
+  color: var(--theme-danger);
+  font-size: 13px;
+}
+
+.quick-submit {
+  min-height: 38px;
+  padding: 9px 20px;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 72%, var(--theme-border));
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--theme-accent), var(--theme-accent-strong));
+  box-shadow:
+    var(--theme-shadow-xs),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.quick-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dictionary-checks {
+  min-height: 42px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 7px;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  background: var(--theme-surface-muted);
+}
+
+.dictionary-checks label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--theme-border);
+  border-radius: 999px;
+  background: var(--theme-control-surface);
+  color: var(--theme-text-soft);
+  cursor: pointer;
+}
+
+.dictionary-checks label.selected {
+  border-color: color-mix(in srgb, var(--theme-accent) 48%, var(--theme-border));
+  background: var(--theme-accent-soft);
+  color: var(--theme-text);
+}
+
+.dictionary-checks input {
+  width: 15px !important;
+  height: 15px;
+}
+
+.dictionary-empty {
+  padding: 5px 8px;
+  color: var(--theme-text-muted);
+  font-size: 13px;
+}
+
+.work-item-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.work-item-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-item-index {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--theme-accent-soft);
+  color: var(--theme-accent);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.work-item-row button,
+.work-item-add {
+  padding: 9px 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 9px;
+  background: var(--theme-control-surface);
+  color: var(--theme-text-soft);
+  cursor: pointer;
+}
+
+.work-item-row button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.work-item-add {
+  justify-self: start;
+  border-color: color-mix(in srgb, var(--theme-accent) 36%, var(--theme-border));
+  color: var(--theme-accent);
+  font-weight: 700;
+}
+
+.personal-bill-quick-form {
+  padding: 18px;
+  border: 1px solid var(--theme-border);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 100% 0, var(--theme-accent-soft), transparent 38%),
+    var(--theme-surface-muted);
+}
+
+.personal-bill-quick-form .field-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.personal-bill-quick-form .field-amount,
+.personal-bill-quick-form .field-categoryName,
+.personal-bill-quick-form .field-accountName,
+.personal-bill-quick-form .field-paymentMethod,
+.personal-bill-quick-form .field-merchantName {
+  grid-column: span 2;
+}
+
+.personal-bill-quick-form .field-note {
+  grid-column: 1 / -1;
+}
+
+.personal-bill-quick-form .form-field input,
+.personal-bill-quick-form .form-field select,
+.personal-bill-quick-form .form-field textarea {
+  border-color: var(--theme-border-strong);
+  background: var(--theme-field-surface);
+  color: var(--theme-text);
+  color-scheme: inherit;
+}
+
+.personal-bill-quick-form .field-amount {
+  position: relative;
+}
+
+.personal-bill-quick-form .field-amount input {
+  height: 58px;
+  padding-right: 42px;
+  border-color: color-mix(in srgb, var(--theme-accent) 42%, var(--theme-border));
+  font-size: 25px;
+  font-weight: 800;
+}
+
+.personal-bill-quick-form .field-amount::after {
+  content: '¥';
+  position: absolute;
+  right: 14px;
+  bottom: 13px;
+  color: var(--theme-accent);
+  font-size: 21px;
+  font-weight: 900;
+}
+
+@media (max-width: 640px) {
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wide-field {
+    grid-column: auto;
+  }
+
+  .type-picker {
+    padding: 13px;
+  }
+
+  .quick-empty {
+    min-height: 160px;
+  }
+
+  .work-item-row {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+
+  .work-item-row button {
+    grid-column: 2;
+    justify-self: end;
+    padding: 6px 10px;
+  }
+
+  .personal-bill-quick-form {
+    padding: 13px;
+  }
+
+  .personal-bill-quick-form .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .personal-bill-quick-form .field-amount,
+  .personal-bill-quick-form .field-categoryName,
+  .personal-bill-quick-form .field-accountName,
+  .personal-bill-quick-form .field-paymentMethod,
+  .personal-bill-quick-form .field-merchantName {
+    grid-column: auto;
+  }
+}
 </style>

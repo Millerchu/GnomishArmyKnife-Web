@@ -97,6 +97,95 @@ describe('MacDialog real component behavior', () => {
     expect(document.body.querySelector('.mac-dialog-head')).not.toBeNull()
   })
 
+  it('does not close from an accidental mask click by default', async () => {
+    const wrapper = mountDialog()
+    const mask = document.body.querySelector('.mac-dialog-mask')
+
+    await clickElement(mask)
+
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(wrapper.emitted('close')).toBeUndefined()
+  })
+
+  it('asks for confirmation when editable values changed and keeps the form intact', async () => {
+    const wrapper = mountDialog({}, {slots: {default: SlotProbe}})
+    await nextTick()
+    const input = document.body.querySelector('.slot-input')
+    input.value = '已经填写的重要内容'
+    input.focus()
+
+    await clickElement(document.body.querySelector('.mac-window-dot.close'))
+
+    const confirmation = document.body.querySelector('.mac-dialog-confirm-card')
+    expect(confirmation).not.toBeNull()
+    expect(confirmation.getAttribute('role')).toBe('alertdialog')
+    expect(document.body.querySelector('.mac-dialog-panel').inert).toBe(true)
+    expect(document.activeElement).toBe(document.body.querySelector('.mac-dialog-confirm-keep'))
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+
+    await clickElement(document.body.querySelector('.mac-dialog-confirm-keep'))
+
+    expect(document.body.querySelector('.mac-dialog-confirm-card')).toBeNull()
+    expect(document.body.querySelector('.mac-dialog-panel').inert).toBe(false)
+    expect(document.body.querySelector('.slot-input').value).toBe('已经填写的重要内容')
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('only closes a changed dialog after explicitly discarding changes', async () => {
+    const wrapper = mountDialog({}, {slots: {default: SlotProbe}})
+    await nextTick()
+    document.body.querySelector('.slot-input').value = '待放弃内容'
+
+    dispatchEscape()
+    await nextTick()
+    expect(document.body.querySelector('.mac-dialog-confirm-card')).not.toBeNull()
+    expect(wrapper.emitted('close')).toBeUndefined()
+
+    dispatchEscape()
+    await nextTick()
+    expect(document.body.querySelector('.mac-dialog-confirm-card')).toBeNull()
+    expect(wrapper.emitted('close')).toBeUndefined()
+
+    dispatchEscape()
+    await nextTick()
+    await clickElement(document.body.querySelector('.mac-dialog-confirm-discard'))
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
+    expect(wrapper.emitted('cancel')).toHaveLength(1)
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('restores a minimized changed dialog before asking for confirmation', async () => {
+    const wrapper = mountDialog({}, {slots: {default: SlotProbe}})
+    await nextTick()
+    document.body.querySelector('.slot-input').value = '最小化后仍未保存'
+
+    await clickElement(document.body.querySelector('.mac-window-dot.minimize'))
+    expect(document.body.querySelector('.mac-dialog-mask').style.display).toBe('none')
+
+    dispatchEscape()
+    await nextTick()
+    await nextTick()
+
+    expect(document.body.querySelector('.mac-dialog-mask').style.display).not.toBe('none')
+    expect(document.body.querySelector('.mac-dialog-confirm-card')).not.toBeNull()
+    expect(wrapper.emitted('restore')).toHaveLength(1)
+    expect(wrapper.emitted('close')).toBeUndefined()
+  })
+
+  it('does not ask for confirmation after values are restored to their initial state', async () => {
+    const wrapper = mountDialog({}, {slots: {default: SlotProbe}})
+    await nextTick()
+    const input = document.body.querySelector('.slot-input')
+    input.value = '临时修改'
+    input.value = ''
+
+    await clickElement(document.body.querySelector('.mac-window-dot.close'))
+
+    expect(document.body.querySelector('.mac-dialog-confirm-card')).toBeNull()
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
   it('blocks every close and minimize entry while allowing maximize', async () => {
     const wrapper = mountDialog({closeDisabled: true})
     const panel = document.body.querySelector('.mac-dialog-panel')

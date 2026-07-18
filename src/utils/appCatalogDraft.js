@@ -60,7 +60,9 @@ export function normalizeSystemApp(source = {}, index = 0) {
     sortNo: Number.isNaN(sortNo) ? (index + 1) * 10 : sortNo,
     description: source.description || source.remark || '',
     remark: source.remark || '',
-    grantCount: Number(source.grantCount ?? source.permissionCount ?? 0)
+    grantCount: Number(source.grantCount ?? source.permissionCount ?? 0),
+    attachments: Array.isArray(source.attachments) ? source.attachments : [],
+    iconAttachmentId: source.iconAttachmentId ?? source.attachments?.[0]?.id ?? null
   }
 }
 
