@@ -252,6 +252,13 @@ afterEach(() => {
 })
 
 describe('WorkLog MacDialog integration', () => {
+  it('moves the current week range from the hero into the weekly statistics panel', async () => {
+    const wrapper = await mountWorkLog()
+
+    expect(wrapper.find('.hero-tags').text()).not.toContain('当前周')
+    expect(wrapper.find('.week-stats-panel .calendar-range-badge').text()).toContain('当前周')
+  })
+
   it('opens day details with a single tap in the mobile viewport', async () => {
     const matchMediaMock = vi.fn(() => ({matches: true}))
     vi.stubGlobal('matchMedia', matchMediaMock)

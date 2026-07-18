@@ -13,7 +13,7 @@
         <p class="page-subtitle">按周或按月查看与维护日志，类型、地点和项目优先使用数据字典配置，视图切换后同步展示对应统计。</p>
       </div>
       <div class="hero-tags">
-        <span class="hero-tag">{{ calendarRangeText }}</span>
+        <span v-if="calendarView === 'month'" class="hero-tag">{{ calendarRangeText }}</span>
         <span class="hero-tag">{{ showYearList ? '已展开年度列表' : (calendarView === 'month' ? '月视图' : '周视图') }}</span>
         <span class="hero-tag">{{ dictionarySourceText }}</span>
       </div>
@@ -25,6 +25,7 @@
           <h2 class="panel-title">{{ activeStatsTitle }}</h2>
           <p class="panel-tip">{{ activeStatsTip }}</p>
         </div>
+        <span v-if="calendarView === 'week'" class="calendar-range-badge">{{ calendarRangeText }}</span>
       </div>
 
       <div class="week-stats-grid" :class="{'month-stats-grid': calendarView === 'month'}">
@@ -2237,7 +2238,8 @@ export default {
   align-items: center;
 }
 
-.weekly-report-range {
+.weekly-report-range,
+.calendar-range-badge {
   flex: 0 0 auto;
   padding: 7px 10px;
   border: 1px solid rgba(118, 197, 255, 0.18);
@@ -3720,7 +3722,8 @@ export default {
     margin-bottom: 8px;
   }
 
-  .weekly-report-range {
+  .weekly-report-range,
+  .calendar-range-badge {
     padding: 5px 7px;
     font-size: 10px;
   }
