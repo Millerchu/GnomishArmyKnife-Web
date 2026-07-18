@@ -1,86 +1,126 @@
 <template>
   <div class="password-memo-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBack">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
+    <div class="password-memo-shell">
+      <header class="memo-page-header">
+        <button type="button" class="memo-back-button" aria-label="返回桌面" @click="goBack">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="m12.5 4.5-5 5.5 5 5.5" />
+          </svg>
+          <span>返回桌面</span>
+        </button>
 
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">密码备忘录</h1>
-        <p class="page-subtitle">集中记录网站、社区和 App 账号信息，查看密码前需要再次输入当前用户密码校验。</p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">已接真实接口</span>
-        <span class="hero-tag">总计 {{ total }} 条</span>
-      </div>
-    </div>
-
-    <section class="filter-panel">
-      <label class="field">
-        <span>关键词</span>
-        <input
-          v-model.trim="query.keyword"
-          class="input"
-          maxlength="64"
-          placeholder="搜索网站名、地址、用户名、手机、邮箱"
-          @keyup.enter="handleSearch"
-        />
-      </label>
-
-      <div class="filter-actions">
-        <button class="action-btn" :disabled="loading" @click="handleSearch">查询</button>
-        <button class="ghost-btn" :disabled="loading" @click="resetQuery">重置</button>
-      </div>
-    </section>
-
-    <section class="list-panel">
-      <div class="panel-head">
-        <div>
-          <h2 class="panel-title">账号列表</h2>
-          <span class="panel-tip">主要展示网站名、地址、用户名 / 手机 / 邮箱，密码在详情中按需解锁</span>
+        <div class="memo-heading">
+          <span class="memo-heading-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 3 5.5 5.6v5.7c0 4.2 2.7 7.9 6.5 9.7 3.8-1.8 6.5-5.5 6.5-9.7V5.6L12 3Z" />
+              <path d="M9.5 11.5h5M10.5 11.5V10a1.5 1.5 0 0 1 3 0v1.5" />
+            </svg>
+          </span>
+          <div>
+            <h1 class="memo-page-title">密码备忘录</h1>
+            <p class="memo-page-subtitle">集中管理常用账号，敏感密码仅在身份验证后显示。</p>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <button class="action-btn" :disabled="loading" @click="openCreateDialog">新增账号</button>
-          <button class="ghost-btn" :disabled="loading" @click="loadMemos">刷新列表</button>
+      <main class="memo-list-panel">
+        <div class="memo-panel-heading">
+          <div>
+            <h2>账号列表</h2>
+            <p>网站、用户名和联系方式统一归档，密码默认保持锁定。</p>
+          </div>
+          <span class="memo-count"><strong>{{ total }}</strong> 个账号</span>
         </div>
-        <div class="toolbar-right">
-          <span>共 {{ total }} 条</span>
-        </div>
-      </div>
 
-      <div v-if="loading && !pagedRecords.length" class="empty-state">加载中...</div>
+        <div class="memo-toolbar">
+          <div class="memo-search">
+            <label class="visually-hidden" for="password-memo-search">搜索账号</label>
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="8.5" cy="8.5" r="5" />
+              <path d="m12.2 12.2 4 4" />
+            </svg>
+            <input
+              id="password-memo-search"
+              v-model.trim="query.keyword"
+              maxlength="64"
+              placeholder="搜索网站、地址、用户名、手机或邮箱"
+              @keyup.enter="handleSearch"
+            />
+            <button
+              v-if="query.keyword"
+              type="button"
+              class="memo-search-clear"
+              aria-label="清空搜索关键词"
+              @click="resetQuery"
+            >
+              ×
+            </button>
+            <button type="button" class="memo-search-submit" :disabled="loading" @click="handleSearch">搜索</button>
+          </div>
+
+          <div class="memo-toolbar-actions">
+            <button type="button" class="memo-button memo-button-secondary" :disabled="loading" @click="loadMemos">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M15.8 7.1A6.2 6.2 0 1 0 16 12" />
+                <path d="M12.8 7.1h3.3V3.8" />
+              </svg>
+              <span>刷新</span>
+            </button>
+            <button type="button" class="memo-button memo-button-primary" :disabled="loading" @click="openCreateDialog">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M10 4v12M4 10h12" />
+              </svg>
+              <span>新增账号</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="loading && !pagedRecords.length" class="memo-empty-state">
+          <span class="memo-loading-indicator" aria-hidden="true"></span>
+          <span>正在加载账号...</span>
+        </div>
 
       <template v-else>
-        <div v-if="pagedRecords.length" class="table-wrap desktop-table">
+        <div v-if="pagedRecords.length" class="memo-table-wrap desktop-table">
           <table class="memo-table">
             <thead>
             <tr>
-              <th>网站名</th>
-              <th>地址</th>
-              <th>用户名 / 手机 / 邮箱</th>
-              <th>更新时间</th>
-              <th>操作</th>
+              <th class="memo-site-column">网站</th>
+              <th>账号信息</th>
+              <th class="memo-time-column">更新时间</th>
+              <th class="memo-action-column">操作</th>
             </tr>
             </thead>
             <tbody>
             <tr v-for="item in pagedRecords" :key="item.id">
-              <td>{{ item.siteName }}</td>
               <td>
-                <a class="site-link" :href="normalizeUrl(item.siteUrl)" target="_blank" rel="noreferrer">{{ item.siteUrl || '-' }}</a>
+                <div class="memo-site-identity">
+                  <span class="memo-site-avatar" aria-hidden="true">{{ item.siteName?.slice(0, 1) || '?' }}</span>
+                  <div>
+                    <strong>{{ item.siteName }}</strong>
+                    <a class="memo-site-link" :href="normalizeUrl(item.siteUrl)" target="_blank" rel="noreferrer">
+                      {{ displaySiteAddress(item.siteUrl) }}
+                      <span aria-hidden="true">↗</span>
+                    </a>
+                  </div>
+                </div>
               </td>
-              <td>{{ buildAccountText(item) }}</td>
-              <td>{{ item.updatedAt || item.createdAt || '-' }}</td>
               <td>
-                <div class="row-actions">
-                  <button class="mini-btn" @click="openDetailDialog(item)">详情</button>
-                  <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
-                  <button class="mini-btn danger" @click="removeMemo(item)">删除</button>
+                <div class="memo-account-summary">
+                  <strong>{{ item.username || '未填写用户名' }}</strong>
+                  <span v-if="item.registeredPhone">手机 {{ item.registeredPhone }}</span>
+                  <span v-if="item.registeredEmail">邮箱 {{ item.registeredEmail }}</span>
+                  <span v-if="!item.registeredPhone && !item.registeredEmail" class="memo-cell-muted">未填写联系方式</span>
+                </div>
+              </td>
+              <td class="memo-time-cell">
+                <time>{{ item.updatedAt || item.createdAt || '-' }}</time>
+              </td>
+              <td class="memo-action-cell">
+                <div class="memo-row-actions">
+                  <button type="button" class="memo-row-button memo-row-button-emphasis" @click="openDetailDialog(item)">详情</button>
+                  <button type="button" class="memo-row-button" @click="openEditDialog(item)">编辑</button>
+                  <button type="button" class="memo-row-button memo-row-button-danger" @click="removeMemo(item)">删除</button>
                 </div>
               </td>
             </tr>
@@ -88,46 +128,68 @@
           </table>
         </div>
 
-        <div v-if="pagedRecords.length" class="mobile-list">
-          <article v-for="item in pagedRecords" :key="item.id" class="mobile-card">
-            <div class="mobile-card-head">
-              <div>
-                <h3 class="mobile-card-title">{{ item.siteName }}</h3>
-                <p class="mobile-card-link">{{ item.siteUrl || '-' }}</p>
+        <div v-if="pagedRecords.length" class="memo-mobile-list">
+          <article v-for="item in pagedRecords" :key="item.id" class="memo-mobile-card">
+            <div class="memo-mobile-card-head">
+              <div class="memo-site-identity">
+                <span class="memo-site-avatar" aria-hidden="true">{{ item.siteName?.slice(0, 1) || '?' }}</span>
+                <div>
+                  <h3>{{ item.siteName }}</h3>
+                  <a class="memo-site-link" :href="normalizeUrl(item.siteUrl)" target="_blank" rel="noreferrer">
+                    {{ displaySiteAddress(item.siteUrl) }}
+                    <span aria-hidden="true">↗</span>
+                  </a>
+                </div>
               </div>
-              <span class="mobile-card-time">{{ item.updatedAt || item.createdAt || '-' }}</span>
+              <time>{{ item.updatedAt || item.createdAt || '-' }}</time>
             </div>
 
-            <div class="mobile-card-grid">
+            <div class="memo-mobile-card-grid">
               <p><span>用户名</span><strong>{{ item.username || '-' }}</strong></p>
               <p><span>注册手机</span><strong>{{ item.registeredPhone || '-' }}</strong></p>
               <p class="wide"><span>注册邮箱</span><strong>{{ item.registeredEmail || '-' }}</strong></p>
             </div>
 
-            <div class="mobile-card-actions">
-              <button class="mini-btn" @click="openDetailDialog(item)">详情</button>
-              <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
-              <button class="mini-btn danger" @click="removeMemo(item)">删除</button>
+            <div class="memo-mobile-card-actions">
+              <button type="button" class="memo-row-button memo-row-button-emphasis" @click="openDetailDialog(item)">详情</button>
+              <button type="button" class="memo-row-button" @click="openEditDialog(item)">编辑</button>
+              <button type="button" class="memo-row-button memo-row-button-danger" @click="removeMemo(item)">删除</button>
             </div>
           </article>
         </div>
 
-        <div v-else class="empty-state">暂无账号记录</div>
+        <div v-else class="memo-empty-state">
+          <span class="memo-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M4.5 7.5h15v12h-15zM8 7.5V5.8c0-.7.6-1.3 1.3-1.3h5.4c.7 0 1.3.6 1.3 1.3v1.7" />
+              <path d="M9 13h6" />
+            </svg>
+          </span>
+          <strong>暂无账号记录</strong>
+          <span>新增第一个账号，建立你的安全备忘录。</span>
+        </div>
       </template>
 
-      <div class="pager">
-        <div class="pager-left">
-          <span>第 {{ query.pageNo }} / {{ totalPages }} 页</span>
-          <select v-model.number="query.pageSize" class="pager-select" :disabled="loading" @change="handlePageSizeChange">
-            <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} 条/页</option>
-          </select>
+        <div class="memo-pagination">
+          <div class="memo-page-status">
+            <span>第 <strong>{{ query.pageNo }}</strong> / {{ totalPages }} 页</span>
+            <select v-model.number="query.pageSize" :disabled="loading" aria-label="每页显示数量" @change="handlePageSizeChange">
+              <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} 条/页</option>
+            </select>
+          </div>
+          <div class="memo-page-actions">
+            <button type="button" :disabled="query.pageNo <= 1 || loading" @click="changePage(-1)">
+              <span aria-hidden="true">←</span>
+              上一页
+            </button>
+            <button type="button" :disabled="query.pageNo >= totalPages || loading" @click="changePage(1)">
+              下一页
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
         </div>
-        <div class="pager-right">
-          <button class="ghost-btn" :disabled="query.pageNo <= 1 || loading" @click="changePage(-1)">上一页</button>
-          <button class="ghost-btn" :disabled="query.pageNo >= totalPages || loading" @click="changePage(1)">下一页</button>
-        </div>
-      </div>
-    </section>
+      </main>
+    </div>
 
     <MacDialog
       v-model="showEditDialog"
@@ -283,10 +345,6 @@ function normalizeMemo(item = {}) {
   }
 }
 
-function buildAccountText(item) {
-  return [item.username, item.registeredPhone, item.registeredEmail].filter(Boolean).join(' / ') || '-'
-}
-
 // 详情弹窗默认只展示首尾字符，完整密码必须重新校验后才允许显示。
 function maskPassword(value) {
   const source = `${value || ''}`
@@ -304,6 +362,18 @@ function normalizeUrl(url) {
     return '#'
   }
   return /^https?:\/\//i.test(url) ? url : `https://${url}`
+}
+
+// 列表仅展示便于识别的主机名，完整地址仍保留在链接目标中。
+function displaySiteAddress(url) {
+  if (!url) {
+    return '未填写地址'
+  }
+  try {
+    return new URL(normalizeUrl(url)).host.replace(/^www\./i, '')
+  } catch {
+    return url
+  }
 }
 
 function extractErrorMessage(error, fallback) {
@@ -613,9 +683,9 @@ export default {
       editMode,
       form,
       verifyForm,
-      buildAccountText,
       maskPassword,
       normalizeUrl,
+      displaySiteAddress,
       loadMemos,
       handleSearch,
       resetQuery,
@@ -638,359 +708,754 @@ export default {
 
 <style scoped>
 .password-memo-page {
-  min-height: 100vh;
+  position: relative;
   height: 100%;
-  padding: 18px 22px 26px;
-  color: #fff;
-  overflow: auto;
+  min-height: 100vh;
+  padding: 20px 24px 30px;
+  overflow-y: auto;
+  color: var(--theme-text);
+  scrollbar-gutter: stable;
 }
 
-.page-nav {
+.password-memo-page::before {
+  position: fixed;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 13, 0.28), rgba(5, 8, 13, 0.5)),
+    radial-gradient(circle at 48% -20%, rgba(91, 161, 255, 0.09), transparent 42%);
+}
+
+.password-memo-shell {
+  position: relative;
+  z-index: 1;
+  width: min(1680px, 100%);
+  margin: 0 auto;
+}
+
+.memo-page-header {
   display: flex;
-  justify-content: flex-start;
-  margin-bottom: 12px;
-}
-
-.back-home-btn {
-  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 16px 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  gap: 18px;
+  min-height: 50px;
+  margin-bottom: 16px;
+}
+
+.memo-back-button,
+.memo-button,
+.memo-row-button,
+.memo-page-actions button,
+.memo-search-clear,
+.memo-search-submit {
+  font: inherit;
+}
+
+.memo-back-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px 0 9px;
+  border: 1px solid var(--theme-border);
   border-radius: 999px;
-  color: #fff;
-  cursor: pointer;
-  background: rgba(12, 32, 52, 0.58);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(12px);
-  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  background: color-mix(in srgb, var(--theme-surface-strong) 82%, transparent);
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+  color: var(--theme-text-soft);
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(18px) saturate(130%);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.back-home-btn:hover {
-  transform: translateY(-1px);
-  background: rgba(16, 40, 64, 0.76);
-  border-color: rgba(255, 255, 255, 0.28);
+.memo-back-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
-.back-home-icon {
+.memo-back-button:hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 40%, var(--theme-border));
+  background: var(--theme-surface-hover);
+  color: var(--theme-text);
+  transform: translateX(-2px);
+}
+
+.memo-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.memo-heading-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, var(--theme-border));
+  border-radius: 13px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--theme-accent) 26%, transparent), transparent),
+    color-mix(in srgb, var(--theme-surface-strong) 84%, transparent);
+  color: var(--theme-link-hover);
+  box-shadow: inset 0 1px 0 var(--theme-highlight);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+.memo-heading-mark svg,
+.memo-empty-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.memo-page-title {
+  margin: 0;
+  color: var(--theme-text);
+  font-size: clamp(22px, 1.7vw, 28px);
+  font-weight: 720;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.memo-page-subtitle {
+  margin: 4px 0 0;
+  color: var(--theme-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.memo-list-panel {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--theme-border-strong) 78%, transparent);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent 16%),
+    color-mix(in srgb, var(--theme-table-surface) 94%, #11151c 6%);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 var(--theme-highlight);
+  backdrop-filter: blur(36px) saturate(128%);
+}
+
+.memo-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 17px 20px 14px;
+}
+
+.memo-panel-heading h2 {
+  margin: 0;
+  color: var(--theme-text);
+  font-size: 18px;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+}
+
+.memo-panel-heading p {
+  margin: 4px 0 0;
+  color: var(--theme-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.memo-count {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid var(--theme-border);
+  border-radius: 999px;
+  background: var(--theme-control-surface);
+  color: var(--theme-text-muted);
+  font-size: 12px;
+}
+
+.memo-count strong {
+  color: var(--theme-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.memo-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--theme-divider);
+  border-bottom: 1px solid var(--theme-divider);
+  background: color-mix(in srgb, var(--theme-surface-muted) 72%, transparent);
+}
+
+.memo-search {
+  display: flex;
+  min-width: 0;
+  height: 40px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--theme-field-surface) 84%, transparent);
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.memo-search:focus-within {
+  border-color: var(--theme-accent);
+  background: var(--theme-field-surface);
+  box-shadow: 0 0 0 3px var(--theme-focus-ring);
+}
+
+.memo-search > svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--theme-text-muted);
+  stroke-linecap: round;
+  stroke-width: 1.7;
+}
+
+.memo-toolbar .memo-search input {
+  min-width: 0;
+  width: 100%;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--theme-text) !important;
+  font-size: 13px;
+  backdrop-filter: none;
+}
+
+.memo-toolbar .memo-search input:focus {
+  box-shadow: none !important;
+}
+
+.memo-toolbar .memo-search input::placeholder {
+  color: var(--theme-text-muted) !important;
+}
+
+.memo-search-clear {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--theme-control-surface);
+  color: var(--theme-text-muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.memo-search-clear:hover {
+  background: var(--theme-surface-hover);
+  color: var(--theme-text);
+}
+
+.memo-search-submit {
+  flex: 0 0 auto;
+  min-height: 26px;
+  padding: 0 4px 0 10px;
+  border: 0;
+  border-left: 1px solid var(--theme-divider);
+  background: transparent;
+  color: var(--theme-link);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.memo-search-submit:not(:disabled):hover {
+  color: var(--theme-link-hover);
+}
+
+.memo-search-submit:disabled {
+  opacity: 0.45;
+}
+
+.memo-toolbar-actions,
+.memo-row-actions,
+.memo-mobile-card-actions,
+.memo-page-actions,
+.memo-page-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.memo-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  font-size: 15px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.top-bar,
-.actions,
-.hero-panel,
-.filter-panel,
-.panel-head,
-.toolbar,
-.pager,
-.row-actions,
-.mobile-card-actions,
-.dialog-actions,
-.password-box {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.top-bar,
-.hero-panel,
-.filter-panel,
-.toolbar,
-.list-panel,
-.password-box {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(16px);
-}
-
-.top-bar,
-.hero-panel,
-.filter-panel,
-.list-panel {
-  border-radius: 18px;
-  padding: 16px 18px;
-}
-
-.top-bar,
-.hero-panel,
-.panel-head,
-.toolbar,
-.pager,
-.password-box {
-  justify-content: space-between;
-}
-
-.top-bar {
-  justify-content: flex-end;
-}
-
-.top-bar,
-.hero-panel,
-.filter-panel {
-  margin-bottom: 14px;
-}
-
-.page-title,
-.panel-title,
-.mobile-card-title {
-  margin: 0;
-}
-
-.page-title {
-  font-size: 28px;
-}
-
-.page-subtitle,
-.panel-tip,
-.mobile-card-link {
-  margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.74);
-}
-
-.hero-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.hero-tag {
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  background: rgba(91, 180, 255, 0.18);
-  color: #d7f0ff;
-}
-
-.filter-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-}
-
-.field,
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.field span,
-.form-field span,
-.detail-grid span,
-.mobile-card-grid span,
-.password-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.filter-actions {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-}
-
-.toolbar {
-  margin-top: 12px;
-  margin-bottom: 10px;
-}
-
-.toolbar-left,
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.input {
-  width: 100%;
+  gap: 7px;
   min-height: 40px;
-  padding: 9px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  outline: none;
-}
-
-.input::placeholder {
-  color: rgba(255, 255, 255, 0.46);
-}
-
-.textarea {
-  resize: vertical;
-  min-height: 96px;
-}
-
-.ghost-btn,
-.action-btn,
-.mini-btn {
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  cursor: pointer;
-}
-
-.ghost-btn,
-.action-btn {
-  min-height: 38px;
   padding: 0 14px;
+  border: 1px solid var(--theme-border);
+  border-radius: 11px;
+  color: var(--theme-text-soft);
+  font-size: 13px;
+  font-weight: 650;
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
-.mini-btn {
-  height: 28px;
-  min-width: 54px;
-  padding: 0 8px;
-  background: rgba(255, 255, 255, 0.18);
+.memo-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
-.ghost-btn {
-  background: rgba(255, 255, 255, 0.12);
+.memo-button-secondary {
+  background: var(--theme-control-surface);
 }
 
-.action-btn {
-  background: linear-gradient(135deg, #1996ff, #27d5a4);
+.memo-button-primary {
+  border-color: color-mix(in srgb, var(--theme-accent) 72%, var(--theme-border));
+  background: linear-gradient(180deg, var(--theme-accent), var(--theme-accent-strong));
+  color: #ffffff;
+  box-shadow:
+    0 8px 20px color-mix(in srgb, var(--theme-accent) 24%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
-.mini-btn.danger {
-  background: rgba(239, 68, 68, 0.65);
+.memo-button:not(:disabled):hover {
+  transform: translateY(-1px);
 }
 
-.list-panel {
-  overflow: hidden;
+.memo-button-secondary:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 38%, var(--theme-border));
+  background: var(--theme-surface-hover);
 }
 
-.table-wrap {
+.memo-button-primary:not(:disabled):hover {
+  border-color: var(--theme-link-hover);
+  box-shadow:
+    0 11px 24px color-mix(in srgb, var(--theme-accent) 31%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.memo-button:disabled,
+.memo-row-button:disabled,
+.memo-page-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.memo-table-wrap {
   overflow-x: auto;
-  margin-top: 14px;
+  scrollbar-color: var(--theme-scrollbar) transparent;
+  scrollbar-width: thin;
 }
 
 .memo-table {
   width: 100%;
-  border-collapse: collapse;
-  min-width: 860px;
+  min-width: 880px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--theme-table-text);
+  font-variant-numeric: tabular-nums;
+  table-layout: fixed;
 }
 
 .memo-table th,
 .memo-table td {
-  padding: 10px 8px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--theme-table-divider);
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  vertical-align: top;
+}
+
+.memo-list-panel .memo-table td {
+  height: 60px;
+  vertical-align: middle !important;
+  color: var(--theme-table-text);
   font-size: 13px;
 }
 
 .memo-table th {
-  color: rgba(255, 255, 255, 0.88);
-  font-weight: 600;
+  height: 38px;
+  background: color-mix(in srgb, var(--theme-table-header) 78%, transparent);
+  color: var(--theme-table-head-text);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
-.site-link {
-  color: #9dd7ff;
-  word-break: break-all;
+.memo-table tbody tr {
+  background: transparent;
+  transition: background-color 140ms ease;
 }
 
-.mobile-list {
-  display: none;
-  margin-top: 14px;
-  gap: 12px;
+.memo-table tbody tr:hover,
+.memo-table tbody tr:focus-within {
+  background: color-mix(in srgb, var(--theme-accent) 6%, transparent);
 }
 
-.mobile-card {
-  padding: 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+.memo-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
-.mobile-card-head {
+.memo-site-column {
+  width: 34%;
+}
+
+.memo-time-column {
+  width: 190px;
+}
+
+.memo-action-column {
+  width: 210px;
+  text-align: right !important;
+}
+
+.memo-site-identity {
   display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.memo-site-identity > div {
+  min-width: 0;
+}
+
+.memo-site-identity strong,
+.memo-site-identity h3 {
+  display: block;
+  overflow: hidden;
+  margin: 0;
+  color: var(--theme-text-soft);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memo-site-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 28%, var(--theme-border));
+  border-radius: 10px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--theme-accent) 24%, transparent), transparent),
+    var(--theme-surface-muted);
+  color: var(--theme-link-hover);
+  font-size: 14px;
+  font-weight: 720;
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+}
+
+.memo-site-link {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--theme-link);
+  font-size: 11px;
+  line-height: 1.3;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memo-site-link:hover {
+  color: var(--theme-link-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.memo-account-summary {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.75fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 3px 16px;
+  overflow: hidden;
+}
+
+.memo-account-summary strong {
+  grid-row: 1 / span 2;
+  align-self: center;
+  overflow: hidden;
+  color: var(--theme-text-soft);
+  font-size: 13px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memo-account-summary span {
+  grid-column: 2;
+  overflow: hidden;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memo-cell-muted {
+  grid-column: 2;
+}
+
+.memo-time-cell time {
+  color: var(--theme-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.memo-action-cell {
+  text-align: right !important;
+}
+
+.memo-row-actions {
+  justify-content: flex-end;
+}
+
+.memo-row-button {
+  flex: 0 0 auto;
+  min-width: 42px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--theme-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.memo-row-button:hover {
+  border-color: var(--theme-border);
+  background: var(--theme-control-surface);
+  color: var(--theme-text);
+}
+
+.memo-row-button-emphasis {
+  color: var(--theme-link);
+}
+
+.memo-row-button-emphasis:hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 34%, var(--theme-border));
+  background: var(--theme-accent-soft);
+  color: var(--theme-link-hover);
+}
+
+.memo-row-button-danger {
+  color: color-mix(in srgb, var(--theme-danger) 78%, var(--theme-text-muted));
+}
+
+.memo-row-button-danger:hover {
+  border-color: color-mix(in srgb, var(--theme-danger) 28%, transparent);
+  background: var(--theme-danger-soft);
+  color: var(--theme-danger);
+}
+
+.memo-mobile-list {
+  display: none;
+  gap: 10px;
+  padding: 12px;
+}
+
+.memo-mobile-card {
+  padding: 14px;
+  border: 1px solid var(--theme-border);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--theme-surface-muted) 72%, transparent);
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+}
+
+.memo-mobile-card-head {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-.mobile-card-time {
-  min-width: 88px;
-  font-size: 12px;
-  text-align: right;
-  color: rgba(255, 255, 255, 0.64);
+.memo-mobile-card-head time {
+  flex: 0 0 auto;
+  color: var(--theme-text-muted);
+  font-size: 10px;
+  white-space: nowrap;
 }
 
-.mobile-card-grid,
+.memo-mobile-card-grid,
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 12px;
+  gap: 8px;
   margin-top: 12px;
 }
 
-.detail-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.mobile-card-grid p,
+.memo-mobile-card-grid p,
 .detail-grid p {
-  margin: 0;
-  padding: 11px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
   display: flex;
+  min-width: 0;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--theme-border);
+  border-radius: 11px;
+  background: var(--theme-surface-muted);
 }
 
-.mobile-card-grid strong,
+.memo-mobile-card-grid span,
+.detail-grid span,
+.password-label,
+.form-field > span {
+  color: var(--theme-text-muted);
+  font-size: 11px;
+}
+
+.memo-mobile-card-grid strong,
 .detail-grid strong {
-  font-size: 14px;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  color: var(--theme-text-soft);
+  font-size: 13px;
+}
+
+.memo-mobile-card-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--theme-divider);
 }
 
 .wide {
   grid-column: 1 / -1;
 }
 
-.pager {
-  margin-top: 16px;
-  flex-wrap: wrap;
-}
-
-.pager-left,
-.pager-right {
+.memo-empty-state {
   display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pager-select {
-  border: none;
-  outline: none;
-  border-radius: 8px;
-  height: 32px;
-  padding: 0 8px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.pager-select option {
-  color: #222;
-}
-
-.empty-state {
-  min-height: 180px;
-  display: flex;
+  min-height: 230px;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.68);
+  gap: 7px;
+  padding: 30px;
+  color: var(--theme-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.memo-empty-state strong {
+  margin-top: 3px;
+  color: var(--theme-text-soft);
+  font-size: 14px;
+}
+
+.memo-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+  border: 1px solid var(--theme-border);
+  border-radius: 15px;
+  background: var(--theme-control-surface);
+  color: var(--theme-text-muted);
+}
+
+.memo-loading-indicator {
+  width: 22px;
+  height: 22px;
+  margin-bottom: 3px;
+  border: 2px solid var(--theme-border-strong);
+  border-top-color: var(--theme-accent);
+  border-radius: 50%;
+  animation: memo-spin 700ms linear infinite;
+}
+
+.memo-pagination {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--theme-divider);
+  color: var(--theme-text-muted);
+  font-size: 12px;
+}
+
+.memo-page-status strong {
+  color: var(--theme-text-soft);
+}
+
+.memo-page-status select {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 28px 0 10px !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+  font-size: 12px;
+}
+
+.memo-page-actions button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--theme-border);
+  border-radius: 9px;
+  background: var(--theme-control-surface);
+  color: var(--theme-text-soft);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.memo-page-actions button:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 36%, var(--theme-border));
+  background: var(--theme-surface-hover);
+  color: var(--theme-text);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .dialog-form,
@@ -1001,130 +1466,202 @@ export default {
   gap: 14px;
 }
 
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .form-inline-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
+.textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .password-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 16px;
   padding: 16px 18px;
+  border: 1px solid var(--theme-border);
   border-radius: 16px;
+  background: var(--theme-surface-muted);
 }
 
 .password-value {
   margin: 6px 0 0;
+  color: var(--theme-text);
   font-size: 28px;
   line-height: 1.3;
   letter-spacing: 1px;
-  word-break: break-all;
-}
-
-.verify-actions {
-  justify-content: flex-start;
+  overflow-wrap: anywhere;
 }
 
 .error-tip {
   margin: 0;
+  color: var(--theme-danger);
   font-size: 13px;
-  color: #ffcccc;
 }
 
 .detail-empty {
   min-height: 260px;
 }
 
-@media (max-width: 960px) {
-  .filter-panel {
-    grid-template-columns: 1fr;
+@keyframes memo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .desktop-table {
+    display: none;
   }
 
-  .filter-actions {
-    align-items: stretch;
+  .memo-mobile-list {
+    display: grid;
   }
 }
 
 @media (max-width: 720px) {
   .password-memo-page {
-    padding: 12px;
+    padding: 14px 12px 22px;
   }
 
-  .top-bar,
-  .hero-panel,
-  .panel-head,
-  .toolbar,
-  .pager,
-  .password-box {
-    flex-direction: column;
-    align-items: stretch;
+  .memo-page-header {
+    align-items: flex-start;
+    gap: 12px;
   }
 
-  .actions,
-  .row-actions,
-  .toolbar-left,
-  .toolbar-right,
-  .mobile-card-actions,
-  .dialog-actions {
-    flex-wrap: wrap;
+  .memo-back-button {
+    min-height: 34px;
+    padding-right: 9px;
   }
 
-  .actions .action-btn,
-  .filter-actions .action-btn,
-  .filter-actions .ghost-btn,
-  .toolbar-left .action-btn,
-  .toolbar-left .ghost-btn,
-  .pager-right .ghost-btn,
-  .dialog-actions .ghost-btn,
-  .dialog-actions .action-btn {
-    flex: 1 1 calc(50% - 6px);
+  .memo-heading-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
   }
 
-  .desktop-table {
-    display: none;
+  .memo-page-title {
+    font-size: 21px;
   }
 
-  .mobile-list {
-    display: grid;
+  .memo-page-subtitle {
+    max-width: 420px;
+    font-size: 12px;
+  }
+
+  .memo-list-panel {
+    border-radius: 16px;
+  }
+
+  .memo-panel-heading {
+    padding: 14px;
+  }
+
+  .memo-toolbar {
+    grid-template-columns: 1fr;
+    padding: 11px 14px;
+  }
+
+  .memo-toolbar-actions {
+    justify-content: flex-end;
+  }
+
+  .memo-pagination {
+    padding: 10px 14px;
   }
 
   .form-inline-grid,
-  .mobile-card-grid,
   .detail-grid {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 520px) {
-  .top-bar,
-  .hero-panel,
-  .filter-panel,
-  .list-panel {
-    padding: 14px;
-    border-radius: 16px;
+@media (max-width: 540px) {
+  .memo-page-header {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
-  .page-title {
-    font-size: 24px;
+  .memo-back-button {
+    justify-self: start;
+  }
+
+  .memo-panel-heading {
+    align-items: flex-start;
+  }
+
+  .memo-panel-heading p {
+    max-width: 240px;
+  }
+
+  .memo-toolbar-actions,
+  .memo-button {
+    width: 100%;
+  }
+
+  .memo-button {
+    flex: 1 1 0;
+  }
+
+  .memo-mobile-card-head {
+    flex-direction: column;
+  }
+
+  .memo-mobile-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .memo-mobile-card-grid .wide {
+    grid-column: auto;
+  }
+
+  .memo-mobile-card-actions .memo-row-button {
+    flex: 1 1 0;
+  }
+
+  .memo-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .memo-page-status,
+  .memo-page-actions {
+    justify-content: space-between;
+  }
+
+  .memo-page-actions button {
+    flex: 1 1 0;
+    justify-content: center;
   }
 
   .password-value {
     font-size: 22px;
   }
+}
 
-  .actions .action-btn,
-  .filter-actions .action-btn,
-  .filter-actions .ghost-btn,
-  .toolbar-left .action-btn,
-  .toolbar-left .ghost-btn,
-  .pager-right .ghost-btn,
-  .dialog-actions .ghost-btn,
-  .dialog-actions .action-btn {
-    flex-basis: 100%;
+@media (prefers-reduced-motion: reduce) {
+  .memo-loading-indicator {
+    animation-duration: 1400ms;
   }
 
-  .mobile-card-actions .mini-btn {
-    flex: 1 1 calc(50% - 6px);
+  .memo-back-button,
+  .memo-button {
+    transition: none;
   }
 }
 </style>
