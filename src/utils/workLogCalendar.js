@@ -222,7 +222,9 @@ export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {
   return days.reduce((summary, day) => {
     const list = groupedLogs[day.date] || []
     const typeMap = new Map()
+    const workItemSet = new Set()
     list.forEach((item) => {
+      parseWorkItemEntries(item.workItem).forEach((workItem) => workItemSet.add(workItem))
       const codes = Array.isArray(item.typeCodes) ? item.typeCodes : []
       const formattedTypes = formatTypeEntryList(codes)
       codes.forEach((code, index) => {
@@ -242,6 +244,7 @@ export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {
       count: list.length,
       inCurrentMonth: Boolean(day.inCurrentMonth),
       types: Array.from(typeMap.values()),
+      workItems: Array.from(workItemSet),
       projectsText: joinUniqueValues(list.map((item) => formatProjectText(item.projectCode)).filter((item) => item && item !== '-')),
       personDayTotal: list.reduce((total, item) => total + toNumber(item.personDay, 0), 0),
       overtimeHoursTotal: list.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0),

@@ -168,7 +168,7 @@ test('mergeLogsByIdentity keeps multiple projects on the same date and removes d
   assert.deepEqual(result.map((item) => item.id), [11, 12])
 })
 
-test('buildDateSummaryMap exposes colored type entries without work content', () => {
+test('buildDateSummaryMap exposes colored type entries and de-duplicated daily work content', () => {
   const result = buildDateSummaryMap([
     {date: '2026-07-10'}
   ], [
@@ -177,7 +177,7 @@ test('buildDateSummaryMap exposes colored type entries without work content', ()
       logDate: '2026-07-10',
       typeCodes: ['NORMAL', 'OVERTIME'],
       projectCode: 'GAK',
-      workItem: '不应进入日卡',
+      workItem: '1. 完成接口联调\n2. 补充回归测试',
       personDay: 0.5,
       overtimeHours: 2
     },
@@ -186,7 +186,7 @@ test('buildDateSummaryMap exposes colored type entries without work content', ()
       logDate: '2026-07-10',
       typeCodes: ['NORMAL'],
       projectCode: 'CLIENT',
-      workItem: '同样不应进入日卡',
+      workItem: '完成接口联调\n整理上线清单',
       personDay: 0.5,
       overtimeHours: 0
     }
@@ -201,7 +201,11 @@ test('buildDateSummaryMap exposes colored type entries without work content', ()
   ])
   assert.equal(result['2026-07-10'].projectsText, 'GAK、CLIENT')
   assert.equal(result['2026-07-10'].personDayTotal, 1)
-  assert.equal(Object.hasOwn(result['2026-07-10'], 'workItemsText'), false)
+  assert.deepEqual(result['2026-07-10'].workItems, [
+    '完成接口联调',
+    '补充回归测试',
+    '整理上线清单'
+  ])
 })
 
 test('getWorkLogTypeTone returns stable tones including legacy and unknown types', () => {
