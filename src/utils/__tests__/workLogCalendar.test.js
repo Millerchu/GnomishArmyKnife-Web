@@ -102,26 +102,31 @@ test('buildWeeklyReportGroups groups projects chronologically and removes duplic
     {
       logDate: '2026-07-10',
       projectCode: 'B',
+      personDay: 0.5,
       workItem: '1. 联调接口\n2、回归测试'
     },
     {
       logDate: '2026-07-08',
       projectCode: 'A',
+      personDay: 0.5,
       workItem: '需求梳理\n接口开发'
     },
     {
       logDate: '2026-07-09',
       projectCode: 'A',
+      personDay: 0.5,
       workItem: '1. 接口开发\n2. 单元测试'
     },
     {
       logDate: '2026-07-11',
       projectCode: null,
+      personDay: 0.5,
       workItem: '历史日志整理'
     },
     {
       logDate: '2026-07-12',
       projectCode: 'EMPTY',
+      personDay: 0.5,
       workItem: '  '
     }
   ], (code) => ({A: 'A 项目', B: 'B 项目'}[code] || code))
@@ -141,6 +146,37 @@ test('buildWeeklyReportGroups groups projects chronologically and removes duplic
       projectCode: 'NO_PROJECT',
       projectText: '未关联项目',
       items: ['历史日志整理']
+    }
+  ])
+})
+
+test('buildWeeklyReportGroups excludes zero person-day logs', () => {
+  const result = buildWeeklyReportGroups([
+    {
+      logDate: '2026-07-08',
+      projectCode: 'A',
+      personDay: 0.5,
+      workItem: '有效工作内容'
+    },
+    {
+      logDate: '2026-07-09',
+      projectCode: 'A',
+      personDay: 0,
+      workItem: '零人天工作内容'
+    },
+    {
+      logDate: '2026-07-10',
+      projectCode: 'B',
+      personDay: '0',
+      workItem: '字符串零人天工作内容'
+    }
+  ], (code) => `${code} 项目`)
+
+  assert.deepEqual(result, [
+    {
+      projectCode: 'A',
+      projectText: 'A 项目',
+      items: ['有效工作内容']
     }
   ])
 })

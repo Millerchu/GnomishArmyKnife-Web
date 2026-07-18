@@ -166,7 +166,7 @@ export function calculateLogStats(logs = [], formatters = {}) {
 
 export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) => value || '未关联项目') {
   const projectMap = new Map()
-  const sortedLogs = [...logs].sort((previous, next) => {
+  const sortedLogs = logs.filter((item) => toNumber(item?.personDay, 0) !== 0).sort((previous, next) => {
     return String(previous?.logDate || '').localeCompare(String(next?.logDate || ''))
   })
 
