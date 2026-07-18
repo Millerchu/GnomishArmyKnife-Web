@@ -85,22 +85,22 @@
         </div>
       </div>
 
-      <div class="table-wrap">
-        <div class="table-head">
-          <span>应用</span>
-          <span>编码 / 路由</span>
-          <span>数据来源</span>
-          <span>密级 / 加密</span>
-          <span>图标来源</span>
-          <span>状态</span>
-          <span>操作</span>
+      <div class="table-wrap" role="table" aria-label="应用列表">
+        <div class="table-head" role="row">
+          <span role="columnheader">应用</span>
+          <span role="columnheader">编码 / 路由</span>
+          <span role="columnheader">数据来源</span>
+          <span role="columnheader">密级 / 加密</span>
+          <span role="columnheader">图标来源</span>
+          <span role="columnheader">状态</span>
+          <span role="columnheader">操作</span>
         </div>
 
         <div v-if="loading && !apps.length" class="empty-state">加载中...</div>
         <template v-else>
-          <div v-if="apps.length" class="table-body">
-            <article v-for="item in apps" :key="item.id" class="table-row">
-              <div class="cell app-cell">
+          <div v-if="apps.length" class="table-body" role="rowgroup">
+            <article v-for="item in apps" :key="item.id" class="table-row" role="row">
+              <div class="cell app-cell" role="cell" data-label="应用">
                 <div class="app-icon" :class="previewClassName(item.iconType)">
                   <AppIconImage
                     v-if="usesImageIcon(item.iconType) && item.iconUrl"
@@ -121,34 +121,34 @@
                 </div>
               </div>
 
-              <div class="cell route-cell">
+              <div class="cell route-cell" role="cell" data-label="编码 / 路由">
                 <strong>{{ item.featureCode }}</strong>
                 <span>{{ item.route || '主页聚合应用' }}</span>
               </div>
 
-              <div class="cell source-mode-cell">
+              <div class="cell source-mode-cell" role="cell" data-label="数据来源">
                 <strong>{{ formatDataSourceMode(item.dataSourceMode) }}</strong>
                 <span>{{ item.dataSourceMode === 'REAL' ? '联调真实接口' : '展示演示数据' }}</span>
               </div>
 
-              <div class="cell tag-cell">
+              <div class="cell tag-cell" role="cell" data-label="密级 / 加密">
                 <span class="tag security">{{ formatSecurityLevel(item.securityLevel) }}</span>
                 <span class="tag">{{ formatEncryptionMode(item.encryptionMode) }}</span>
               </div>
 
-              <div class="cell source-cell">
+              <div class="cell source-cell" role="cell" data-label="图标来源">
                 <strong>{{ formatIconType(item.iconType) }}</strong>
                 <span>{{ formatIconSummary(item) }}</span>
               </div>
 
-              <div class="cell status-cell">
+              <div class="cell status-cell" role="cell" data-label="状态">
                 <span class="status-chip" :class="item.enabled ? 'enabled' : 'disabled'">
                   {{ item.enabled ? '启用' : '停用' }}
                 </span>
                 <span class="grant-count">授权 {{ item.grantCount || 0 }}</span>
               </div>
 
-              <div class="cell action-cell">
+              <div class="cell action-cell" role="cell" data-label="操作">
                 <button class="ghost-btn small-btn" type="button" @click="openEditor(item)">编辑</button>
                 <button class="ghost-btn small-btn" type="button" :disabled="saving" @click="toggleAppStatus(item)">
                   {{ item.enabled ? '停用' : '启用' }}
@@ -1419,7 +1419,7 @@ export default {
 
   .table-head,
   .table-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 1120px;
   }
 }
 
@@ -1431,10 +1431,77 @@ export default {
   .filter-grid,
   .editor-grid,
   .insight-grid,
-  .preset-grid,
-  .table-head,
-  .table-row {
+  .preset-grid {
     grid-template-columns: 1fr;
+  }
+
+  .app-page .table-wrap {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    backdrop-filter: none;
+  }
+
+  .table-head {
+    display: none;
+  }
+
+  .table-body {
+    display: grid;
+    gap: 10px;
+  }
+
+  .table-row {
+    min-width: 0;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 14px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.025)),
+      rgba(25, 28, 35, 0.84) !important;
+    box-shadow:
+      0 14px 34px rgba(0, 0, 0, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  }
+
+  .table-row + .table-row {
+    border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
+  }
+
+  .table-row .cell {
+    position: relative;
+    min-height: 30px;
+    padding-left: 92px;
+  }
+
+  .table-row .cell::before {
+    position: absolute;
+    top: 2px;
+    left: 0;
+    width: 78px;
+    color: rgba(241, 243, 248, 0.48);
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .table-row .app-cell {
+    padding: 0 0 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.085);
+  }
+
+  .table-row .app-cell::before {
+    display: none;
+  }
+
+  .table-row .action-cell {
+    align-items: center;
+    min-height: 34px;
   }
 
   .hero-panel,

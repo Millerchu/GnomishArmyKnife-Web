@@ -1734,8 +1734,7 @@ export default {
     const buildClassStatStyle = (className) => {
       const classMeta = getClassMeta(className)
       return {
-        borderColor: classColorToRgba(classMeta.color, 0.42),
-        background: classColorToRgba(classMeta.color, 0.16)
+        '--business-accent': classMeta.color
       }
     }
 

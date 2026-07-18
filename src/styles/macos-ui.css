@@ -1,35 +1,170 @@
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --theme-wallpaper-overlay:
+    linear-gradient(180deg, rgba(8, 9, 13, 0.56), rgba(10, 11, 16, 0.74)),
+    radial-gradient(circle at 50% -12%, rgba(255, 255, 255, 0.05), transparent 46%);
+  --theme-wallpaper-fallback:
+    radial-gradient(circle at 15% 0%, rgba(76, 84, 112, 0.2), transparent 35%),
+    linear-gradient(145deg, #101116, #20222a 52%, #111217);
+  --theme-surface: rgba(24, 25, 31, 0.72);
+  --theme-surface-strong: rgba(39, 41, 49, 0.82);
+  --theme-surface-muted: rgba(42, 44, 52, 0.58);
+  --theme-surface-raised: rgba(48, 50, 59, 0.84);
+  --theme-surface-hover: rgba(10, 132, 255, 0.12);
+  --theme-field-surface: rgba(31, 33, 40, 0.76);
+  --theme-popover-surface: rgba(34, 36, 43, 0.94);
+  --theme-scrim: rgba(3, 4, 7, 0.64);
+  --theme-border: rgba(255, 255, 255, 0.14);
+  --theme-border-strong: rgba(255, 255, 255, 0.23);
+  --theme-divider: rgba(255, 255, 255, 0.09);
+  --theme-text: #f5f5f7;
+  --theme-text-soft: rgba(245, 245, 247, 0.86);
+  --theme-text-muted: rgba(235, 235, 245, 0.6);
+  --theme-accent: #0a84ff;
+  --theme-accent-strong: #0068d8;
+  --theme-accent-soft: rgba(10, 132, 255, 0.14);
+  --theme-link: #69adff;
+  --theme-link-hover: #91c4ff;
+  --theme-focus-ring: rgba(10, 132, 255, 0.28);
+  --theme-danger: #ff6961;
+  --theme-danger-soft: rgba(255, 69, 58, 0.13);
+  --theme-success: #63da86;
+  --theme-success-soft: rgba(48, 209, 88, 0.16);
+  --theme-warning: #ffd60a;
+  --theme-warning-soft: rgba(255, 214, 10, 0.14);
+  --theme-coral: #ff9b8f;
+  --theme-highlight: rgba(255, 255, 255, 0.15);
+  --theme-highlight-soft: rgba(255, 255, 255, 0.07);
+  --theme-control-surface: rgba(255, 255, 255, 0.1);
+  --theme-scrollbar: rgba(255, 255, 255, 0.24);
+  --theme-scrollbar-hover: rgba(255, 255, 255, 0.38);
+  --theme-option-surface: #222329;
+  --theme-option-selected: #8ec5ff;
+  --theme-option-selected-text: #101116;
+  --theme-shadow-sm: 0 14px 34px rgba(0, 0, 0, 0.28);
+  --theme-shadow-xs: 0 8px 22px rgba(0, 0, 0, 0.16);
+  --theme-shadow-md: 0 24px 62px rgba(0, 0, 0, 0.38);
+  --theme-shadow-lg: 0 38px 100px rgba(0, 0, 0, 0.56);
+  --theme-table-surface: rgba(30, 31, 37, 0.84);
+  --theme-table-header: rgba(49, 50, 58, 0.92);
+  --theme-table-border: rgba(255, 255, 255, 0.18);
+  --theme-table-divider: rgba(255, 255, 255, 0.085);
+  --theme-table-row: rgba(255, 255, 255, 0.018);
+  --theme-table-row-even: rgba(255, 255, 255, 0.034);
+  --theme-table-hover: rgba(10, 132, 255, 0.105);
+  --theme-table-text: rgba(246, 247, 250, 0.88);
+  --theme-table-head-text: rgba(244, 245, 249, 0.68);
+  --theme-table-empty-text: rgba(236, 239, 245, 0.5);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --theme-wallpaper-overlay:
+    linear-gradient(180deg, rgba(246, 248, 252, 0.74), rgba(239, 242, 248, 0.88)),
+    radial-gradient(circle at 50% -12%, rgba(255, 255, 255, 0.72), transparent 48%);
+  --theme-wallpaper-fallback:
+    radial-gradient(circle at 16% 0%, rgba(10, 132, 255, 0.1), transparent 34%),
+    linear-gradient(145deg, #f7f8fb, #e8ebf1 52%, #f5f6f9);
+  --theme-surface: rgba(247, 248, 251, 0.8);
+  --theme-surface-strong: rgba(255, 255, 255, 0.9);
+  --theme-surface-muted: rgba(248, 249, 252, 0.72);
+  --theme-surface-raised: rgba(255, 255, 255, 0.94);
+  --theme-surface-hover: rgba(0, 113, 227, 0.09);
+  --theme-field-surface: rgba(255, 255, 255, 0.82);
+  --theme-popover-surface: rgba(250, 250, 252, 0.96);
+  --theme-scrim: rgba(29, 29, 31, 0.34);
+  --theme-border: rgba(29, 29, 31, 0.13);
+  --theme-border-strong: rgba(29, 29, 31, 0.2);
+  --theme-divider: rgba(29, 29, 31, 0.09);
+  --theme-text: #1d1d1f;
+  --theme-text-soft: rgba(29, 29, 31, 0.84);
+  --theme-text-muted: rgba(29, 29, 31, 0.56);
+  --theme-accent: #0071e3;
+  --theme-accent-strong: #005ec4;
+  --theme-accent-soft: rgba(0, 113, 227, 0.11);
+  --theme-link: #0066cc;
+  --theme-link-hover: #004a99;
+  --theme-focus-ring: rgba(0, 113, 227, 0.22);
+  --theme-danger: #d70015;
+  --theme-danger-soft: rgba(215, 0, 21, 0.08);
+  --theme-success: #168a3b;
+  --theme-success-soft: rgba(22, 138, 59, 0.1);
+  --theme-warning: #9a6700;
+  --theme-warning-soft: rgba(154, 103, 0, 0.1);
+  --theme-coral: #c93428;
+  --theme-highlight: rgba(255, 255, 255, 0.74);
+  --theme-highlight-soft: rgba(255, 255, 255, 0.46);
+  --theme-control-surface: rgba(255, 255, 255, 0.68);
+  --theme-scrollbar: rgba(29, 29, 31, 0.2);
+  --theme-scrollbar-hover: rgba(29, 29, 31, 0.34);
+  --theme-option-surface: #f7f7f9;
+  --theme-option-selected: #0071e3;
+  --theme-option-selected-text: #ffffff;
+  --theme-shadow-sm: 0 14px 34px rgba(37, 45, 58, 0.14);
+  --theme-shadow-xs: 0 8px 22px rgba(37, 45, 58, 0.09);
+  --theme-shadow-md: 0 24px 62px rgba(37, 45, 58, 0.2);
+  --theme-shadow-lg: 0 38px 100px rgba(37, 45, 58, 0.28);
+  --theme-table-surface: rgba(250, 250, 252, 0.88);
+  --theme-table-header: rgba(232, 233, 238, 0.94);
+  --theme-table-border: rgba(29, 29, 31, 0.16);
+  --theme-table-divider: rgba(29, 29, 31, 0.085);
+  --theme-table-row: rgba(255, 255, 255, 0.26);
+  --theme-table-row-even: rgba(29, 29, 31, 0.026);
+  --theme-table-hover: rgba(0, 113, 227, 0.08);
+  --theme-table-text: rgba(29, 29, 31, 0.86);
+  --theme-table-head-text: rgba(29, 29, 31, 0.6);
+  --theme-table-empty-text: rgba(29, 29, 31, 0.46);
+}
+
 :root {
-  --macos-surface: rgba(9, 25, 38, 0.62);
-  --macos-surface-strong: rgba(20, 48, 62, 0.76);
-  --macos-surface-muted: rgba(15, 35, 49, 0.52);
-  --macos-surface-hover: rgba(87, 211, 198, 0.14);
-  --macos-scrim: rgba(1, 8, 16, 0.52);
-  --macos-border: rgba(221, 239, 255, 0.18);
-  --macos-border-strong: rgba(221, 239, 255, 0.3);
-  --macos-text: #f2f9ff;
-  --macos-text-soft: rgba(238, 248, 255, 0.9);
-  --macos-text-muted: rgba(219, 235, 247, 0.68);
-  --macos-accent: #20bdae;
-  --macos-accent-strong: #0a7d79;
-  --macos-blue: #4aa7ff;
-  --macos-danger: #ff8f8f;
-  --macos-success: #78e69d;
-  --macos-warning: #ffd166;
-  --macos-coral: #ff9b8f;
+  /* 兼容现有页面命名；组件应逐步改用 theme 语义变量。 */
+  --macos-surface: var(--theme-surface);
+  --macos-surface-strong: var(--theme-surface-strong);
+  --macos-surface-muted: var(--theme-surface-muted);
+  --macos-surface-hover: var(--theme-surface-hover);
+  --macos-scrim: var(--theme-scrim);
+  --macos-border: var(--theme-border);
+  --macos-border-strong: var(--theme-border-strong);
+  --macos-text: var(--theme-text);
+  --macos-text-soft: var(--theme-text-soft);
+  --macos-text-muted: var(--theme-text-muted);
+  --macos-accent: var(--theme-accent);
+  --macos-accent-strong: var(--theme-accent-strong);
+  --macos-blue: var(--theme-accent);
+  --macos-danger: var(--theme-danger);
+  --macos-success: var(--theme-success);
+  --macos-warning: var(--theme-warning);
+  --macos-coral: var(--theme-coral);
+  --macos-system-blue: var(--theme-accent);
+  --macos-table-surface: var(--theme-table-surface);
+  --macos-table-header: var(--theme-table-header);
+  --macos-table-border: var(--theme-table-border);
+  --macos-table-divider: var(--theme-table-divider);
+  --macos-table-hover: var(--theme-table-hover);
   --macos-radius-xs: 10px;
   --macos-radius-sm: 14px;
   --macos-radius-md: 18px;
   --macos-radius-lg: 24px;
-  --macos-shadow-sm: 0 12px 30px rgba(0, 7, 18, 0.22);
-  --macos-shadow-md: 0 22px 58px rgba(0, 7, 18, 0.32);
-  --macos-shadow-lg: 0 36px 96px rgba(0, 7, 18, 0.5);
+  --macos-shadow-sm: var(--theme-shadow-sm);
+  --macos-shadow-md: var(--theme-shadow-md);
+  --macos-shadow-lg: var(--theme-shadow-lg);
   --macos-ease: cubic-bezier(0.2, 0.9, 0.2, 1);
 }
 
 body {
+  background: var(--theme-wallpaper-fallback);
   color: var(--macos-text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease;
 }
 
 button,
@@ -54,7 +189,7 @@ select:focus-visible,
 textarea:focus-visible,
 a:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid rgba(93, 231, 213, 0.28);
+  outline: 3px solid var(--theme-focus-ring);
   outline-offset: 2px;
 }
 
@@ -68,6 +203,9 @@ a:focus-visible,
 .spotlight-panel,
 .price-panel,
 .report-panel,
+.month-hero,
+.ledger-panel,
+.insight-card,
 .home-state,
 .surface-notice,
 .summary-card,
@@ -90,12 +228,12 @@ a:focus-visible,
   border: 1px solid var(--macos-border) !important;
   background:
     linear-gradient(180deg, var(--macos-surface-strong), var(--macos-surface)),
-    rgba(8, 22, 36, 0.58) !important;
+    var(--theme-surface) !important;
   box-shadow:
     var(--macos-shadow-sm),
-    inset 0 1px 0 rgba(255, 255, 255, 0.13) !important;
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
+    inset 0 1px 0 var(--theme-highlight) !important;
+  backdrop-filter: blur(30px) saturate(135%);
+  -webkit-backdrop-filter: blur(30px) saturate(135%);
 }
 
 .list-panel,
@@ -107,6 +245,14 @@ a:focus-visible,
 .price-panel,
 .report-panel {
   border-radius: var(--macos-radius-lg) !important;
+}
+
+.wow-page,
+.home-page,
+.system-page,
+.management-page,
+.bills-page {
+  color: var(--theme-text) !important;
 }
 
 .panel-head,
@@ -147,17 +293,44 @@ a:focus-visible,
 }
 
 .table-wrap {
-  border: 1px solid var(--macos-border) !important;
-  border-radius: var(--macos-radius-md) !important;
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--macos-table-border) !important;
+  border-radius: 16px !important;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04)),
-    rgba(7, 20, 34, 0.46) !important;
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent 18%),
+    radial-gradient(circle at 12% 0%, var(--theme-accent-soft), transparent 30%),
+    var(--macos-table-surface) !important;
   box-shadow:
-    var(--macos-shadow-sm),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    var(--theme-shadow-md),
+    inset 0 1px 0 var(--theme-highlight),
+    inset 0 0 0 1px var(--theme-highlight-soft) !important;
   overflow: auto !important;
-  backdrop-filter: blur(22px) saturate(150%);
-  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(34px) saturate(125%);
+  -webkit-backdrop-filter: blur(34px) saturate(125%);
+  scrollbar-color: var(--theme-scrollbar) transparent;
+  scrollbar-width: thin;
+}
+
+.table-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-wrap::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--theme-scrollbar);
+  background-clip: padding-box;
+}
+
+.table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-scrollbar-hover);
+  background-clip: padding-box;
 }
 
 .table-wrap table,
@@ -168,6 +341,8 @@ a:focus-visible,
   border-spacing: 0 !important;
   width: 100%;
   background: transparent !important;
+  color: var(--theme-table-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .table-wrap th,
@@ -178,8 +353,12 @@ a:focus-visible,
 .character-table td,
 .log-table th,
 .log-table td {
-  border-color: rgba(226, 241, 255, 0.13) !important;
-  color: rgba(239, 248, 255, 0.9) !important;
+  padding: 12px 13px !important;
+  border-color: var(--macos-table-divider) !important;
+  color: var(--theme-table-text) !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  vertical-align: middle;
 }
 
 .table-wrap th,
@@ -188,40 +367,189 @@ a:focus-visible,
 .log-table th,
 .table-head {
   background:
-    linear-gradient(180deg, rgba(244, 249, 255, 0.17), rgba(222, 239, 255, 0.09)),
-    rgba(11, 28, 43, 0.72) !important;
-  color: rgba(234, 245, 255, 0.82) !important;
-  font-size: 12px !important;
-  font-weight: 800 !important;
-  letter-spacing: 0 !important;
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--macos-table-header) !important;
+  box-shadow:
+    inset 0 1px 0 var(--theme-highlight),
+    inset 0 -1px 0 var(--theme-divider);
+  color: var(--theme-table-head-text) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.015em !important;
+  line-height: 1.3 !important;
+  white-space: nowrap;
+  backdrop-filter: blur(26px) saturate(118%);
+  -webkit-backdrop-filter: blur(26px) saturate(118%);
 }
 
 .table-wrap tbody tr,
 .table-row {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--theme-table-row) !important;
   transition:
-    background-color 180ms var(--macos-ease),
-    border-color 180ms var(--macos-ease),
-    box-shadow 180ms var(--macos-ease),
-    transform 180ms var(--macos-ease);
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .table-wrap tbody tr:nth-child(even),
 .table-row:nth-child(even) {
-  background: rgba(255, 255, 255, 0.025) !important;
+  background: var(--theme-table-row-even) !important;
 }
 
 .table-wrap tbody tr:hover,
+.table-wrap tbody tr:focus-within,
 .table-row:hover,
+.table-row:focus-within,
 .log-table tbody tr:hover {
-  background: var(--macos-surface-hover) !important;
-  box-shadow: inset 3px 0 0 rgba(83, 211, 199, 0.76);
+  background: var(--macos-table-hover) !important;
+  box-shadow: inset 3px 0 0 var(--theme-accent) !important;
+}
+
+.table-wrap tbody tr.activeRow,
+.table-wrap tbody tr.selectedRow,
+.table-wrap tbody tr[aria-selected="true"],
+.table-row.active,
+.table-row.selected {
+  background:
+    linear-gradient(90deg, var(--theme-accent-soft), var(--theme-table-hover)) !important;
+  box-shadow:
+    inset 3px 0 0 var(--macos-system-blue),
+    inset 0 1px 0 var(--theme-highlight-soft) !important;
+}
+
+.table-wrap tbody tr:last-child td,
+.dict-table tbody tr:last-child td,
+.character-table tbody tr:last-child td,
+.log-table tbody tr:last-child td {
+  border-bottom-color: transparent !important;
+}
+
+.table-wrap .empty-cell {
+  height: 116px;
+  padding: 34px 16px !important;
+  background: var(--theme-table-row) !important;
+  color: var(--theme-table-empty-text) !important;
+  font-size: 13px !important;
+  font-weight: 500;
+  text-align: center !important;
+}
+
+.table-wrap input[type="checkbox"],
+.table-wrap input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--macos-system-blue);
+}
+
+.table-wrap a {
+  color: var(--theme-link) !important;
+  text-decoration-color: var(--theme-accent-soft);
+  text-underline-offset: 3px;
+}
+
+.table-wrap a:hover {
+  color: var(--theme-link-hover) !important;
+  text-decoration-color: currentColor;
+}
+
+.table-wrap .row-actions,
+.table-wrap .log-row-actions,
+.table-row .row-actions {
+  gap: 6px !important;
+}
+
+.table-wrap .mini-btn,
+.table-row .mini-btn,
+.table-row .small-btn {
+  min-height: 28px !important;
+  padding: 0 10px !important;
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 999px !important;
+  background:
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-control-surface) !important;
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
+  color: var(--theme-text-soft) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.table-wrap .mini-btn:not(:disabled):hover,
+.table-row .mini-btn:not(:disabled):hover,
+.table-row .small-btn:not(:disabled):hover {
+  border-color: var(--theme-accent) !important;
+  background: var(--theme-accent-soft) !important;
+  color: var(--theme-link-hover) !important;
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
+}
+
+.table-wrap .mini-btn.danger,
+.table-row .mini-btn.danger {
+  border-color: color-mix(in srgb, var(--theme-danger) 28%, transparent) !important;
+  background: var(--theme-danger-soft) !important;
+  color: var(--theme-danger) !important;
+}
+
+.table-wrap .mini-btn.danger:not(:disabled):hover,
+.table-row .mini-btn.danger:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--theme-danger) 52%, transparent) !important;
+  background: color-mix(in srgb, var(--theme-danger) 18%, transparent) !important;
+  color: var(--theme-danger) !important;
+}
+
+.table-wrap .sort-header-btn.active,
+.table-wrap .sort-header-btn:hover,
+.table-wrap .sort-header-btn.active .sort-indicator {
+  color: var(--theme-link) !important;
+}
+
+.table-wrap .character-row.faction-row-alliance {
+  background:
+    linear-gradient(90deg, rgba(10, 132, 255, 0.085), rgba(255, 255, 255, 0.018) 42%) !important;
+}
+
+.table-wrap .character-row.faction-row-horde {
+  background:
+    linear-gradient(90deg, rgba(255, 69, 58, 0.075), rgba(255, 255, 255, 0.018) 42%) !important;
+}
+
+.table-wrap .character-row.faction-row-alliance:hover,
+.table-wrap .character-row.faction-row-horde:hover {
+  background:
+    linear-gradient(90deg, rgba(10, 132, 255, 0.15), rgba(10, 132, 255, 0.065)) !important;
+  box-shadow: inset 3px 0 0 rgba(10, 132, 255, 0.82) !important;
 }
 
 .table-row {
-  border-color: rgba(226, 241, 255, 0.13) !important;
+  border-color: var(--macos-table-divider) !important;
+}
+
+.table-head,
+.table-row {
+  color: var(--theme-table-text) !important;
+}
+
+.table-head {
+  min-height: 46px;
+  background:
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--macos-table-header) !important;
+  box-shadow:
+    inset 0 1px 0 var(--theme-highlight),
+    inset 0 -1px 0 var(--theme-divider);
+  color: var(--theme-table-head-text) !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.015em !important;
+}
+
+.table-row {
+  min-height: 58px;
+}
+
+.memo-table td,
+.log-table td {
+  vertical-align: top !important;
 }
 
 .mobile-list,
@@ -249,17 +577,25 @@ a:focus-visible,
 .upcoming-item,
 .recent-item,
 .distribution-row,
-.stats-row {
+.stats-row,
+.overview-metric,
+.faction-summary-item,
+.class-stat-item,
+.dialog-block,
+.weekly-vault-card,
+.highlight-card,
+.highlight-pill,
+.comparison-grid article {
   border: 1px solid var(--macos-border) !important;
   border-radius: var(--macos-radius-md) !important;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04)),
-    rgba(7, 20, 34, 0.46) !important;
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-surface-muted) !important;
   box-shadow:
-    0 16px 38px rgba(0, 7, 18, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-  backdrop-filter: blur(18px) saturate(145%);
-  -webkit-backdrop-filter: blur(18px) saturate(145%);
+    var(--theme-shadow-xs),
+    inset 0 1px 0 var(--theme-highlight-soft) !important;
+  backdrop-filter: blur(20px) saturate(125%);
+  -webkit-backdrop-filter: blur(20px) saturate(125%);
   transition:
     border-color 180ms var(--macos-ease),
     box-shadow 180ms var(--macos-ease),
@@ -273,7 +609,7 @@ a:focus-visible,
 .mobile-log-card:hover,
 .mobile-version-card:hover,
 .mobile-dict-card:hover {
-  border-color: rgba(93, 231, 213, 0.34) !important;
+  border-color: color-mix(in srgb, var(--theme-accent) 40%, transparent) !important;
   box-shadow: var(--macos-shadow-md) !important;
 }
 
@@ -283,9 +619,15 @@ a:focus-visible,
 .card-stat,
 .budget-meta,
 .price-grid p {
-  border: 1px solid rgba(226, 241, 255, 0.13) !important;
+  border: 1px solid var(--theme-border) !important;
   border-radius: var(--macos-radius-sm) !important;
-  background: rgba(255, 255, 255, 0.055) !important;
+  background: var(--theme-surface-muted) !important;
+}
+
+.class-stat-item {
+  box-shadow:
+    inset 3px 0 0 var(--business-accent, var(--theme-accent)),
+    inset 0 1px 0 var(--theme-highlight-soft) !important;
 }
 
 .dialog-mask {
@@ -323,7 +665,7 @@ a:focus-visible,
 
 .dialog-head,
 .dialog-actions {
-  border-color: rgba(226, 241, 255, 0.12) !important;
+  border-color: var(--theme-divider) !important;
 }
 
 .dialog-actions {
@@ -334,8 +676,8 @@ a:focus-visible,
   margin-right: -1px;
   padding-top: 14px !important;
   background:
-    linear-gradient(180deg, rgba(10, 28, 42, 0), rgba(8, 22, 36, 0.88) 34%),
-    rgba(8, 22, 36, 0.56) !important;
+    linear-gradient(180deg, transparent, var(--theme-surface-strong) 34%),
+    var(--theme-surface) !important;
   backdrop-filter: blur(18px) saturate(145%);
   -webkit-backdrop-filter: blur(18px) saturate(145%);
 }
@@ -345,15 +687,15 @@ a:focus-visible,
   min-width: 34px !important;
   height: 34px !important;
   min-height: 34px !important;
-  border: 1px solid rgba(226, 241, 255, 0.18) !important;
+  border: 1px solid var(--theme-border) !important;
   border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: var(--theme-control-surface) !important;
   color: var(--macos-text-soft) !important;
-  box-shadow: 0 8px 20px rgba(0, 7, 18, 0.18) !important;
+  box-shadow: var(--theme-shadow-xs) !important;
 }
 
 .dialog-close:hover {
-  background: rgba(255, 255, 255, 0.16) !important;
+  background: var(--theme-surface-hover) !important;
   color: var(--macos-text) !important;
 }
 
@@ -366,10 +708,10 @@ a:focus-visible,
 .tab-btn,
 .task-check-btn {
   border-radius: 999px !important;
-  border: 1px solid rgba(226, 241, 255, 0.18) !important;
+  border: 1px solid var(--theme-border) !important;
   box-shadow:
-    0 10px 24px rgba(0, 7, 18, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    var(--theme-shadow-xs),
+    inset 0 1px 0 var(--theme-highlight-soft) !important;
   transition:
     background-color 160ms var(--macos-ease),
     border-color 160ms var(--macos-ease),
@@ -383,7 +725,7 @@ a:focus-visible,
 .tab-btn.active {
   background: linear-gradient(180deg, var(--macos-accent), var(--macos-accent-strong)) !important;
   color: #ffffff !important;
-  border-color: rgba(91, 235, 218, 0.28) !important;
+  border-color: color-mix(in srgb, var(--theme-accent) 72%, var(--theme-border)) !important;
 }
 
 .ghost-btn,
@@ -392,16 +734,16 @@ a:focus-visible,
 .view-btn,
 .mode-btn,
 .tab-btn {
-  background: rgba(255, 255, 255, 0.11) !important;
+  background: var(--theme-control-surface) !important;
   color: var(--macos-text-soft) !important;
 }
 
 .mini-btn.danger,
 .danger,
 .danger-btn {
-  border-color: rgba(255, 151, 151, 0.28) !important;
-  background: rgba(220, 38, 38, 0.16) !important;
-  color: #ffd0d0 !important;
+  border-color: color-mix(in srgb, var(--theme-danger) 34%, transparent) !important;
+  background: var(--theme-danger-soft) !important;
+  color: var(--theme-danger) !important;
 }
 
 .action-btn:not(:disabled):hover,
@@ -412,10 +754,10 @@ a:focus-visible,
 .mode-btn:not(:disabled):hover,
 .tab-btn:not(:disabled):hover {
   transform: translateY(-1px);
-  border-color: rgba(148, 217, 255, 0.38) !important;
+  border-color: color-mix(in srgb, var(--theme-accent) 44%, var(--theme-border)) !important;
   box-shadow:
-    0 14px 30px rgba(0, 7, 18, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+    var(--theme-shadow-sm),
+    inset 0 1px 0 var(--theme-highlight) !important;
 }
 
 .action-btn:disabled,
@@ -435,15 +777,15 @@ a:focus-visible,
 input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
-  border: 1px solid rgba(221, 239, 255, 0.24) !important;
+  border: 1px solid var(--theme-border-strong) !important;
   border-radius: var(--macos-radius-sm) !important;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07)),
-    rgba(6, 24, 36, 0.5) !important;
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-field-surface) !important;
   color: var(--macos-text) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 10px 24px rgba(0, 7, 18, 0.16) !important;
+    inset 0 1px 0 var(--theme-highlight-soft),
+    var(--theme-shadow-xs) !important;
   backdrop-filter: blur(18px) saturate(145%);
   -webkit-backdrop-filter: blur(18px) saturate(145%);
   transition:
@@ -453,7 +795,7 @@ textarea {
 }
 
 select {
-  color-scheme: dark;
+  color-scheme: inherit;
 }
 
 select option,
@@ -462,8 +804,8 @@ select option,
 .field option,
 .field-item option,
 .pager-left option {
-  color: #f2f9ff !important;
-  background: #102033 !important;
+  color: var(--theme-text) !important;
+  background: var(--theme-option-surface) !important;
 }
 
 select option:checked,
@@ -472,15 +814,15 @@ select option:checked,
 .field option:checked,
 .field-item option:checked,
 .pager-left option:checked {
-  color: #06111f !important;
-  background: #8ec5ff !important;
+  color: var(--theme-option-selected-text) !important;
+  background: var(--theme-option-selected) !important;
 }
 
 .input::placeholder,
 .textarea::placeholder,
 input:not([type="checkbox"]):not([type="radio"])::placeholder,
 textarea::placeholder {
-  color: rgba(220, 234, 246, 0.48) !important;
+  color: var(--theme-text-muted) !important;
 }
 
 .input:focus,
@@ -489,10 +831,10 @@ textarea::placeholder {
 input:not([type="checkbox"]):not([type="radio"]):focus,
 select:focus,
 textarea:focus {
-  border-color: rgba(93, 231, 213, 0.64) !important;
+  border-color: var(--theme-accent) !important;
   box-shadow:
-    0 0 0 4px rgba(93, 231, 213, 0.14),
-    0 12px 26px rgba(0, 7, 18, 0.22) !important;
+    0 0 0 4px var(--theme-focus-ring),
+    var(--theme-shadow-sm) !important;
 }
 
 .list-tag,
@@ -510,31 +852,31 @@ textarea:focus {
 .app-count,
 .current-date,
 .user-name-text {
-  border: 1px solid rgba(226, 241, 255, 0.18) !important;
+  border: 1px solid var(--theme-border) !important;
   border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: var(--theme-control-surface) !important;
   color: var(--macos-text-soft) !important;
 }
 
 .status-tag.on,
 .status-tag.success,
 .status-tag.enabled {
-  border-color: rgba(95, 232, 159, 0.34) !important;
-  background: rgba(34, 197, 94, 0.18) !important;
-  color: #baf7cd !important;
+  border-color: color-mix(in srgb, var(--theme-success) 36%, transparent) !important;
+  background: var(--theme-success-soft) !important;
+  color: var(--theme-success) !important;
 }
 
 .status-tag.off,
 .status-tag.disabled {
-  border-color: rgba(255, 151, 151, 0.28) !important;
-  background: rgba(239, 68, 68, 0.16) !important;
-  color: #ffd3d3 !important;
+  border-color: color-mix(in srgb, var(--theme-danger) 34%, transparent) !important;
+  background: var(--theme-danger-soft) !important;
+  color: var(--theme-danger) !important;
 }
 
 .empty-state {
-  border: 1px dashed rgba(226, 241, 255, 0.24) !important;
+  border: 1px dashed var(--theme-border-strong) !important;
   border-radius: var(--macos-radius-lg) !important;
-  background: rgba(255, 255, 255, 0.055) !important;
+  background: var(--theme-surface-muted) !important;
   color: var(--macos-text-muted) !important;
 }
 
@@ -544,11 +886,146 @@ textarea:focus {
 .popover {
   border: 1px solid var(--macos-border) !important;
   background:
-    linear-gradient(180deg, rgba(24, 53, 70, 0.82), rgba(9, 24, 38, 0.84)),
-    rgba(7, 18, 29, 0.68) !important;
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-popover-surface) !important;
   box-shadow: var(--macos-shadow-md) !important;
   backdrop-filter: blur(26px) saturate(165%);
   -webkit-backdrop-filter: blur(26px) saturate(165%);
+}
+
+/* Keep supporting surfaces in the same graphite hierarchy as dialogs and tables. */
+.back-home-btn,
+.soft-button,
+.icon-button,
+.pager button,
+.icon-toggle-btn {
+  border-color: var(--theme-border) !important;
+  background:
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-control-surface) !important;
+  color: var(--theme-text-soft) !important;
+  box-shadow: var(--theme-shadow-xs) !important;
+}
+
+.back-home-btn:hover,
+.soft-button:hover,
+.icon-button:hover,
+.pager button:hover,
+.icon-toggle-btn:hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 42%, var(--theme-border)) !important;
+  background: var(--theme-surface-hover) !important;
+}
+
+.back-home-icon {
+  background: var(--theme-surface-muted) !important;
+  color: var(--theme-text-soft) !important;
+}
+
+.character-fields-section,
+.keybinding-row,
+.empty-inline {
+  border: 1px solid var(--theme-border) !important;
+  background:
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-surface-muted) !important;
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
+}
+
+.empty-inline,
+.icon-toggle-btn,
+.featured-toggle {
+  color: var(--theme-text-soft) !important;
+}
+
+.featured-toggle {
+  border-color: color-mix(in srgb, var(--theme-accent) 28%, var(--theme-border)) !important;
+  background: var(--theme-accent-soft) !important;
+}
+
+.keybinding-row span {
+  color: var(--theme-text-muted) !important;
+}
+
+.insight-panel-head,
+.compact-insight-block,
+.realm-summary-row,
+.section-heading,
+.day-group > header {
+  border-color: var(--theme-divider) !important;
+}
+
+.field > span,
+.form-field > span,
+.mini-field > span,
+.summary-card span,
+.overview-metric span,
+.faction-summary-item span,
+.realm-summary-row span,
+.class-stat-item span,
+.card-stat span,
+.card-meta span,
+.stats-row span,
+.insight-head-meta,
+.section-heading span,
+.section-heading small,
+.bill-copy small,
+.bill-meta small {
+  color: var(--theme-text-muted) !important;
+}
+
+.overview-metric strong,
+.summary-card strong,
+.faction-summary-item strong,
+.realm-summary-row strong,
+.class-stat-item strong,
+.class-stat-item b,
+.stats-row strong,
+.bill-copy b,
+.bill-meta b {
+  color: var(--theme-text) !important;
+}
+
+.overview-metric,
+.faction-summary-item,
+.class-stat-item {
+  border-radius: var(--macos-radius-xs) !important;
+}
+
+.faction-summary-item b,
+.realm-summary-row b {
+  color: var(--theme-warning) !important;
+}
+
+.character-card {
+  border-color: var(--theme-border-strong) !important;
+  box-shadow:
+    var(--theme-shadow-sm),
+    inset 0 1px 0 var(--theme-highlight-soft) !important;
+}
+
+.empty-card {
+  background:
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-surface-muted) !important;
+}
+
+:root[data-theme="light"] .character-card {
+  color: #f5f5f7;
+}
+
+:root[data-theme="light"] .character-card .card-subtitle,
+:root[data-theme="light"] .character-card .card-stat span,
+:root[data-theme="light"] .character-card .card-meta span {
+  color: rgba(245, 245, 247, 0.7) !important;
+}
+
+:root[data-theme="light"] .character-card.empty-card,
+:root[data-theme="light"] .character-card.empty-card strong {
+  color: var(--theme-text) !important;
+}
+
+:root[data-theme="light"] .character-card.empty-card span {
+  color: var(--theme-text-muted) !important;
 }
 
 @keyframes macos-fade-in {

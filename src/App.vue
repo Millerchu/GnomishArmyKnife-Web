@@ -13,15 +13,7 @@
 <script>
 import {onMounted, ref} from 'vue'
 
-const FALLBACK_BACKGROUND = `
-  linear-gradient(
-    180deg,
-    rgba(2, 8, 16, 0.84) 0%,
-    rgba(7, 30, 45, 0.84) 48%,
-    rgba(26, 34, 44, 0.88) 100%
-  ),
-  linear-gradient(135deg, #06111f 0%, #0b2c3f 46%, #2b3141 100%)
-`
+const FALLBACK_BACKGROUND = 'var(--theme-wallpaper-overlay), var(--theme-wallpaper-fallback)'
 
 export default {
   setup() {
@@ -68,13 +60,7 @@ export default {
     // 设置背景并淡入
     const setBg = (url) => {
       bgStyle.value = {
-        background: `
-          linear-gradient(
-            rgba(0,0,0,0.45),
-            rgba(0,0,0,0.45)
-          ),
-          url(${url}) center/cover no-repeat
-        `,
+        background: `var(--theme-wallpaper-overlay), url(${url}) center/cover no-repeat`,
         opacity: 1,
         transition: 'opacity 1.2s ease'
       }
