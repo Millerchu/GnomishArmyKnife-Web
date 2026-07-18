@@ -380,8 +380,8 @@ export default {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.24), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(250, 204, 21, 0.18), transparent 24%);
+    radial-gradient(circle at top left, var(--theme-accent-soft), transparent 26%),
+    radial-gradient(circle at bottom right, var(--theme-warning-soft), transparent 24%);
 }
 
 .page-shell {
@@ -395,7 +395,6 @@ export default {
 .brand-hero,
 .glass-box {
   border-radius: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(18px);
 }
 
@@ -407,6 +406,7 @@ export default {
   background:
     linear-gradient(145deg, rgba(7, 23, 39, 0.9), rgba(13, 44, 70, 0.78)),
     radial-gradient(circle at top right, rgba(250, 204, 21, 0.12), transparent 28%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
   color: #f8fbff;
 }
@@ -521,9 +521,12 @@ export default {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--theme-border);
+  background:
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-surface-strong);
+  color: var(--theme-text);
+  box-shadow: var(--theme-shadow-md);
 }
 
 .title {
@@ -550,6 +553,8 @@ export default {
   font-size: 16px;
   text-align: center;
   outline: none;
+  color: var(--theme-text);
+  background: var(--theme-field-surface);
 }
 
 .password-input {
@@ -568,8 +573,8 @@ export default {
   padding: 0;
   border: none;
   border-radius: 999px;
-  color: rgba(32, 52, 86, 0.78);
-  background: rgba(79, 172, 254, 0.12);
+  color: var(--theme-text-muted);
+  background: var(--theme-accent-soft);
   transform: translateY(-50%);
   cursor: pointer;
 }
@@ -597,8 +602,8 @@ export default {
   min-width: 108px;
   border: none;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.24);
-  color: #fff;
+  background: var(--theme-control-surface);
+  color: var(--theme-text);
   font-weight: 700;
   letter-spacing: 2px;
   cursor: pointer;
@@ -625,14 +630,14 @@ export default {
 .error-tip {
   margin-top: 12px;
   min-height: 20px;
-  color: #ffe4e6;
+  color: var(--theme-danger);
   font-size: 14px;
 }
 
 .tip {
   margin-top: 12px;
   font-size: 14px;
-  color: #fff;
+  color: var(--theme-text-soft);
   text-align: center;
 }
 

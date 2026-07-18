@@ -1496,20 +1496,20 @@ export default {
 
 /* Polished glassmorphism layer for the data dictionary workspace. */
 .dict-page {
-  color: #eef7ff;
+  color: var(--theme-text);
 }
 
 .dict-page .hero-panel,
 .dict-page .filter-panel,
 .dict-page .table-panel,
 .dict-page .items-panel {
-  border: 1px solid rgba(221, 239, 255, 0.18) !important;
+  border: 1px solid var(--theme-border) !important;
   background:
-    linear-gradient(180deg, rgba(19, 48, 58, 0.68), rgba(7, 20, 35, 0.76)),
-    rgba(6, 24, 34, 0.54) !important;
+    linear-gradient(180deg, var(--theme-surface-strong), var(--theme-surface)),
+    var(--theme-surface) !important;
   box-shadow:
-    0 28px 70px rgba(0, 7, 18, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+    var(--theme-shadow-md),
+    inset 0 1px 0 var(--theme-highlight) !important;
   backdrop-filter: blur(24px) saturate(150%);
 }
 
@@ -1525,25 +1525,25 @@ export default {
 }
 
 .dict-page .page-title {
-  color: #f4fbff !important;
+  color: var(--theme-text) !important;
   font-weight: 860;
-  text-shadow: 0 1px 18px rgba(109, 226, 213, 0.12);
+  text-shadow: 0 1px 18px var(--theme-accent-soft);
 }
 
 .dict-page .page-subtitle,
 .dict-page .items-subtitle {
-  color: rgba(221, 236, 246, 0.74) !important;
+  color: var(--theme-text-muted) !important;
 }
 
 .dict-page .hero-tag,
 .dict-page .toolbar-right {
   min-height: 34px;
   padding: 0 13px;
-  border: 1px solid rgba(226, 243, 255, 0.18) !important;
+  border: 1px solid var(--theme-border) !important;
   border-radius: 999px;
-  color: rgba(240, 250, 255, 0.92) !important;
-  background: rgba(255, 255, 255, 0.09) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: var(--theme-text-soft) !important;
+  background: var(--theme-control-surface) !important;
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
 }
 
 .dict-page .filter-actions {
@@ -1555,41 +1555,41 @@ export default {
 }
 
 .dict-page .field-item {
-  color: rgba(225, 241, 251, 0.82) !important;
+  color: var(--theme-text-soft) !important;
   font-weight: 760;
 }
 
 .dict-page .field-item input,
 .dict-page .field-item textarea {
-  border: 1px solid rgba(221, 239, 255, 0.24) !important;
+  border: 1px solid var(--theme-border-strong) !important;
   border-radius: 14px !important;
-  color: #eff9ff !important;
+  color: var(--theme-text) !important;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07)),
-    rgba(6, 24, 36, 0.5) !important;
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-field-surface) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 10px 24px rgba(0, 7, 18, 0.16) !important;
+    inset 0 1px 0 var(--theme-highlight-soft),
+    var(--theme-shadow-xs) !important;
   backdrop-filter: blur(18px) saturate(145%);
 }
 
 .dict-page .field-item input::placeholder,
 .dict-page .field-item textarea::placeholder {
-  color: rgba(220, 234, 246, 0.48) !important;
+  color: var(--theme-text-muted) !important;
 }
 
 .dict-page .field-item input:focus,
 .dict-page .field-item textarea:focus {
-  border-color: rgba(93, 231, 213, 0.64) !important;
+  border-color: var(--theme-accent) !important;
   box-shadow:
-    0 0 0 3px rgba(93, 231, 213, 0.16),
-    0 12px 26px rgba(0, 7, 18, 0.22) !important;
+    0 0 0 3px var(--theme-focus-ring),
+    var(--theme-shadow-sm) !important;
 }
 
 .dict-page .toolbar,
 .dict-page .items-head,
 .dict-page .pager {
-  color: rgba(244, 251, 255, 0.94) !important;
+  color: var(--theme-text) !important;
 }
 
 .dict-page .toolbar {
@@ -1599,15 +1599,14 @@ export default {
 
 .dict-page .table-wrap {
   border-radius: 16px !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid var(--theme-table-border) !important;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025) 18%),
-    radial-gradient(circle at 12% 0%, rgba(95, 151, 255, 0.075), transparent 30%),
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent 18%),
+    radial-gradient(circle at 12% 0%, var(--theme-accent-soft), transparent 30%),
     var(--macos-table-surface) !important;
   box-shadow:
-    0 22px 54px rgba(0, 0, 0, 0.3),
-    0 4px 14px rgba(0, 0, 0, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+    var(--theme-shadow-md),
+    inset 0 1px 0 var(--theme-highlight) !important;
   overflow: auto !important;
   backdrop-filter: blur(34px) saturate(125%);
   -webkit-backdrop-filter: blur(34px) saturate(125%);
@@ -1624,7 +1623,7 @@ export default {
 .dict-page .dict-table td {
   padding: 12px 13px !important;
   border-bottom: 1px solid var(--macos-table-divider) !important;
-  color: rgba(246, 247, 250, 0.88) !important;
+  color: var(--theme-table-text) !important;
   font-size: 13px !important;
   line-height: 1.45 !important;
   text-align: left !important;
@@ -1636,42 +1635,42 @@ export default {
   z-index: 1;
   height: 44px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.035)),
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
     var(--macos-table-header) !important;
-  color: rgba(244, 245, 249, 0.68) !important;
+  color: var(--theme-table-head-text) !important;
   font-size: 11px !important;
   font-weight: 650 !important;
   letter-spacing: 0.015em !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.13),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.075);
+    inset 0 1px 0 var(--theme-highlight),
+    inset 0 -1px 0 var(--theme-divider);
   backdrop-filter: blur(26px) saturate(118%);
   -webkit-backdrop-filter: blur(26px) saturate(118%);
 }
 
 .dict-page .dict-table tbody tr {
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.018) !important;
+  background: var(--theme-table-row) !important;
   transition:
     background-color 150ms ease,
     box-shadow 150ms ease;
 }
 
 .dict-page .dict-table tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.034) !important;
+  background: var(--theme-table-row-even) !important;
 }
 
 .dict-page .dict-table tbody tr:hover {
   background: var(--macos-table-hover) !important;
-  box-shadow: inset 3px 0 0 rgba(10, 132, 255, 0.82) !important;
+  box-shadow: inset 3px 0 0 var(--theme-accent) !important;
 }
 
 .dict-page .dict-table tbody tr.activeRow {
   background:
-    linear-gradient(90deg, rgba(10, 132, 255, 0.22), rgba(10, 132, 255, 0.08)) !important;
+    linear-gradient(90deg, var(--theme-accent-soft), var(--theme-table-hover)) !important;
   box-shadow:
     inset 3px 0 0 var(--macos-system-blue),
-    inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+    inset 0 1px 0 var(--theme-highlight-soft) !important;
 }
 
 .dict-page .dict-table td:first-child,
@@ -1681,7 +1680,7 @@ export default {
 }
 
 .dict-page .dict-table td:first-child {
-  color: #b9d9ff !important;
+  color: var(--theme-link) !important;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 13px !important;
   font-weight: 700;
@@ -1690,7 +1689,7 @@ export default {
 .dict-page .dict-table td:nth-child(2),
 .dict-page .dict-table td:nth-child(5),
 .dict-page .dict-table td:nth-child(6) {
-  color: #f7fbff !important;
+  color: var(--theme-text) !important;
   font-weight: 700;
 }
 
@@ -1707,35 +1706,35 @@ export default {
   margin-right: 6px !important;
   padding: 0 12px !important;
   border-radius: 999px !important;
-  border: 1px solid rgba(255, 255, 255, 0.13) !important;
+  border: 1px solid var(--theme-border) !important;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.045)),
-    rgba(29, 32, 39, 0.68) !important;
-  color: rgba(250, 250, 252, 0.82) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.105) !important;
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-control-surface) !important;
+  color: var(--theme-text-soft) !important;
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
   font-size: 12px !important;
   font-weight: 600 !important;
   backdrop-filter: blur(14px);
 }
 
 .dict-page .action-col .mini-btn:first-child {
-  border-color: rgba(91, 169, 255, 0.3) !important;
-  background: rgba(10, 132, 255, 0.1) !important;
-  color: #c8e1ff !important;
+  border-color: color-mix(in srgb, var(--theme-accent) 34%, var(--theme-border)) !important;
+  background: var(--theme-accent-soft) !important;
+  color: var(--theme-link) !important;
 }
 
 .dict-page .action-col .mini-btn:not(:disabled):hover,
 .dict-page .mini-btn:not(:disabled):hover {
   transform: translateY(-1px);
-  border-color: rgba(91, 169, 255, 0.5) !important;
-  background: rgba(10, 132, 255, 0.14) !important;
+  border-color: color-mix(in srgb, var(--theme-accent) 52%, var(--theme-border)) !important;
+  background: var(--theme-surface-hover) !important;
 }
 
 .dict-page .action-col .mini-btn.danger,
 .dict-page .mini-btn.danger {
-  border-color: rgba(255, 105, 97, 0.2) !important;
-  background: rgba(255, 69, 58, 0.085) !important;
-  color: #ff9d97 !important;
+  border-color: color-mix(in srgb, var(--theme-danger) 34%, transparent) !important;
+  background: var(--theme-danger-soft) !important;
+  color: var(--theme-danger) !important;
 }
 
 .dict-page .status-tag {
@@ -1746,25 +1745,27 @@ export default {
   font-size: 12px !important;
   font-weight: 820 !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 8px 18px rgba(0, 7, 18, 0.14);
+    inset 0 1px 0 var(--theme-highlight),
+    var(--theme-shadow-xs);
 }
 
 .dict-page .status-tag.on {
-  border: 1px solid rgba(95, 232, 159, 0.36) !important;
-  background: rgba(34, 197, 94, 0.18) !important;
-  color: #baf7cd !important;
+  border: 1px solid color-mix(in srgb, var(--theme-success) 36%, transparent) !important;
+  background: var(--theme-success-soft) !important;
+  color: var(--theme-success) !important;
 }
 
 .dict-page .status-tag.off {
-  border: 1px solid rgba(255, 151, 151, 0.3) !important;
-  background: rgba(239, 68, 68, 0.16) !important;
-  color: #ffd3d3 !important;
+  border: 1px solid color-mix(in srgb, var(--theme-danger) 34%, transparent) !important;
+  background: var(--theme-danger-soft) !important;
+  color: var(--theme-danger) !important;
 }
 
-.dict-page .empty-cell {
-  color: rgba(226, 240, 251, 0.68) !important;
-  background: rgba(255, 255, 255, 0.035) !important;
+.dict-page .dict-table td.empty-cell {
+  color: var(--theme-table-empty-text) !important;
+  background: var(--theme-table-row-even) !important;
+  font-family: inherit;
+  font-weight: 500;
 }
 
 .dict-page .pager {
@@ -1789,12 +1790,12 @@ export default {
 }
 
 .dict-page .ghost-btn {
-  border: 1px solid rgba(226, 243, 255, 0.2) !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  color: rgba(242, 250, 255, 0.92) !important;
+  border: 1px solid var(--theme-border) !important;
+  background: var(--theme-control-surface) !important;
+  color: var(--theme-text-soft) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 10px 24px rgba(0, 7, 18, 0.18) !important;
+    inset 0 1px 0 var(--theme-highlight-soft),
+    var(--theme-shadow-xs) !important;
   backdrop-filter: blur(16px) saturate(145%);
 }
 
@@ -1802,7 +1803,7 @@ export default {
   border: 1px solid rgba(91, 235, 218, 0.28) !important;
   background:
     linear-gradient(180deg, rgba(32, 189, 173, 0.94), rgba(10, 125, 121, 0.96)) !important;
-  color: #ffffff !important;
+  color: var(--theme-on-accent) !important;
   box-shadow:
     0 14px 30px rgba(3, 105, 99, 0.34),
     inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
@@ -1814,15 +1815,15 @@ export default {
 }
 
 .dict-page .checkbox-item {
-  color: rgba(225, 241, 251, 0.82) !important;
+  color: var(--theme-text-soft) !important;
 }
 
 .dict-page .mobile-dict-card {
-  border: 1px solid rgba(221, 239, 255, 0.18) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid var(--theme-border) !important;
+  background: var(--theme-surface-muted) !important;
   box-shadow:
-    0 18px 38px rgba(0, 7, 18, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    var(--theme-shadow-sm),
+    inset 0 1px 0 var(--theme-highlight-soft) !important;
   backdrop-filter: blur(18px) saturate(145%);
 }
 

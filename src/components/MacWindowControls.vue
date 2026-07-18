@@ -130,7 +130,7 @@ export default {
 }
 
 .mac-window-dot:focus-visible {
-  outline: 2px solid rgba(37, 99, 235, 0.9);
+  outline: 2px solid var(--theme-accent);
   outline-offset: 2px;
 }
 

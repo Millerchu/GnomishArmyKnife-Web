@@ -7,6 +7,10 @@ export const THEME_PREFERENCE = Object.freeze({
 })
 
 const SUPPORTED_THEME_PREFERENCES = new Set(Object.values(THEME_PREFERENCE))
+const SUPPORTED_APPLIED_THEMES = new Set([
+  THEME_PREFERENCE.DARK,
+  THEME_PREFERENCE.LIGHT
+])
 
 export function normalizeThemePreference(preference) {
   return SUPPORTED_THEME_PREFERENCES.has(preference)
@@ -20,6 +24,14 @@ export function resolveThemePreference(preference, prefersDark = false) {
     return prefersDark ? THEME_PREFERENCE.DARK : THEME_PREFERENCE.LIGHT
   }
   return normalizedPreference
+}
+
+// 切换入口应依据页面已经应用的颜色模式，避免历史 system 偏好造成方向相反。
+export function getAppliedTheme(root = globalThis.document?.documentElement) {
+  const appliedTheme = root?.dataset?.theme
+  return SUPPORTED_APPLIED_THEMES.has(appliedTheme)
+    ? appliedTheme
+    : THEME_PREFERENCE.DARK
 }
 
 function readStoredPreference(storage) {
@@ -67,6 +79,20 @@ export function applyThemePreference(preference, options = {}) {
   }
 
   return {preference: normalizedPreference, resolvedTheme}
+}
+
+// 主题按钮只提供深浅二态，切换后将 system 收敛为明确的用户选择。
+export function toggleThemePreference(options = {}) {
+  const root = options.root ?? globalThis.document?.documentElement
+  const appliedTheme = getAppliedTheme(root)
+  const nextPreference = appliedTheme === THEME_PREFERENCE.DARK
+    ? THEME_PREFERENCE.LIGHT
+    : THEME_PREFERENCE.DARK
+
+  return applyThemePreference(nextPreference, {
+    ...options,
+    root
+  })
 }
 
 export function initializeTheme(options = {}) {

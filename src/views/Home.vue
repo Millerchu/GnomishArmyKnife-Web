@@ -29,6 +29,8 @@
 
           <span class="current-date">{{ currentDateText }}</span>
 
+          <ThemeToggle class="home-theme-toggle" />
+
           <div ref="systemMenuRef" class="system-menu-box">
             <button
               class="system-menu-toggle"
@@ -312,6 +314,7 @@ import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import AttachmentManager from '@/components/AttachmentManager.vue'
 import MacDialog from '@/components/MacDialog.vue'
 import QuickCreateDialog from '@/components/QuickCreateDialog.vue'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 import {getCurrentUserAccessibleApps} from '@/api/permission'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
@@ -474,7 +477,8 @@ export default {
     AuthenticatedImage,
     AttachmentManager,
     MacDialog,
-    QuickCreateDialog
+    QuickCreateDialog,
+    ThemeToggle
   },
   setup() {
     const router = useRouter()
@@ -1112,7 +1116,7 @@ export default {
 .home-page {
   min-height: 100vh;
   height: 100%;
-  color: #fff;
+  color: var(--theme-text);
   overflow: hidden;
 }
 
@@ -1124,7 +1128,7 @@ export default {
   justify-content: center;
   align-items: center;
   font-size: 12px;
-  background: rgba(255, 255, 255, 0.24);
+  background: var(--theme-control-surface);
 }
 
 .main-area {
@@ -1143,7 +1147,7 @@ export default {
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  color: #fff;
+  color: var(--theme-text);
   font-size: 14px;
 }
 
@@ -1159,24 +1163,33 @@ export default {
   position: relative;
 }
 
+.home-theme-toggle {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+}
+
 .system-menu-toggle {
   width: 40px;
   height: 40px;
-  border: none;
+  border: 1px solid var(--theme-border);
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--theme-text-soft);
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--theme-control-surface);
+  box-shadow: var(--theme-shadow-xs);
   backdrop-filter: blur(8px);
   transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .system-menu-toggle:hover,
 .system-menu-toggle.active {
-  background: rgba(96, 204, 255, 0.24);
+  border-color: color-mix(in srgb, var(--theme-accent) 42%, var(--theme-border));
+  color: var(--theme-accent);
+  background: var(--theme-surface-hover);
 }
 
 .system-menu-toggle.active {
@@ -1197,9 +1210,9 @@ export default {
   width: 220px;
   padding: 10px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(7, 22, 39, 0.92);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-popover-surface);
+  box-shadow: var(--theme-shadow-md);
   backdrop-filter: blur(18px);
 }
 
@@ -1216,7 +1229,7 @@ export default {
 
 .system-menu-header span {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.66);
+  color: var(--theme-text-muted);
 }
 
 .system-dropdown-item {
@@ -1228,39 +1241,39 @@ export default {
   align-items: center;
   gap: 10px;
   padding: 0 10px;
-  color: #fff;
+  color: var(--theme-text);
   cursor: pointer;
   text-align: left;
   background: transparent;
 }
 
 .system-dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--theme-surface-hover);
 }
 
 .system-dropdown-item.danger {
-  color: #fecaca;
+  color: var(--theme-danger);
 }
 
 .easter-egg-trigger {
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--theme-border);
   border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--theme-text-muted);
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--theme-surface-muted);
   backdrop-filter: blur(10px);
   transition: transform 0.18s ease, color 0.18s ease, background 0.18s ease;
 }
 
 .easter-egg-trigger:hover {
   transform: translateY(-1px);
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--theme-text-soft);
+  background: var(--theme-control-surface);
 }
 
 .easter-egg-mark {
@@ -1278,9 +1291,9 @@ export default {
 .header-avatar {
   width: 34px;
   height: 34px;
-  border: 2px solid rgba(255, 255, 255, 0.52);
+  border: 2px solid var(--theme-border-strong);
   border-radius: 50%;
-  box-shadow: 0 8px 20px rgba(2, 12, 27, 0.22);
+  box-shadow: var(--theme-shadow-xs);
 }
 
 .avatar-fallback {
@@ -1297,9 +1310,9 @@ export default {
   align-items: center;
   gap: 14px;
   padding: 14px;
-  border: 1px solid rgba(14, 116, 144, 0.18);
+  border: 1px solid var(--theme-border);
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(236, 254, 255, 0.9), rgba(248, 250, 252, 0.76));
+  background: var(--theme-surface-muted);
 }
 
 .profile-avatar-preview {
@@ -1309,18 +1322,18 @@ export default {
   overflow: hidden;
   display: grid;
   place-items: center;
-  border: 3px solid white;
+  border: 3px solid var(--theme-highlight);
   border-radius: 24px;
   color: #164e63;
   font-size: 26px;
   font-weight: 900;
   background: linear-gradient(145deg, #fde68a, #67e8f9);
-  box-shadow: 0 12px 28px rgba(14, 116, 144, 0.16);
+  box-shadow: var(--theme-shadow-xs);
 }
 
 .profile-identity-copy { display: grid; gap: 5px; }
-.profile-identity-copy strong { color: #0f172a; font-size: 17px; }
-.profile-identity-copy span { color: #64748b; font-size: 12px; line-height: 1.55; }
+.profile-identity-copy strong { color: var(--theme-text); font-size: 17px; }
+.profile-identity-copy span { color: var(--theme-text-muted); font-size: 12px; line-height: 1.55; }
 
 .welcome-label {
   font-weight: 500;
@@ -1330,22 +1343,22 @@ export default {
   padding: 4px 8px;
   border-radius: 8px;
   font-size: 14px;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--theme-control-surface);
 }
 
 .current-date {
   padding: 6px 10px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--theme-control-surface);
 }
 
 .main-panel {
   flex: 1;
   padding: 20px 22px 22px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border-strong);
+  box-shadow: var(--theme-shadow-sm);
   backdrop-filter: blur(18px);
 }
 
@@ -1365,10 +1378,10 @@ export default {
 
 .quick-create-trigger,
 .mobile-quick-create {
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--theme-highlight) 60%, var(--theme-border));
+  color: var(--theme-on-accent);
   background: linear-gradient(135deg, rgba(13, 148, 136, 0.94), rgba(37, 99, 235, 0.92));
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.24);
+  box-shadow: var(--theme-shadow-xs);
   cursor: pointer;
   font-weight: 800;
 }
@@ -1397,13 +1410,14 @@ export default {
 .home-title {
   font-size: 26px;
   margin: 0;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  color: var(--theme-text);
+  text-shadow: 0 2px 6px var(--theme-scrim);
 }
 
 .home-subtitle {
   margin: 8px 0 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--theme-text-muted);
 }
 
 .app-count {
@@ -1414,35 +1428,35 @@ export default {
   padding: 0 12px;
   border-radius: 999px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.88);
-  background: rgba(255, 255, 255, 0.14);
+  color: var(--theme-text-soft);
+  background: var(--theme-control-surface);
 }
 
 .app-count.is-success,
 .surface-notice.success {
-  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.22);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-success) 32%, transparent);
 }
 
 .app-count.is-warning,
 .surface-notice.warning {
-  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.28);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-warning) 34%, transparent);
 }
 
 .app-count.is-error,
 .surface-notice.error {
-  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.26);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-danger) 32%, transparent);
 }
 
 .surface-notice {
   border-radius: 16px;
   padding: 14px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: linear-gradient(135deg, rgba(13, 30, 52, 0.8), rgba(10, 24, 42, 0.72));
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface-raised);
   margin-bottom: 18px;
 }
 
 .surface-notice p {
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--theme-text-muted);
 }
 
 .surface-notice strong {
@@ -1462,15 +1476,15 @@ export default {
 }
 
 .surface-notice.success {
-  border-color: rgba(34, 197, 94, 0.24);
+  border-color: color-mix(in srgb, var(--theme-success) 36%, var(--theme-border));
 }
 
 .surface-notice.warning {
-  border-color: rgba(245, 158, 11, 0.26);
+  border-color: color-mix(in srgb, var(--theme-warning) 38%, var(--theme-border));
 }
 
 .surface-notice.error {
-  border-color: rgba(248, 113, 113, 0.24);
+  border-color: color-mix(in srgb, var(--theme-danger) 36%, var(--theme-border));
 }
 
 .confirm-copy {
@@ -1479,7 +1493,7 @@ export default {
 
 .confirm-copy {
   margin-top: 10px;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--theme-text-muted);
 }
 
 .notice-close {
@@ -1488,8 +1502,8 @@ export default {
   height: 34px;
   border-radius: 999px;
   cursor: pointer;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.14);
+  color: var(--theme-text-soft);
+  background: var(--theme-control-surface);
 }
 
 .home-state {
@@ -1498,9 +1512,9 @@ export default {
   align-items: center;
   justify-content: center;
   border-radius: 18px;
-  color: rgba(255, 255, 255, 0.82);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px dashed rgba(255, 255, 255, 0.18);
+  color: var(--theme-text-soft);
+  background: var(--theme-surface-muted);
+  border: 1px dashed var(--theme-border-strong);
 }
 
 .grid {
@@ -1511,25 +1525,25 @@ export default {
 
 .tool-item {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--theme-border);
   min-height: 126px;
   padding: 16px;
   border-radius: 16px;
   display: flex;
   align-items: center;
   cursor: pointer;
-  color: #fff;
+  color: var(--theme-text);
   text-align: left;
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
+    linear-gradient(160deg, var(--theme-surface-strong), var(--theme-surface-muted));
   transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .tool-item:hover {
   transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.28);
+  border-color: var(--theme-border-strong);
   background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+    linear-gradient(160deg, var(--theme-surface-raised), var(--theme-surface-hover));
 }
 
 .tool-item.dragging {
@@ -1538,10 +1552,10 @@ export default {
 }
 
 .tool-item.drag-over {
-  border-color: rgba(96, 204, 255, 0.72);
-  box-shadow: 0 0 0 2px rgba(96, 204, 255, 0.26);
+  border-color: color-mix(in srgb, var(--theme-accent) 72%, var(--theme-border));
+  box-shadow: 0 0 0 2px var(--theme-focus-ring);
   background:
-    linear-gradient(160deg, rgba(96, 204, 255, 0.18), rgba(255, 255, 255, 0.08));
+    linear-gradient(160deg, var(--theme-accent-soft), var(--theme-surface-muted));
 }
 
 .tool-layout {
@@ -1577,7 +1591,7 @@ export default {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: #fff;
+  color: var(--theme-on-accent);
 }
 
 .tool-content {
@@ -1599,7 +1613,7 @@ export default {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--theme-text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -1618,12 +1632,13 @@ export default {
   padding: 8px 10px;
   border-radius: 8px;
   cursor: pointer;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
+  color: var(--theme-text-soft);
+  background: var(--theme-control-surface);
 }
 
 .tab-btn.active {
-  background: rgba(89, 173, 255, 0.58);
+  color: var(--theme-on-accent);
+  background: var(--theme-accent);
 }
 
 .dialog-form {
@@ -1644,17 +1659,17 @@ export default {
   border: none;
   border-radius: 8px;
   padding: 0 10px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.2);
+  color: var(--theme-text);
+  background: var(--theme-field-surface);
 }
 
 .form-item input:disabled {
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.14);
+  color: var(--theme-text-muted);
+  background: var(--theme-surface-muted);
 }
 
 .form-item input::placeholder {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--theme-text-muted);
 }
 
 .dialog-actions {
@@ -1672,15 +1687,16 @@ export default {
   height: 34px;
   border-radius: 8px;
   cursor: pointer;
-  color: #fff;
+  color: var(--theme-on-accent);
 }
 
 .ghost-btn {
-  background: rgba(255, 255, 255, 0.18);
+  color: var(--theme-text-soft);
+  background: var(--theme-control-surface);
 }
 
 .action-btn {
-  background: rgba(72, 160, 255, 0.75);
+  background: var(--theme-accent);
 }
 
 @media (max-width: 900px) {
@@ -1747,6 +1763,12 @@ export default {
   .system-menu-toggle {
     width: 34px;
     height: 34px;
+  }
+
+  .home-theme-toggle {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
   }
 
   .main-panel {
@@ -1854,7 +1876,7 @@ export default {
     font-weight: 600;
     line-height: 1.35;
     text-align: center;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+    text-shadow: 0 1px 4px var(--theme-scrim);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;

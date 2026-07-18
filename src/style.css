@@ -12,10 +12,6 @@ body {
     sans-serif;
 }
 
-body {
-    background: #000;
-}
-
 @media (max-width: 720px) {
     .page-nav {
         margin-bottom: 8px !important;

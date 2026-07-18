@@ -178,13 +178,15 @@ export default {
   overflow: auto;
   padding: 20px 18px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.16);
+  background:
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-surface-strong);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--theme-border);
+  box-shadow: var(--theme-shadow-md);
   text-align: center;
-  color: #fff;
+  color: var(--theme-text);
 }
 
 .title {
@@ -203,28 +205,28 @@ export default {
   min-height: 38px;
   padding: 8px 10px;
   border-radius: 8px;
-  border: none;
+  border: 1px solid var(--theme-border);
   font-size: 14px;
   outline: none;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.18);
+  color: var(--theme-text);
+  background: var(--theme-field-surface);
 }
 
 .input::placeholder {
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--theme-text-muted);
 }
 
 .fixed-tip {
   margin: 2px 0 0;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--theme-text-muted);
 }
 
 .btn {
   margin-top: 2px;
   min-height: 38px;
-  background: linear-gradient(135deg, #5ab0ff, #7cd2ff);
-  color: #fff;
+  background: linear-gradient(135deg, var(--theme-accent), var(--theme-accent-strong));
+  color: var(--theme-on-accent);
   border: none;
   border-radius: 8px;
   font-size: 16px;
@@ -239,17 +241,17 @@ export default {
 .error-tip {
   margin: 12px 0 0;
   font-size: 13px;
-  color: #ffd4d4;
+  color: var(--theme-danger);
 }
 
 .tip {
   margin-top: 14px;
   font-size: 14px;
-  color: #fff;
+  color: var(--theme-text-soft);
 }
 
 .tip :deep(a) {
-  color: #fff;
+  color: var(--theme-link);
   text-decoration: underline;
 }
 

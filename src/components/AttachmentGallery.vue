@@ -34,7 +34,7 @@ export default {
 
 <style scoped>
 .attachment-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
-.attachment-gallery button { height: 104px; padding: 0; overflow: hidden; border: 1px solid rgba(148, 163, 184, .3); border-radius: 13px; background: rgba(248, 250, 252, .76); cursor: zoom-in; }
+.attachment-gallery button { height: 104px; padding: 0; overflow: hidden; border: 1px solid var(--theme-border); border-radius: 13px; background: var(--theme-surface-muted); cursor: zoom-in; }
 .attachment-gallery button > * { width: 100%; height: 100%; }
-.gallery-file { display: grid; place-items: center; padding: 10px; color: #475569; font-size: 12px; overflow-wrap: anywhere; }
+.gallery-file { display: grid; place-items: center; padding: 10px; color: var(--theme-text-soft); font-size: 12px; overflow-wrap: anywhere; }
 </style>

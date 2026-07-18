@@ -162,27 +162,27 @@ export default {
 </script>
 
 <style scoped>
-.attachment-manager { grid-column: 1 / -1; padding: 12px; border: 1px solid rgba(148, 163, 184, .3); border-radius: 14px; background: rgba(248, 250, 252, .58); }
+.attachment-manager { grid-column: 1 / -1; padding: 12px; border: 1px solid var(--theme-border); border-radius: 14px; background: var(--theme-surface-muted); }
 .attachment-manager-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.attachment-manager-head > div { display: flex; align-items: baseline; gap: 8px; color: #1e293b; }
-.attachment-manager-head span, .attachment-hint { color: #64748b; font-size: 12px; }
-.attachment-upload { padding: 7px 12px; border-radius: 10px; background: #1e293b; color: white; font-size: 12px; cursor: pointer; }
+.attachment-manager-head > div { display: flex; align-items: baseline; gap: 8px; color: var(--theme-text); }
+.attachment-manager-head span, .attachment-hint { color: var(--theme-text-muted); font-size: 12px; }
+.attachment-upload { padding: 7px 12px; border-radius: 10px; background: var(--theme-accent); color: var(--theme-on-accent); font-size: 12px; cursor: pointer; }
 .attachment-upload.disabled { opacity: .5; cursor: not-allowed; }
 .attachment-upload input { display: none; }
 .attachment-hint, .attachment-error { margin: 7px 0 0; }
-.attachment-error { color: #b91c1c; font-size: 12px; }
+.attachment-error { color: var(--theme-danger); font-size: 12px; }
 .attachment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 9px; margin-top: 10px; }
-.attachment-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid rgba(148, 163, 184, .28); border-radius: 12px; background: rgba(255, 255, 255, .88); }
+.attachment-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--theme-border); border-radius: 12px; background: var(--theme-surface-raised); }
 .attachment-card.is-dragging { opacity: .45; }
 .attachment-card > :first-child { display: grid; width: 100%; height: 86px; place-items: center; }
-.attachment-file-icon { background: linear-gradient(145deg, #e2e8f0, #f8fafc); color: #475569; font-weight: 800; font-size: 13px; letter-spacing: .08em; }
+.attachment-file-icon { background: linear-gradient(145deg, var(--theme-surface-muted), var(--theme-surface-strong)); color: var(--theme-text-soft); font-weight: 800; font-size: 13px; letter-spacing: .08em; }
 .attachment-meta { min-width: 0; padding: 7px 8px 5px; display: grid; gap: 2px; }
-.attachment-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #1e293b; }
-.attachment-meta span { font-size: 10px; color: #94a3b8; }
+.attachment-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--theme-text); }
+.attachment-meta span { font-size: 10px; color: var(--theme-text-muted); }
 .attachment-actions { display: flex; justify-content: flex-end; gap: 3px; padding: 0 6px 6px; }
-.attachment-actions button { width: 24px; height: 22px; border: 0; border-radius: 7px; background: rgba(226, 232, 240, .8); cursor: pointer; color: #475569; }
+.attachment-actions button { width: 24px; height: 22px; border: 0; border-radius: 7px; background: var(--theme-control-surface); cursor: pointer; color: var(--theme-text-soft); }
 .attachment-actions button:disabled { opacity: .35; cursor: default; }
-.attachment-actions .danger { color: #b91c1c; }
-.attachment-failures { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; color: #b91c1c; font-size: 12px; }
-.attachment-failures button { border: 1px solid rgba(185, 28, 28, .3); border-radius: 8px; padding: 5px 9px; background: white; color: #b91c1c; cursor: pointer; }
+.attachment-actions .danger { color: var(--theme-danger); }
+.attachment-failures { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; color: var(--theme-danger); font-size: 12px; }
+.attachment-failures button { border: 1px solid color-mix(in srgb, var(--theme-danger) 30%, transparent); border-radius: 8px; padding: 5px 9px; background: var(--theme-danger-soft); color: var(--theme-danger); cursor: pointer; }
 </style>

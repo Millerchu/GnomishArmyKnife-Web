@@ -59,7 +59,7 @@ export default {
 </script>
 
 <style scoped>
-.authenticated-image { display: inline-grid; width: 100%; height: 100%; place-items: center; overflow: hidden; background: rgba(15, 23, 42, .06); }
+.authenticated-image { display: inline-grid; width: 100%; height: 100%; place-items: center; overflow: hidden; background: var(--theme-surface-muted); }
 .authenticated-image img { width: 100%; height: 100%; object-fit: cover; }
-.authenticated-image-placeholder { font-size: 11px; color: rgba(51, 65, 85, .64); }
+.authenticated-image-placeholder { font-size: 11px; color: var(--theme-text-muted); }
 </style>

@@ -1180,7 +1180,7 @@ export default {
   min-height: 100vh;
   height: 100%;
   padding: 18px 22px 26px;
-  color: #fff;
+  color: var(--theme-text);
   overflow: auto;
 }
 
@@ -1196,20 +1196,20 @@ export default {
   gap: 10px;
   min-height: 42px;
   padding: 0 16px 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--theme-border);
   border-radius: 999px;
-  color: #fff;
+  color: var(--theme-text-soft);
   cursor: pointer;
-  background: rgba(12, 32, 52, 0.58);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  background: var(--theme-control-surface);
+  box-shadow: var(--theme-shadow-xs);
   backdrop-filter: blur(12px);
   transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
 
 .back-home-btn:hover {
   transform: translateY(-1px);
-  background: rgba(16, 40, 64, 0.76);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: var(--theme-surface-hover);
+  border-color: var(--theme-border-strong);
 }
 
 .back-home-icon {
@@ -1221,7 +1221,7 @@ export default {
   border-radius: 999px;
   font-size: 15px;
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--theme-surface-muted);
 }
 
 .hero-panel,
@@ -1230,9 +1230,9 @@ export default {
 .list-panel,
 .insight-panel,
 .report-panel {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: linear-gradient(135deg, rgba(7, 22, 39, 0.82), rgba(17, 49, 73, 0.72));
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface);
+  box-shadow: var(--theme-shadow-sm);
   backdrop-filter: blur(16px);
 }
 
@@ -1285,6 +1285,7 @@ export default {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.8fr);
   gap: 0;
+  color: var(--theme-on-accent);
   background:
     radial-gradient(circle at top right, rgba(96, 192, 255, 0.22), transparent 28%),
     linear-gradient(135deg, rgba(8, 29, 48, 0.96), rgba(14, 58, 87, 0.88));
@@ -1411,7 +1412,7 @@ export default {
 .subtle-empty,
 .mobile-record-subtitle {
   margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--theme-text-muted);
 }
 
 .hero-tags,
@@ -1436,13 +1437,13 @@ export default {
 }
 
 .hero-tag {
-  background: rgba(91, 180, 255, 0.18);
-  color: #d7f0ff;
+  background: var(--theme-accent-soft);
+  color: var(--theme-link);
 }
 
 .price-date {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--theme-text-muted);
 }
 
 .price-layout,
@@ -1480,8 +1481,8 @@ export default {
 .price-card,
 .report-card {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface-muted);
 }
 
 .price-card {
@@ -1498,7 +1499,7 @@ export default {
 
 .price-card span {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--theme-text-muted);
 }
 
 .price-extra-item {
@@ -1506,19 +1507,19 @@ export default {
   gap: 4px;
   padding: 10px 12px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface-muted);
 }
 
 .price-extra-item span {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--theme-text-muted);
 }
 
 .price-extra-item strong {
   line-height: 1.45;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.94);
+  color: var(--theme-text);
 }
 
 .report-card {
@@ -1551,22 +1552,22 @@ export default {
 .mobile-record-grid span,
 .summary-card span {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--theme-text-muted);
 }
 
 .input {
   width: 100%;
   min-height: 40px;
   padding: 9px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--theme-border-strong);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  background: var(--theme-field-surface);
+  color: var(--theme-text);
   outline: none;
 }
 
 .input::placeholder {
-  color: rgba(255, 255, 255, 0.48);
+  color: var(--theme-text-muted);
 }
 
 .textarea {
@@ -1579,7 +1580,7 @@ export default {
 .mini-btn {
   border: none;
   border-radius: 10px;
-  color: #fff;
+  color: var(--theme-text-soft);
   cursor: pointer;
 }
 
@@ -1591,16 +1592,17 @@ export default {
 
 .action-btn {
   background: linear-gradient(135deg, #1996ff, #27d5a4);
+  color: var(--theme-on-accent);
 }
 
 .ghost-btn {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--theme-control-surface);
 }
 
 .mini-btn {
   min-height: 30px;
   padding: 0 10px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--theme-control-surface);
 }
 
 .mini-btn.danger {
@@ -1622,7 +1624,7 @@ export default {
 .record-table td {
   padding: 10px 8px;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid var(--theme-table-divider);
   font-size: 13px;
   white-space: nowrap;
 }
@@ -1634,7 +1636,7 @@ export default {
 }
 
 .record-table th {
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--theme-table-head-text);
   font-weight: 600;
 }
 
@@ -1649,8 +1651,8 @@ export default {
 .stats-row,
 .recent-item {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface-muted);
 }
 
 .mobile-record-card {
@@ -1672,7 +1674,7 @@ export default {
   margin: 0;
   padding: 11px 12px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--theme-surface-muted);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1688,8 +1690,8 @@ export default {
 }
 
 .consumption-chip.none {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.84);
+  background: var(--theme-control-surface);
+  color: var(--theme-text-soft);
 }
 
 .consumption-chip.low {
@@ -1740,7 +1742,7 @@ export default {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--theme-chart-axis);
 }
 
 .legend-dot {
@@ -1766,7 +1768,7 @@ export default {
 
 .line-chart-grid {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.16);
+  stroke: var(--theme-chart-grid);
   stroke-width: 1.2;
 }
 
@@ -1787,7 +1789,7 @@ export default {
 }
 
 .line-chart-dot {
-  stroke: rgba(10, 23, 36, 0.9);
+  stroke: var(--theme-chart-point-stroke);
   stroke-width: 2;
 }
 
@@ -1811,14 +1813,19 @@ export default {
   flex-direction: column;
   gap: 4px;
   padding: 8px 10px;
+  border: 1px solid var(--theme-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--theme-surface-muted);
 }
 
 .line-chart-label span,
 .line-chart-label strong,
 .line-chart-label em {
   font-size: 12px;
+}
+
+.line-chart-label span {
+  color: var(--theme-chart-axis);
 }
 
 .line-chart-label em {
@@ -1842,14 +1849,14 @@ export default {
 
 .bar-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--theme-chart-axis);
 }
 
 .bar-track {
   position: relative;
   height: 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--theme-chart-grid);
   overflow: hidden;
 }
 
@@ -1914,7 +1921,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--theme-text-muted);
 }
 
 .pager {
@@ -1935,12 +1942,12 @@ export default {
   border-radius: 8px;
   height: 32px;
   padding: 0 8px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
+  color: var(--theme-text);
+  background: var(--theme-control-surface);
 }
 
 .pager-select option {
-  color: #222;
+  color: var(--theme-text);
 }
 
 .dialog-form {
@@ -1972,7 +1979,7 @@ export default {
   margin: 0;
   padding: 12px 14px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--theme-surface-muted);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1980,7 +1987,7 @@ export default {
 
 .detail-grid span {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--theme-text-muted);
 }
 
 .detail-grid strong {

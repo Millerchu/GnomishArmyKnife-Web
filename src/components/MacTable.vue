@@ -56,16 +56,15 @@ export default {
 .mac-table-shell {
   position: relative;
   isolation: isolate;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--theme-table-border);
   border-radius: 16px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025) 18%),
-    radial-gradient(circle at 12% 0%, rgba(95, 151, 255, 0.075), transparent 30%),
-    var(--macos-table-surface, rgba(25, 28, 35, 0.82));
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent 18%),
+    radial-gradient(circle at 12% 0%, var(--theme-accent-soft), transparent 30%),
+    var(--theme-table-surface);
   box-shadow:
-    0 22px 54px rgba(0, 0, 0, 0.3),
-    0 4px 14px rgba(0, 0, 0, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    var(--theme-shadow-md),
+    inset 0 1px 0 var(--theme-highlight);
   backdrop-filter: blur(34px) saturate(125%);
   -webkit-backdrop-filter: blur(34px) saturate(125%);
   overflow: hidden;
@@ -78,18 +77,18 @@ export default {
   gap: 14px;
   min-height: 58px;
   padding: 13px 16px;
-  border-bottom: 1px solid var(--macos-table-divider, rgba(255, 255, 255, 0.085));
+  border-bottom: 1px solid var(--theme-table-divider);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.035)),
-    var(--macos-table-header, rgba(47, 50, 59, 0.9));
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-table-header);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.13),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.075);
+    inset 0 1px 0 var(--theme-highlight),
+    inset 0 -1px 0 var(--theme-divider);
 }
 
 .mac-table-title {
   margin: 0;
-  color: rgba(250, 250, 252, 0.92);
+  color: var(--theme-text);
   font-size: 15px;
   font-weight: 650;
   letter-spacing: -0.01em;
@@ -97,7 +96,7 @@ export default {
 
 .mac-table-subtitle {
   margin: 4px 0 0;
-  color: rgba(238, 240, 245, 0.55);
+  color: var(--theme-text-muted);
   font-size: 12px;
 }
 
@@ -110,7 +109,7 @@ export default {
 
 .mac-table-scroll {
   overflow: auto;
-  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  scrollbar-color: var(--theme-scrollbar) transparent;
   scrollbar-width: thin;
 }
 
@@ -122,7 +121,7 @@ export default {
 .mac-table-scroll::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.24);
+  background: var(--theme-scrollbar);
   background-clip: padding-box;
 }
 
@@ -130,15 +129,15 @@ export default {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--theme-table-text);
   font-variant-numeric: tabular-nums;
 }
 
 .mac-table :deep(th),
 .mac-table :deep(td) {
   padding: 12px 13px;
-  border-bottom: 1px solid var(--macos-table-divider, rgba(255, 255, 255, 0.085));
-  color: rgba(246, 247, 250, 0.88);
+  border-bottom: 1px solid var(--theme-table-divider);
+  color: var(--theme-table-text);
   font-size: 13px;
   line-height: 1.45;
   text-align: left;
@@ -146,9 +145,9 @@ export default {
 
 .mac-table :deep(th) {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03)),
-    var(--macos-table-header, rgba(47, 50, 59, 0.9));
-  color: rgba(244, 245, 249, 0.68);
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-table-header);
+  color: var(--theme-table-head-text);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.015em;
@@ -156,18 +155,18 @@ export default {
 }
 
 .mac-table :deep(tbody tr) {
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--theme-table-row);
   transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 
 .mac-table :deep(tbody tr:nth-child(even)) {
-  background: rgba(255, 255, 255, 0.034);
+  background: var(--theme-table-row-even);
 }
 
 .mac-table :deep(tbody tr:hover),
 .mac-table :deep(tbody tr:focus-within) {
-  background: var(--macos-table-hover, rgba(10, 132, 255, 0.105));
-  box-shadow: inset 3px 0 0 rgba(10, 132, 255, 0.82);
+  background: var(--theme-table-hover);
+  box-shadow: inset 3px 0 0 var(--theme-accent);
 }
 
 .mac-table :deep(tr:last-child td) {

@@ -21,6 +21,8 @@
   --theme-text: #f5f5f7;
   --theme-text-soft: rgba(245, 245, 247, 0.86);
   --theme-text-muted: rgba(235, 235, 245, 0.6);
+  --theme-text-inverse: #1d1d1f;
+  --theme-on-accent: #ffffff;
   --theme-accent: #0a84ff;
   --theme-accent-strong: #0068d8;
   --theme-accent-soft: rgba(10, 132, 255, 0.14);
@@ -56,6 +58,9 @@
   --theme-table-text: rgba(246, 247, 250, 0.88);
   --theme-table-head-text: rgba(244, 245, 249, 0.68);
   --theme-table-empty-text: rgba(236, 239, 245, 0.5);
+  --theme-chart-grid: rgba(235, 235, 245, 0.16);
+  --theme-chart-axis: rgba(235, 235, 245, 0.6);
+  --theme-chart-point-stroke: #101116;
 }
 
 :root[data-theme="light"] {
@@ -80,6 +85,8 @@
   --theme-text: #1d1d1f;
   --theme-text-soft: rgba(29, 29, 31, 0.84);
   --theme-text-muted: rgba(29, 29, 31, 0.56);
+  --theme-text-inverse: #f5f5f7;
+  --theme-on-accent: #ffffff;
   --theme-accent: #0071e3;
   --theme-accent-strong: #005ec4;
   --theme-accent-soft: rgba(0, 113, 227, 0.11);
@@ -115,6 +122,9 @@
   --theme-table-text: rgba(29, 29, 31, 0.86);
   --theme-table-head-text: rgba(29, 29, 31, 0.6);
   --theme-table-empty-text: rgba(29, 29, 31, 0.46);
+  --theme-chart-grid: rgba(29, 29, 31, 0.14);
+  --theme-chart-axis: rgba(29, 29, 31, 0.56);
+  --theme-chart-point-stroke: #ffffff;
 }
 
 :root {
@@ -196,6 +206,8 @@ a:focus-visible,
 .hero-panel,
 .main-panel,
 .filter-panel,
+.table-panel,
+.items-panel,
 .catalog-panel,
 .list-panel,
 .insight-panel,
@@ -203,7 +215,6 @@ a:focus-visible,
 .spotlight-panel,
 .price-panel,
 .report-panel,
-.month-hero,
 .ledger-panel,
 .insight-card,
 .home-state,
@@ -251,8 +262,28 @@ a:focus-visible,
 .home-page,
 .system-page,
 .management-page,
-.bills-page {
+.bills-page,
+.login-page,
+.calculator-page,
+.todo-page,
+.repo-page,
+.health-page,
+.work-log-page,
+.user-page,
+.app-page,
+.permission-page,
+.migration-page,
+.dict-page,
+.fuel-page,
+.knowledge-base-page,
+.password-memo-page,
+.star-page {
   color: var(--theme-text) !important;
+}
+
+/* 星空页始终使用沉浸式深色画面，文字保持在深色背景上的反差。 */
+.star-page {
+  color: var(--theme-on-accent) !important;
 }
 
 .panel-head,

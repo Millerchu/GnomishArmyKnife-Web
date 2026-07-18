@@ -32,12 +32,12 @@ export default {
   gap: 8px;
   padding: 28px;
   border-radius: 22px;
-  color: rgba(219, 235, 247, 0.68);
+  color: var(--theme-text-muted);
   text-align: center;
 }
 
 .mac-empty-state strong {
-  color: #f2f9ff;
+  color: var(--theme-text);
   font-size: 16px;
 }
 
@@ -50,14 +50,14 @@ export default {
 .mac-empty-mark {
   width: 48px;
   height: 36px;
-  border: 1px solid rgba(226, 241, 255, 0.2);
+  border: 1px solid var(--theme-border);
   border-radius: 13px;
   background:
-    linear-gradient(90deg, transparent 0 30%, rgba(93, 231, 213, 0.22) 30% 32%, transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05)),
-    rgba(7, 20, 34, 0.46);
+    linear-gradient(90deg, transparent 0 30%, var(--theme-accent-soft) 30% 32%, transparent 32%),
+    linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+    var(--theme-surface-muted);
   box-shadow:
-    0 10px 24px rgba(0, 7, 18, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    var(--theme-shadow-xs),
+    inset 0 1px 0 var(--theme-highlight-soft);
 }
 </style>
