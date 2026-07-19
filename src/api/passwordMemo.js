@@ -13,6 +13,10 @@ export function updatePasswordMemo(id, data) {
   return request.put(`/password-memos/${id}`, data)
 }
 
+export function updatePasswordMemoPassword(id, data) {
+  return request.put(`/password-memos/${id}/password`, data)
+}
+
 export function deletePasswordMemo(id) {
   return request.delete(`/password-memos/${id}`)
 }
