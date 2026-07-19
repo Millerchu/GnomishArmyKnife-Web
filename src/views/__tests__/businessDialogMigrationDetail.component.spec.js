@@ -24,10 +24,10 @@ const pageContracts = [
   {
     name: '密码备忘录',
     loadSource: () => import('../PasswordMemo.vue?raw'),
-    dialogCount: 2,
-    formIds: ['password-memo-edit-dialog-form', 'password-memo-verify-form'],
-    panelClasses: ['password-memo-edit-dialog', 'password-memo-verify-dialog'],
-    closeDisabledBindings: ['submitting', 'detailLoading || verifyingPassword']
+    dialogCount: 3,
+    formIds: ['password-memo-edit-dialog-form', 'password-memo-update-password-form', 'password-memo-verify-form'],
+    panelClasses: ['password-memo-edit-dialog', 'password-memo-update-password-dialog', 'password-memo-verify-dialog'],
+    closeDisabledBindings: ['submitting', 'updatingPassword', 'detailLoading || verifyingPassword']
   },
   {
     name: '主页个人中心与退出确认',

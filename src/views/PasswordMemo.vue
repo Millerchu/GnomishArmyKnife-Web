@@ -216,7 +216,7 @@
               <input v-model.trim="form.username" class="input" maxlength="64" placeholder="用户名（可选）" />
             </label>
 
-            <label class="form-field">
+            <label v-if="editMode === 'create'" class="form-field">
               <span>密码</span>
               <input v-model="form.password" class="input" type="password" maxlength="128" placeholder="密码" required />
             </label>
@@ -248,6 +248,49 @@
     </MacDialog>
 
     <MacDialog
+      v-model="showUpdatePasswordDialog"
+      title="更新账号密码"
+      subtitle="更新后，当前密码会自动归档到历史密码中。"
+      width="560px"
+      panel-class="password-memo-update-password-dialog"
+      :close-disabled="updatingPassword"
+      @cancel="closeUpdatePasswordDialog"
+    >
+      <form id="password-memo-update-password-form" class="dialog-form update-password-form" @submit.prevent="submitPasswordUpdate">
+        <label class="form-field">
+          <span>新密码</span>
+          <input
+            v-model="passwordUpdateForm.newPassword"
+            class="input"
+            type="password"
+            maxlength="128"
+            autocomplete="new-password"
+            placeholder="请输入新密码"
+            required
+          />
+        </label>
+        <label class="form-field">
+          <span>确认新密码</span>
+          <input
+            v-model="passwordUpdateForm.confirmPassword"
+            class="input"
+            type="password"
+            maxlength="128"
+            autocomplete="new-password"
+            placeholder="请再次输入新密码"
+            required
+          />
+        </label>
+        <p v-if="passwordUpdateError" class="error-tip">{{ passwordUpdateError }}</p>
+      </form>
+      <template #footer>
+        <button form="password-memo-update-password-form" type="submit" class="action-btn" :disabled="updatingPassword">
+          {{ updatingPassword ? '更新中...' : '确认更新密码' }}
+        </button>
+      </template>
+    </MacDialog>
+
+    <MacDialog
       v-model="showDetailDialog"
       title="账号详情"
       subtitle="关闭详情后再次打开，需要重新输入当前用户密码才能查看完整密码。"
@@ -272,13 +315,14 @@
           <div class="password-box">
             <div>
               <p class="password-label">密码</p>
-              <p class="password-value">{{ revealedPassword || activeDetail.maskedPassword || maskPassword(activeDetail.password) }}</p>
+              <p class="password-value">{{ displayedMaskedPassword || activeDetail.maskedPassword || maskPassword(activeDetail.password) }}</p>
             </div>
+            <span v-if="displayedMaskedPassword" class="copy-status-badge">已安全复制</span>
           </div>
 
           <form id="password-memo-verify-form" class="verify-form" @submit.prevent="verifyAndRevealPassword">
             <label class="form-field">
-              <span>输入当前用户密码后显示完整密码</span>
+              <span>输入当前用户密码后自动复制账号密码</span>
               <input
                 v-model="verifyForm.loginPassword"
                 class="input"
@@ -291,13 +335,44 @@
 
           </form>
 
-          <p v-if="detailErrorMessage" class="error-tip">{{ detailErrorMessage }}</p>
+          <p v-if="detailStatusMessage" :class="['detail-status', detailStatusType]">{{ detailStatusMessage }}</p>
+
+          <section class="password-history-section">
+            <div class="history-heading">
+              <div>
+                <h3>历史密码</h3>
+                <p>完成上方身份验证后显示首字符，并保留每次密码的使用周期。</p>
+              </div>
+              <span>{{ activeDetail.passwordHistory.length }} 条</span>
+            </div>
+            <div v-if="activeDetail.passwordHistory.length" class="history-table-wrap">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>历史密码</th>
+                    <th>使用起始时间</th>
+                    <th>使用结束时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="history in activeDetail.passwordHistory" :key="history.id">
+                    <td><code>{{ history.maskedPassword }}</code></td>
+                    <td>{{ history.usageStartedAt || '-' }}</td>
+                    <td>{{ history.usageEndedAt || '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="history-empty">尚未更新过密码，暂无历史记录。</p>
+          </section>
         </div>
       </div>
       <template #footer>
-        <button type="button" class="ghost-btn" :disabled="!revealedPassword || verifyingPassword" @click="copyPassword">复制密码</button>
+        <button type="button" class="ghost-btn" :disabled="detailLoading || verifyingPassword || !activeDetail" @click="openUpdatePasswordDialog">
+          更新密码
+        </button>
         <button form="password-memo-verify-form" type="submit" class="action-btn" :disabled="verifyingPassword || detailLoading || !activeDetail">
-          {{ verifyingPassword ? '校验中...' : '验证并显示密码' }}
+          {{ verifyingPassword ? '校验并复制中...' : '验证并复制密码' }}
         </button>
       </template>
     </MacDialog>
@@ -314,6 +389,7 @@ import {
   getPasswordMemoDetail,
   listPasswordMemos,
   updatePasswordMemo,
+  updatePasswordMemoPassword,
   verifyPasswordMemoAccess
 } from '@/api/passwordMemo'
 
@@ -341,11 +417,17 @@ function normalizeMemo(item = {}) {
     registeredEmail: item.registeredEmail || item.email || '',
     remark: item.remark || '',
     createdAt: item.createdAt || item.createTime || '',
-    updatedAt: item.updatedAt || item.updateTime || item.createdAt || item.createTime || ''
+    updatedAt: item.updatedAt || item.updateTime || item.createdAt || item.createTime || '',
+    passwordHistory: (item.passwordHistory || item.history || []).map((history) => ({
+      id: history.id,
+      maskedPassword: history.maskedPassword || '********',
+      usageStartedAt: history.usageStartedAt || history.startedAt || '',
+      usageEndedAt: history.usageEndedAt || history.endedAt || ''
+    }))
   }
 }
 
-// 详情弹窗默认只展示首尾字符，完整密码必须重新校验后才允许显示。
+// 页面只保留密码掩码，明文仅在验证成功后的复制动作中短暂存在。
 function maskPassword(value) {
   const source = `${value || ''}`
   if (!source) {
@@ -355,6 +437,38 @@ function maskPassword(value) {
     return `${source[0] || '*'}${'*'.repeat(Math.max(source.length - 2, 1))}${source.slice(-1)}`
   }
   return `${source.slice(0, 2)}${'*'.repeat(source.length - 4)}${source.slice(-2)}`
+}
+
+function maskPasswordToFirstCharacter(value) {
+  const source = `${value || ''}`
+  if (!source) {
+    return '********'
+  }
+  return `${source.slice(0, 1)}${'*'.repeat(Math.max(source.length - 1, 1))}`
+}
+
+// Clipboard API 在异步校验完成后可能失去用户激活态，保留兼容复制路径。
+async function copyText(value) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return
+    } catch {
+      // 继续使用兼容复制方案。
+    }
+  }
+  const copyInput = document.createElement('textarea')
+  copyInput.value = value
+  copyInput.setAttribute('readonly', '')
+  copyInput.style.position = 'fixed'
+  copyInput.style.opacity = '0'
+  document.body.appendChild(copyInput)
+  copyInput.select()
+  const copied = typeof document.execCommand === 'function' && document.execCommand('copy')
+  document.body.removeChild(copyInput)
+  if (!copied) {
+    throw new Error('浏览器拒绝访问剪贴板')
+  }
 }
 
 function normalizeUrl(url) {
@@ -391,15 +505,19 @@ export default {
     const loading = ref(false)
     const submitting = ref(false)
     const verifyingPassword = ref(false)
+    const updatingPassword = ref(false)
     const total = ref(0)
     const pagedRecords = ref([])
 
     const showEditDialog = ref(false)
     const showDetailDialog = ref(false)
+    const showUpdatePasswordDialog = ref(false)
     const detailLoading = ref(false)
     const activeDetail = ref(null)
-    const revealedPassword = ref('')
-    const detailErrorMessage = ref('')
+    const displayedMaskedPassword = ref('')
+    const detailStatusMessage = ref('')
+    const detailStatusType = ref('')
+    const passwordUpdateError = ref('')
     const editMode = ref('create')
     const editingId = ref('')
 
@@ -421,6 +539,11 @@ export default {
 
     const verifyForm = reactive({
       loginPassword: ''
+    })
+
+    const passwordUpdateForm = reactive({
+      newPassword: '',
+      confirmPassword: ''
     })
 
     const pageSizeOptions = PAGE_SIZE_OPTIONS
@@ -534,7 +657,7 @@ export default {
         alert('请输入地址')
         return
       }
-      if (!form.password) {
+      if (editMode.value === 'create' && !form.password) {
         alert('请输入密码')
         return
       }
@@ -550,10 +673,12 @@ export default {
         siteName: form.siteName,
         siteUrl: form.siteUrl,
         username: form.username,
-        password: form.password,
         registeredPhone: form.registeredPhone,
         registeredEmail: form.registeredEmail,
         remark: form.remark
+      }
+      if (editMode.value === 'create') {
+        payload.password = form.password
       }
 
       submitting.value = true
@@ -589,8 +714,9 @@ export default {
 
     const resetDetailState = () => {
       activeDetail.value = null
-      revealedPassword.value = ''
-      detailErrorMessage.value = ''
+      displayedMaskedPassword.value = ''
+      detailStatusMessage.value = ''
+      detailStatusType.value = ''
       verifyForm.loginPassword = ''
     }
 
@@ -622,12 +748,14 @@ export default {
         return
       }
       if (!verifyForm.loginPassword) {
-        detailErrorMessage.value = '请输入当前用户密码'
+        detailStatusMessage.value = '请输入当前用户密码'
+        detailStatusType.value = 'error'
         return
       }
 
       verifyingPassword.value = true
-      detailErrorMessage.value = ''
+      detailStatusMessage.value = ''
+      detailStatusType.value = ''
       try {
         const res = await verifyPasswordMemoAccess(activeDetail.value.id, {
           loginPassword: verifyForm.loginPassword
@@ -637,23 +765,73 @@ export default {
         if (!fullPassword) {
           throw new Error('接口未返回完整密码')
         }
-        revealedPassword.value = fullPassword
+        await copyText(fullPassword)
+        displayedMaskedPassword.value = payload.maskedPassword || maskPasswordToFirstCharacter(fullPassword)
+        if (Array.isArray(payload.passwordHistory)) {
+          activeDetail.value.passwordHistory = normalizeMemo({passwordHistory: payload.passwordHistory}).passwordHistory
+        }
+        verifyForm.loginPassword = ''
+        detailStatusMessage.value = '账号密码已自动复制到剪贴板'
+        detailStatusType.value = 'success'
       } catch (error) {
-        detailErrorMessage.value = extractErrorMessage(error, '密码校验失败，请稍后重试')
+        detailStatusMessage.value = extractErrorMessage(error, '密码校验或复制失败，请稍后重试')
+        detailStatusType.value = 'error'
       } finally {
         verifyingPassword.value = false
       }
     }
 
-    const copyPassword = async () => {
-      if (!revealedPassword.value) {
+    const resetPasswordUpdateForm = () => {
+      passwordUpdateForm.newPassword = ''
+      passwordUpdateForm.confirmPassword = ''
+      passwordUpdateError.value = ''
+    }
+
+    const openUpdatePasswordDialog = () => {
+      if (!activeDetail.value) {
         return
       }
+      resetPasswordUpdateForm()
+      showUpdatePasswordDialog.value = true
+    }
+
+    const closeUpdatePasswordDialog = () => {
+      if (updatingPassword.value) {
+        return
+      }
+      showUpdatePasswordDialog.value = false
+      resetPasswordUpdateForm()
+    }
+
+    const submitPasswordUpdate = async () => {
+      if (!activeDetail.value) {
+        return
+      }
+      if (!passwordUpdateForm.newPassword) {
+        passwordUpdateError.value = '请输入新密码'
+        return
+      }
+      if (passwordUpdateForm.newPassword !== passwordUpdateForm.confirmPassword) {
+        passwordUpdateError.value = '两次输入的新密码不一致'
+        return
+      }
+      updatingPassword.value = true
+      passwordUpdateError.value = ''
       try {
-        await navigator.clipboard.writeText(revealedPassword.value)
-        detailErrorMessage.value = '密码已复制'
+        const res = await updatePasswordMemoPassword(activeDetail.value.id, {
+          newPassword: passwordUpdateForm.newPassword
+        })
+        activeDetail.value = normalizeMemo(unwrapData(res) || activeDetail.value)
+        displayedMaskedPassword.value = ''
+        detailStatusMessage.value = '密码更新成功，原密码已归档到历史记录'
+        detailStatusType.value = 'success'
+        showUpdatePasswordDialog.value = false
+        resetPasswordUpdateForm()
+        await loadMemos()
       } catch (error) {
-        detailErrorMessage.value = '复制失败，请手动复制'
+        passwordUpdateError.value = extractErrorMessage(error, '密码更新失败，请稍后重试')
+      } finally {
+        updatingPassword.value = false
       }
     }
 
@@ -669,6 +847,7 @@ export default {
       loading,
       submitting,
       verifyingPassword,
+      updatingPassword,
       total,
       pagedRecords,
       query,
@@ -676,13 +855,17 @@ export default {
       totalPages,
       showEditDialog,
       showDetailDialog,
+      showUpdatePasswordDialog,
       detailLoading,
       activeDetail,
-      revealedPassword,
-      detailErrorMessage,
+      displayedMaskedPassword,
+      detailStatusMessage,
+      detailStatusType,
+      passwordUpdateError,
       editMode,
       form,
       verifyForm,
+      passwordUpdateForm,
       maskPassword,
       normalizeUrl,
       displaySiteAddress,
@@ -699,7 +882,9 @@ export default {
       openDetailDialog,
       closeDetailDialog,
       verifyAndRevealPassword,
-      copyPassword,
+      openUpdatePasswordDialog,
+      closeUpdatePasswordDialog,
+      submitPasswordUpdate,
       goBack
     }
   }
@@ -1499,6 +1684,17 @@ export default {
   background: var(--theme-surface-muted);
 }
 
+.copy-status-badge {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--theme-success) 35%, var(--theme-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--theme-success) 12%, transparent);
+  color: var(--theme-success);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .password-value {
   margin: 6px 0 0;
   color: var(--theme-text);
@@ -1512,6 +1708,112 @@ export default {
   margin: 0;
   color: var(--theme-danger);
   font-size: 13px;
+}
+
+.detail-status {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 11px;
+  background: var(--theme-surface-muted);
+  font-size: 12px;
+}
+
+.detail-status.success {
+  border-color: color-mix(in srgb, var(--theme-success) 32%, var(--theme-border));
+  color: var(--theme-success);
+}
+
+.detail-status.error {
+  border-color: color-mix(in srgb, var(--theme-danger) 30%, var(--theme-border));
+  color: var(--theme-danger);
+}
+
+.update-password-form {
+  gap: 16px;
+}
+
+.password-history-section {
+  overflow: hidden;
+  border: 1px solid var(--theme-border);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--theme-surface-muted) 76%, transparent);
+}
+
+.history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--theme-divider);
+}
+
+.history-heading h3,
+.history-heading p {
+  margin: 0;
+}
+
+.history-heading h3 {
+  color: var(--theme-text-soft);
+  font-size: 13px;
+}
+
+.history-heading p {
+  margin-top: 4px;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+}
+
+.history-heading > span {
+  flex: 0 0 auto;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+}
+
+.history-table-wrap {
+  overflow-x: auto;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.history-table th,
+.history-table td {
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--theme-divider);
+  color: var(--theme-text-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.history-table th {
+  color: var(--theme-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.history-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.history-table code {
+  color: var(--theme-text-soft);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.history-empty {
+  margin: 0;
+  padding: 20px 15px;
+  color: var(--theme-text-muted);
+  font-size: 12px;
+  text-align: center;
 }
 
 .detail-empty {
@@ -1588,6 +1890,10 @@ export default {
   .form-inline-grid,
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .history-heading {
+    align-items: flex-start;
   }
 }
 

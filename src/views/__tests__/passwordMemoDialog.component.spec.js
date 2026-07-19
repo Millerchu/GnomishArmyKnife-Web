@@ -8,6 +8,7 @@ import PasswordMemo from '../PasswordMemo.vue'
 import {
   getPasswordMemoDetail,
   listPasswordMemos,
+  updatePasswordMemoPassword,
   verifyPasswordMemoAccess
 } from '@/api/passwordMemo'
 
@@ -23,6 +24,7 @@ vi.mock('@/api/passwordMemo', () => ({
   getPasswordMemoDetail: vi.fn(),
   listPasswordMemos: vi.fn(),
   updatePasswordMemo: vi.fn(),
+  updatePasswordMemoPassword: vi.fn(),
   verifyPasswordMemoAccess: vi.fn()
 }))
 
@@ -98,5 +100,60 @@ describe('PasswordMemo MacDialog integration', () => {
     expect(panel.textContent).toContain('当前用户密码错误')
     expect(panel.querySelector('.mac-window-dot.close').disabled).toBe(false)
     expect(document.body.querySelector('.mac-dialog-panel.password-memo-verify-dialog')).not.toBeNull()
+  })
+
+  it('校验成功后自动复制密码且页面仅保留首字符掩码', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', {...navigator, clipboard: {writeText}})
+    verifyPasswordMemoAccess.mockResolvedValue(buildApiResponse({
+      password: 'gnome-secret',
+      maskedPassword: 'g**********'
+    }))
+    const wrapper = mount(PasswordMemo, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+
+    await wrapper.vm.openDetailDialog({id: 7})
+    await nextTick()
+    const panel = document.body.querySelector('.mac-dialog-panel.password-memo-verify-dialog')
+    const passwordInput = panel.querySelector('input[autocomplete="current-password"]')
+    passwordInput.value = 'login-password'
+    passwordInput.dispatchEvent(new Event('input', {bubbles: true}))
+    panel.querySelector('button[form="password-memo-verify-form"]').click()
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith('gnome-secret')
+    expect(panel.textContent).toContain('g**********')
+    expect(panel.textContent).toContain('账号密码已自动复制到剪贴板')
+    expect([...panel.querySelectorAll('button')].some((button) => button.textContent.trim() === '复制密码')).toBe(false)
+  })
+
+  it('专用更新密码表单调用独立接口', async () => {
+    updatePasswordMemoPassword.mockResolvedValue(buildApiResponse({
+      id: 7,
+      siteName: 'GitHub',
+      siteUrl: 'https://github.com',
+      username: 'gnome',
+      maskedPassword: '********',
+      passwordHistory: [{id: 9, maskedPassword: '********'}]
+    }))
+    const wrapper = mount(PasswordMemo, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+    await wrapper.vm.openDetailDialog({id: 7})
+    wrapper.vm.openUpdatePasswordDialog()
+    wrapper.vm.passwordUpdateForm.newPassword = 'new-secret'
+    wrapper.vm.passwordUpdateForm.confirmPassword = 'new-secret'
+
+    await wrapper.vm.submitPasswordUpdate()
+
+    expect(updatePasswordMemoPassword).toHaveBeenCalledWith(7, {newPassword: 'new-secret'})
+    expect(wrapper.vm.activeDetail.passwordHistory).toHaveLength(1)
   })
 })
