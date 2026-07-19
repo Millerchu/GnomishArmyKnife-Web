@@ -17,6 +17,18 @@ export function updatePasswordMemoPassword(id, data) {
   return request.put(`/password-memos/${id}/password`, data)
 }
 
+export function createPasswordMemoHistory(id, data) {
+  return request.post(`/password-memos/${id}/password-history`, data)
+}
+
+export function updatePasswordMemoHistory(id, historyId, data) {
+  return request.put(`/password-memos/${id}/password-history/${historyId}`, data)
+}
+
+export function deletePasswordMemoHistory(id, historyId) {
+  return request.delete(`/password-memos/${id}/password-history/${historyId}`)
+}
+
 export function deletePasswordMemo(id) {
   return request.delete(`/password-memos/${id}`)
 }

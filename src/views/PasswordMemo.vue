@@ -216,10 +216,39 @@
               <input v-model.trim="form.username" class="input" maxlength="64" placeholder="用户名（可选）" />
             </label>
 
-            <label v-if="editMode === 'create'" class="form-field">
-              <span>密码</span>
-              <input v-model="form.password" class="input" type="password" maxlength="128" placeholder="密码" required />
-            </label>
+            <div v-if="editMode === 'create'" class="form-field">
+              <label for="password-memo-create-password">密码</label>
+              <div class="password-input-wrap">
+                <input
+                  id="password-memo-create-password"
+                  v-model="form.password"
+                  class="input"
+                  :type="passwordVisibility.create ? 'text' : 'password'"
+                  maxlength="128"
+                  placeholder="密码"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-hold-button"
+                  :class="{active: passwordVisibility.create}"
+                  aria-label="按住显示密码"
+                  title="按住显示密码"
+                  @pointerdown.prevent="showPasswordField('create')"
+                  @pointerup="hidePasswordField('create')"
+                  @pointerleave="hidePasswordField('create')"
+                  @pointercancel="hidePasswordField('create')"
+                  @keydown.space.prevent="showPasswordField('create')"
+                  @keyup.space.prevent="hidePasswordField('create')"
+                  @blur="hidePasswordField('create')"
+                  @contextmenu.prevent
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 12s3.6-6 9-6 9 6 9 6-3.6 6-9 6-9-6-9-6Zm9 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="form-inline-grid dialog-grid-group">
@@ -248,6 +277,48 @@
     </MacDialog>
 
     <MacDialog
+      v-model="showHistoryDialog"
+      :title="historyMode === 'create' ? '手动添加历史密码' : '编辑历史密码'"
+      :subtitle="historyMode === 'create' ? '补录一段过去使用过的密码及其使用周期。' : '密码留空时仅调整使用周期。'"
+      width="620px"
+      panel-class="password-memo-history-dialog"
+      :close-disabled="maintainingHistory"
+      @cancel="closeHistoryDialog"
+    >
+      <form id="password-memo-history-form" class="dialog-form history-maintain-form" @submit.prevent="submitHistoryForm">
+        <label class="form-field">
+          <span>{{ historyMode === 'create' ? '历史密码' : '历史密码（可选）' }}</span>
+          <input
+            v-model="historyForm.password"
+            class="input"
+            type="password"
+            maxlength="128"
+            autocomplete="new-password"
+            :placeholder="historyMode === 'create' ? '请输入历史密码' : '留空则保持原密码'"
+            :required="historyMode === 'create'"
+          />
+        </label>
+        <div class="history-period-grid">
+          <label class="form-field">
+            <span>使用起始时间</span>
+            <input v-model="historyForm.usageStartedAt" class="input" type="datetime-local" required />
+          </label>
+          <label class="form-field">
+            <span>使用结束时间</span>
+            <input v-model="historyForm.usageEndedAt" class="input" type="datetime-local" required />
+          </label>
+        </div>
+        <p class="history-form-hint">手工维护只影响历史记录，不会修改当前正在使用的密码。</p>
+        <p v-if="historyFormError" class="error-tip">{{ historyFormError }}</p>
+      </form>
+      <template #footer>
+        <button form="password-memo-history-form" type="submit" class="action-btn" :disabled="maintainingHistory">
+          {{ maintainingHistory ? '保存中...' : (historyMode === 'create' ? '添加历史记录' : '保存修改') }}
+        </button>
+      </template>
+    </MacDialog>
+
+    <MacDialog
       v-model="showUpdatePasswordDialog"
       title="更新账号密码"
       subtitle="更新后，当前密码会自动归档到历史密码中。"
@@ -257,30 +328,74 @@
       @cancel="closeUpdatePasswordDialog"
     >
       <form id="password-memo-update-password-form" class="dialog-form update-password-form" @submit.prevent="submitPasswordUpdate">
-        <label class="form-field">
-          <span>新密码</span>
-          <input
-            v-model="passwordUpdateForm.newPassword"
-            class="input"
-            type="password"
-            maxlength="128"
-            autocomplete="new-password"
-            placeholder="请输入新密码"
-            required
-          />
-        </label>
-        <label class="form-field">
-          <span>确认新密码</span>
-          <input
-            v-model="passwordUpdateForm.confirmPassword"
-            class="input"
-            type="password"
-            maxlength="128"
-            autocomplete="new-password"
-            placeholder="请再次输入新密码"
-            required
-          />
-        </label>
+        <div class="form-field">
+          <label for="password-memo-update-password">新密码</label>
+          <div class="password-input-wrap">
+            <input
+              id="password-memo-update-password"
+              v-model="passwordUpdateForm.newPassword"
+              class="input"
+              :type="passwordVisibility.updateNew ? 'text' : 'password'"
+              maxlength="128"
+              autocomplete="new-password"
+              placeholder="请输入新密码"
+              required
+            />
+            <button
+              type="button"
+              class="password-hold-button"
+              :class="{active: passwordVisibility.updateNew}"
+              aria-label="按住显示新密码"
+              title="按住显示新密码"
+              @pointerdown.prevent="showPasswordField('updateNew')"
+              @pointerup="hidePasswordField('updateNew')"
+              @pointerleave="hidePasswordField('updateNew')"
+              @pointercancel="hidePasswordField('updateNew')"
+              @keydown.space.prevent="showPasswordField('updateNew')"
+              @keyup.space.prevent="hidePasswordField('updateNew')"
+              @blur="hidePasswordField('updateNew')"
+              @contextmenu.prevent
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 12s3.6-6 9-6 9 6 9 6-3.6 6-9 6-9-6-9-6Zm9 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="password-memo-confirm-password">确认新密码</label>
+          <div class="password-input-wrap">
+            <input
+              id="password-memo-confirm-password"
+              v-model="passwordUpdateForm.confirmPassword"
+              class="input"
+              :type="passwordVisibility.updateConfirm ? 'text' : 'password'"
+              maxlength="128"
+              autocomplete="new-password"
+              placeholder="请再次输入新密码"
+              required
+            />
+            <button
+              type="button"
+              class="password-hold-button"
+              :class="{active: passwordVisibility.updateConfirm}"
+              aria-label="按住显示确认密码"
+              title="按住显示确认密码"
+              @pointerdown.prevent="showPasswordField('updateConfirm')"
+              @pointerup="hidePasswordField('updateConfirm')"
+              @pointerleave="hidePasswordField('updateConfirm')"
+              @pointercancel="hidePasswordField('updateConfirm')"
+              @keydown.space.prevent="showPasswordField('updateConfirm')"
+              @keyup.space.prevent="hidePasswordField('updateConfirm')"
+              @blur="hidePasswordField('updateConfirm')"
+              @contextmenu.prevent
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 12s3.6-6 9-6 9 6 9 6-3.6 6-9 6-9-6-9-6Zm9 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" />
+              </svg>
+            </button>
+          </div>
+        </div>
         <p v-if="passwordUpdateError" class="error-tip">{{ passwordUpdateError }}</p>
       </form>
       <template #footer>
@@ -343,7 +458,10 @@
                 <h3>历史密码</h3>
                 <p>完成上方身份验证后显示首字符，并保留每次密码的使用周期。</p>
               </div>
-              <span>{{ activeDetail.passwordHistory.length }} 条</span>
+              <div class="history-heading-actions">
+                <span>{{ activeDetail.passwordHistory.length }} 条</span>
+                <button type="button" @click="openCreateHistoryDialog">＋ 手动添加</button>
+              </div>
             </div>
             <div v-if="activeDetail.passwordHistory.length" class="history-table-wrap">
               <table class="history-table">
@@ -352,6 +470,7 @@
                     <th>历史密码</th>
                     <th>使用起始时间</th>
                     <th>使用结束时间</th>
+                    <th class="history-action-column">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -359,6 +478,12 @@
                     <td><code>{{ history.maskedPassword }}</code></td>
                     <td>{{ history.usageStartedAt || '-' }}</td>
                     <td>{{ history.usageEndedAt || '-' }}</td>
+                    <td>
+                      <div class="history-row-actions">
+                        <button type="button" @click="openEditHistoryDialog(history)">编辑</button>
+                        <button type="button" class="danger" :disabled="maintainingHistory" @click="removePasswordHistory(history)">删除</button>
+                      </div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -384,11 +509,14 @@ import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
 import {
+  createPasswordMemoHistory,
   createPasswordMemo,
   deletePasswordMemo,
+  deletePasswordMemoHistory,
   getPasswordMemoDetail,
   listPasswordMemos,
   updatePasswordMemo,
+  updatePasswordMemoHistory,
   updatePasswordMemoPassword,
   verifyPasswordMemoAccess
 } from '@/api/passwordMemo'
@@ -495,6 +623,10 @@ function extractErrorMessage(error, fallback) {
   return data.message || data.msg || fallback
 }
 
+function toDateTimeInputValue(value) {
+  return `${value || ''}`.replace(' ', 'T').slice(0, 16)
+}
+
 export default {
   name: 'PasswordMemo',
   components: {MacDialog},
@@ -506,18 +638,23 @@ export default {
     const submitting = ref(false)
     const verifyingPassword = ref(false)
     const updatingPassword = ref(false)
+    const maintainingHistory = ref(false)
     const total = ref(0)
     const pagedRecords = ref([])
 
     const showEditDialog = ref(false)
     const showDetailDialog = ref(false)
     const showUpdatePasswordDialog = ref(false)
+    const showHistoryDialog = ref(false)
     const detailLoading = ref(false)
     const activeDetail = ref(null)
     const displayedMaskedPassword = ref('')
     const detailStatusMessage = ref('')
     const detailStatusType = ref('')
     const passwordUpdateError = ref('')
+    const historyFormError = ref('')
+    const historyMode = ref('create')
+    const editingHistoryId = ref(null)
     const editMode = ref('create')
     const editingId = ref('')
 
@@ -546,9 +683,29 @@ export default {
       confirmPassword: ''
     })
 
+    const passwordVisibility = reactive({
+      create: false,
+      updateNew: false,
+      updateConfirm: false
+    })
+
+    const historyForm = reactive({
+      password: '',
+      usageStartedAt: '',
+      usageEndedAt: ''
+    })
+
     const pageSizeOptions = PAGE_SIZE_OPTIONS
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
+
+    const showPasswordField = (field) => {
+      passwordVisibility[field] = true
+    }
+
+    const hidePasswordField = (field) => {
+      passwordVisibility[field] = false
+    }
 
     const fillForm = (memo) => {
       form.siteName = memo.siteName || ''
@@ -562,6 +719,7 @@ export default {
 
     const resetForm = () => {
       fillForm({})
+      passwordVisibility.create = false
     }
 
     const loadMemos = async () => {
@@ -785,6 +943,8 @@ export default {
       passwordUpdateForm.newPassword = ''
       passwordUpdateForm.confirmPassword = ''
       passwordUpdateError.value = ''
+      passwordVisibility.updateNew = false
+      passwordVisibility.updateConfirm = false
     }
 
     const openUpdatePasswordDialog = () => {
@@ -835,6 +995,98 @@ export default {
       }
     }
 
+    const resetHistoryForm = () => {
+      historyForm.password = ''
+      historyForm.usageStartedAt = ''
+      historyForm.usageEndedAt = ''
+      historyFormError.value = ''
+      editingHistoryId.value = null
+    }
+
+    const openCreateHistoryDialog = () => {
+      historyMode.value = 'create'
+      resetHistoryForm()
+      showHistoryDialog.value = true
+    }
+
+    const openEditHistoryDialog = (history) => {
+      historyMode.value = 'edit'
+      resetHistoryForm()
+      editingHistoryId.value = history.id
+      historyForm.usageStartedAt = toDateTimeInputValue(history.usageStartedAt)
+      historyForm.usageEndedAt = toDateTimeInputValue(history.usageEndedAt)
+      showHistoryDialog.value = true
+    }
+
+    const closeHistoryDialog = () => {
+      if (maintainingHistory.value) {
+        return
+      }
+      showHistoryDialog.value = false
+      resetHistoryForm()
+    }
+
+    const submitHistoryForm = async () => {
+      if (!activeDetail.value) {
+        return
+      }
+      if (historyMode.value === 'create' && !historyForm.password) {
+        historyFormError.value = '请输入历史密码'
+        return
+      }
+      if (!historyForm.usageStartedAt || !historyForm.usageEndedAt) {
+        historyFormError.value = '请填写完整的使用起止时间'
+        return
+      }
+      if (historyForm.usageStartedAt >= historyForm.usageEndedAt) {
+        historyFormError.value = '使用结束时间必须晚于起始时间'
+        return
+      }
+
+      const payload = {
+        password: historyForm.password || undefined,
+        usageStartedAt: historyForm.usageStartedAt,
+        usageEndedAt: historyForm.usageEndedAt
+      }
+      maintainingHistory.value = true
+      historyFormError.value = ''
+      try {
+        const response = historyMode.value === 'create'
+          ? await createPasswordMemoHistory(activeDetail.value.id, payload)
+          : await updatePasswordMemoHistory(activeDetail.value.id, editingHistoryId.value, payload)
+        activeDetail.value = normalizeMemo(unwrapData(response) || activeDetail.value)
+        showHistoryDialog.value = false
+        resetHistoryForm()
+        detailStatusMessage.value = historyMode.value === 'create' ? '历史密码添加成功' : '历史密码更新成功'
+        detailStatusType.value = 'success'
+      } catch (error) {
+        historyFormError.value = extractErrorMessage(error, '历史密码保存失败，请稍后重试')
+      } finally {
+        maintainingHistory.value = false
+      }
+    }
+
+    const removePasswordHistory = async (history) => {
+      if (!activeDetail.value || maintainingHistory.value) {
+        return
+      }
+      if (!window.confirm(`确认删除使用起始时间为 ${history.usageStartedAt || '-'} 的历史密码吗？`)) {
+        return
+      }
+      maintainingHistory.value = true
+      try {
+        const response = await deletePasswordMemoHistory(activeDetail.value.id, history.id)
+        activeDetail.value = normalizeMemo(unwrapData(response) || activeDetail.value)
+        detailStatusMessage.value = '历史密码已删除'
+        detailStatusType.value = 'success'
+      } catch (error) {
+        detailStatusMessage.value = extractErrorMessage(error, '历史密码删除失败，请稍后重试')
+        detailStatusType.value = 'error'
+      } finally {
+        maintainingHistory.value = false
+      }
+    }
+
     const goBack = () => {
       router.push('/home')
     }
@@ -848,6 +1100,7 @@ export default {
       submitting,
       verifyingPassword,
       updatingPassword,
+      maintainingHistory,
       total,
       pagedRecords,
       query,
@@ -856,16 +1109,21 @@ export default {
       showEditDialog,
       showDetailDialog,
       showUpdatePasswordDialog,
+      showHistoryDialog,
       detailLoading,
       activeDetail,
       displayedMaskedPassword,
       detailStatusMessage,
       detailStatusType,
       passwordUpdateError,
+      historyFormError,
+      historyMode,
       editMode,
       form,
       verifyForm,
       passwordUpdateForm,
+      passwordVisibility,
+      historyForm,
       maskPassword,
       normalizeUrl,
       displaySiteAddress,
@@ -885,6 +1143,13 @@ export default {
       openUpdatePasswordDialog,
       closeUpdatePasswordDialog,
       submitPasswordUpdate,
+      showPasswordField,
+      hidePasswordField,
+      openCreateHistoryDialog,
+      openEditHistoryDialog,
+      closeHistoryDialog,
+      submitHistoryForm,
+      removePasswordHistory,
       goBack
     }
   }
@@ -1521,7 +1786,8 @@ export default {
 .memo-mobile-card-grid span,
 .detail-grid span,
 .password-label,
-.form-field > span {
+.form-field > span,
+.form-field > label {
   color: var(--theme-text-muted);
   font-size: 11px;
 }
@@ -1657,6 +1923,52 @@ export default {
   gap: 8px;
 }
 
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input-wrap .input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.password-hold-button {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--theme-text-muted);
+  transform: translateY(-50%);
+  transition: background-color 140ms ease, color 140ms ease, transform 100ms ease;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.password-hold-button:hover,
+.password-hold-button.active {
+  background: var(--theme-surface-hover);
+  color: var(--theme-link-hover);
+}
+
+.password-hold-button.active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.password-hold-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 .form-inline-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1765,10 +2077,36 @@ export default {
   font-size: 11px;
 }
 
-.history-heading > span {
+.history-heading-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.history-heading-actions > span {
   flex: 0 0 auto;
   color: var(--theme-text-muted);
   font-size: 11px;
+}
+
+.history-heading-actions button,
+.history-row-actions button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  background: var(--theme-control-surface);
+  color: var(--theme-link);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.history-heading-actions button:hover,
+.history-row-actions button:hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 35%, var(--theme-border));
+  background: var(--theme-surface-hover);
 }
 
 .history-table-wrap {
@@ -1806,6 +2144,45 @@ export default {
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 12px;
   letter-spacing: 0.08em;
+}
+
+.history-action-column {
+  width: 112px;
+}
+
+.history-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.history-row-actions button.danger {
+  color: var(--theme-danger);
+}
+
+.history-row-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.history-maintain-form {
+  gap: 16px;
+}
+
+.history-period-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.history-form-hint {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+  background: var(--theme-surface-muted);
+  color: var(--theme-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .history-empty {
@@ -1894,6 +2271,15 @@ export default {
 
   .history-heading {
     align-items: flex-start;
+  }
+
+  .history-heading-actions {
+    align-items: flex-end;
+    flex-direction: column;
+  }
+
+  .history-period-grid {
+    grid-template-columns: 1fr;
   }
 }
 
