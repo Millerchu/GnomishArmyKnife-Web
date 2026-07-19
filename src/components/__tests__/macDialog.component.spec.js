@@ -97,6 +97,32 @@ describe('MacDialog real component behavior', () => {
     expect(document.body.querySelector('.mac-dialog-head')).not.toBeNull()
   })
 
+  it('uses window presentation by default and exposes validated mobile modes', async () => {
+    const wrapper = mountDialog()
+    const presentationProp = MacDialog.props.mobilePresentation
+    const mask = document.body.querySelector('.mac-dialog-mask')
+    const panel = document.body.querySelector('.mac-dialog-panel')
+
+    expect(presentationProp.default).toBe('window')
+    expect(presentationProp.validator('window')).toBe(true)
+    expect(presentationProp.validator('sheet')).toBe(true)
+    expect(presentationProp.validator('fullScreen')).toBe(true)
+    expect(presentationProp.validator('fullscreen')).toBe(false)
+    expect(mask.classList.contains('mobile-presentation-window')).toBe(true)
+    expect(panel.classList.contains('mobile-presentation-window')).toBe(true)
+
+    await wrapper.setProps({mobilePresentation: 'sheet'})
+
+    expect(mask.classList.contains('mobile-presentation-sheet')).toBe(true)
+    expect(panel.classList.contains('mobile-presentation-sheet')).toBe(true)
+    expect(panel.querySelectorAll('.mac-window-dot')).toHaveLength(3)
+
+    await wrapper.setProps({mobilePresentation: 'fullScreen'})
+
+    expect(mask.classList.contains('mobile-presentation-full-screen')).toBe(true)
+    expect(panel.classList.contains('mobile-presentation-full-screen')).toBe(true)
+  })
+
   it('does not close from an accidental mask click by default', async () => {
     const wrapper = mountDialog()
     const mask = document.body.querySelector('.mac-dialog-mask')
@@ -414,5 +440,11 @@ describe('MacDialog real component behavior', () => {
     expect(componentSource.default).toContain('safe-area-inset-left')
     expect(componentSource.default).toContain('safe-area-inset-right')
     expect(componentSource.default).not.toMatch(/mac-window-controls[^}]*display:\s*none/s)
+    expect(componentSource.default).toContain(
+      '@media (max-width: 720px) and (max-height: 640px) and (orientation: landscape)'
+    )
+    expect(componentSource.default).toContain('prefers-reduced-transparency: reduce')
+    expect(componentSource.default).toContain('prefers-contrast: more')
+    expect(componentSource.default).toContain('prefers-reduced-motion: reduce')
   })
 })

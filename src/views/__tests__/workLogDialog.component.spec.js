@@ -252,6 +252,13 @@ afterEach(() => {
 })
 
 describe('WorkLog MacDialog integration', () => {
+  it('reports a failed dictionary sync in the mobile navigation state', async () => {
+    listDataDictionaryOptionsByUsage.mockRejectedValue(new Error('dictionary unavailable'))
+    const wrapper = await mountWorkLog()
+
+    expect(wrapper.get('.mobile-nav-status').text()).toBe('字典未就绪')
+  })
+
   it('moves the current week range from the hero into the weekly statistics panel', async () => {
     const wrapper = await mountWorkLog()
 
@@ -281,7 +288,28 @@ describe('WorkLog MacDialog integration', () => {
     await flushPromises()
 
     expect(matchMediaMock).toHaveBeenCalledWith('(max-width: 720px)')
-    expect(document.body.querySelector('.work-log-day-detail-dialog')).not.toBeNull()
+    const detailPanel = document.body.querySelector('.work-log-day-detail-dialog')
+    expect(detailPanel).not.toBeNull()
+    expect(detailPanel.classList.contains('mobile-presentation-sheet')).toBe(true)
+  })
+
+  it('exposes readable keyboard semantics for week and month calendar days', async () => {
+    const wrapper = await mountWorkLog()
+    const weekDay = wrapper.find('.day-card')
+
+    expect(weekDay.attributes('role')).toBe('button')
+    expect(weekDay.attributes('tabindex')).toBe('0')
+    expect(weekDay.attributes('aria-label')).toContain('暂无日志')
+
+    await wrapper.vm.switchCalendarView('month')
+    await flushPromises()
+    const currentMonthDay = wrapper.findAll('.month-day-card')
+      .find((day) => day.attributes('aria-disabled') !== 'true')
+
+    expect(currentMonthDay).toBeDefined()
+    expect(currentMonthDay.attributes('role')).toBe('button')
+    expect(currentMonthDay.attributes('tabindex')).toBe('0')
+    expect(currentMonthDay.attributes('aria-label')).toContain('暂无日志')
   })
 
   it('keeps only range navigation, create, and annual list actions in the top toolbar', async () => {
@@ -295,12 +323,36 @@ describe('WorkLog MacDialog integration', () => {
     ])
   })
 
+  it('groups the mobile annual list by month', async () => {
+    const currentYear = new Date().getFullYear()
+    listWorkLogs.mockImplementation(({startDate}) => Promise.resolve(buildApiResponse(
+      startDate === `${currentYear}-01-01`
+        ? [
+            {...editLogDetail, id: 101, logDate: `${currentYear}-07-10`},
+            {...editLogDetail, id: 102, logDate: `${currentYear}-07-03`},
+            {...editLogDetail, id: 103, logDate: `${currentYear}-06-28`}
+          ]
+        : []
+    )))
+    const wrapper = await mountWorkLog()
+
+    await wrapper.vm.toggleYearList()
+    await flushPromises()
+
+    const groups = wrapper.findAll('.year-log-group')
+    expect(groups).toHaveLength(2)
+    expect(groups[0].find('.year-log-group-head').text()).toContain(`${currentYear} 年 7 月`)
+    expect(groups[0].findAll('.mobile-log-card')).toHaveLength(2)
+    expect(groups[1].find('.year-log-group-head').text()).toContain(`${currentYear} 年 6 月`)
+  })
+
   it('renders the create form and footer submit button in the teleported MacDialog', async () => {
     const wrapper = await mountWorkLogAndOpenCreateDialog()
 
     const panel = document.body.querySelector('.mac-dialog-panel.work-log-dialog')
     expect(panel).not.toBeNull()
     expect(panel.querySelector('.mac-dialog-title').textContent).toBe('新增工作日志')
+    expect(panel.classList.contains('mobile-presentation-full-screen')).toBe(true)
 
     const form = panel.querySelector('form#work-log-dialog-form')
     const submitButton = panel.querySelector('.mac-dialog-actions button[type="submit"]')

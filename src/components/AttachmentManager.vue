@@ -185,4 +185,34 @@ export default {
 .attachment-actions .danger { color: var(--theme-danger); }
 .attachment-failures { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; color: var(--theme-danger); font-size: 12px; }
 .attachment-failures button { border: 1px solid color-mix(in srgb, var(--theme-danger) 30%, transparent); border-radius: 8px; padding: 5px 9px; background: var(--theme-danger-soft); color: var(--theme-danger); cursor: pointer; }
+
+@media (max-width: 720px) {
+  .attachment-manager-head,
+  .attachment-failures {
+    flex-wrap: wrap;
+  }
+
+  .attachment-upload,
+  .attachment-failures button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .attachment-grid {
+    grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  }
+
+  .attachment-actions {
+    gap: 4px;
+  }
+
+  .attachment-actions button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
 </style>

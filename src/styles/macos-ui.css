@@ -1091,6 +1091,30 @@ textarea:focus {
 }
 
 @media (max-width: 720px) {
+  :root {
+    --mobile-page-gutter: clamp(12px, 4vw, 18px);
+    --mobile-safe-top: max(10px, env(safe-area-inset-top, 0px));
+    --mobile-safe-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    --mobile-touch-target: 44px;
+    --mobile-control-height: 48px;
+    --mobile-radius-control: 14px;
+    --mobile-radius-card: 20px;
+    --mobile-radius-chrome: 24px;
+    --mobile-material:
+      linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+      color-mix(in srgb, var(--theme-surface-raised) 88%, transparent);
+    --mobile-material-muted:
+      linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+      color-mix(in srgb, var(--theme-surface) 80%, transparent);
+    --mobile-chrome:
+      linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+      color-mix(in srgb, var(--theme-popover-surface) 82%, transparent);
+    --mobile-border: color-mix(in srgb, var(--theme-border-strong) 78%, transparent);
+    --mobile-shadow: 0 18px 42px color-mix(in srgb, var(--theme-scrim) 54%, transparent);
+    --mobile-shadow-soft: 0 10px 28px color-mix(in srgb, var(--theme-scrim) 34%, transparent);
+    --mobile-ease: cubic-bezier(0.22, 0.9, 0.24, 1);
+  }
+
   .dialog,
   .user-dialog,
   .editor-dialog,
@@ -1110,6 +1134,23 @@ textarea:focus {
   .mobile-version-card,
   .mobile-dict-card {
     border-radius: var(--macos-radius-sm) !important;
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-transparency: reduce) {
+  :root {
+    --mobile-material: var(--theme-surface-raised);
+    --mobile-material-muted: var(--theme-surface);
+    --mobile-chrome: var(--theme-popover-surface);
+  }
+}
+
+@media (max-width: 720px) and (prefers-contrast: more) {
+  :root {
+    --mobile-border: var(--theme-text-muted);
+    --mobile-material: var(--theme-surface-raised);
+    --mobile-material-muted: var(--theme-surface);
+    --mobile-chrome: var(--theme-popover-surface);
   }
 }
 /* Business dialogs share a dense field grid while keeping long-form controls full width. */
