@@ -33,10 +33,13 @@
 
           <div ref="systemMenuRef" class="system-menu-box">
             <button
+              ref="systemMenuToggleRef"
               class="system-menu-toggle"
               :class="{ active: showSystemMenu }"
               type="button"
               aria-label="系统菜单"
+              aria-controls="home-system-menu"
+              :aria-expanded="showSystemMenu"
               @click.stop="toggleSystemMenu"
             >
               <svg class="gear-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -47,24 +50,32 @@
               </svg>
             </button>
 
-            <div v-if="showSystemMenu" class="system-menu-dropdown">
-              <div class="system-menu-header">
-                <strong>{{ user.displayName || user.username || '当前用户' }}</strong>
-                <span>系统菜单</span>
-              </div>
-
-              <button
-                v-for="item in visibleSystemMenus"
-                :key="item.key"
-                type="button"
-                class="system-dropdown-item"
-                :class="{ danger: item.key === 'logout' }"
-                @click="handleSystemMenuAction(item)"
+            <Transition name="system-menu-material">
+              <div
+                v-if="showSystemMenu"
+                id="home-system-menu"
+                class="system-menu-dropdown"
+                role="group"
+                aria-label="系统菜单"
               >
-                <span class="menu-icon">{{ item.shortName }}</span>
-                <span>{{ item.name }}</span>
-              </button>
-            </div>
+                <div class="system-menu-header">
+                  <strong>{{ user.displayName || user.username || '当前用户' }}</strong>
+                  <span>系统菜单</span>
+                </div>
+
+                <button
+                  v-for="item in visibleSystemMenus"
+                  :key="item.key"
+                  type="button"
+                  class="system-dropdown-item"
+                  :class="{ danger: item.key === 'logout' }"
+                  @click="handleSystemMenuAction(item)"
+                >
+                  <span class="menu-icon">{{ item.shortName }}</span>
+                  <span>{{ item.name }}</span>
+                </button>
+              </div>
+            </Transition>
           </div>
         </div>
       </div>
@@ -81,6 +92,14 @@
               <span>＋</span>快速新增
             </button>
           </div>
+        </div>
+
+        <div class="mobile-tool-status" aria-live="polite">
+          <div>
+            <span class="mobile-tool-eyebrow">桌面</span>
+            <h1>我的工具</h1>
+          </div>
+          <span class="app-count" :class="permissionBadgeClass">{{ appPermissionStatusText }}</span>
         </div>
 
         <div v-if="surfaceNotice.message" class="surface-notice" :class="surfaceNotice.type">
@@ -143,7 +162,10 @@
             : '当前账号暂无可见应用，请先在权限管理中完成授权。' }}
         </div>
       </section>
-      <button class="mobile-quick-create" type="button" :disabled="appPermissionLoading || !quickCreateTypes.length" aria-label="快速新增" @click="showQuickCreateDialog = true">＋</button>
+      <button class="mobile-quick-create" type="button" :disabled="appPermissionLoading || !quickCreateTypes.length" aria-label="快速新增" @click="showQuickCreateDialog = true">
+        <span class="mobile-quick-create-icon" aria-hidden="true">＋</span>
+        <span>快速新增</span>
+      </button>
     </main>
 
     <QuickCreateDialog
@@ -160,6 +182,7 @@
       subtitle="退出后会返回登录页，本地登录态会被清理。"
       width="440px"
       panel-class="home-logout-dialog"
+      mobile-presentation="sheet"
       :close-disabled="false"
       @cancel="cancelLogoutRequest"
     >
@@ -174,6 +197,7 @@
       title="个人中心"
       width="720px"
       panel-class="home-profile-dialog"
+      mobile-presentation="fullScreen"
       :close-disabled="dialogLoading"
       @cancel="closeUserDialog"
     >
@@ -500,6 +524,7 @@ export default {
     const suppressNextToolOpen = ref(false)
     const isMobileViewport = ref(false)
     const systemMenuRef = ref(null)
+    const systemMenuToggleRef = ref(null)
     const easterEggClickCount = ref(0)
     const logoutPending = ref(false)
     const showQuickCreateDialog = ref(false)
@@ -791,8 +816,14 @@ export default {
       showSurfaceNotice('info', '菜单待接入', `菜单【${menu.name}】已登记，后续会在系统管理能力中继续接入。`)
     }
 
-    const closeSystemMenu = () => {
+    const closeSystemMenu = (restoreTriggerFocus = false) => {
+      if (!showSystemMenu.value) {
+        return
+      }
       showSystemMenu.value = false
+      if (restoreTriggerFocus) {
+        systemMenuToggleRef.value?.focus({preventScroll: true})
+      }
     }
 
     const toggleSystemMenu = () => {
@@ -800,7 +831,7 @@ export default {
     }
 
     const handleSystemMenuAction = (menu) => {
-      closeSystemMenu()
+      closeSystemMenu(true)
       onSystemMenuClick(menu)
     }
 
@@ -816,7 +847,7 @@ export default {
         return
       }
       clearSurfaceNotice()
-      closeSystemMenu()
+      closeSystemMenu(true)
     }
 
     const openTool = (tool) => {
@@ -1022,7 +1053,7 @@ export default {
     }
 
     const syncMobileViewport = () => {
-      isMobileViewport.value = window.matchMedia('(max-width: 640px)').matches
+      isMobileViewport.value = window.matchMedia('(max-width: 720px)').matches
       if (isMobileViewport.value) {
         handleToolDragEnd()
       }
@@ -1059,6 +1090,7 @@ export default {
       user,
       showSystemMenu,
       systemMenuRef,
+      systemMenuToggleRef,
       currentDateText,
       currentUserRole,
       avatarAttachment,
@@ -1066,6 +1098,7 @@ export default {
       profileAvatarAttachments,
       profileAvatarInitial,
       appPermissionLoading,
+      appPermissionSource,
       appPermissionStatusText,
       permissionHintText,
       permissionBadgeClass,
@@ -1407,6 +1440,10 @@ export default {
   display: none;
 }
 
+.mobile-tool-status {
+  display: none;
+}
+
 .home-title {
   font-size: 26px;
   margin: 0;
@@ -1723,30 +1760,92 @@ export default {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .home-page {
-    overflow: auto;
+    --mobile-space-xs: 4px;
+    --mobile-space-sm: 8px;
+    --mobile-space-md: 16px;
+    --mobile-radius-control: 14px;
+    --mobile-radius-surface: 22px;
+    --mobile-control-size: 44px;
+    --mobile-system-blue: #0a84ff;
+    --mobile-home-safe-left: max(var(--mobile-space-md), env(safe-area-inset-left, 0px));
+    --mobile-home-safe-right: max(var(--mobile-space-md), env(safe-area-inset-right, 0px));
+    --mobile-material: color-mix(in srgb, var(--theme-surface-raised) 82%, transparent);
+    --mobile-material-strong: color-mix(in srgb, var(--theme-popover-surface) 90%, transparent);
+    position: relative;
+    isolation: isolate;
+    min-height: 100dvh;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .home-page::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--theme-scrim) 18%, transparent), transparent 38%),
+      color-mix(in srgb, var(--theme-surface-muted) 12%, transparent);
+    backdrop-filter: blur(5px) saturate(92%);
+    -webkit-backdrop-filter: blur(5px) saturate(92%);
   }
 
   .main-area {
+    position: relative;
+    z-index: 1;
     width: 100%;
-    min-height: 100vh;
-    padding: 8px 12px 18px !important;
-    gap: 8px !important;
+    min-height: 100dvh;
+    box-sizing: border-box;
+    padding:
+      0
+      var(--mobile-home-safe-right)
+      calc(100px + env(safe-area-inset-bottom))
+      var(--mobile-home-safe-left) !important;
+    gap: 14px !important;
+    overflow: visible;
   }
 
   .top-bar {
-    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    width: calc(100% + var(--mobile-home-safe-left) + var(--mobile-home-safe-right));
+    min-height: calc(60px + env(safe-area-inset-top));
+    box-sizing: border-box;
+    margin-right: calc(0px - var(--mobile-home-safe-right));
+    margin-left: calc(0px - var(--mobile-home-safe-left));
+    padding:
+      calc(8px + env(safe-area-inset-top))
+      var(--mobile-home-safe-right)
+      8px
+      var(--mobile-home-safe-left);
+    flex-wrap: nowrap;
+    gap: var(--mobile-space-sm);
+    border-bottom: 1px solid color-mix(in srgb, var(--theme-highlight) 45%, var(--theme-border));
+    background: var(--mobile-material);
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--theme-scrim) 28%, transparent);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
   }
 
   .easter-egg-trigger {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+    width: var(--mobile-control-size);
+    height: var(--mobile-control-size);
+    flex: 0 0 var(--mobile-control-size);
+    border-radius: var(--mobile-radius-control);
+    background: color-mix(in srgb, var(--theme-control-surface) 76%, transparent);
   }
 
   .top-right-wrap {
-    gap: 8px;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: var(--mobile-space-sm);
     justify-content: flex-end;
   }
 
@@ -1756,56 +1855,153 @@ export default {
   }
 
   .user-name-text {
-    padding: 3px 7px;
+    max-width: 74px;
+    overflow: hidden;
+    padding: 3px 6px;
     font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: transparent;
+  }
+
+  .welcome-wrap {
+    min-width: 0;
+    max-width: 114px;
+  }
+
+  .header-avatar {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
   }
 
   .system-menu-toggle {
-    width: 34px;
-    height: 34px;
+    width: var(--mobile-control-size);
+    height: var(--mobile-control-size);
+    border-radius: var(--mobile-radius-control);
+    background: color-mix(in srgb, var(--theme-control-surface) 76%, transparent);
   }
 
   .home-theme-toggle {
-    width: 34px;
-    height: 34px;
-    flex-basis: 34px;
+    width: var(--mobile-control-size);
+    height: var(--mobile-control-size);
+    flex-basis: var(--mobile-control-size);
   }
 
   .main-panel {
-    padding: 4px 0 0;
-    border: none;
+    padding: 0;
+    border: none !important;
     border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .panel-head {
     display: none;
   }
 
+  .mobile-tool-status {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 2px 2px;
+  }
+
+  .mobile-tool-status > div {
+    min-width: 0;
+  }
+
+  .mobile-tool-eyebrow {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--theme-text-soft);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-shadow: 0 1px 5px var(--theme-scrim);
+  }
+
+  .mobile-tool-status h1 {
+    margin: 0;
+    color: var(--theme-text);
+    font-size: clamp(25px, 7vw, 30px);
+    font-weight: 760;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    text-shadow: 0 2px 8px var(--theme-scrim);
+  }
+
+  .mobile-tool-status .app-count {
+    min-height: 32px;
+    max-width: 58%;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--theme-highlight) 44%, var(--theme-border));
+    background: var(--mobile-material);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+  }
+
   .mobile-quick-create {
     position: fixed;
-    right: 18px;
-    bottom: 22px;
-    z-index: 20;
-    display: grid;
-    width: 52px;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 28;
+    display: flex;
+    min-width: 132px;
     height: 52px;
-    place-items: center;
-    border-radius: 17px;
-    font-size: 28px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 19px;
+    border-color: rgba(255, 255, 255, 0.34);
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--mobile-system-blue), #0071e3);
+    box-shadow: 0 14px 32px rgba(0, 122, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    font-size: 15px;
+    letter-spacing: 0;
+    transition: transform 100ms ease-out, filter 100ms ease-out;
+  }
+
+  .mobile-quick-create:active:not(:disabled) {
+    transform: scale(0.96);
+    filter: brightness(0.94);
+  }
+
+  .mobile-quick-create-icon {
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1;
   }
 
   .surface-notice {
+    margin-bottom: 14px;
+    padding: 13px 14px;
     flex-direction: column;
     align-items: flex-start;
+    border-radius: var(--mobile-radius-control);
+    background: var(--mobile-material-strong) !important;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--theme-scrim) 22%, transparent) !important;
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+  }
+
+  .notice-close {
+    min-width: 84px;
+    height: var(--mobile-control-size);
   }
 
   .grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 18px 8px !important;
+    gap: 20px 8px !important;
     align-items: start;
+    padding-top: 2px;
   }
 
   .tool-item {
@@ -1821,6 +2017,7 @@ export default {
     -webkit-backdrop-filter: none !important;
     cursor: pointer;
     text-align: center;
+    touch-action: manipulation;
     -webkit-user-drag: none;
     user-select: none;
   }
@@ -1832,8 +2029,8 @@ export default {
   }
 
   .tool-item:active .icon-box {
-    transform: scale(0.94);
-    filter: brightness(0.9);
+    transform: scale(0.93);
+    filter: brightness(0.92);
   }
 
   .tool-item.dragging,
@@ -1852,11 +2049,12 @@ export default {
   }
 
   .icon-box {
-    width: 68px !important;
-    height: 68px !important;
-    flex-basis: 68px;
-    border-radius: 18px !important;
-    transition: transform 120ms ease, filter 120ms ease;
+    width: clamp(58px, 17vw, 68px) !important;
+    height: clamp(58px, 17vw, 68px) !important;
+    flex-basis: clamp(58px, 17vw, 68px);
+    border-radius: clamp(15px, 4.5vw, 18px) !important;
+    transition: transform 100ms ease-out, filter 100ms ease-out;
+    will-change: transform;
   }
 
   .icon-text {
@@ -1870,13 +2068,15 @@ export default {
   }
 
   .tool-name {
-    max-width: 72px;
+    width: 100%;
+    max-width: 84px;
     min-height: 34px;
     font-size: 12px !important;
-    font-weight: 600;
+    font-weight: 650;
     line-height: 1.35;
+    letter-spacing: 0.005em;
     text-align: center;
-    text-shadow: 0 1px 4px var(--theme-scrim);
+    text-shadow: 0 1px 5px var(--theme-scrim), 0 0 10px var(--theme-scrim);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -1903,7 +2103,57 @@ export default {
   }
 
   .system-menu-dropdown {
-    width: min(240px, calc(100vw - 24px));
+    top: calc(100% + 10px);
+    right: 0;
+    width: min(280px, calc(100vw - 24px));
+    max-height: calc(100dvh - 86px - env(safe-area-inset-top));
+    overflow-y: auto;
+    padding: 10px;
+    border-color: color-mix(in srgb, var(--theme-highlight) 52%, var(--theme-border));
+    border-radius: var(--mobile-radius-surface);
+    background: var(--mobile-material-strong);
+    box-shadow: 0 24px 56px color-mix(in srgb, var(--theme-scrim) 44%, transparent);
+    transform-origin: calc(100% - 22px) 0;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    overscroll-behavior: contain;
+  }
+
+  .system-menu-material-enter-active {
+    transition: opacity 180ms ease-out, transform 300ms cubic-bezier(0.22, 1, 0.36, 1), backdrop-filter 220ms ease-out;
+  }
+
+  .system-menu-material-leave-active {
+    transition: opacity 150ms ease-in, transform 220ms cubic-bezier(0.64, 0, 0.78, 0), backdrop-filter 180ms ease-in;
+  }
+
+  .system-menu-material-enter-from,
+  .system-menu-material-leave-to {
+    opacity: 0;
+    transform: translate3d(6px, -8px, 0) scale(0.9);
+    backdrop-filter: blur(4px) saturate(100%);
+    -webkit-backdrop-filter: blur(4px) saturate(100%);
+  }
+
+  .system-menu-header {
+    padding: 10px 12px 12px;
+  }
+
+  .system-dropdown-item {
+    min-height: var(--mobile-control-size);
+    border-radius: var(--mobile-radius-control);
+    touch-action: manipulation;
+    transition: transform 100ms ease-out, background 100ms ease-out;
+  }
+
+  .system-dropdown-item:active {
+    transform: scale(0.98);
+    background: var(--theme-surface-hover);
+  }
+
+  .system-menu-toggle:active,
+  .easter-egg-trigger:active {
+    transform: scale(0.94);
   }
 
   .current-date,
@@ -1914,27 +2164,113 @@ export default {
   .dialog-actions .ghost-btn,
   .dialog-actions .action-btn {
     flex: 1 1 calc(50% - 4px);
+    min-height: var(--mobile-control-size);
+  }
+
+  .tab-btn,
+  .form-item input {
+    min-height: var(--mobile-control-size);
+  }
+
+  .tab-btn {
+    min-height: var(--mobile-control-size) !important;
+  }
+
+  .form-item input {
+    font-size: 16px;
+  }
+
+  .home-state {
+    min-height: 180px;
+    padding: 24px;
+    border-radius: var(--mobile-radius-surface);
+    background: var(--mobile-material) !important;
+    box-shadow: none !important;
+    text-align: center;
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
   }
 }
 
 @media (max-width: 420px) {
+  .home-page {
+    --mobile-home-safe-left: max(12px, env(safe-area-inset-left, 0px));
+    --mobile-home-safe-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+
   .grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 16px 6px !important;
+    gap: 18px 5px !important;
   }
 
   .top-right-wrap {
-    gap: 10px;
+    gap: 6px;
   }
 
   .welcome-wrap {
     width: auto;
+    max-width: 92px;
     justify-content: flex-end;
   }
 
-  .current-date {
-    width: 100%;
-    text-align: center;
+  .user-name-text {
+    max-width: 52px;
+  }
+
+  .mobile-tool-status .app-count {
+    max-width: 62%;
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) {
+  .tool-item,
+  .icon-box,
+  .mobile-quick-create,
+  .system-menu-toggle,
+  .easter-egg-trigger,
+  .system-dropdown-item,
+  .system-menu-material-enter-active,
+  .system-menu-material-leave-active {
+    transition-duration: 1ms !important;
+  }
+
+  .system-menu-material-enter-from,
+  .system-menu-material-leave-to {
+    transform: none;
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-transparency: reduce) {
+  .home-page::before,
+  .top-bar,
+  .mobile-tool-status .app-count,
+  .system-menu-dropdown,
+  .surface-notice,
+  .home-state {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .top-bar,
+  .mobile-tool-status .app-count,
+  .surface-notice,
+  .home-state {
+    background: var(--theme-surface-raised);
+  }
+
+  .system-menu-dropdown {
+    background: var(--theme-popover-surface);
+  }
+}
+
+@media (max-width: 720px) and (prefers-contrast: more) {
+  .top-bar,
+  .mobile-tool-status .app-count,
+  .system-menu-dropdown,
+  .surface-notice,
+  .home-state {
+    border-color: var(--theme-text-soft);
+    background: var(--theme-surface-raised);
   }
 }
 </style>

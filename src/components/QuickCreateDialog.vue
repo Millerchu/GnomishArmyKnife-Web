@@ -5,6 +5,7 @@
     subtitle="选择新增类型后，直接填写对应应用的数据。"
     width="920px"
     panel-class="quick-create-dialog"
+    mobile-presentation="fullScreen"
     :close-disabled="submitting"
     @update:model-value="handleVisibleChange"
     @cancel="requestClose"
@@ -653,7 +654,12 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
   font-weight: 900;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
+  .quick-create-shell,
+  .quick-form {
+    gap: 16px;
+  }
+
   .field-grid {
     grid-template-columns: 1fr;
   }
@@ -663,7 +669,42 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
   }
 
   .type-picker {
-    padding: 13px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .type-picker > span,
+  .form-field > span {
+    font-size: 14px !important;
+    line-height: 1.4;
+  }
+
+  .type-picker select,
+  .form-field input,
+  .form-field select {
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  .type-picker select optgroup,
+  .type-picker select option {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif !important;
+    line-height: 1.45 !important;
+  }
+
+  .type-picker select optgroup {
+    font-size: 14px !important;
+    font-weight: 700;
+  }
+
+  .type-picker select option {
+    font-size: 16px !important;
+    font-weight: 500;
+  }
+
+  .form-field textarea {
+    min-height: 104px;
+    font-size: 16px;
   }
 
   .quick-empty {
@@ -677,7 +718,19 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
   .work-item-row button {
     grid-column: 2;
     justify-self: end;
-    padding: 6px 10px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+
+  .work-item-add,
+  .quick-submit,
+  .check-control {
+    min-height: 44px;
+  }
+
+  .dictionary-checks label {
+    min-height: 44px;
+    box-sizing: border-box;
   }
 
   .personal-bill-quick-form {

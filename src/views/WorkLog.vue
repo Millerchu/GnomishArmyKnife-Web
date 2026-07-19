@@ -5,6 +5,19 @@
         <span class="back-home-icon">←</span>
         <span>返回桌面</span>
       </button>
+      <div class="mobile-nav-title-block">
+        <h1 class="mobile-nav-title">工作日志</h1>
+        <span class="mobile-nav-status">{{ dictionarySourceText }}</span>
+      </div>
+      <button
+        type="button"
+        class="mobile-nav-add"
+        :disabled="loading"
+        aria-label="新增工作日志"
+        @click="openCreateDialog"
+      >
+        <span aria-hidden="true">＋</span>
+      </button>
     </div>
 
     <div class="hero-panel">
@@ -131,6 +144,10 @@
           月视图
         </button>
       </div>
+      <div class="mobile-range-row">
+        <span>{{ calendarRangeText }}</span>
+        <small>{{ calendarView === 'month' ? '轻触日期查看明细' : '轻触日期查看当天日志' }}</small>
+      </div>
       <div class="actions">
         <button class="action-btn" :disabled="loading" @click="changeCalendarRange(-1)">
           {{ calendarView === 'month' ? '上一月' : '上一周' }}
@@ -150,9 +167,18 @@
         v-for="day in weekDays"
         :key="day.date"
         class="day-card"
-        :class="{active: selectedDate === day.date, empty: !daySummaryMap[day.date]?.count}"
+        :class="{
+          active: selectedDate === day.date,
+          empty: !daySummaryMap[day.date]?.count,
+          today: isToday(day.date)
+        }"
+        role="button"
+        tabindex="0"
+        :aria-label="buildCalendarDayAriaLabel(day.date, daySummaryMap[day.date], day.weekLabel)"
         @click="handleDayClick(day.date)"
         @dblclick="handleDayDoubleClick(day.date)"
+        @keydown.enter.prevent="handleDayClick(day.date)"
+        @keydown.space.prevent="handleDayClick(day.date)"
       >
         <div class="day-head">
           <div class="day-head-main">
@@ -230,9 +256,19 @@
           v-for="day in monthDays"
           :key="day.date"
           class="month-day-card"
-          :class="{active: selectedDate === day.date, muted: !day.inCurrentMonth}"
+          :class="{
+            active: selectedDate === day.date,
+            muted: !day.inCurrentMonth,
+            today: isToday(day.date)
+          }"
+          role="button"
+          :tabindex="day.inCurrentMonth ? 0 : -1"
+          :aria-disabled="day.inCurrentMonth ? undefined : 'true'"
+          :aria-label="buildMonthDayAriaLabel(day)"
           @click="handleMonthDayClick(day)"
           @dblclick="handleMonthDayDoubleClick(day)"
+          @keydown.enter.prevent="handleMonthDayClick(day)"
+          @keydown.space.prevent="handleMonthDayClick(day)"
         >
           <div class="day-head month-day-head">
             <div class="day-head-main">
@@ -341,44 +377,50 @@
       </div>
 
       <div v-if="yearLogs.length" class="mobile-year-list">
-        <article
-          v-for="item in yearLogs"
-          :key="item.id"
-          class="mobile-log-card"
-          :class="{selectedMobileCard: selectedLog && selectedLog.id === item.id}"
-          @click="selectLog(item)"
-          @dblclick="openEditDialog(item)"
-        >
-          <div class="mobile-log-head">
-            <strong class="mobile-log-date">{{ item.logDate }}</strong>
-            <span class="mobile-log-tag">{{ formatTypeCodes(item.typeCodes) }}</span>
+        <section v-for="group in yearLogGroups" :key="group.key" class="year-log-group">
+          <div class="year-log-group-head">
+            <h3>{{ group.label }}</h3>
+            <span>{{ group.logs.length }} 条</span>
           </div>
-          <div class="mobile-log-meta">
-            <span v-if="item.location">{{ formatLocationText(item.location) }}</span>
-            <span v-if="item.projectCode">{{ formatProjectText(item.projectCode) }}</span>
-            <span v-if="item.zentaoNo">{{ item.zentaoNo }}</span>
-          </div>
-          <ol class="mobile-log-work detail-work-list">
-            <li v-for="(workItem, index) in parseWorkItemEntries(item.workItem)" :key="`${item.id}-mobile-${index}`">
-              {{ workItem }}
-            </li>
-          </ol>
-          <div class="mobile-log-foot">
-            <span>{{ formatPersonDayText(item.personDay) }}</span>
-            <span>{{ formatHoursText(item.overtimeHours) }}</span>
-            <span v-if="item.businessTripAllowanceAmount">{{ formatBusinessTripAllowanceText(item) }}</span>
-            <span v-if="item.businessTripAllowanceAmount">{{ item.businessTripReimbursed ? '已报销' : '未报销' }}</span>
-            <span v-if="item.remark">{{ item.remark }}</span>
-          </div>
-          <div class="log-row-actions mobile-log-actions">
-            <button type="button" class="mini-btn" @click.stop="openEditDialog(item)">修改</button>
-            <button
-              type="button"
-              class="mini-btn danger"
-              @click.stop="deleteLogEntry(item, `${item.logDate} ${formatProjectText(item.projectCode)}日志`)"
-            >删除</button>
-          </div>
-        </article>
+          <article
+            v-for="item in group.logs"
+            :key="item.id"
+            class="mobile-log-card"
+            :class="{selectedMobileCard: selectedLog && selectedLog.id === item.id}"
+            @click="selectLog(item)"
+            @dblclick="openEditDialog(item)"
+          >
+            <div class="mobile-log-head">
+              <strong class="mobile-log-date">{{ item.logDate }}</strong>
+              <span class="mobile-log-tag">{{ formatTypeCodes(item.typeCodes) }}</span>
+            </div>
+            <div class="mobile-log-meta">
+              <span v-if="item.location">{{ formatLocationText(item.location) }}</span>
+              <span v-if="item.projectCode">{{ formatProjectText(item.projectCode) }}</span>
+              <span v-if="item.zentaoNo">{{ item.zentaoNo }}</span>
+            </div>
+            <ol class="mobile-log-work detail-work-list">
+              <li v-for="(workItem, index) in parseWorkItemEntries(item.workItem)" :key="`${item.id}-mobile-${index}`">
+                {{ workItem }}
+              </li>
+            </ol>
+            <div class="mobile-log-foot">
+              <span>{{ formatPersonDayText(item.personDay) }}</span>
+              <span>{{ formatHoursText(item.overtimeHours) }}</span>
+              <span v-if="item.businessTripAllowanceAmount">{{ formatBusinessTripAllowanceText(item) }}</span>
+              <span v-if="item.businessTripAllowanceAmount">{{ item.businessTripReimbursed ? '已报销' : '未报销' }}</span>
+              <span v-if="item.remark">{{ item.remark }}</span>
+            </div>
+            <div class="log-row-actions mobile-log-actions">
+              <button type="button" class="mini-btn" @click.stop="openEditDialog(item)">修改</button>
+              <button
+                type="button"
+                class="mini-btn danger"
+                @click.stop="deleteLogEntry(item, `${item.logDate} ${formatProjectText(item.projectCode)}日志`)"
+              >删除</button>
+            </div>
+          </article>
+        </section>
       </div>
       <div v-else class="empty-text">{{ yearFilter }} 年暂无日志</div>
     </div>
@@ -389,6 +431,7 @@
       subtitle="选择一条项目日志后进入修改"
       width="860px"
       panel-class="work-log-day-detail-dialog"
+      mobile-presentation="sheet"
       @cancel="closeDayDetail"
     >
       <div class="day-detail-dialog-content">
@@ -459,6 +502,7 @@
       width="1080px"
       :close-disabled="submitting"
       panel-class="work-log-dialog"
+      mobile-presentation="fullScreen"
       @cancel="closeDialog"
     >
       <form id="work-log-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitDialog">
@@ -927,12 +971,14 @@ export default {
     const loading = ref(false)
     const submitting = ref(false)
     const dictLoading = ref(false)
+    const dictionaryLoadState = ref('idle')
     const calendarView = ref('week')
     const weekOffset = ref(0)
     const monthOffset = ref(0)
 
-    const selectedDate = ref(formatDate(new Date()))
-    const detailDate = ref(formatDate(new Date()))
+    const todayDate = formatDate(new Date())
+    const selectedDate = ref(todayDate)
+    const detailDate = ref(todayDate)
     const selectedLogId = ref(null)
 
     const showDayDetail = ref(false)
@@ -1016,10 +1062,13 @@ export default {
       if (dictLoading.value) {
         return '字典加载中'
       }
-      if (locationOptions.value.length || projectOptions.value.length || typeOptions.value.length) {
+      if (dictionaryLoadState.value === 'ready') {
         return '字典选项已同步'
       }
-      return '字典未就绪'
+      if (dictionaryLoadState.value === 'partial') {
+        return '部分字典已同步'
+      }
+      return dictionaryLoadState.value === 'error' ? '字典未就绪' : '字典待同步'
     })
 
     const typeLabelMap = computed(() => typeOptions.value.reduce((result, item) => {
@@ -1045,6 +1094,24 @@ export default {
 
     const weeklyReportGroups = computed(() => {
       return buildWeeklyReportGroups(weeklyLogs.value, formatProjectText)
+    })
+
+    const yearLogGroups = computed(() => {
+      const logGroupsByMonth = new Map()
+      yearLogs.value.forEach((workLog) => {
+        const [yearText, monthText] = `${workLog.logDate || ''}`.split('-')
+        const hasReadableMonth = /^\d{4}$/.test(yearText) && /^\d{2}$/.test(monthText)
+        const groupKey = hasReadableMonth ? `${yearText}-${monthText}` : 'unknown-date'
+        if (!logGroupsByMonth.has(groupKey)) {
+          logGroupsByMonth.set(groupKey, {
+            key: groupKey,
+            label: hasReadableMonth ? `${yearText} 年 ${Number(monthText)} 月` : '日期未定',
+            logs: []
+          })
+        }
+        logGroupsByMonth.get(groupKey).logs.push(workLog)
+      })
+      return Array.from(logGroupsByMonth.values())
     })
 
     const activeStats = computed(() => calendarView.value === 'month' ? monthlyStats.value : weeklyStats.value)
@@ -1223,6 +1290,7 @@ export default {
 
     async function loadDictionaryOptions() {
       dictLoading.value = true
+      dictionaryLoadState.value = 'loading'
       try {
         const [typeResult, projectResult, locationResult] = await Promise.allSettled([
           listDataDictionaryOptionsByUsage({
@@ -1256,8 +1324,18 @@ export default {
           ? normalizeDictionaryOptions(unwrapData(locationResult.value))
           : []
 
+        const fulfilledRequestCount = [typeResult, projectResult, locationResult]
+          .filter((requestResult) => requestResult.status === 'fulfilled')
+          .length
+        dictionaryLoadState.value = fulfilledRequestCount === 3
+          ? 'ready'
+          : (fulfilledRequestCount > 0 ? 'partial' : 'error')
+
         applyFormOptionDefaults()
       } finally {
+        if (dictionaryLoadState.value === 'loading') {
+          dictionaryLoadState.value = 'error'
+        }
         dictLoading.value = false
       }
     }
@@ -1428,6 +1506,30 @@ export default {
 
     function isMobileViewport() {
       return typeof window !== 'undefined' && window.matchMedia(MOBILE_MEDIA_QUERY).matches
+    }
+
+    function isToday(date) {
+      return date === todayDate
+    }
+
+    function buildCalendarDayAriaLabel(date, summary, prefix = '') {
+      const datePrefix = [prefix, date, isToday(date) ? '今天' : ''].filter(Boolean).join('，')
+      if (!summary?.count) {
+        return `${datePrefix}，暂无日志`
+      }
+      const projectText = summary.projectsText ? `，项目 ${summary.projectsText}` : ''
+      return `${datePrefix}，${summary.count} 条日志${projectText}`
+    }
+
+    function buildMonthDayAriaLabel(day) {
+      if (!day.inCurrentMonth) {
+        return `${day.date}，非本月`
+      }
+      return buildCalendarDayAriaLabel(
+        day.date,
+        monthSummaryMap.value[day.date],
+        `${day.dayNumber} 日`
+      )
     }
 
     async function handleDayClick(date) {
@@ -1803,6 +1905,7 @@ export default {
       weekDaysText: WEEK_TEXT,
       weeklyStats,
       weeklyReportGroups,
+      yearLogGroups,
       monthlyStats,
       activeStats,
       activeStatsTitle,
@@ -1851,6 +1954,9 @@ export default {
       formatMoneyText,
       formatBusinessTripAllowanceText,
       parseWorkItemEntries,
+      isToday,
+      buildCalendarDayAriaLabel,
+      buildMonthDayAriaLabel,
       selectDay,
       selectMonthDay,
       handleDayClick,
@@ -1903,6 +2009,12 @@ export default {
   display: flex;
   justify-content: flex-start;
   margin-bottom: 12px;
+}
+
+.mobile-nav-title-block,
+.mobile-nav-add,
+.mobile-range-row {
+  display: none;
 }
 
 .back-home-btn {
@@ -3124,6 +3236,15 @@ export default {
   display: none;
 }
 
+/* 721-900px 延续原扁平卡片布局，只有首批手机断点才显示月份分组容器。 */
+.year-log-group {
+  display: contents;
+}
+
+.year-log-group-head {
+  display: none;
+}
+
 .mobile-calendar-tip {
   display: none;
 }
@@ -3801,13 +3922,44 @@ export default {
   }
 
   .day-card {
-    min-height: 112px;
+    min-height: 104px;
     padding: 9px;
     border-radius: 12px;
   }
 
   .day-card.empty {
     min-height: 72px;
+  }
+
+  .day-card .day-type-summary {
+    max-width: 62%;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .day-card .day-type-badge {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .day-card .summary-projects {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .day-card .daily-work-summary,
+  .day-card .summary-metric-strip,
+  .day-card .summary-foot > span:first-child {
+    display: none;
+  }
+
+  .day-card .summary-foot {
+    justify-content: flex-end;
+    margin-top: 0;
   }
 
   .day-head {
@@ -4006,11 +4158,641 @@ export default {
 
 }
 
+/* 三个首批页面共用 720px 手机边界；本段只重排工作日志的移动信息层级。 */
+@media (max-width: 720px) {
+  .work-log-page {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    padding:
+      var(--mobile-safe-top)
+      max(var(--mobile-page-gutter), env(safe-area-inset-right, 0px))
+      calc(var(--mobile-safe-bottom) + 8px)
+      max(var(--mobile-page-gutter), env(safe-area-inset-left, 0px));
+    color: var(--theme-text);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--theme-scrim) 42%, transparent), transparent 32%),
+      color-mix(in srgb, var(--theme-scrim) 18%, transparent);
+    scroll-padding-top: 76px;
+  }
+
+  .page-nav {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    order: 0;
+    display: grid;
+    grid-template-columns: var(--mobile-touch-target) minmax(0, 1fr) var(--mobile-touch-target);
+    align-items: center;
+    min-height: 58px;
+    margin-bottom: 10px !important;
+    padding: 6px;
+    border: 1px solid var(--mobile-border);
+    border-radius: var(--mobile-radius-card);
+    background: var(--mobile-chrome);
+    box-shadow: var(--mobile-shadow-soft);
+    backdrop-filter: blur(24px) saturate(165%);
+    -webkit-backdrop-filter: blur(24px) saturate(165%);
+  }
+
+  .work-log-page .back-home-btn,
+  .mobile-nav-add {
+    width: var(--mobile-touch-target);
+    min-width: var(--mobile-touch-target);
+    height: var(--mobile-touch-target);
+    min-height: var(--mobile-touch-target) !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    color: var(--theme-text-soft) !important;
+    background: var(--theme-control-surface) !important;
+    box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .work-log-page .back-home-btn > span:last-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .work-log-page .back-home-icon {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 18px !important;
+    background: transparent !important;
+  }
+
+  .mobile-nav-title-block {
+    display: grid;
+    justify-items: center;
+    min-width: 0;
+    gap: 1px;
+    padding-inline: 8px;
+  }
+
+  .mobile-nav-title {
+    margin: 0;
+    overflow: hidden;
+    color: var(--theme-text);
+    font-size: 17px;
+    font-weight: 720;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-nav-status {
+    color: var(--theme-text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .mobile-nav-add {
+    font-size: 25px;
+    font-weight: 450;
+    color: #fff !important;
+    background: linear-gradient(180deg, var(--theme-accent), var(--theme-accent-strong)) !important;
+  }
+
+  .mobile-nav-add:disabled {
+    opacity: 0.5;
+  }
+
+  .hero-panel {
+    display: none !important;
+  }
+
+  .top-bar {
+    order: 2;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px !important;
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px solid var(--mobile-border);
+    border-radius: var(--mobile-radius-card);
+    background: var(--mobile-material-muted);
+    box-shadow: var(--mobile-shadow-soft);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+  }
+
+  .view-switch {
+    width: 100%;
+    min-height: 52px;
+    padding: 4px;
+    border: 0;
+    border-radius: 15px;
+    background: var(--theme-control-surface);
+    box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+  }
+
+  .view-switch-btn {
+    flex: 1;
+    min-height: var(--mobile-touch-target) !important;
+    border-radius: 12px;
+    color: var(--theme-text-muted);
+    font-size: 13px;
+    transition:
+      transform 100ms ease-out,
+      color 180ms var(--mobile-ease),
+      background-color 180ms var(--mobile-ease);
+  }
+
+  .view-switch-btn.active {
+    color: #fff;
+    background: linear-gradient(180deg, var(--theme-accent), var(--theme-accent-strong));
+    box-shadow:
+      0 5px 14px var(--theme-focus-ring),
+      inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  }
+
+  .mobile-range-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 24px;
+    padding-inline: 4px;
+  }
+
+  .mobile-range-row span {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--theme-text-soft);
+    font-size: 12px;
+    font-weight: 680;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-range-row small {
+    flex: 0 0 auto;
+    color: var(--theme-text-muted);
+    font-size: 10px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px !important;
+    width: 100%;
+  }
+
+  .actions .action-btn {
+    min-width: 0;
+    min-height: var(--mobile-touch-target) !important;
+    padding: 0 8px !important;
+    border: 1px solid var(--mobile-border) !important;
+    border-radius: 13px !important;
+    color: var(--theme-text-soft) !important;
+    font-size: 12px !important;
+    background: var(--theme-control-surface) !important;
+    box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
+  }
+
+  .actions .action-btn:nth-child(3) {
+    display: none;
+  }
+
+  .year-list-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .calendar-grid,
+  .month-view-panel {
+    order: 3;
+  }
+
+  .week-stats-panel,
+  .weekly-report-panel {
+    order: 4;
+  }
+
+  .detail-panel {
+    order: 5;
+  }
+
+  .week-stats-panel.is-week-stats {
+    display: block;
+  }
+
+  .week-stats-panel,
+  .weekly-report-panel,
+  .month-view-panel,
+  .detail-panel {
+    margin-bottom: 10px;
+    padding: 14px !important;
+    border: 1px solid var(--mobile-border) !important;
+    border-radius: var(--mobile-radius-card) !important;
+    color: var(--theme-text);
+    background: var(--mobile-material) !important;
+    box-shadow: var(--mobile-shadow-soft) !important;
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+  }
+
+  .panel-head,
+  .month-view-head,
+  .year-head {
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+
+  .panel-title {
+    color: var(--theme-text);
+    font-size: 18px !important;
+    font-weight: 720;
+    letter-spacing: -0.012em;
+  }
+
+  .panel-tip {
+    color: var(--theme-text-muted) !important;
+    font-size: 11px !important;
+  }
+
+  .calendar-range-badge,
+  .weekly-report-range {
+    align-self: flex-start;
+    border: 1px solid var(--theme-border);
+    background: var(--theme-control-surface);
+  }
+
+  .week-stats-grid,
+  .month-stats-grid {
+    display: flex;
+    grid-template-columns: none;
+    gap: 9px;
+    margin-inline: -4px;
+    padding: 2px 4px 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .week-stats-grid::-webkit-scrollbar,
+  .month-stats-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .stats-card,
+  .stats-card-wide,
+  .month-stats-grid .stats-card-wide {
+    flex: 0 0 min(72vw, 258px);
+    grid-column: auto;
+    min-width: 0;
+    min-height: 108px;
+    padding: 13px;
+    border: 1px solid var(--theme-border);
+    border-radius: 17px;
+    scroll-snap-align: start;
+    background:
+      linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+      var(--theme-surface-muted);
+    box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+  }
+
+  .stats-card::before {
+    height: 2px;
+    background: linear-gradient(90deg, var(--theme-accent), transparent 82%);
+  }
+
+  .stats-card strong,
+  .month-stats-grid .stats-card strong {
+    color: var(--theme-text);
+    font-size: 21px;
+  }
+
+  .stats-card small,
+  .stats-empty,
+  .stats-label {
+    color: var(--theme-text-muted);
+  }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px !important;
+    margin-bottom: 10px;
+  }
+
+  .day-card {
+    min-height: 112px;
+    padding: 13px !important;
+    border: 1px solid var(--mobile-border);
+    border-radius: 18px;
+    color: var(--theme-text);
+    background: var(--mobile-material);
+    box-shadow: var(--mobile-shadow-soft);
+    transition:
+      transform 100ms ease-out,
+      border-color 180ms var(--mobile-ease),
+      background-color 180ms var(--mobile-ease);
+  }
+
+  .day-card.empty {
+    min-height: 72px;
+  }
+
+  .day-card.today,
+  .month-day-card.today {
+    border-color: color-mix(in srgb, var(--theme-accent) 62%, var(--theme-border));
+    box-shadow:
+      0 0 0 1px var(--theme-focus-ring),
+      var(--mobile-shadow-soft);
+  }
+
+  .day-card.active,
+  .month-day-card.active {
+    border-color: var(--theme-accent);
+    background:
+      linear-gradient(180deg, var(--theme-highlight-soft), transparent),
+      color-mix(in srgb, var(--theme-accent-soft) 74%, var(--theme-surface-raised));
+  }
+
+  .day-head-main strong,
+  .summary-projects,
+  .summary-metric strong {
+    color: var(--theme-text);
+  }
+
+  .day-head-main span,
+  .summary-metric small,
+  .summary-foot,
+  .empty-text {
+    color: var(--theme-text-muted);
+  }
+
+  .summary-metric {
+    border: 1px solid var(--theme-divider);
+    background: var(--theme-control-surface);
+  }
+
+  .month-view-panel {
+    padding: 14px 10px 12px !important;
+  }
+
+  .month-view-head {
+    padding-inline: 4px;
+  }
+
+  .month-week-row,
+  .month-calendar-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .month-week-row {
+    margin-bottom: 6px;
+  }
+
+  .month-week-row span {
+    color: var(--theme-text-muted);
+    font-size: 10px;
+    font-weight: 650;
+  }
+
+  .month-day-card {
+    position: relative;
+    min-width: 0;
+    min-height: 50px;
+    padding: 6px 4px;
+    border: 1px solid var(--theme-divider);
+    border-radius: 12px;
+    color: var(--theme-text);
+    background: var(--theme-surface-muted);
+    transition:
+      transform 100ms ease-out,
+      border-color 180ms var(--mobile-ease),
+      background-color 180ms var(--mobile-ease);
+  }
+
+  .month-day-head {
+    justify-content: center;
+    margin: 0;
+  }
+
+  .month-day-head .day-head-main {
+    width: 100%;
+    align-items: center;
+    text-align: center;
+  }
+
+  .month-day-head .day-head-main strong {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .month-day-card > .empty-text,
+  .month-day-head .day-head-main span,
+  .month-day-card .day-type-summary,
+  .month-summary-wrap .summary-projects,
+  .month-summary-wrap .summary-metric-strip {
+    display: none;
+  }
+
+  .month-summary-wrap {
+    position: absolute;
+    right: 6px;
+    bottom: 5px;
+    left: 6px;
+    min-height: 0;
+  }
+
+  .month-summary-wrap .type-color-bar {
+    height: 3px;
+    border-radius: 999px;
+  }
+
+  .month-day-card.muted {
+    pointer-events: none;
+    opacity: 0.28;
+  }
+
+  .weekly-report-content {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .weekly-report-project {
+    padding: 12px 12px 10px;
+    border: 1px solid var(--theme-divider);
+    border-radius: 15px;
+    background: var(--theme-surface-muted);
+  }
+
+  .weekly-report-project h3 {
+    color: var(--theme-text);
+  }
+
+  .weekly-report-project ol {
+    color: var(--theme-text-soft);
+  }
+
+  .mobile-year-list,
+  .detail-list {
+    gap: 10px;
+  }
+
+  .mobile-log-card,
+  .detail-item {
+    padding: 13px !important;
+    border-radius: 17px !important;
+    background: var(--theme-surface-muted) !important;
+  }
+
+  .year-log-group {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--theme-divider);
+    border-radius: 18px;
+    background: var(--theme-surface-muted);
+    box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+  }
+
+  .year-log-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    padding: 9px 13px;
+    border-bottom: 1px solid var(--theme-divider);
+    background: var(--theme-control-surface);
+  }
+
+  .year-log-group-head h3 {
+    margin: 0;
+    color: var(--theme-text);
+    font-size: 15px;
+    font-weight: 720;
+  }
+
+  .year-log-group-head span {
+    color: var(--theme-text-muted);
+    font-size: 11px;
+    font-weight: 650;
+  }
+
+  .year-log-group .mobile-log-card {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .year-log-group .mobile-log-card + .mobile-log-card {
+    border-top: 1px solid var(--theme-divider) !important;
+  }
+
+  .year-log-group .mobile-log-card.selectedMobileCard {
+    background: var(--theme-accent-soft) !important;
+  }
+
+  .year-select {
+    width: 100%;
+    min-height: var(--mobile-control-height);
+  }
+
+  #work-log-dialog-form {
+    --dialog-grid-columns: 1;
+    gap: 12px !important;
+  }
+
+  #work-log-dialog-form .dialog-span-2,
+  #work-log-dialog-form .dialog-span-3,
+  #work-log-dialog-form .dialog-span-all {
+    grid-column: auto;
+  }
+
+  #work-log-dialog-form input:not([type="checkbox"]):not([type="radio"]),
+  #work-log-dialog-form select,
+  #work-log-dialog-form .multi-select-trigger {
+    min-height: var(--mobile-control-height) !important;
+    font-size: 16px !important;
+  }
+
+  #work-log-dialog-form textarea {
+    min-height: 104px;
+    font-size: 16px !important;
+  }
+
+  .day-detail-add-btn,
+  .detail-delete-btn,
+  .work-item-add,
+  .work-item-remove,
+  .mini-link,
+  .mobile-log-actions .mini-btn {
+    min-height: var(--mobile-touch-target) !important;
+  }
+
+  .work-log-page button:active:not(:disabled),
+  .day-card:active,
+  .month-day-card:active {
+    transform: scale(0.975);
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-transparency: reduce) {
+  .page-nav,
+  .top-bar,
+  .week-stats-panel,
+  .weekly-report-panel,
+  .month-view-panel,
+  .detail-panel,
+  .day-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (max-width: 720px) and (prefers-contrast: more) {
+  .page-nav,
+  .top-bar,
+  .week-stats-panel,
+  .weekly-report-panel,
+  .month-view-panel,
+  .detail-panel,
+  .day-card,
+  .month-day-card {
+    border-width: 2px !important;
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) {
+  .work-log-page button,
+  .day-card,
+  .month-day-card {
+    transform: none !important;
+  }
+}
+
 /* 移动设备横屏时高度比宽度更能反映可用空间，避免继续套用五列桌面统计布局。 */
-@media (max-height: 640px) and (orientation: landscape) {
+@media (max-width: 720px) and (max-height: 640px) and (orientation: landscape) {
   .work-log-page {
     width: 100%;
-    padding: 10px 12px 24px;
+    padding:
+      max(8px, env(safe-area-inset-top, 0px))
+      max(12px, env(safe-area-inset-right, 0px))
+      max(12px, env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px));
   }
 
   .hero-panel,
@@ -4036,9 +4818,7 @@ export default {
   }
 
   .weekly-report-content,
-  .calendar-grid,
-  .month-calendar-grid,
-  .month-week-row {
+  .calendar-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

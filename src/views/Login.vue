@@ -43,67 +43,79 @@
         </div>
       </section>
 
-      <section class="glass-box">
+      <section class="glass-box" :aria-busy="loading || initLoading">
         <h2 class="title">登录</h2>
 
         <form class="form" @submit.prevent="handleLogin">
-          <input
-            v-model.trim="form.username"
-            class="input"
-            placeholder="用户名"
-            autocomplete="username"
-            :disabled="loading"
-          />
-
-          <div class="password-field">
+          <div class="credential-group">
+            <label class="sr-only" for="login-username">用户名</label>
             <input
-              v-model="form.password"
-              class="input password-input"
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="密码"
-              autocomplete="current-password"
+              id="login-username"
+              v-model.trim="form.username"
+              class="input username-input"
+              name="username"
+              placeholder="用户名"
+              autocomplete="username"
               :disabled="loading"
             />
-            <button
-              class="password-toggle"
-              type="button"
-              :disabled="loading"
-              aria-label="按住查看密码"
-              title="按住查看密码"
-              @mousedown.prevent="showPassword = true"
-              @mouseup.prevent="showPassword = false"
-              @mouseleave="showPassword = false"
-              @touchstart.prevent="showPassword = true"
-              @touchend.prevent="showPassword = false"
-              @touchcancel.prevent="showPassword = false"
-            >
-              <svg v-if="showPassword" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M3 12s3.6-6 9-6 9 6 9 6-3.6 6-9 6-9-6-9-6Zm9 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"
-                  fill="currentColor"
-                />
-              </svg>
-              <svg v-else viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M4.7 4.7 19.3 19.3l-1.4 1.4-2.8-2.8A10.6 10.6 0 0 1 12 18c-5.4 0-9-6-9-6a17.4 17.4 0 0 1 4.3-4.8L3.3 6.1l1.4-1.4Zm5.2 5.2a3.2 3.2 0 0 0 4.2 4.2l-4.2-4.2Zm2.1-3.9c5.4 0 9 6 9 6a17.7 17.7 0 0 1-4.4 4.8l-1.4-1.4A15.1 15.1 0 0 0 18.5 12c-.8-1.1-3.1-3.7-6.5-3.7-.8 0-1.5.1-2.2.4L8 7c1.2-.6 2.5-1 4-1Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </button>
+
+            <div class="password-field">
+              <label class="sr-only" for="login-password">密码</label>
+              <input
+                id="login-password"
+                v-model="form.password"
+                class="input password-input"
+                name="password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="密码"
+                autocomplete="current-password"
+                :disabled="loading"
+              />
+              <button
+                class="password-toggle"
+                type="button"
+                :disabled="loading"
+                :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+                :title="showPassword ? '隐藏密码' : '显示密码'"
+                :aria-pressed="showPassword"
+                @click="showPassword = !showPassword"
+              >
+                <svg v-if="showPassword" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M3 12s3.6-6 9-6 9 6 9 6-3.6 6-9 6-9-6-9-6Zm9 3.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M4.7 4.7 19.3 19.3l-1.4 1.4-2.8-2.8A10.6 10.6 0 0 1 12 18c-5.4 0-9-6-9-6a17.4 17.4 0 0 1 4.3-4.8L3.3 6.1l1.4-1.4Zm5.2 5.2a3.2 3.2 0 0 0 4.2 4.2l-4.2-4.2Zm2.1-3.9c5.4 0 9 6 9 6a17.7 17.7 0 0 1-4.4 4.8l-1.4-1.4A15.1 15.1 0 0 0 18.5 12c-.8-1.1-3.1-3.7-6.5-3.7-.8 0-1.5.1-2.2.4L8 7c1.2-.6 2.5-1 4-1Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <div class="captcha-row">
+            <label class="sr-only" for="login-captcha">验证码</label>
             <input
+              id="login-captcha"
               v-model.trim="form.captcha"
               class="input captcha-input"
+              name="captcha"
               maxlength="4"
               placeholder="验证码"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
               :disabled="loading || initLoading"
             />
             <button
               class="captcha-box"
               type="button"
               :disabled="loading || initLoading"
+              :aria-label="captchaText ? `验证码 ${captchaText}，点击刷新` : '验证码加载中'"
+              :title="captchaText ? '点击刷新验证码' : '验证码加载中'"
               @click="refreshCaptcha"
             >
               {{ captchaText || '加载中...' }}
@@ -115,7 +127,15 @@
           </button>
         </form>
 
-        <p v-if="errorMessage" class="error-tip">{{ errorMessage }}</p>
+        <p
+          v-if="errorMessage"
+          id="login-error"
+          class="error-tip"
+          role="alert"
+          aria-live="assertive"
+        >
+          {{ errorMessage }}
+        </p>
 
         <p class="tip">
           没有账号？
@@ -541,6 +561,22 @@ export default {
   gap: 12px;
 }
 
+.credential-group {
+  display: contents;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .password-field {
   position: relative;
 }
@@ -655,38 +691,67 @@ export default {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .login-page {
-    padding: 10px;
-    align-items: center;
-    justify-content: center;
+    --mobile-space-xs: 8px;
+    --mobile-space-sm: 12px;
+    --mobile-space-md: 16px;
+    --mobile-control-height: 48px;
+    --mobile-card-radius: 28px;
+    --mobile-control-radius: 14px;
+    --mobile-glass-surface: color-mix(in srgb, var(--theme-surface-strong) 88%, transparent);
+    --mobile-field-surface: color-mix(in srgb, var(--theme-field-surface) 92%, transparent);
+    --mobile-hairline: var(--theme-divider);
+    --mobile-shadow: var(--theme-shadow-md);
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding:
+      max(18px, env(safe-area-inset-top, 0px))
+      max(16px, env(safe-area-inset-right, 0px))
+      max(20px, env(safe-area-inset-bottom, 0px))
+      max(16px, env(safe-area-inset-left, 0px));
+    align-items: flex-start;
+    justify-content: flex-start;
+    background:
+      radial-gradient(circle at 86% 2%, var(--theme-accent-soft), transparent 34%),
+      linear-gradient(180deg, transparent 8%, var(--theme-surface-muted));
+    -webkit-tap-highlight-color: transparent;
   }
 
   .page-shell {
-    width: min(320px, 100%);
+    width: min(420px, 100%);
     margin-block: auto;
-    gap: 10px;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
     align-items: start;
-    align-content: start;
-    justify-items: center;
   }
 
   .brand-hero,
   .glass-box {
     width: 100%;
-    border-radius: 18px;
   }
 
   .brand-hero {
-    padding: 16px;
+    padding: 4px 12px 20px;
     justify-content: center;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--theme-text);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .brand-header {
-    flex-direction: column;
+    flex-direction: row;
     justify-content: center;
-    gap: 8px;
-    text-align: center;
+    gap: 12px;
+    text-align: left;
   }
 
   .brand-kicker,
@@ -699,26 +764,195 @@ export default {
   }
 
   .brand-mark {
-    width: 56px;
-    height: 56px;
+    width: 58px;
+    height: 58px;
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
   }
 
   .system-name {
-    font-size: 28px;
-    line-height: 1.1;
+    font-size: 30px;
+    line-height: 1.06;
+    letter-spacing: -0.025em;
   }
 
   .glass-box {
-    padding: 20px 16px;
+    padding: 24px 20px 20px;
+    justify-content: flex-start;
+    border: 1px solid var(--theme-border);
+    border-radius: var(--mobile-card-radius);
+    background:
+      linear-gradient(180deg, var(--theme-highlight-soft), transparent 44%),
+      var(--mobile-glass-surface);
+    box-shadow:
+      var(--mobile-shadow),
+      inset 0 1px 0 var(--theme-highlight);
+    backdrop-filter: blur(28px) saturate(170%);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
   }
 
   .title {
-    margin-bottom: 16px;
-    font-size: 22px;
+    margin-bottom: 18px;
+    font-size: 28px;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    text-align: left;
   }
 
   .form {
-    gap: 10px;
+    gap: var(--mobile-space-sm);
+  }
+
+  .credential-group {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--theme-border) !important;
+    border-radius: var(--mobile-control-radius) !important;
+    background: var(--mobile-field-surface) !important;
+    box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
+    transition: border-color 140ms ease-out, box-shadow 140ms ease-out;
+  }
+
+  .credential-group:focus-within {
+    border-color: var(--theme-accent);
+    box-shadow: 0 0 0 3px var(--theme-focus-ring);
+  }
+
+  .input {
+    min-height: var(--mobile-control-height) !important;
+    height: var(--mobile-control-height) !important;
+    padding: 0 var(--mobile-space-md) !important;
+    border: 1px solid var(--theme-border) !important;
+    border-radius: var(--mobile-control-radius) !important;
+    font-size: 16px !important;
+    line-height: 1.35;
+    text-align: left;
+    caret-color: var(--theme-accent);
+    background: var(--mobile-field-surface) !important;
+    box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
+    transition: background-color 120ms ease-out, border-color 120ms ease-out, box-shadow 120ms ease-out;
+  }
+
+  .input::placeholder {
+    color: var(--theme-text-muted);
+    opacity: 1;
+  }
+
+  .input:focus {
+    border-color: var(--theme-accent) !important;
+    background: color-mix(in srgb, var(--mobile-field-surface) 86%, var(--theme-accent-soft)) !important;
+    box-shadow: 0 0 0 3px var(--theme-focus-ring) !important;
+  }
+
+  .credential-group .input {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .credential-group .username-input {
+    border-bottom: 1px solid var(--mobile-hairline) !important;
+  }
+
+  .credential-group .input:focus {
+    background: var(--theme-accent-soft) !important;
+    box-shadow: none !important;
+  }
+
+  .password-input {
+    padding-right: 52px !important;
+  }
+
+  .password-toggle {
+    right: 2px;
+    width: 44px;
+    height: 44px;
+    color: var(--theme-text-soft);
+    background: transparent;
+    transition: color 100ms ease-out, background-color 100ms ease-out, transform 100ms ease-out;
+    touch-action: manipulation;
+  }
+
+  .password-toggle:active {
+    color: var(--theme-accent);
+    background: var(--theme-accent-soft);
+    transform: translateY(-50%) scale(0.94);
+  }
+
+  .captcha-row {
+    gap: var(--mobile-space-xs);
+  }
+
+  .captcha-input {
+    min-width: 0;
+  }
+
+  .captcha-box {
+    min-width: 112px;
+    min-height: var(--mobile-control-height);
+    padding-inline: var(--mobile-space-sm);
+    border: 1px solid var(--theme-border);
+    border-radius: var(--mobile-control-radius);
+    background: var(--theme-control-surface);
+    transition: background-color 100ms ease-out, transform 100ms ease-out;
+    touch-action: manipulation;
+  }
+
+  .captcha-box:active:not(:disabled) {
+    background: var(--theme-accent-soft);
+    transform: scale(0.97);
+  }
+
+  .btn {
+    min-height: 50px;
+    padding: 0 var(--mobile-space-md);
+    margin-top: 0;
+    border-radius: var(--mobile-control-radius);
+    background: var(--theme-accent);
+    color: var(--theme-on-accent);
+    font-size: 17px;
+    line-height: 1;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--theme-accent) 28%, transparent);
+    transition: background-color 100ms ease-out, transform 100ms ease-out, opacity 100ms ease-out;
+    touch-action: manipulation;
+  }
+
+  .btn:active:not(:disabled) {
+    background: var(--theme-accent-strong);
+    transform: scale(0.98);
+  }
+
+  .btn:disabled,
+  .captcha-box:disabled {
+    opacity: 0.58;
+  }
+
+  .error-tip {
+    min-height: 0;
+    margin: var(--mobile-space-sm) 0 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    color: var(--theme-danger);
+    background: var(--theme-danger-soft);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .tip {
+    margin: var(--mobile-space-sm) 0 0;
+    line-height: 1.5;
+  }
+
+  .tip a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    color: var(--theme-link);
   }
 
   .ticker-title {
@@ -731,6 +965,56 @@ export default {
 
   .ticker-meta {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-transparency: reduce) {
+  .glass-box {
+    background: var(--theme-surface-raised);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .credential-group,
+  .input {
+    background: var(--theme-field-surface);
+  }
+}
+
+@media (max-width: 720px) and (prefers-contrast: more) {
+  .glass-box,
+  .credential-group,
+  .input,
+  .captcha-box {
+    border-color: var(--theme-border-strong);
+  }
+
+  .glass-box {
+    background: var(--theme-surface-raised);
+  }
+
+  .input::placeholder {
+    color: var(--theme-text-soft);
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) {
+  .credential-group,
+  .input,
+  .password-toggle,
+  .captcha-box,
+  .btn {
+    transition: color 80ms linear, background-color 80ms linear, border-color 80ms linear;
+  }
+
+  .password-toggle:active,
+  .captcha-box:active:not(:disabled),
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+
+  .password-toggle:active {
+    transform: translateY(-50%);
   }
 }
 </style>

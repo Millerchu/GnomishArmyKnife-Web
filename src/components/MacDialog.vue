@@ -6,7 +6,7 @@
         v-show="!isMinimized"
         ref="dialogMask"
         class="mac-dialog-mask"
-        :class="{minimized: isMinimized}"
+        :class="[mobilePresentationClass, {minimized: isMinimized}]"
         :inert="isMinimized"
         :aria-hidden="isMinimized ? 'true' : undefined"
         :style="{zIndex: dialogZIndex}"
@@ -17,7 +17,11 @@
         <section
           ref="dialogPanel"
           class="mac-dialog-panel"
-          :class="[panelClass, {maximized: dialogViewState.maximized, dragging: isDragging}]"
+          :class="[
+            panelClass,
+            mobilePresentationClass,
+            {maximized: dialogViewState.maximized, dragging: isDragging}
+          ]"
           :inert="isCloseConfirmationVisible || undefined"
           role="dialog"
           aria-modal="true"
@@ -139,6 +143,11 @@ const DIALOG_Z_INDEX_STEP = 2
 const DOCK_BOTTOM_BASE_PX = 20
 const DOCK_VERTICAL_STEP_PX = 60
 const DIALOG_DRAG_GUTTER_PX = 12
+const MOBILE_PRESENTATION_CLASS_BY_MODE = Object.freeze({
+  window: 'mobile-presentation-window',
+  sheet: 'mobile-presentation-sheet',
+  fullScreen: 'mobile-presentation-full-screen'
+})
 const FOCUSABLE_ELEMENT_SELECTOR = [
   'button:not(:disabled)',
   'a[href]',
@@ -190,6 +199,11 @@ export default {
     panelClass: {
       type: [String, Array, Object],
       default: ''
+    },
+    mobilePresentation: {
+      type: String,
+      default: 'window',
+      validator: (value) => Object.hasOwn(MOBILE_PRESENTATION_CLASS_BY_MODE, value)
     }
   },
   emits: [
@@ -229,6 +243,9 @@ export default {
       return !this.isMinimized
         && !this.isMaximized
         && this.viewportWidth > 720
+    },
+    mobilePresentationClass() {
+      return MOBILE_PRESENTATION_CLASS_BY_MODE[this.mobilePresentation]
     },
     panelStyle() {
       return {
@@ -1145,7 +1162,12 @@ export default {
   }
 
   .mac-dialog-actions > * {
-    min-height: 42px;
+    min-height: 44px !important;
+  }
+
+  .mac-dialog-actions :slotted(button),
+  .mac-dialog-actions :slotted(a) {
+    min-height: 44px !important;
   }
 
   .mac-dialog-panel.maximized {
@@ -1160,6 +1182,198 @@ export default {
     );
     max-width: none !important;
     max-height: none;
+  }
+
+  .mac-dialog-mask.mobile-presentation-sheet {
+    align-items: flex-end;
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: 0;
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+
+  .mac-dialog-mask.mobile-presentation-full-screen {
+    align-items: center;
+    padding-top: max(4px, env(safe-area-inset-top, 0px));
+    padding-right: max(4px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+    padding-left: max(4px, env(safe-area-inset-left, 0px));
+  }
+
+  .mac-dialog-panel.mobile-presentation-sheet {
+    width: 100% !important;
+    height: auto;
+    max-width: none !important;
+    max-height: min(78vh, 680px);
+    max-height: min(
+      78dvh,
+      680px,
+      calc(100dvh - 12px - env(safe-area-inset-top, 0px))
+    );
+    border-bottom: 0;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .mac-dialog-panel.mobile-presentation-sheet .mac-dialog-body {
+    flex: 1 1 auto;
+    height: auto;
+  }
+
+  .mac-dialog-panel.mobile-presentation-full-screen {
+    width: 100% !important;
+    height: 100%;
+    max-width: none !important;
+    max-height: none;
+    border-radius: 20px;
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    min-height: 64px;
+    padding: 10px 64px;
+    background: color-mix(in srgb, var(--theme-surface-raised) 88%, transparent);
+    box-shadow:
+      inset 0 -1px 0 var(--theme-divider),
+      0 10px 28px color-mix(in srgb, var(--theme-scrim) 22%, transparent);
+    backdrop-filter: blur(28px) saturate(145%);
+    -webkit-backdrop-filter: blur(28px) saturate(145%);
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    min-height: 64px;
+    padding: 10px 16px max(10px, env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--theme-surface-raised) 88%, transparent);
+    box-shadow:
+      inset 0 1px 0 var(--theme-divider),
+      0 -10px 28px color-mix(in srgb, var(--theme-scrim) 18%, transparent);
+    backdrop-filter: blur(28px) saturate(145%);
+    -webkit-backdrop-filter: blur(28px) saturate(145%);
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-window-controls {
+    left: 8px;
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.mac-window-controls) {
+    gap: 0;
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.mac-window-dot.minimize),
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.mac-window-dot.zoom) {
+    display: none;
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.mac-window-dot.close) {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border: 1px solid var(--theme-border);
+    background: var(--theme-control-surface);
+    box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+    transition:
+      background 120ms ease-out,
+      border-color 120ms ease-out,
+      transform 100ms ease-out;
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.mac-window-dot.close)::before {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.mac-window-dot.close:active) {
+    transform: scale(0.94);
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.close-glyph) {
+    width: 14px;
+    height: 14px;
+    opacity: 1;
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.close-glyph)::before,
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.close-glyph)::after {
+    width: 14px;
+    height: 1.75px;
+    background: var(--theme-text-soft);
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.mac-window-dot.close:focus-visible) {
+    outline: 3px solid var(--theme-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .mac-dialog-enter-active.mobile-presentation-sheet .mac-dialog-panel,
+  .mac-dialog-leave-active.mobile-presentation-sheet .mac-dialog-panel,
+  .mac-dialog-enter-active.mobile-presentation-full-screen .mac-dialog-panel,
+  .mac-dialog-leave-active.mobile-presentation-full-screen .mac-dialog-panel {
+    transition:
+      transform 300ms cubic-bezier(0.2, 0.9, 0.2, 1),
+      opacity 180ms ease,
+      backdrop-filter 260ms ease;
+  }
+
+  .mac-dialog-enter-from.mobile-presentation-sheet .mac-dialog-panel,
+  .mac-dialog-leave-to.mobile-presentation-sheet .mac-dialog-panel {
+    opacity: 0;
+    transform: translate3d(0, 100%, 0);
+    backdrop-filter: blur(12px) saturate(105%);
+    -webkit-backdrop-filter: blur(12px) saturate(105%);
+  }
+
+  .mac-dialog-enter-from.mobile-presentation-full-screen .mac-dialog-panel,
+  .mac-dialog-leave-to.mobile-presentation-full-screen .mac-dialog-panel {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.985);
+    backdrop-filter: blur(18px) saturate(110%);
+    -webkit-backdrop-filter: blur(18px) saturate(110%);
   }
 
   .mac-dialog-window-controls {
@@ -1194,7 +1408,7 @@ export default {
   }
 }
 
-@media (max-height: 640px) and (orientation: landscape) {
+@media (max-width: 720px) and (max-height: 640px) and (orientation: landscape) {
   .mac-dialog-mask {
     align-items: center;
     padding: 8px;
@@ -1217,6 +1431,95 @@ export default {
   .mac-dialog-actions {
     padding: 9px 14px max(9px, env(safe-area-inset-bottom, 0px));
   }
+
+  .mac-dialog-panel.mobile-presentation-sheet {
+    max-height: min(88dvh, 520px);
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-transparency: reduce) {
+  .mac-dialog-mask:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ),
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ),
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-head,
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-actions {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) {
+    background: color-mix(
+      in srgb,
+      var(--theme-popover-surface) 94%,
+      var(--theme-text-inverse)
+    );
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-head,
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-actions {
+    background: color-mix(
+      in srgb,
+      var(--theme-surface-raised) 92%,
+      var(--theme-text-inverse)
+    );
+  }
+}
+
+@media (max-width: 720px) and (prefers-contrast: more) {
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) {
+    border: 2px solid var(--theme-text);
+    background: color-mix(
+      in srgb,
+      var(--theme-popover-surface) 92%,
+      var(--theme-text-inverse)
+    );
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-head,
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-actions {
+    border-color: var(--theme-text);
+    background: color-mix(
+      in srgb,
+      var(--theme-surface-raised) 90%,
+      var(--theme-text-inverse)
+    );
+  }
+
+  .mac-dialog-panel:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) :deep(.mac-window-dot.close) {
+    border: 2px solid var(--theme-text);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1234,6 +1537,38 @@ export default {
   .mac-dialog-confirm-enter-active .mac-dialog-confirm-card,
   .mac-dialog-confirm-leave-active .mac-dialog-confirm-card {
     transition-duration: 1ms;
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) {
+  .mac-dialog-enter-active:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ),
+  .mac-dialog-leave-active:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ),
+  .mac-dialog-enter-active:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-panel,
+  .mac-dialog-leave-active:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-panel {
+    transition: opacity 160ms ease;
+  }
+
+  .mac-dialog-enter-from:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-panel,
+  .mac-dialog-leave-to:is(
+    .mobile-presentation-sheet,
+    .mobile-presentation-full-screen
+  ) .mac-dialog-panel {
+    transform: none;
   }
 }
 </style>

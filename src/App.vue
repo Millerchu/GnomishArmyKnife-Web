@@ -105,4 +105,12 @@ export default {
   width: 100%;
   height: 100%;
 }
+
+@media (max-width: 720px) {
+  .app,
+  .content {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+}
 </style>
