@@ -12,6 +12,7 @@ const APP_ICON_ASSET_MAP = {
   APP_KNOWLEDGE_BASE: 'app-knowledge-base.png',
   APP_SOFTWARE_REPO: 'app-software-repo.png',
   APP_HEALTH_RECORD: 'app-health-record.png',
+  APP_INSTRUMENT_PRACTICE: 'app-instrument-practice.webp',
   APP_DATA_DICTIONARY: 'app-data-dictionary.png'
 }
 
@@ -32,12 +33,13 @@ const LEGACY_TEXT_ICON_MAP = {
 const GENERIC_APP_ICON_FILE_NAME = 'app-generic.png'
 
 function buildPublicAssetIcon(fileName) {
+  const iconChromaKey = /\.webp$/i.test(fileName) ? '' : APP_ICON_CHROMA_KEY
   return {
     iconType: 'URL',
     iconUrl: `${APP_ICON_PUBLIC_BASE_PATH}/${fileName}`,
     iconStorageType: 'PUBLIC_ASSET',
     iconFileName: fileName,
-    iconChromaKey: APP_ICON_CHROMA_KEY
+    iconChromaKey
   }
 }
 
@@ -59,7 +61,8 @@ export function isLegacyTextIconSeed(featureCode = '', iconText = '') {
 }
 
 export function inferIconChromaKey(iconUrl = '') {
-  return `${iconUrl || ''}`.startsWith(APP_ICON_PUBLIC_BASE_PATH)
+  const normalizedIconUrl = `${iconUrl || ''}`
+  return normalizedIconUrl.startsWith(APP_ICON_PUBLIC_BASE_PATH) && !/\.webp(?:[?#]|$)/i.test(normalizedIconUrl)
     ? APP_ICON_CHROMA_KEY
     : ''
 }

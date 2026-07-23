@@ -18,6 +18,7 @@ const routes = [
     {path: '/software-repo', component: () => import('../views/SoftwareRepo.vue')},
     {path: '/health', component: () => import('../views/HealthRecord.vue')},
     {path: '/work-log', component: () => import('../views/WorkLog.vue')},
+    {path: '/instrument-practice', component: () => import('../views/InstrumentPractice.vue')},
     {path: '/system/users', component: () => import('../views/UserManagement.vue')},
     {path: '/system/apps', component: () => import('../views/AppManagement.vue')},
     {path: '/system/permissions', component: () => import('../views/PermissionManagement.vue')},

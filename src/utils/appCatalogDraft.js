@@ -79,7 +79,7 @@ export function buildDefaultAppCatalog() {
     id: index + 1,
     appCode: item.featureCode,
     enabled: true,
-    sortNo: (index + 1) * 10
+    sortNo: item.sortNo ?? (index + 1) * 10
   }, index)))
 }
 
