@@ -316,6 +316,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import AttachmentManager from '@/components/AttachmentManager.vue'
 import AttachmentGallery from '@/components/AttachmentGallery.vue'
 import {
@@ -598,7 +599,10 @@ export default {
     }
 
     const removeEntry = async (item) => {
-      if (!window.confirm(`确认删除【${item.title}】吗？`)) {
+      if (!await confirmDialog(`知识条目【${item.title}】将被永久删除。`, {
+        title: '删除知识条目？',
+        confirmText: '删除条目'
+      })) {
         return
       }
       try {

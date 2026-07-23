@@ -431,6 +431,7 @@ import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import GlassSelect from '@/components/GlassSelect.vue'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import {
   createDataDictionary,
   createDataDictionaryItem,
@@ -886,7 +887,13 @@ export default {
     }
 
     const removeDictionary = async (item) => {
-      const confirmed = confirm(`确认删除字典【${item.dictName}】吗？其下字典项也会被清理。`)
+      const confirmed = await confirmDialog(
+        `字典【${item.dictName}】及其全部字典项将被永久删除。`,
+        {
+          title: '删除数据字典？',
+          confirmText: '删除字典'
+        }
+      )
       if (!confirmed) {
         return
       }
@@ -1011,7 +1018,10 @@ export default {
       if (!selectedDictionary.value) {
         return
       }
-      const confirmed = confirm(`确认删除字典项【${item.itemLabel}】吗？`)
+      const confirmed = await confirmDialog(`字典项【${item.itemLabel}】将被永久删除。`, {
+        title: '删除字典项？',
+        confirmText: '删除字典项'
+      })
       if (!confirmed) {
         return
       }

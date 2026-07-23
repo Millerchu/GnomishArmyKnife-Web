@@ -77,7 +77,13 @@
               :aria-describedby="closeConfirmationDescriptionId"
               @keydown.tab="handleCloseConfirmationTab"
             >
-              <div class="mac-dialog-confirm-icon" aria-hidden="true">!</div>
+              <div class="mac-dialog-confirm-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 8.1v5.2"/>
+                  <path d="M12 16.8h.01"/>
+                  <path d="M10.2 4.7 3.3 17a2 2 0 0 0 1.8 3h13.8a2 2 0 0 0 1.8-3L13.8 4.7a2 2 0 0 0-3.6 0Z"/>
+                </svg>
+              </div>
               <div class="mac-dialog-confirm-copy">
                 <span>未保存的内容</span>
                 <h4 :id="closeConfirmationTitleId">放弃未保存的更改？</h4>
@@ -922,8 +928,16 @@ export default {
   background: linear-gradient(180deg, rgba(255, 190, 62, 0.24), rgba(255, 159, 10, 0.12));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
   color: var(--theme-warning);
-  font-size: 20px;
-  font-weight: 800;
+}
+
+.mac-dialog-confirm-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .mac-dialog-confirm-copy > span {
@@ -968,7 +982,8 @@ export default {
 }
 
 .mac-dialog-confirm-actions button:active {
-  transform: translateY(1px);
+  transform: scale(0.97);
+  transition-duration: 80ms;
 }
 
 .mac-dialog-confirm-actions button:focus-visible {

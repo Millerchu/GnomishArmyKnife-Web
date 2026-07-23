@@ -528,6 +528,7 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   createPasswordMemoHistory,
@@ -933,7 +934,10 @@ export default {
     }
 
     const removeMemo = async (item) => {
-      if (!window.confirm(`确认删除【${item.siteName}】吗？`)) {
+      if (!await confirmDialog(`删除后，【${item.siteName}】的账号与密码信息将无法恢复。`, {
+        title: '删除密码备忘？',
+        confirmText: '删除备忘'
+      })) {
         return
       }
       try {
@@ -1145,7 +1149,10 @@ export default {
       if (!activeDetail.value || maintainingHistory.value) {
         return
       }
-      if (!window.confirm(`确认删除使用起始时间为 ${history.usageStartedAt || '-'} 的历史密码吗？`)) {
+      if (!await confirmDialog(`使用起始时间为 ${history.usageStartedAt || '-'} 的历史密码将被永久删除。`, {
+        title: '删除历史密码？',
+        confirmText: '删除密码'
+      })) {
         return
       }
       maintainingHistory.value = true
