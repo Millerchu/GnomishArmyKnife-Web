@@ -370,6 +370,7 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import {
   clearCompletedTodoTasks,
   createTodoTask,
@@ -813,7 +814,10 @@ export default {
     }
 
     const removeTask = async (item) => {
-      if (!window.confirm(`确认删除任务【${item.title}】吗？`)) {
+      if (!await confirmDialog(`删除后，任务【${item.title}】将无法恢复。`, {
+        title: '删除任务？',
+        confirmText: '删除任务'
+      })) {
         return
       }
       try {
@@ -825,7 +829,10 @@ export default {
     }
 
     const clearCompleted = async () => {
-      if (!window.confirm('确认清理全部已完成任务吗？')) {
+      if (!await confirmDialog('全部已完成任务将被永久清理，此操作无法撤销。', {
+        title: '清理已完成任务？',
+        confirmText: '全部清理'
+      })) {
         return
       }
       try {

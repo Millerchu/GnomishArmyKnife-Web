@@ -431,6 +431,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import AttachmentManager from '@/components/AttachmentManager.vue'
 import AttachmentGallery from '@/components/AttachmentGallery.vue'
 import {
@@ -811,7 +812,10 @@ export default {
     }
 
     const removeRecord = async (item) => {
-      if (!window.confirm(`确认删除 ${item.measureDate} 的健康指标记录吗？`)) {
+      if (!await confirmDialog(`${item.measureDate} 的健康指标记录将被永久删除。`, {
+        title: '删除健康指标？',
+        confirmText: '删除记录'
+      })) {
         return
       }
       try {
@@ -900,7 +904,10 @@ export default {
     }
 
     const removeVisit = async (item) => {
-      if (!window.confirm(`确认删除 ${item.visitDate} 的医院就诊记录吗？`)) {
+      if (!await confirmDialog(`${item.visitDate} 的医院就诊记录将被永久删除。`, {
+        title: '删除就诊记录？',
+        confirmText: '删除记录'
+      })) {
         return
       }
       try {
@@ -981,7 +988,10 @@ export default {
     }
 
     const removeReport = async (item) => {
-      if (!window.confirm(`确认删除【${item.reportTitle}】吗？`)) {
+      if (!await confirmDialog(`健康报告【${item.reportTitle}】将被永久删除。`, {
+        title: '删除健康报告？',
+        confirmText: '删除报告'
+      })) {
         return
       }
       try {

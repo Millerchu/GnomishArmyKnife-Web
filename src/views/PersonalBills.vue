@@ -153,6 +153,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import { confirmDialog } from '@/components/systemDialog'
 import { createAnnualBudget, createPersonalBill, deleteAnnualBudget, deletePersonalBill, getPersonalBillSummary, listAnnualBudgets, listPersonalBills, updateAnnualBudget, updatePersonalBill } from '@/api/personalBills'
 import { listDataDictionaryOptionsByUsage } from '@/api/dataDictionary'
 
@@ -263,12 +264,12 @@ async function submitBillDialog(keepOpen) {
     if (keepOpen && billDialogMode.value === 'create') resetBillForm(); else showBillDialog.value = false
   } catch (error) { window.alert(error?.response?.data?.message || '保存账单失败') } finally { submitting.value = false }
 }
-async function removeBill(item) { if (!item || !window.confirm('确认删除这笔账单吗？')) return; await deletePersonalBill(item.id); showBillDialog.value = false; await loadBills() }
+async function removeBill(item) { if (!item || !await confirmDialog('这笔账单将被永久删除。', { title: '删除账单？', confirmText: '删除账单' })) return; await deletePersonalBill(item.id); showBillDialog.value = false; await loadBills() }
 function openCreateBudgetDialog() { budgetDialogMode.value = 'create'; editingBudget.value = null; Object.assign(budgetForm, { year: selectedYear.value, categoryName: budgetCategoryOptions.value[0]?.value || '', annualLimit: 0, alertThreshold: 0.8, note: '' }); showBudgetDialog.value = true }
 function showBudgetManager() { activeView.value = 'stats'; window.requestAnimationFrame(() => document.querySelector('.budget-card-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' })) }
 function openEditBudgetDialog(item) { budgetDialogMode.value = 'edit'; editingBudget.value = item; Object.assign(budgetForm, { year: item.year || selectedYear.value, categoryName: item.categoryName, annualLimit: item.annualLimit, alertThreshold: item.alertThreshold, note: item.note || '' }); showBudgetDialog.value = true }
 async function submitBudgetDialog() { budgetSubmitting.value = true; try { const payload = { ...budgetForm }; if (budgetDialogMode.value === 'create') await createAnnualBudget(payload); else await updateAnnualBudget(editingBudget.value.id, payload); showBudgetDialog.value = false; await loadBills() } catch (error) { window.alert(error?.response?.data?.message || '保存预算失败') } finally { budgetSubmitting.value = false } }
-async function removeBudget(item) { if (!item || !window.confirm('确认删除这项预算吗？')) return; await deleteAnnualBudget(item.id); showBudgetDialog.value = false; await loadBills() }
+async function removeBudget(item) { if (!item || !await confirmDialog('这项年度预算将被永久删除。', { title: '删除预算？', confirmText: '删除预算' })) return; await deleteAnnualBudget(item.id); showBudgetDialog.value = false; await loadBills() }
 
 const formatAmount = value => Number(value || 0).toFixed(2)
 const formatCurrency = value => `¥${Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

@@ -688,6 +688,7 @@
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   WOW_CLASS_RULES,
@@ -1357,9 +1358,12 @@ export default {
       closeKeybindingDialog()
     }
 
-    const removeKeybinding = (index) => {
+    const removeKeybinding = async (index) => {
       const item = form.keybindings[index]
-      if (!item || !window.confirm(`确认删除键位方案【${item.bindingName}】吗？`)) {
+      if (!item || !await confirmDialog(`删除后，键位方案【${item.bindingName}】将无法恢复。`, {
+        title: '删除键位方案？',
+        confirmText: '删除方案'
+      })) {
         return
       }
       form.keybindings.splice(index, 1)
@@ -1543,7 +1547,10 @@ export default {
     }
 
     const removeCharacter = async (item) => {
-      if (!window.confirm(`确认删除角色【${item.characterName}】吗？`)) {
+      if (!await confirmDialog(`删除后，角色【${item.characterName}】及其记录将无法恢复。`, {
+        title: '删除角色？',
+        confirmText: '删除角色'
+      })) {
         return
       }
       try {

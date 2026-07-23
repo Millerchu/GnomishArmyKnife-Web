@@ -347,6 +347,7 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import {
   createSystemUser,
   deleteSystemUser,
@@ -748,7 +749,10 @@ export default {
     }
 
     const removeUser = async (item) => {
-      const confirmed = confirm(`确认删除用户【${item.username}】吗？`)
+      const confirmed = await confirmDialog(`用户【${item.username}】及其关联信息将被永久删除。`, {
+        title: '删除用户？',
+        confirmText: '删除用户'
+      })
       if (!confirmed) {
         return
       }
@@ -773,7 +777,14 @@ export default {
       }
 
       const actionText = targetStatus === 'ENABLED' ? '启用' : '禁用'
-      const confirmed = confirm(`确认批量${actionText}已选用户吗？`)
+      const confirmed = await confirmDialog(
+        `将对已选的 ${selectedIds.value.length} 个用户执行“${actionText}”。`,
+        {
+          title: `批量${actionText}用户？`,
+          confirmText: `确认${actionText}`,
+          tone: targetStatus === 'ENABLED' ? 'warning' : 'danger'
+        }
+      )
       if (!confirmed) {
         return
       }
@@ -801,7 +812,13 @@ export default {
         alert('请先选择用户')
         return
       }
-      const confirmed = confirm(`确认删除选中的 ${selectedIds.value.length} 个用户吗？`)
+      const confirmed = await confirmDialog(
+        `选中的 ${selectedIds.value.length} 个用户及其关联信息将被永久删除。`,
+        {
+          title: '批量删除用户？',
+          confirmText: '全部删除'
+        }
+      )
       if (!confirmed) {
         return
       }

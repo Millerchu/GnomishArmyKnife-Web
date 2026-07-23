@@ -408,6 +408,7 @@
 import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import {
   createSoftwarePackage,
   createSoftwareVersion,
@@ -942,7 +943,10 @@ export default {
     }
 
     const removeSoftware = async (item) => {
-      if (!window.confirm(`确认删除软件【${item.softwareName}】吗？`)) {
+      if (!await confirmDialog(`删除后，软件【${item.softwareName}】及其版本信息将无法恢复。`, {
+        title: '删除软件？',
+        confirmText: '删除软件'
+      })) {
         return
       }
       try {
@@ -954,7 +958,10 @@ export default {
     }
 
     const removeVersion = async (item, version) => {
-      if (!window.confirm(`确认删除版本【${item.softwareName} / ${version.versionName}】吗？`)) {
+      if (!await confirmDialog(`版本【${item.softwareName} / ${version.versionName}】将被永久删除。`, {
+        title: '删除软件版本？',
+        confirmText: '删除版本'
+      })) {
         return
       }
       try {

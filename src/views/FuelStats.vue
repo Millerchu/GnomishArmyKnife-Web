@@ -467,6 +467,7 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import AttachmentManager from '@/components/AttachmentManager.vue'
 import AttachmentGallery from '@/components/AttachmentGallery.vue'
 import {
@@ -1072,7 +1073,10 @@ export default {
     }
 
     const removeRecord = async (item) => {
-      if (!window.confirm(`确认删除【${item.vehicleName} / ${item.fuelDate}】这条记录吗？`)) {
+      if (!await confirmDialog(`【${item.vehicleName} / ${item.fuelDate}】这条加油记录将被永久删除。`, {
+        title: '删除加油记录？',
+        confirmText: '删除记录'
+      })) {
         return
       }
       try {

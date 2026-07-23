@@ -542,6 +542,7 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import AppIconImage from '@/components/AppIconImage.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import {
   createDataMigrationExport,
   createDataMigrationImport,
@@ -1320,7 +1321,10 @@ export default {
       if (!task?.id || task.taskType !== 'EXPORT') {
         return
       }
-      if (!window.confirm('确认删除该导出历史及其压缩包吗？此操作不可恢复。')) {
+      if (!await confirmDialog('该导出历史及其压缩包将被永久删除，此操作无法撤销。', {
+        title: '删除导出记录？',
+        confirmText: '永久删除'
+      })) {
         return
       }
 

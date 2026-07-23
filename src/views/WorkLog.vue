@@ -675,6 +675,7 @@ import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import {
   createWorkLog,
   deleteWorkLog,
@@ -1822,7 +1823,10 @@ export default {
         alert('未找到要删除的日志')
         return
       }
-      if (!window.confirm(`确认删除${description}吗？`)) {
+      if (!await confirmDialog(`${description}将被永久删除。`, {
+        title: '删除工作日志？',
+        confirmText: '删除日志'
+      })) {
         return
       }
 

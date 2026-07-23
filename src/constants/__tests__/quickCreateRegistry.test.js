@@ -17,3 +17,16 @@ test('calculator and system capabilities never appear in quick create registry',
   assert.equal(featureCodes.has('APP_CALCULATOR'), false)
   assert.equal(Array.from(featureCodes).some((code) => code.startsWith('SYSTEM_')), false)
 })
+
+test('password memo category is loaded from its dictionary usage', () => {
+  const passwordMemo = QUICK_CREATE_TYPES.find((item) => item.typeCode === 'PASSWORD_MEMO')
+  const categoryField = passwordMemo.fields.find((field) => field.key === 'category')
+
+  assert.equal(categoryField.type, 'dictionary-select')
+  assert.equal(categoryField.required, true)
+  assert.deepEqual(categoryField.dictionaryUsage, {
+    appCode: 'APP_PASSWORD_MEMO',
+    moduleCode: 'PASSWORD_MEMO',
+    bizFieldCode: 'category'
+  })
+})

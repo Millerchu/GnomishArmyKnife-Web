@@ -5,6 +5,7 @@ import {nextTick} from 'vue'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import WorkLog from '../WorkLog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   createWorkLog,
@@ -55,6 +56,10 @@ vi.mock('@/api/workLog', () => ({
   getWorkLogDetail: vi.fn(),
   listWorkLogs: vi.fn(),
   updateWorkLog: vi.fn()
+}))
+
+vi.mock('@/components/systemDialog', () => ({
+  confirmDialog: vi.fn()
 }))
 
 const dictionaryOptionsByField = {
@@ -222,6 +227,7 @@ beforeEach(() => {
     username: 'component-test-user'
   }))
   vi.resetAllMocks()
+  confirmDialog.mockResolvedValue(true)
   listDataDictionaryOptionsByUsage.mockImplementation(({bizFieldCode}) => {
     return Promise.resolve(buildApiResponse(dictionaryOptionsByField[bizFieldCode] || []))
   })
@@ -636,11 +642,12 @@ describe('WorkLog MacDialog integration', () => {
     wrapper.vm.closeDialog()
     await nextTick()
 
-    const confirmSpy = vi.fn(() => true)
-    window.confirm = confirmSpy
     detailItems[1].querySelector('.detail-delete-btn').dispatchEvent(new MouseEvent('click', {bubbles: true}))
     await flushPromises()
-    expect(confirmSpy).toHaveBeenCalledWith('确认删除PROJECT_BETA日志吗？')
+    expect(confirmDialog).toHaveBeenCalledWith('PROJECT_BETA日志将被永久删除。', {
+      title: '删除工作日志？',
+      confirmText: '删除日志'
+    })
     expect(deleteWorkLog).toHaveBeenCalledWith(911)
     expect(getWorkLogDetail).not.toHaveBeenCalled()
 

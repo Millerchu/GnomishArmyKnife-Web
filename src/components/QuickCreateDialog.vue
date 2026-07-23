@@ -102,6 +102,7 @@
 <script setup>
 import {computed, reactive, ref, watch} from 'vue'
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog'
 import AppIconImage from '@/components/AppIconImage.vue'
 import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import {createWorkLog} from '@/api/workLog'
@@ -198,7 +199,11 @@ async function loadDependencies(type) {
 
 async function handleTypeChange(event) {
   const nextCode = event.target.value
-  if (isDirty.value && !window.confirm('当前填写内容尚未保存，确认切换新增类型吗？')) {
+  if (isDirty.value && !await confirmDialog('当前填写内容尚未保存，确认切换新增类型吗？', {
+    title: '切换新增类型？',
+    confirmText: '切换类型',
+    cancelText: '继续填写'
+  })) {
     event.target.value = selectedTypeCode.value
     return
   }
@@ -207,9 +212,13 @@ async function handleTypeChange(event) {
   await loadDependencies(activeType.value)
 }
 
-function requestClose() {
+async function requestClose() {
   if (submitting.value) return
-  if (isDirty.value && !window.confirm('当前填写内容尚未保存，确认关闭吗？')) return
+  if (isDirty.value && !await confirmDialog('当前填写内容尚未保存，关闭后本次填写将无法恢复。', {
+    title: '放弃未保存的内容？',
+    confirmText: '放弃并关闭',
+    cancelText: '继续填写'
+  })) return
   emit('update:modelValue', false)
 }
 

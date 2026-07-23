@@ -13,6 +13,7 @@ import {
   updatePasswordMemoHistory,
   verifyPasswordMemoAccess
 } from '@/api/passwordMemo'
+import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 
 const mountedWrappers = []
 
@@ -33,6 +34,10 @@ vi.mock('@/api/passwordMemo', () => ({
   verifyPasswordMemoAccess: vi.fn()
 }))
 
+vi.mock('@/api/dataDictionary', () => ({
+  listDataDictionaryOptionsByUsage: vi.fn()
+}))
+
 function buildApiResponse(payload) {
   return {data: {code: 200, message: 'success', data: payload}}
 }
@@ -49,8 +54,13 @@ beforeEach(() => {
   vi.resetAllMocks()
   vi.stubGlobal('alert', vi.fn())
   listPasswordMemos.mockResolvedValue(buildApiResponse({list: [], total: 0}))
+  listDataDictionaryOptionsByUsage.mockResolvedValue(buildApiResponse([
+    {itemLabel: '生活', itemValue: '生活', isDefault: true},
+    {itemLabel: '工作', itemValue: '工作', isDefault: false}
+  ]))
   getPasswordMemoDetail.mockResolvedValue(buildApiResponse({
     id: 7,
+    category: '工作',
     siteName: 'GitHub',
     siteUrl: 'https://github.com',
     username: 'gnome',
@@ -67,6 +77,27 @@ afterEach(() => {
 })
 
 describe('PasswordMemo MacDialog integration', () => {
+  it('从数据字典加载类别并用于列表筛选', async () => {
+    const wrapper = mount(PasswordMemo, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+
+    expect(listDataDictionaryOptionsByUsage).toHaveBeenCalledWith({
+      appCode: 'APP_PASSWORD_MEMO',
+      moduleCode: 'PASSWORD_MEMO',
+      bizFieldCode: 'category'
+    })
+    expect(wrapper.vm.categoryOptions.map((item) => item.value)).toEqual(['生活', '工作'])
+
+    wrapper.vm.query.category = '工作'
+    wrapper.vm.handleSearch()
+    await flushPromises()
+    expect(listPasswordMemos).toHaveBeenLastCalledWith(expect.objectContaining({category: '工作'}))
+  })
+
   it('新增与更新密码框仅在按住按钮期间显示明文', async () => {
     const wrapper = mount(PasswordMemo, {
       attachTo: document.body,
