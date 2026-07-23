@@ -24,8 +24,9 @@ export const QUICK_CREATE_TYPES = [
   },
   {
     typeCode: 'PASSWORD_MEMO', featureCode: 'APP_PASSWORD_MEMO', appName: '密码备忘录', label: '新增账号备忘录', api: 'passwordMemo',
-    defaults: () => ({siteName: '', siteUrl: '', username: '', password: '', registeredPhone: '', registeredEmail: '', remark: ''}),
-    fields: [text('siteName', '网站名', true), text('siteUrl', '地址', true), text('username', '用户名'),
+    defaults: () => ({category: '', siteName: '', siteUrl: '', username: '', password: '', registeredPhone: '', registeredEmail: '', remark: ''}),
+    fields: [dictionary('category', '类别', 'APP_PASSWORD_MEMO', 'PASSWORD_MEMO', true),
+      text('siteName', '网站名', true), text('siteUrl', '地址', true), text('username', '用户名'),
       text('password', '密码', true, {inputType: 'password'}), text('registeredPhone', '注册手机'),
       text('registeredEmail', '注册邮箱', false, {inputType: 'email'}), area('remark', '备注')]
   },

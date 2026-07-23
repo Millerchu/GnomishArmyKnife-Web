@@ -58,6 +58,14 @@
             <button type="button" class="memo-search-submit" :disabled="loading" @click="handleSearch">搜索</button>
           </div>
 
+          <label class="memo-category-filter">
+            <span class="visually-hidden">按类别筛选</span>
+            <select v-model="query.category" :disabled="loading || categoryLoading" @change="handleSearch">
+              <option value="">全部类别</option>
+              <option v-for="item in categoryOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+
           <div class="memo-toolbar-actions">
             <button type="button" class="memo-button memo-button-secondary" :disabled="loading" @click="loadMemos">
               <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -86,6 +94,7 @@
             <thead>
             <tr>
               <th class="memo-site-column">网站</th>
+              <th class="memo-category-column">类别</th>
               <th>账号信息</th>
               <th class="memo-time-column">更新时间</th>
               <th class="memo-action-column">操作</th>
@@ -105,6 +114,7 @@
                   </div>
                 </div>
               </td>
+              <td><span class="memo-category-badge">{{ categoryLabel(item.category) }}</span></td>
               <td>
                 <div class="memo-account-summary">
                   <strong>{{ item.username || '未填写用户名' }}</strong>
@@ -145,6 +155,7 @@
             </div>
 
             <div class="memo-mobile-card-grid">
+              <p><span>类别</span><strong>{{ categoryLabel(item.category) }}</strong></p>
               <p><span>用户名</span><strong>{{ item.username || '-' }}</strong></p>
               <p><span>注册手机</span><strong>{{ item.registeredPhone || '-' }}</strong></p>
               <p class="wide"><span>注册邮箱</span><strong>{{ item.registeredEmail || '-' }}</strong></p>
@@ -200,9 +211,17 @@
       @cancel="closeEditDialog"
     >
         <form id="password-memo-edit-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitEditDialog">
-          <label class="form-field dialog-span-2">
+          <label class="form-field">
             <span>网站名</span>
             <input v-model.trim="form.siteName" class="input" maxlength="64" placeholder="例如：GitHub" required />
+          </label>
+
+          <label class="form-field">
+            <span>类别</span>
+            <select v-model="form.category" class="input" :disabled="categoryLoading || !categoryOptions.length" required>
+              <option value="">{{ categoryLoading ? '正在加载类别...' : '请选择类别' }}</option>
+              <option v-for="item in categoryOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
           </label>
 
           <label class="form-field dialog-span-2">
@@ -420,6 +439,7 @@
         <div v-else-if="activeDetail" class="detail-content">
           <div class="detail-grid">
             <p><span>网站名</span><strong>{{ activeDetail.siteName || '-' }}</strong></p>
+            <p><span>类别</span><strong>{{ categoryLabel(activeDetail.category) }}</strong></p>
             <p><span>地址</span><strong>{{ activeDetail.siteUrl || '-' }}</strong></p>
             <p><span>用户名</span><strong>{{ activeDetail.username || '-' }}</strong></p>
             <p><span>注册手机</span><strong>{{ activeDetail.registeredPhone || '-' }}</strong></p>
@@ -508,6 +528,7 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   createPasswordMemoHistory,
   createPasswordMemo,
@@ -522,6 +543,9 @@ import {
 } from '@/api/passwordMemo'
 
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
+const PASSWORD_MEMO_APP_CODE = 'APP_PASSWORD_MEMO'
+const PASSWORD_MEMO_MODULE_CODE = 'PASSWORD_MEMO'
+const CATEGORY_FIELD_CODE = 'category'
 
 // 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
@@ -536,6 +560,7 @@ function unwrapData(res) {
 function normalizeMemo(item = {}) {
   return {
     id: item.id ?? item.memoId ?? null,
+    category: item.category || '',
     siteName: item.siteName || item.websiteName || '',
     siteUrl: item.siteUrl || item.websiteUrl || item.url || '',
     username: item.username || item.accountName || '',
@@ -553,6 +578,15 @@ function normalizeMemo(item = {}) {
       usageEndedAt: history.usageEndedAt || history.endedAt || ''
     }))
   }
+}
+
+function normalizeDictionaryOptions(payload) {
+  const source = Array.isArray(payload) ? payload : payload?.list || payload?.items || []
+  return source.map((item) => ({
+    value: item.itemValue || item.value || item.itemCode || item.code || '',
+    label: item.itemLabel || item.label || item.itemValue || item.value || '',
+    isDefault: Boolean(item.isDefault)
+  })).filter((item) => item.value && item.label)
 }
 
 // 页面只保留密码掩码，明文仅在验证成功后的复制动作中短暂存在。
@@ -635,12 +669,14 @@ export default {
 
     // 页面状态拆成列表、编辑弹窗和详情解锁三组，便于关闭详情后彻底重置敏感数据。
     const loading = ref(false)
+    const categoryLoading = ref(false)
     const submitting = ref(false)
     const verifyingPassword = ref(false)
     const updatingPassword = ref(false)
     const maintainingHistory = ref(false)
     const total = ref(0)
     const pagedRecords = ref([])
+    const categoryOptions = ref([])
 
     const showEditDialog = ref(false)
     const showDetailDialog = ref(false)
@@ -660,11 +696,13 @@ export default {
 
     const query = reactive({
       keyword: '',
+      category: '',
       pageNo: 1,
       pageSize: PAGE_SIZE_OPTIONS[0]
     })
 
     const form = reactive({
+      category: '',
       siteName: '',
       siteUrl: '',
       username: '',
@@ -699,6 +737,33 @@ export default {
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
 
+    const categoryLabel = (category) => {
+      if (!category) {
+        return '未分类'
+      }
+      return categoryOptions.value.find((item) => item.value === category)?.label || category
+    }
+
+    const loadCategoryOptions = async () => {
+      categoryLoading.value = true
+      try {
+        const response = await listDataDictionaryOptionsByUsage({
+          appCode: PASSWORD_MEMO_APP_CODE,
+          moduleCode: PASSWORD_MEMO_MODULE_CODE,
+          bizFieldCode: CATEGORY_FIELD_CODE
+        })
+        categoryOptions.value = normalizeDictionaryOptions(unwrapData(response))
+        if (!form.category) {
+          form.category = categoryOptions.value.find((item) => item.isDefault)?.value || ''
+        }
+      } catch (error) {
+        categoryOptions.value = []
+        alert(extractErrorMessage(error, '加载密码类别失败'))
+      } finally {
+        categoryLoading.value = false
+      }
+    }
+
     const showPasswordField = (field) => {
       passwordVisibility[field] = true
     }
@@ -708,6 +773,9 @@ export default {
     }
 
     const fillForm = (memo) => {
+      form.category = memo.category
+        || categoryOptions.value.find((item) => item.isDefault)?.value
+        || ''
       form.siteName = memo.siteName || ''
       form.siteUrl = memo.siteUrl || ''
       form.username = memo.username || ''
@@ -728,7 +796,8 @@ export default {
         const res = await listPasswordMemos({
           pageNo: query.pageNo,
           pageSize: query.pageSize,
-          keyword: query.keyword || undefined
+          keyword: query.keyword || undefined,
+          category: query.category || undefined
         })
         const payload = unwrapData(res)
         const rawList = Array.isArray(payload)
@@ -752,6 +821,7 @@ export default {
 
     const resetQuery = () => {
       query.keyword = ''
+      query.category = ''
       query.pageNo = 1
       query.pageSize = PAGE_SIZE_OPTIONS[0]
       loadMemos()
@@ -815,6 +885,10 @@ export default {
         alert('请输入地址')
         return
       }
+      if (!form.category) {
+        alert('请选择类别')
+        return
+      }
       if (editMode.value === 'create' && !form.password) {
         alert('请输入密码')
         return
@@ -828,6 +902,7 @@ export default {
       }
 
       const payload = {
+        category: form.category,
         siteName: form.siteName,
         siteUrl: form.siteUrl,
         username: form.username,
@@ -1092,17 +1167,19 @@ export default {
     }
 
     onMounted(() => {
-      loadMemos()
+      Promise.all([loadCategoryOptions(), loadMemos()])
     })
 
     return {
       loading,
+      categoryLoading,
       submitting,
       verifyingPassword,
       updatingPassword,
       maintainingHistory,
       total,
       pagedRecords,
+      categoryOptions,
       query,
       pageSizeOptions,
       totalPages,
@@ -1127,6 +1204,7 @@ export default {
       maskPassword,
       normalizeUrl,
       displaySiteAddress,
+      categoryLabel,
       loadMemos,
       handleSearch,
       resetQuery,
@@ -1340,13 +1418,36 @@ export default {
 
 .memo-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(260px, 1fr) 150px auto;
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
   border-top: 1px solid var(--theme-divider);
   border-bottom: 1px solid var(--theme-divider);
   background: color-mix(in srgb, var(--theme-surface-muted) 72%, transparent);
+}
+
+.memo-category-filter {
+  min-width: 0;
+}
+
+.memo-category-filter select {
+  width: 100%;
+  height: 40px;
+  padding: 0 32px 0 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  outline: 0;
+  background: color-mix(in srgb, var(--theme-field-surface) 84%, transparent);
+  color: var(--theme-text-soft);
+  font: inherit;
+  font-size: 13px;
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+}
+
+.memo-category-filter select:focus {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px var(--theme-focus-ring);
 }
 
 .memo-search {
@@ -1571,7 +1672,11 @@ export default {
 }
 
 .memo-site-column {
-  width: 34%;
+  width: 30%;
+}
+
+.memo-category-column {
+  width: 110px;
 }
 
 .memo-time-column {
@@ -1623,6 +1728,22 @@ export default {
   font-size: 14px;
   font-weight: 720;
   box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
+}
+
+.memo-category-badge {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  padding: 4px 9px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, var(--theme-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  color: var(--theme-link);
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .memo-site-link {
