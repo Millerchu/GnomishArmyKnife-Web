@@ -1,6 +1,17 @@
 <template>
-  <div class="instrument-practice-page">
-    <header class="practice-header">
+  <div
+    class="instrument-practice-page"
+    :class="{
+      'compact-landscape': compactLandscape,
+      'chrome-hidden': compactLandscape && landscapeChromeHidden
+    }"
+  >
+    <header
+      id="practice-header"
+      class="practice-header"
+      :aria-hidden="compactLandscape && landscapeChromeHidden"
+      :inert="compactLandscape && landscapeChromeHidden"
+    >
       <div class="header-leading">
         <button class="icon-button back-button" type="button" aria-label="返回应用首页" @click="goHome">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -77,7 +88,13 @@
       </section>
     </main>
 
-    <footer class="practice-toolbar" aria-label="练习工具">
+    <footer
+      id="practice-toolbar"
+      class="practice-toolbar"
+      aria-label="练习工具"
+      :aria-hidden="compactLandscape && landscapeChromeHidden"
+      :inert="compactLandscape && landscapeChromeHidden"
+    >
       <div class="beat-readout" :class="{active: metronome.isRunning.value}" aria-hidden="true">
         <span
           v-for="beat in visibleBeatCount"
@@ -141,6 +158,28 @@
         <small>{{ metronome.meter.value }}</small>
       </button>
     </footer>
+
+    <button
+      v-if="compactLandscape"
+      class="landscape-chrome-toggle"
+      :class="{
+        expanded: !landscapeChromeHidden,
+        recording: recorder.isRecording.value,
+        ticking: metronome.isRunning.value
+      }"
+      type="button"
+      aria-controls="practice-header practice-toolbar"
+      :aria-expanded="!landscapeChromeHidden"
+      :aria-label="landscapeChromeHidden ? '显示乐器与练习控件' : '隐藏乐器与练习控件'"
+      @click="toggleLandscapeChrome"
+    >
+      <span class="chrome-toggle-status" aria-hidden="true"/>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path v-if="landscapeChromeHidden" d="m7 9 5 5 5-5"/>
+        <path v-else d="m7 15 5-5 5 5"/>
+      </svg>
+      <span>{{ landscapeChromeHidden ? '显示控件' : '隐藏控件' }}</span>
+    </button>
 
     <Transition name="practice-notice">
       <p v-if="noticeMessage" class="practice-notice" role="status">
@@ -321,6 +360,8 @@ const instrumentVolume = ref(1)
 const metronomeVolume = ref(0.55)
 const hapticsEnabled = ref(true)
 const reducedMotion = ref(false)
+const compactLandscape = ref(false)
+const landscapeChromeHidden = ref(false)
 const tuningIds = reactive({
   guzheng: 'd-pentatonic',
   guitar: 'standard',
@@ -377,6 +418,7 @@ const audioStatusLabel = computed(() => {
 
 let noticeTimerId = null
 let mediaPreference = null
+let compactLandscapePreference = null
 let instrumentSwitchToken = 0
 
 function showNotice(message) {
@@ -528,6 +570,25 @@ function updateMotionPreference(event) {
   reducedMotion.value = Boolean(event?.matches)
 }
 
+function updateCompactLandscapePreference(event) {
+  const nextCompactLandscape = Boolean(event?.matches)
+  const enteringCompactLandscape = nextCompactLandscape && !compactLandscape.value
+  compactLandscape.value = nextCompactLandscape
+
+  if (enteringCompactLandscape) {
+    landscapeChromeHidden.value = true
+  } else if (!nextCompactLandscape) {
+    landscapeChromeHidden.value = false
+  }
+}
+
+function toggleLandscapeChrome() {
+  if (!compactLandscape.value) {
+    return
+  }
+  landscapeChromeHidden.value = !landscapeChromeHidden.value
+}
+
 function goHome() {
   router.push('/home')
 }
@@ -536,8 +597,13 @@ watch([instrumentVolume, metronomeVolume], syncVolumes)
 
 onMounted(async () => {
   mediaPreference = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)') || null
+  compactLandscapePreference = globalThis.matchMedia?.(
+    '(orientation: landscape) and (max-height: 34rem)'
+  ) || null
   updateMotionPreference(mediaPreference)
+  updateCompactLandscapePreference(compactLandscapePreference)
   mediaPreference?.addEventListener?.('change', updateMotionPreference)
+  compactLandscapePreference?.addEventListener?.('change', updateCompactLandscapePreference)
   await prepareInstrument(currentInstrumentId.value)
   audio.prefetchInstruments(
     instrumentOptions.filter((definition) => definition.id !== currentInstrumentId.value)
@@ -549,6 +615,7 @@ onBeforeUnmount(() => {
     globalThis.clearTimeout(noticeTimerId)
   }
   mediaPreference?.removeEventListener?.('change', updateMotionPreference)
+  compactLandscapePreference?.removeEventListener?.('change', updateCompactLandscapePreference)
   metronome.stop()
   recorder.clearTakes()
   audio.stopAll()
@@ -1041,6 +1108,10 @@ button {
   animation: record-pulse 880ms ease-in-out infinite alternate;
 }
 
+.landscape-chrome-toggle {
+  display: none;
+}
+
 .practice-notice {
   position: fixed;
   z-index: 120;
@@ -1426,10 +1497,21 @@ button {
 }
 
 @media (orientation: landscape) and (max-height: 34rem) {
+  .instrument-practice-page {
+    display: block;
+  }
+
   .practice-header {
-    grid-template-columns: minmax(8rem, 1fr) auto minmax(7rem, 1fr);
+    position: absolute;
+    inset: 0 0 auto;
+    grid-template-columns: minmax(8rem, 1fr) auto minmax(4rem, 1fr);
     padding-top: max(0.45rem, env(safe-area-inset-top));
+    padding-right: max(5.6rem, calc(env(safe-area-inset-right) + 5rem));
     padding-bottom: 0.45rem;
+    transition:
+      transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease-out;
+    will-change: transform, opacity;
   }
 
   .instrument-switcher {
@@ -1451,18 +1533,131 @@ button {
     min-height: 2.35rem;
   }
 
+  .audio-status {
+    display: none;
+  }
+
   .practice-main {
-    padding-block: 0.45rem;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    padding:
+      max(4.15rem, calc(env(safe-area-inset-top) + 3.45rem))
+      max(0.65rem, env(safe-area-inset-right))
+      max(4.3rem, calc(env(safe-area-inset-bottom) + 3.75rem))
+      max(0.65rem, env(safe-area-inset-left));
+    transition: padding 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .instrument-stage {
+    height: 100%;
   }
 
   .practice-toolbar {
+    position: absolute;
+    left: 50%;
+    bottom: max(0.25rem, env(safe-area-inset-bottom));
+    width: min(25rem, calc(100% - 7rem));
     min-height: 3.8rem;
-    margin-bottom: max(0.25rem, env(safe-area-inset-bottom));
+    margin: 0;
+    transform: translateX(-50%);
+    transition:
+      transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 180ms ease-out;
+    will-change: transform, opacity;
   }
 
   .tool-button,
   .record-button {
     min-height: 3rem;
+  }
+
+  .landscape-chrome-toggle {
+    position: absolute;
+    z-index: 18;
+    top: max(0.48rem, env(safe-area-inset-top));
+    right: max(0.65rem, env(safe-area-inset-right));
+    min-height: 2.45rem;
+    display: flex;
+    align-items: center;
+    gap: 0.32rem;
+    padding: 0.35rem 0.62rem;
+    color: rgba(231, 244, 249, 0.76);
+    background: rgba(7, 22, 32, 0.72);
+    border: 1px solid rgba(164, 220, 233, 0.16);
+    border-radius: 999px;
+    box-shadow: 0 0.55rem 1.5rem rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(18px) saturate(145%);
+    font-size: 0.64rem;
+    font-weight: 720;
+    transition:
+      transform 100ms ease-out,
+      color 160ms ease-out,
+      background-color 160ms ease-out,
+      border-color 160ms ease-out;
+  }
+
+  .landscape-chrome-toggle:active {
+    transform: scale(0.94);
+  }
+
+  .landscape-chrome-toggle.expanded {
+    color: #dffcff;
+    background: rgba(12, 42, 54, 0.84);
+    border-color: rgba(96, 230, 238, 0.28);
+  }
+
+  .landscape-chrome-toggle svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .chrome-toggle-status {
+    width: 0.36rem;
+    height: 0.36rem;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: rgba(211, 230, 237, 0.42);
+  }
+
+  .landscape-chrome-toggle.ticking .chrome-toggle-status {
+    background: var(--practice-cyan);
+    box-shadow: 0 0 0.48rem rgba(96, 230, 238, 0.7);
+  }
+
+  .landscape-chrome-toggle.recording .chrome-toggle-status {
+    background: var(--practice-orange);
+    box-shadow: 0 0 0.55rem rgba(255, 102, 44, 0.72);
+    animation: record-pulse 880ms ease-in-out infinite alternate;
+  }
+
+  .chrome-hidden .practice-header {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(calc(-100% - env(safe-area-inset-top)));
+  }
+
+  .chrome-hidden .practice-toolbar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, calc(100% + env(safe-area-inset-bottom) + 0.5rem));
+  }
+
+  .chrome-hidden .practice-main {
+    padding:
+      max(0.42rem, env(safe-area-inset-top))
+      max(0.55rem, env(safe-area-inset-right))
+      max(0.42rem, env(safe-area-inset-bottom))
+      max(0.55rem, env(safe-area-inset-left));
+  }
+
+  .chrome-hidden .practice-notice {
+    bottom: max(0.9rem, calc(env(safe-area-inset-bottom) + 0.55rem));
   }
 }
 
@@ -1485,6 +1680,7 @@ button {
 @media (prefers-reduced-transparency: reduce) {
   .practice-header,
   .practice-toolbar,
+  .landscape-chrome-toggle,
   .practice-notice,
   .loading-material {
     background: #0b1a25;
@@ -1495,6 +1691,7 @@ button {
 @media (prefers-contrast: more) {
   .practice-header,
   .practice-toolbar,
+  .landscape-chrome-toggle,
   .instrument-switcher,
   .audio-status,
   .icon-button,
@@ -1576,6 +1773,13 @@ button {
   box-shadow: 0 1.2rem 3rem rgba(30, 61, 69, 0.18), inset 0 1px rgba(255, 255, 255, 0.8);
 }
 
+:root[data-theme="light"] .instrument-practice-page .landscape-chrome-toggle {
+  color: rgba(23, 48, 58, 0.76);
+  background: rgba(248, 252, 252, 0.86);
+  border-color: rgba(31, 70, 78, 0.16);
+  box-shadow: 0 0.55rem 1.5rem rgba(30, 61, 69, 0.14), inset 0 1px rgba(255, 255, 255, 0.88);
+}
+
 :root[data-theme="light"] .instrument-practice-page .practice-notice,
 :root[data-theme="light"] .instrument-practice-page .loading-material {
   color: #17303a;
@@ -1605,6 +1809,21 @@ button {
     grid-column: 1;
     grid-row: 1;
     min-height: 2.7rem;
+  }
+
+  /* 控制行与和弦条共享横屏网格，空白区域需要把触摸透传给下层和弦按钮。 */
+  .instrument-practice-page .surface-controls {
+    pointer-events: none;
+  }
+
+  .instrument-practice-page .surface-controls .mode-switch,
+  .instrument-practice-page .surface-controls .tuning-field {
+    pointer-events: auto;
+  }
+
+  .instrument-practice-page.chrome-hidden .tuning-field,
+  .instrument-practice-page.chrome-hidden .tremolo-status {
+    margin-right: 5.7rem;
   }
 
   .instrument-practice-page .fretted-surface .chord-rail {

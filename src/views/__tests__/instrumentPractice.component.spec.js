@@ -181,4 +181,27 @@ describe('随身乐器页面流程', () => {
     expect(wrapper.get('[role="dialog"]').text()).toContain('不读取麦克风')
     wrapper.unmount()
   })
+
+  it('紧凑横屏默认隐藏上下控件并允许随时恢复', async () => {
+    vi.stubGlobal('matchMedia', vi.fn((query) => ({
+      matches: query.includes('orientation: landscape'),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    })))
+    const wrapper = mountPage()
+    await flushPromises()
+
+    expect(wrapper.get('.instrument-practice-page').classes()).toContain('compact-landscape')
+    expect(wrapper.get('.instrument-practice-page').classes()).toContain('chrome-hidden')
+    expect(wrapper.get('.practice-header').attributes('aria-hidden')).toBe('true')
+    expect(wrapper.get('.practice-toolbar').attributes('aria-hidden')).toBe('true')
+    expect(wrapper.get('.landscape-chrome-toggle').text()).toContain('显示控件')
+
+    await wrapper.get('.landscape-chrome-toggle').trigger('click')
+
+    expect(wrapper.get('.instrument-practice-page').classes()).not.toContain('chrome-hidden')
+    expect(wrapper.get('.practice-header').attributes('aria-hidden')).toBe('false')
+    expect(wrapper.get('.landscape-chrome-toggle').text()).toContain('隐藏控件')
+    wrapper.unmount()
+  })
 })

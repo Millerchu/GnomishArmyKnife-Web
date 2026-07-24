@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {existsSync, statSync} from 'node:fs'
+import {existsSync, readFileSync, statSync} from 'node:fs'
 import {
   GUITAR_CHORDS,
   INSTRUMENT_DEFINITIONS,
@@ -60,6 +60,22 @@ test('吉他与乌克丽丽均提供 21 个和弦及规定调弦', () => {
   assert.deepEqual(getTuning(guitar, 'drop-d').midiNotes, [38, 45, 50, 55, 59, 64])
   assert.deepEqual(getTuning(ukulele, 'high-g').midiNotes, [67, 60, 64, 69])
   assert.equal(getChord(guitar, 'b-7').label, 'B7')
+})
+
+test('紧凑横屏控制行不会截获和弦条触摸', () => {
+  const pageSource = readFileSync(
+    new URL('../../views/InstrumentPractice.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(
+    pageSource,
+    /\.instrument-practice-page \.surface-controls \{\s*pointer-events: none;/
+  )
+  assert.match(
+    pageSource,
+    /\.instrument-practice-page \.surface-controls \.mode-switch,\s*\.instrument-practice-page \.surface-controls \.tuning-field \{\s*pointer-events: auto;/
+  )
 })
 
 test('采样清单与实际 MP3 产物保持一致并保留速度层', () => {
