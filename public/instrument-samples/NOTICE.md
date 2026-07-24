@@ -40,5 +40,14 @@ here so the assets remain auditable.
   long decays to 3.2 seconds, added a short tail fade, and converted to mono
   44.1 kHz, 72 kbps MP3.
 
-All processing was performed with FFmpeg 8.1.1. Runtime volume and pitch
-variation are applied non-destructively through the Web Audio API.
+## Piano
+
+- Source: native Web Audio oscillator synthesis; no downloaded or embedded
+  audio asset is used.
+- Processing: each struck key combines a fundamental with short, decaying
+  harmonic partials at runtime. This avoids adding a copyright-bearing piano
+  sample library while retaining low-latency touch response.
+
+The listed sample processing was performed with FFmpeg 8.1.1. Runtime volume,
+pitch variation, and the piano synthesis are applied non-destructively through
+the Web Audio API.

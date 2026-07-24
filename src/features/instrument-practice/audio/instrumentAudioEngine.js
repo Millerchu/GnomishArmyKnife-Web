@@ -10,6 +10,15 @@ const DEFAULT_MAX_VOICES = 32
 const DEFAULT_MAX_VOICES_PER_STRING = 2
 const DEFAULT_FADE_SECONDS = 0.02
 const ATTACK_SECONDS = 0.005
+const SYNTH_PIANO_SOUND_TYPE = 'synth-piano'
+const SYNTH_PIANO_PARTIALS = Object.freeze([
+    {ratio: 1, gain: 1},
+    {ratio: 2, gain: 0.22},
+    {ratio: 3, gain: 0.09},
+    {ratio: 4, gain: 0.035}
+])
+const SYNTH_PIANO_MIN_DECAY_SECONDS = 1.35
+const SYNTH_PIANO_MAX_DECAY_SECONDS = 2.8
 
 function createBrowserAudioContext(options) {
     const AudioContextConstructor = globalThis.AudioContext || globalThis.webkitAudioContext
@@ -43,6 +52,10 @@ function rampAudioParam(parameter, value, time) {
 
 function cancelAudioParam(parameter, time) {
     parameter?.cancelScheduledValues?.(time)
+}
+
+function midiToFrequency(midi) {
+    return 440 * 2 ** ((Number(midi) - 69) / 12)
 }
 
 /**
@@ -209,7 +222,8 @@ export class InstrumentAudioEngine {
     async loadInstrument(definition, {background = false} = {}) {
         const instrumentId = definition?.id
         const samples = normalizeSampleManifest(definition?.sampleManifest)
-        if (!instrumentId || samples.length === 0) {
+        const soundType = definition?.soundType || 'sample'
+        if (!instrumentId || (soundType !== SYNTH_PIANO_SOUND_TYPE && samples.length === 0)) {
             throw new Error('乐器采样配置不完整')
         }
         if (this.instrumentBuffers.has(instrumentId)) {
@@ -230,6 +244,9 @@ export class InstrumentAudioEngine {
             }
         }
 
+        if (!background) {
+            this._updateState('loading')
+        }
         const normalizedDefinition = {
             ...definition,
             sampleManifest: {
@@ -237,10 +254,9 @@ export class InstrumentAudioEngine {
                 samples
             }
         }
-        if (!background) {
-            this._updateState('loading')
-        }
-        const loadPromise = this._loadInstrumentSamples(normalizedDefinition)
+        const loadPromise = soundType === SYNTH_PIANO_SOUND_TYPE
+            ? this._loadSynthInstrument(definition)
+            : this._loadInstrumentSamples(normalizedDefinition)
         this.instrumentLoadPromises.set(instrumentId, loadPromise)
         try {
             const loaded = await loadPromise
@@ -272,6 +288,19 @@ export class InstrumentAudioEngine {
         )
         this.instrumentDefinitions.set(definition.id, definition)
         this.instrumentBuffers.set(definition.id, new Map(sampleBufferEntries))
+        return true
+    }
+
+    /**
+     * 合成钢琴没有外部音频资源，但仍登记为已就绪乐器，保持页面加载与录制回放流程一致。
+     */
+    async _loadSynthInstrument(definition) {
+        const initialized = await this.initialize()
+        if (!initialized) {
+            return false
+        }
+        this.instrumentDefinitions.set(definition.id, definition)
+        this.instrumentBuffers.set(definition.id, new Map())
         return true
     }
 
@@ -326,6 +355,17 @@ export class InstrumentAudioEngine {
         }
 
         const definition = this.instrumentDefinitions.get(instrumentId)
+        if (definition?.soundType === SYNTH_PIANO_SOUND_TYPE) {
+            return this._playSynthPianoNote({
+                instrumentId,
+                stringId,
+                midi,
+                velocity,
+                damped,
+                when,
+                durationSeconds
+            })
+        }
         const buffers = this.instrumentBuffers.get(instrumentId)
         const sample = selectNearestSample(definition?.sampleManifest?.samples, midi, velocity)
         const audioBuffer = sample ? buffers?.get(sample.id || sample.url) : null
@@ -374,6 +414,91 @@ export class InstrumentAudioEngine {
     }
 
     /**
+     * 用短起音与多组正弦泛音模拟钢琴击弦的明亮瞬态和自然衰减。
+     * 该实现只使用 Web Audio 原生节点，因此不会增加新的采样版权或下载体积。
+     */
+    _playSynthPianoNote({
+        instrumentId,
+        stringId,
+        midi,
+        velocity = 0.7,
+        damped = false,
+        when,
+        durationSeconds
+    }) {
+        if (typeof this.context?.createOscillator !== 'function') {
+            return null
+        }
+
+        const startAt = Math.max(this.currentTime, Number(when) || this.currentTime)
+        const normalizedVelocity = clamp(velocity, 0.02, 1)
+        const requestedDuration = damped
+            ? Math.min(Number(durationSeconds) || 0.09, 0.12)
+            : Number(durationSeconds)
+        const naturalDecay = SYNTH_PIANO_MIN_DECAY_SECONDS
+            + (SYNTH_PIANO_MAX_DECAY_SECONDS - SYNTH_PIANO_MIN_DECAY_SECONDS) * normalizedVelocity
+        const releaseAt = Number.isFinite(requestedDuration) && requestedDuration > 0
+            ? startAt + requestedDuration
+            : startAt + naturalDecay
+        const stopAt = releaseAt + this.fadeSeconds
+        this._makeVoiceCapacity(instrumentId, stringId, startAt)
+        const voiceGain = this.context.createGain()
+        const peakGain = normalizedVelocity * 0.5
+        const oscillators = SYNTH_PIANO_PARTIALS.map(({ratio, gain}) => {
+            const oscillator = this.context.createOscillator()
+            const partialGain = this.context.createGain()
+            oscillator.type = 'sine'
+            setAudioParamValue(oscillator.frequency, midiToFrequency(midi) * ratio, startAt)
+            setAudioParamValue(partialGain.gain, gain, startAt)
+            oscillator.connect(partialGain)
+            partialGain.connect(voiceGain)
+            return oscillator
+        })
+
+        setAudioParamValue(voiceGain.gain, 0, startAt)
+        rampAudioParam(voiceGain.gain, peakGain, startAt + ATTACK_SECONDS)
+        if (typeof voiceGain.gain?.exponentialRampToValueAtTime === 'function') {
+            voiceGain.gain.exponentialRampToValueAtTime(0.0001, releaseAt)
+        } else {
+            rampAudioParam(voiceGain.gain, 0, releaseAt)
+        }
+        voiceGain.connect(this.instrumentBus)
+
+        let scheduledStopAt = Number.POSITIVE_INFINITY
+        const source = {
+            stop: (stopTime) => {
+                const nextStopAt = Number(stopTime)
+                if (!Number.isFinite(nextStopAt) || nextStopAt >= scheduledStopAt) {
+                    return
+                }
+                scheduledStopAt = nextStopAt
+                oscillators.forEach((oscillator) => {
+                    try {
+                        oscillator.stop(nextStopAt)
+                    } catch {
+                        // OscillatorNode 可能已自然结束，重复 stop 不影响其他声部。
+                    }
+                })
+            }
+        }
+        const voice = {
+            id: `voice-${++this.voiceSequence}`,
+            source,
+            gainNode: voiceGain,
+            instrumentId,
+            stringId,
+            startedAt: startAt,
+            peakGain,
+            stopping: false
+        }
+        oscillators[0].onended = () => this._removeVoice(voice.id)
+        this.activeVoices.push(voice)
+        oscillators.forEach((oscillator) => oscillator.start(startAt))
+        source.stop(stopAt)
+        return voice.id
+    }
+
+    /**
      * 在指定弦当前仍发声的声部上调节音高。
      */
     bendString({instrumentId, stringId, bendCents = 0, when} = {}) {
@@ -382,6 +507,9 @@ export class InstrumentAudioEngine {
         this.activeVoices
             .filter(voice => voice.instrumentId === instrumentId && voice.stringId === stringId && !voice.stopping)
             .forEach(voice => {
+                if (!voice.source?.playbackRate) {
+                    return
+                }
                 const targetRate = voice.basePlaybackRate * bendRatio
                 cancelAudioParam(voice.source.playbackRate, changeAt)
                 setAudioParamValue(voice.source.playbackRate, voice.source.playbackRate.value, changeAt)

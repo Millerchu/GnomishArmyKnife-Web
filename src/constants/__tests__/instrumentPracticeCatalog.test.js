@@ -18,7 +18,7 @@ test('instrument practice app exposes the platform catalog contract', () => {
     encryptionMode: 'NONE',
     enabled: true,
     sortNo: 120,
-    description: '在手机上演奏古筝、吉他和乌克丽丽，并使用节拍器与录制回放练习。'
+    description: '在手机上演奏古筝、吉他、乌克丽丽和钢琴，并使用节拍器与录制回放练习。'
   })
 })
 

@@ -75,6 +75,12 @@
           @interaction="handleInteraction"
           @performance="handlePerformance"
         />
+        <PianoSurface
+          v-else-if="currentInstrumentId === 'piano'"
+          :reduced-motion="reducedMotion"
+          @interaction="handleInteraction"
+          @performance="handlePerformance"
+        />
         <FrettedInstrumentSurface
           v-else
           v-model:mode="activeMode"
@@ -318,7 +324,7 @@
               <path d="M12 8v5M12 17h.01"/>
               <circle cx="12" cy="12" r="9"/>
             </svg>
-            <p>乐器采样均来自 CC0 公共领域素材；应用不读取麦克风，也不会上传演奏记录。</p>
+            <p>采样乐器使用 CC0 公共领域素材；钢琴使用原生合成音色。应用不读取麦克风，也不会上传演奏记录。</p>
           </div>
         </section>
       </div>
@@ -333,6 +339,7 @@ import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
 import FrettedInstrumentSurface from '@/features/instrument-practice/components/FrettedInstrumentSurface.vue'
 import GuzhengSurface from '@/features/instrument-practice/components/GuzhengSurface.vue'
+import PianoSurface from '@/features/instrument-practice/components/PianoSurface.vue'
 import {
   useInstrumentAudio,
   useMetronome,
@@ -365,7 +372,8 @@ const landscapeChromeHidden = ref(false)
 const tuningIds = reactive({
   guzheng: 'd-pentatonic',
   guitar: 'standard',
-  ukulele: 'high-g'
+  ukulele: 'high-g',
+  piano: 'concert-pitch'
 })
 const modes = reactive({
   guitar: 'chord',
@@ -789,7 +797,7 @@ button {
 .instrument-switcher {
   justify-self: center;
   display: grid;
-  grid-template-columns: repeat(3, minmax(5.25rem, 1fr));
+  grid-template-columns: repeat(4, minmax(5.25rem, 1fr));
   padding: 0.22rem;
   background: rgba(1, 9, 15, 0.48);
   border: 1px solid rgba(178, 222, 235, 0.12);
@@ -879,6 +887,23 @@ button {
 
 .glyph-ukulele {
   transform: scale(0.84);
+}
+
+.glyph-piano::before {
+  inset: 0.12rem 0.05rem 0.18rem;
+  border: 1px solid currentColor;
+  border-radius: 0.14rem 0.14rem 0.3rem 0.3rem;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), currentColor calc(25% - 1px) 25%);
+}
+
+.glyph-piano::after {
+  left: 0.16rem;
+  right: 0.16rem;
+  top: 0.12rem;
+  height: 0.38rem;
+  background: currentColor;
+  border-radius: 0.1rem 0.1rem 0.02rem 0.02rem;
+  box-shadow: 0.2rem 0.3rem rgba(0, 0, 0, 0.5), 0.6rem 0.3rem rgba(0, 0, 0, 0.5);
 }
 
 .loaded-dot {
@@ -1475,7 +1500,7 @@ button {
   }
 
   .instrument-switcher {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 
   .instrument-switcher button {
@@ -1526,7 +1551,7 @@ button {
   }
 
   .instrument-switcher {
-    grid-template-columns: repeat(3, minmax(4.2rem, 1fr));
+    grid-template-columns: repeat(4, minmax(3.75rem, 1fr));
   }
 
   .instrument-switcher button {
@@ -1795,7 +1820,8 @@ button {
 
 @media (orientation: landscape) and (max-height: 34rem) {
   .instrument-practice-page .fretted-surface,
-  .instrument-practice-page .guzheng-surface {
+  .instrument-practice-page .guzheng-surface,
+  .instrument-practice-page .piano-surface {
     position: relative;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 2.9rem minmax(0, 1fr);
@@ -1803,7 +1829,8 @@ button {
   }
 
   .instrument-practice-page .surface-controls,
-  .instrument-practice-page .guzheng-controls {
+  .instrument-practice-page .guzheng-controls,
+  .instrument-practice-page .piano-controls {
     position: relative;
     z-index: 7;
     grid-column: 1;
@@ -1822,7 +1849,8 @@ button {
   }
 
   .instrument-practice-page.chrome-hidden .tuning-field,
-  .instrument-practice-page.chrome-hidden .tremolo-status {
+  .instrument-practice-page.chrome-hidden .tremolo-status,
+  .instrument-practice-page.chrome-hidden .piano-range {
     margin-right: 5.7rem;
   }
 
@@ -1837,7 +1865,8 @@ button {
   }
 
   .instrument-practice-page .fretted-stage,
-  .instrument-practice-page .guzheng-board {
+  .instrument-practice-page .guzheng-board,
+  .instrument-practice-page .piano-keybed {
     grid-column: 1;
     grid-row: 2;
     min-height: 0;

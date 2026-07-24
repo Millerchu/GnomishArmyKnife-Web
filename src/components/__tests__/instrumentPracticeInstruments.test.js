@@ -62,6 +62,23 @@ test('吉他与乌克丽丽均提供 21 个和弦及规定调弦', () => {
   assert.equal(getChord(guitar, 'b-7').label, 'B7')
 })
 
+test('钢琴提供三组八度音区与无版权素材依赖的合成音色', () => {
+  const piano = getInstrumentDefinition('piano')
+
+  assert.equal(piano.soundType, 'synth-piano')
+  assert.equal(piano.strings.length, 37)
+  assert.deepEqual(
+    piano.layout.keyBanks.map((bank) => bank.id),
+    ['low', 'middle', 'high']
+  )
+  assert.deepEqual(
+    piano.tuningPresets[0].midiNotes.slice(0, 3),
+    [48, 49, 50]
+  )
+  assert.equal(piano.tuningPresets[0].midiNotes.at(-1), 84)
+  assert.deepEqual(piano.sampleManifest, [])
+})
+
 test('紧凑横屏控制行不会截获和弦条触摸', () => {
   const pageSource = readFileSync(
     new URL('../../views/InstrumentPractice.vue', import.meta.url),
@@ -80,6 +97,10 @@ test('紧凑横屏控制行不会截获和弦条触摸', () => {
 
 test('采样清单与实际 MP3 产物保持一致并保留速度层', () => {
   Object.values(INSTRUMENT_DEFINITIONS).forEach((definition) => {
+    if (definition.soundType === 'synth-piano') {
+      assert.deepEqual(definition.sampleManifest, [])
+      return
+    }
     assert.ok(Array.isArray(definition.sampleManifest))
     assert.ok(definition.sampleManifest.length > 0)
     definition.sampleManifest.forEach((sample) => {

@@ -4,6 +4,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {mount} from '@vue/test-utils'
 import FrettedInstrumentSurface from '../../features/instrument-practice/components/FrettedInstrumentSurface.vue'
 import GuzhengSurface from '../../features/instrument-practice/components/GuzhengSurface.vue'
+import PianoSurface from '../../features/instrument-practice/components/PianoSurface.vue'
 
 function pointerPayload(pointerId, clientX, clientY) {
   return {
@@ -174,5 +175,31 @@ describe('随身乐器演奏面', () => {
     expect(wrapper.emitted('tremolo-change')).toEqual([[true], [false]])
     expect(tremoloButton.classes()).not.toContain('active')
     vi.useRealTimers()
+  })
+
+  it('钢琴在 pointerdown 即发音，支持多指按键与跨键滑奏', async () => {
+    const wrapper = mount(PianoSurface, {
+      props: {reducedMotion: true}
+    })
+    const c4 = wrapper.get('[data-midi="60"]')
+    const e4 = wrapper.get('[data-midi="64"]')
+    const g4 = wrapper.get('[data-midi="67"]')
+    const keybed = wrapper.get('.piano-keybed')
+
+    await c4.trigger('pointerdown', pointerPayload(31, 10, 10))
+    await e4.trigger('pointerdown', pointerPayload(32, 80, 10))
+    expect(wrapper.emitted('performance').map(([event]) => event.midi)).toEqual([60, 64])
+    expect(c4.classes()).toContain('pressed')
+    expect(e4.classes()).toContain('pressed')
+
+    vi.spyOn(document, 'elementFromPoint').mockReturnValue(g4.element)
+    await keybed.trigger('pointermove', pointerPayload(31, 40, 10))
+    expect(wrapper.emitted('performance').map(([event]) => event.midi)).toEqual([60, 64, 67])
+    expect(g4.classes()).toContain('pressed')
+
+    await keybed.trigger('pointerup', pointerPayload(31, 40, 10))
+    expect(g4.classes()).not.toContain('pressed')
+    expect(e4.classes()).toContain('pressed')
+    expect(wrapper.emitted('interaction')).toHaveLength(2)
   })
 })

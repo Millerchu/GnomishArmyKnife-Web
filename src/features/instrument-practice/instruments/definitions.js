@@ -37,6 +37,17 @@ function createStrings(count, prefix = '弦') {
   }))
 }
 
+function createChromaticRange(firstMidi, count) {
+  return Array.from({length: count}, (_, index) => firstMidi + index)
+}
+
+function createPianoKeys(firstMidi, count) {
+  return createChromaticRange(firstMidi, count).map((midi) => ({
+    id: `key-${midi}`,
+    label: midiToNoteName(midi)
+  }))
+}
+
 /**
  * 古筝采用五声音阶，数组按低音至高音排列。
  *
@@ -153,11 +164,38 @@ const UKULELE_DEFINITION = {
   layout: {maxFret: 7}
 }
 
+/**
+ * 钢琴使用三个可切换的一组八度音区，竖屏也能为每个白键保留足够的触控宽度。
+ * 声音通过原生 Web Audio 的短衰减泛音合成，避免引入额外的版权素材与下载体积。
+ *
+ * @type {InstrumentDefinition}
+ */
+const PIANO_DEFINITION = {
+  id: 'piano',
+  label: '钢琴',
+  family: 'keyboard',
+  strings: createPianoKeys(48, 37),
+  tuningPresets: [
+    {id: 'concert-pitch', label: '标准音高 A4 = 440Hz', midiNotes: createChromaticRange(48, 37)}
+  ],
+  chordVoicings: [],
+  sampleManifest: [],
+  soundType: 'synth-piano',
+  layout: {
+    keyBanks: [
+      {id: 'low', label: '低音', firstMidi: 48},
+      {id: 'middle', label: '中音', firstMidi: 60},
+      {id: 'high', label: '高音', firstMidi: 72}
+    ]
+  }
+}
+
 /** @type {Readonly<Record<string, InstrumentDefinition>>} */
 export const INSTRUMENT_DEFINITIONS = Object.freeze({
   guzheng: GUZHENG_DEFINITION,
   guitar: GUITAR_DEFINITION,
-  ukulele: UKULELE_DEFINITION
+  ukulele: UKULELE_DEFINITION,
+  piano: PIANO_DEFINITION
 })
 
 /**

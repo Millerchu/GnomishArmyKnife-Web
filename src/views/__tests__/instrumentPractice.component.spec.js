@@ -17,7 +17,7 @@ vi.mock('@/features/instrument-practice/composables/index.js', async () => {
   const audio = {
     status: ref('prepared'),
     error: ref(''),
-    loadedInstrumentIds: ref(['guzheng', 'guitar', 'ukulele']),
+    loadedInstrumentIds: ref(['guzheng', 'guitar', 'ukulele', 'piano']),
     engine: {},
     prepareInstrument: vi.fn(async () => true),
     prefetchInstruments: vi.fn(),
@@ -93,6 +93,10 @@ function mountPage() {
           name: 'GuzhengSurface',
           template: '<section data-test="guzheng-surface" />'
         },
+        PianoSurface: {
+          name: 'PianoSurface',
+          template: '<section data-test="piano-surface" />'
+        },
         MacDialog: {
           props: ['modelValue'],
           emits: ['update:modelValue'],
@@ -123,7 +127,7 @@ afterEach(() => {
 })
 
 describe('随身乐器页面流程', () => {
-  it('默认准备古筝并在选择时加载共享吉他演奏面', async () => {
+  it('默认准备古筝并可切换至吉他或钢琴演奏面', async () => {
     const wrapper = mountPage()
     await flushPromises()
 
@@ -132,7 +136,8 @@ describe('随身乐器页面流程', () => {
     expect(__instrumentPracticeMocks.audio.prefetchInstruments)
       .toHaveBeenCalledWith([
         expect.objectContaining({id: 'guitar'}),
-        expect.objectContaining({id: 'ukulele'})
+        expect.objectContaining({id: 'ukulele'}),
+        expect.objectContaining({id: 'piano'})
       ])
 
     await wrapper.get('.instrument-switcher button:nth-child(2)').trigger('click')
@@ -142,6 +147,13 @@ describe('随身乐器页面流程', () => {
     expect(wrapper.find('[data-test="fretted-surface"]').exists()).toBe(true)
     expect(__instrumentPracticeMocks.audio.prepareInstrument)
       .toHaveBeenLastCalledWith(expect.objectContaining({id: 'guitar'}))
+
+    await wrapper.get('.instrument-switcher button:nth-child(4)').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('钢琴')
+    expect(wrapper.find('[data-test="piano-surface"]').exists()).toBe(true)
+    expect(__instrumentPracticeMocks.audio.prepareInstrument)
+      .toHaveBeenLastCalledWith(expect.objectContaining({id: 'piano'}))
     wrapper.unmount()
   })
 

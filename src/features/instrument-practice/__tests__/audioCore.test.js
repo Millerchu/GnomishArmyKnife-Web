@@ -73,7 +73,7 @@ class FakeBufferSourceNode extends FakeAudioNode {
 class FakeOscillatorNode extends FakeAudioNode {
     constructor() {
         super()
-        this.frequency = {value: 0}
+        this.frequency = new FakeAudioParam(0)
         this.startedAt = null
         this.stoppedAt = null
     }
@@ -141,6 +141,15 @@ const instrumentDefinition = {
             {id: 'g4', url: '/g4.wav', rootMidi: 67, velocity: 0.7}
         ]
     }
+}
+
+const pianoDefinition = {
+    id: 'piano',
+    label: '钢琴',
+    strings: [],
+    tuningPresets: [],
+    sampleManifest: [],
+    soundType: 'synth-piano'
 }
 
 test('nearest sample prioritizes pitch and then velocity layer', () => {
@@ -211,6 +220,38 @@ test('engine builds interactive buses, caches samples and unlocks on demand', as
     assert.equal(engine.masterBus.connections[0], context.destination)
     assert.equal(engine.instrumentBus.connections[0], engine.masterBus)
     assert.equal(engine.metronomeBus.connections[0], engine.masterBus)
+})
+
+test('合成钢琴无需下载采样即可加载，并以泛音振荡器演奏和闷音', async () => {
+    const context = new FakeAudioContext()
+    let fetchCount = 0
+    const engine = new InstrumentAudioEngine({
+        contextFactory: () => context,
+        fetchImpl: async () => {
+            fetchCount += 1
+            throw new Error('合成钢琴不应请求外部采样')
+        }
+    })
+
+    assert.equal(await engine.loadInstrument(pianoDefinition), true)
+    assert.equal(fetchCount, 0)
+    assert.deepEqual(engine.loadedInstrumentIds, ['piano'])
+    assert.equal(await engine.unlock(), true)
+
+    const voiceId = engine.playNote({
+        instrumentId: 'piano',
+        stringId: 'key-60',
+        midi: 60,
+        velocity: 0.8
+    })
+    assert.ok(voiceId)
+    assert.equal(context.oscillators.length, 4)
+    assert.equal(context.oscillators[0].frequency.value, 261.6255653005986)
+    assert.equal(context.oscillators[0].startedAt, context.currentTime)
+
+    engine.dampString({instrumentId: 'piano', stringId: 'key-60'})
+    assert.equal(engine.voiceCount, 0)
+    assert.equal(context.oscillators[0].stoppedAt, context.currentTime + 0.02)
 })
 
 test('failed background prefetch does not replace the active instrument status', async () => {
