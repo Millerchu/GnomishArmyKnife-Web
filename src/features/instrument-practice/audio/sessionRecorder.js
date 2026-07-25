@@ -4,6 +4,8 @@ import {clamp} from './sampleSelection.js'
 
 export const MAX_TAKE_DURATION_MS = 10 * 60 * 1000
 export const MAX_SESSION_TAKES = 5
+export const MAX_PERSISTED_TAKES_PER_INSTRUMENT = 10
+export const MAX_INSTRUMENT_TAKE_CACHE = 48
 const PLAYBACK_LOOK_AHEAD_MS = 25
 const PLAYBACK_SCHEDULE_AHEAD_SECONDS = 0.1
 
@@ -182,6 +184,15 @@ export class SessionRecorder {
         const previousLength = this.takes.length
         this.takes = this.takes.filter(take => take.id !== takeId)
         return this.takes.length !== previousLength
+    }
+
+    /**
+     * 服务器录音列表是页面的权威来源；替换时保留按创建时间排列的稳定顺序。
+     */
+    replaceTakes(takes) {
+        this.takes = Array.isArray(takes)
+            ? [...takes].sort((left, right) => Number(left.createdAt) - Number(right.createdAt))
+            : []
     }
 
     clear() {

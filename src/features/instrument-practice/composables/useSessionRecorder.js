@@ -1,6 +1,7 @@
 import {onBeforeUnmount, onMounted, readonly, ref} from 'vue'
 import {getInstrumentAudioEngine} from '../audio/instrumentAudioEngine.js'
 import {
+    MAX_INSTRUMENT_TAKE_CACHE,
     MAX_TAKE_DURATION_MS,
     PerformancePlaybackScheduler,
     SessionRecorder
@@ -25,7 +26,8 @@ function createFallbackClock() {
 export function useSessionRecorder({
     engine = getInstrumentAudioEngine(),
     clock,
-    dispatchEvent
+    dispatchEvent,
+    maxTakes = MAX_INSTRUMENT_TAKE_CACHE
 } = {}) {
     const fallbackClock = createFallbackClock()
     const timelineClock = clock || (() => engine.context ? engine.currentTime : fallbackClock())
@@ -34,7 +36,7 @@ export function useSessionRecorder({
     const activePlaybackId = ref(null)
     let durationTimerId = null
 
-    const recorder = new SessionRecorder({clock: timelineClock})
+    const recorder = new SessionRecorder({clock: timelineClock, maxTakes})
     const playback = new PerformancePlaybackScheduler({
         clock: timelineClock,
         dispatchEvent: dispatchEvent || ((event, when) => engine.playPerformanceEvent(event, when)),
@@ -115,6 +117,11 @@ export function useSessionRecorder({
         return deleted
     }
 
+    function replaceTakes(nextTakes) {
+        recorder.replaceTakes(nextTakes)
+        syncTakes()
+    }
+
     function clearTakes() {
         clearDurationTimer()
         stopPlayback()
@@ -152,6 +159,7 @@ export function useSessionRecorder({
         replayTake,
         stopPlayback,
         deleteTake,
+        replaceTakes,
         clearTakes,
         recorder,
         playback

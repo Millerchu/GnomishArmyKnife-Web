@@ -25,6 +25,7 @@ describe('随身乐器演奏面', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('和弦选择保持静音，扫弦在 pointerdown 同步发出和弦音', async () => {
@@ -201,5 +202,21 @@ describe('随身乐器演奏面', () => {
     expect(g4.classes()).not.toContain('pressed')
     expect(e4.classes()).toContain('pressed')
     expect(wrapper.emitted('interaction')).toHaveLength(2)
+  })
+
+  it('钢琴横屏时展示双八度琴键', async () => {
+    vi.stubGlobal('matchMedia', vi.fn((query) => ({
+      matches: query.includes('(orientation: landscape) and (min-width: 40rem)'),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    })))
+
+    const wrapper = mount(PianoSurface)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.piano-key-white')).toHaveLength(15)
+    expect(wrapper.findAll('.piano-key')).toHaveLength(25)
+    expect(wrapper.get('.piano-keybed').attributes('aria-label')).toContain('C4 — C6')
+    wrapper.unmount()
   })
 })

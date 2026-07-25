@@ -7,9 +7,27 @@ import InstrumentPractice from '../InstrumentPractice.vue'
 import {__instrumentPracticeMocks} from '@/features/instrument-practice/composables/index.js'
 
 const routerPush = vi.fn()
+const confirmDialogMock = vi.hoisted(() => vi.fn(async () => true))
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({push: routerPush})
+}))
+
+vi.mock('@/components/systemDialog.js', () => ({
+  confirmDialog: confirmDialogMock
+}))
+
+vi.mock('@/api/instrumentPractice.js', () => ({
+  listInstrumentPracticeTakes: vi.fn(async () => ({data: {data: []}})),
+  createInstrumentPracticeTake: vi.fn(async (take) => ({
+    data: {
+      data: {
+        take: {...take, id: 101, createdAt: Date.now()},
+        overwrittenTakeId: null
+      }
+    }
+  })),
+  deleteInstrumentPracticeTake: vi.fn(async () => ({data: {data: null}}))
 }))
 
 vi.mock('@/features/instrument-practice/composables/index.js', async () => {
@@ -68,6 +86,9 @@ vi.mock('@/features/instrument-practice/composables/index.js', async () => {
     stopPlayback: vi.fn(),
     replayTake: vi.fn(),
     deleteTake: vi.fn(),
+    replaceTakes: vi.fn((takes) => {
+      recorder.takes.value = takes
+    }),
     clearTakes: vi.fn(() => {
       recorder.takes.value = []
     })
@@ -110,6 +131,7 @@ function mountPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  confirmDialogMock.mockResolvedValue(true)
   routerPush.mockReset()
   __instrumentPracticeMocks.audio.status.value = 'prepared'
   __instrumentPracticeMocks.recorder.takes.value = []
@@ -177,7 +199,33 @@ describe('随身乐器页面流程', () => {
     expect(__instrumentPracticeMocks.audio.stopAll).toHaveBeenCalled()
     expect(wrapper.get('h1').text()).toBe('乌克丽丽')
     expect(wrapper.get('.record-button').attributes('aria-label')).toBe('开始录制')
-    expect(wrapper.get('.practice-toolbar .tool-button:nth-of-type(3) small').text()).toBe('1/5')
+    expect(wrapper.get('.practice-toolbar .tool-button:nth-of-type(3) small').text()).toBe('0/10')
+    wrapper.unmount()
+  })
+
+  it('第 11 段录制前明确提示会覆盖当前乐器最旧记录', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    __instrumentPracticeMocks.recorder.takes.value = Array.from({length: 10}, (_, index) => ({
+      id: index + 1,
+      instrumentId: 'guzheng',
+      tuningId: 'd-pentatonic',
+      bpm: 80,
+      meter: '4/4',
+      durationMs: 1000,
+      events: [],
+      createdAt: index
+    }))
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('.record-button').trigger('click')
+    await flushPromises()
+
+    expect(confirmDialogMock).toHaveBeenCalledWith(
+      expect.stringContaining('最旧的一段将被覆盖'),
+      expect.objectContaining({confirmText: '继续录制'})
+    )
+    expect(__instrumentPracticeMocks.recorder.startRecording).toHaveBeenCalled()
     wrapper.unmount()
   })
 

@@ -128,6 +128,7 @@
         class="record-button"
         :class="{recording: recorder.isRecording.value}"
         type="button"
+        :disabled="savingTake"
         :aria-pressed="recorder.isRecording.value"
         :aria-label="recorder.isRecording.value ? '停止录制' : '开始录制'"
         @click="toggleRecording"
@@ -140,7 +141,7 @@
         class="tool-button"
         :class="{active: recorder.activePlaybackId.value}"
         type="button"
-        aria-label="打开本次练习录音列表"
+        aria-label="打开已保存的练习录音列表"
         @click="takesDialogVisible = true"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -148,7 +149,7 @@
           <circle cx="18" cy="18" r="2"/>
         </svg>
         <span>片段</span>
-        <small>{{ recorder.takes.value.length }}/5</small>
+        <small>{{ currentInstrumentTakeCount }}/{{ MAX_PERSISTED_TAKES_PER_INSTRUMENT }}</small>
       </button>
 
       <button
@@ -195,8 +196,8 @@
 
     <MacDialog
       v-model="takesDialogVisible"
-      title="本次练习片段"
-      subtitle="片段只保留在当前页面会话中"
+      title="已保存的练习片段"
+      subtitle="已同步至 NAS；每种乐器最多保留 10 段"
       width="560px"
       mobile-presentation="sheet"
       :confirm-on-dirty="false"
@@ -229,10 +230,22 @@
             </svg>
           </button>
           <button
+            class="take-export"
+            type="button"
+            :disabled="exportingTakeId === take.id"
+            :aria-label="exportingTakeId === take.id ? '正在导出音频' : '导出音频到设备'"
+            @click="exportTakeAudio(take)"
+          >
+            <svg v-if="exportingTakeId !== take.id" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4v10M8 10l4 4 4-4M5 18v2h14v-2"/>
+            </svg>
+            <span v-else aria-hidden="true">…</span>
+          </button>
+          <button
             class="take-delete"
             type="button"
             aria-label="删除片段"
-            @click="recorder.deleteTake(take.id)"
+            @click="deleteTake(take)"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 7h14M9 7V4h6v3M8 10v8M12 10v8M16 10v8M7 7l1 13h8l1-13"/>
@@ -243,7 +256,7 @@
       <div v-else class="empty-takes">
         <span class="empty-wave" aria-hidden="true"><i/><i/><i/><i/><i/></span>
         <h2>还没有练习片段</h2>
-        <p>点击底部录制键，演奏动作会被轻量记录，无需麦克风权限。</p>
+        <p>点击底部录制键，演奏动作会同步保存到 NAS，无需麦克风权限。</p>
       </div>
     </MacDialog>
 
@@ -324,7 +337,7 @@
               <path d="M12 8v5M12 17h.01"/>
               <circle cx="12" cy="12" r="9"/>
             </svg>
-            <p>采样乐器使用 CC0 公共领域素材；钢琴使用原生合成音色。应用不读取麦克风，也不会上传演奏记录。</p>
+            <p>采样乐器使用 CC0 公共领域素材；钢琴使用原生合成音色。应用不读取麦克风；演奏事件保存至 NAS，导出音频仅保存在设备。</p>
           </div>
         </section>
       </div>
@@ -337,9 +350,21 @@ import {computed, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 
 import MacDialog from '@/components/MacDialog.vue'
+import {confirmDialog} from '@/components/systemDialog.js'
+import {
+  createInstrumentPracticeTake,
+  deleteInstrumentPracticeTake,
+  listInstrumentPracticeTakes
+} from '@/api/instrumentPractice.js'
 import FrettedInstrumentSurface from '@/features/instrument-practice/components/FrettedInstrumentSurface.vue'
 import GuzhengSurface from '@/features/instrument-practice/components/GuzhengSurface.vue'
 import PianoSurface from '@/features/instrument-practice/components/PianoSurface.vue'
+import {
+  buildTakeAudioFileName,
+  renderTakeToWav,
+  saveAudioBlobToDevice
+} from '@/features/instrument-practice/audio/performanceAudioExport.js'
+import {MAX_PERSISTED_TAKES_PER_INSTRUMENT} from '@/features/instrument-practice/audio/sessionRecorder.js'
 import {
   useInstrumentAudio,
   useMetronome,
@@ -369,6 +394,8 @@ const hapticsEnabled = ref(true)
 const reducedMotion = ref(false)
 const compactLandscape = ref(false)
 const landscapeChromeHidden = ref(false)
+const exportingTakeId = ref(null)
+const savingTake = ref(false)
 const tuningIds = reactive({
   guzheng: 'd-pentatonic',
   guitar: 'standard',
@@ -405,6 +432,8 @@ const activeChordId = computed({
   }
 })
 const reversedTakes = computed(() => [...recorder.takes.value].reverse())
+const currentInstrumentTakeCount = computed(() => recorder.takes.value
+  .filter((take) => take.instrumentId === currentInstrumentId.value).length)
 const visibleBeatCount = computed(() => Number(metronome.meter.value.split('/')[0]) || 4)
 const canRetryAudio = computed(() => (
   ['blocked', 'error', 'suspended'].includes(audio.status.value)
@@ -469,9 +498,8 @@ async function selectInstrument(instrumentId, {announce = true} = {}) {
   }
   const switchToken = ++instrumentSwitchToken
   if (recorder.isRecording.value) {
-    recorder.stopRecording()
+    await finishRecording({announce: false})
     vibrate([8, 40, 8])
-    showNotice('已保存当前录制片段')
   }
   recorder.stopPlayback()
   audio.stopAll()
@@ -515,12 +543,25 @@ async function toggleMetronome() {
   }
 }
 
-function toggleRecording() {
+async function toggleRecording() {
   if (recorder.isRecording.value) {
-    const take = recorder.stopRecording()
+    await finishRecording()
     vibrate([10, 35, 10])
-    showNotice(take?.events.length ? '练习片段已保存' : '已保存空白练习片段')
     return
+  }
+  if (currentInstrumentTakeCount.value >= MAX_PERSISTED_TAKES_PER_INSTRUMENT) {
+    const confirmed = await confirmDialog(
+      `${currentDefinition.value.label}已保存 10 段练习。继续录制并保存后，最旧的一段将被覆盖。`,
+      {
+        title: '覆盖最旧练习片段？',
+        tone: 'warning',
+        confirmText: '继续录制',
+        cancelText: '取消'
+      }
+    )
+    if (!confirmed) {
+      return
+    }
   }
   recorder.stopPlayback()
   const started = recorder.startRecording({
@@ -532,6 +573,72 @@ function toggleRecording() {
   if (started) {
     vibrate(12)
     showNotice('开始记录演奏动作')
+  }
+}
+
+async function finishRecording({announce = true} = {}) {
+  const take = recorder.stopRecording()
+  if (!take) {
+    return null
+  }
+  savingTake.value = true
+  try {
+    const response = await createInstrumentPracticeTake(take)
+    const result = unwrapData(response) || {}
+    const savedTake = normalizeTake(result.take)
+    if (!savedTake) {
+      throw new Error('练习片段保存结果无效')
+    }
+    const overwrittenTakeId = result.overwrittenTakeId
+    const nextTakes = recorder.takes.value.filter((item) => (
+      `${item.id}` !== `${take.id}` && `${item.id}` !== `${overwrittenTakeId}`
+    ))
+    recorder.replaceTakes([...nextTakes, savedTake])
+    if (announce) {
+      showNotice(overwrittenTakeId
+        ? '已保存，并覆盖最旧的一段练习'
+        : (savedTake.events.length ? '练习片段已保存至 NAS' : '空白练习片段已保存至 NAS'))
+    }
+    return savedTake
+  } catch (error) {
+    showNotice(extractErrorMessage(error, '保存至 NAS 失败；当前页面内仍可回放或导出'))
+    return take
+  } finally {
+    savingTake.value = false
+  }
+}
+
+async function deleteTake(take) {
+  if (!take) {
+    return
+  }
+  try {
+    await deleteInstrumentPracticeTake(take.id)
+    recorder.deleteTake(take.id)
+    showNotice('练习片段已删除')
+  } catch (error) {
+    showNotice(extractErrorMessage(error, '删除练习片段失败，请稍后重试'))
+  }
+}
+
+async function exportTakeAudio(take) {
+  if (!take || exportingTakeId.value !== null) {
+    return
+  }
+  exportingTakeId.value = take.id
+  showNotice('正在生成音频文件…')
+  try {
+    const audioBlob = await renderTakeToWav(take)
+    const result = await saveAudioBlobToDevice(audioBlob, buildTakeAudioFileName(take))
+    if (result === 'cancelled') {
+      showNotice('已取消导出音频')
+      return
+    }
+    showNotice(result === 'shared' ? '音频已打开系统分享面板' : '音频已开始下载到设备')
+  } catch (error) {
+    showNotice(extractErrorMessage(error, '导出音频失败，请稍后重试'))
+  } finally {
+    exportingTakeId.value = null
   }
 }
 
@@ -574,6 +681,43 @@ function formatDuration(durationMs) {
   return `${minutes}:${seconds}`
 }
 
+function unwrapData(response) {
+  return response?.data?.data ?? response?.data ?? response
+}
+
+function extractErrorMessage(error, fallback) {
+  return error?.response?.data?.message
+    || error?.response?.data?.msg
+    || error?.message
+    || fallback
+}
+
+function normalizeTake(take) {
+  if (!take || !take.id || !INSTRUMENT_DEFINITIONS[take.instrumentId]) {
+    return null
+  }
+  return {
+    id: take.id,
+    instrumentId: take.instrumentId,
+    tuningId: take.tuningId,
+    bpm: Number(take.bpm),
+    meter: take.meter,
+    durationMs: Number(take.durationMs),
+    events: Array.isArray(take.events) ? take.events : [],
+    createdAt: Number(take.createdAt) || Date.now()
+  }
+}
+
+async function loadPersistedTakes() {
+  try {
+    const response = await listInstrumentPracticeTakes()
+    const takes = Array.isArray(unwrapData(response)) ? unwrapData(response) : []
+    recorder.replaceTakes(takes.map(normalizeTake).filter(Boolean))
+  } catch (error) {
+    showNotice(extractErrorMessage(error, '无法加载 NAS 练习片段，请检查网络后重试'))
+  }
+}
+
 function updateMotionPreference(event) {
   reducedMotion.value = Boolean(event?.matches)
 }
@@ -612,7 +756,10 @@ onMounted(async () => {
   updateCompactLandscapePreference(compactLandscapePreference)
   mediaPreference?.addEventListener?.('change', updateMotionPreference)
   compactLandscapePreference?.addEventListener?.('change', updateCompactLandscapePreference)
-  await prepareInstrument(currentInstrumentId.value)
+  await Promise.all([
+    prepareInstrument(currentInstrumentId.value),
+    loadPersistedTakes()
+  ])
   audio.prefetchInstruments(
     instrumentOptions.filter((definition) => definition.id !== currentInstrumentId.value)
   )
@@ -1175,7 +1322,7 @@ button {
 
 .take-card {
   display: grid;
-  grid-template-columns: 2.3rem minmax(0, 1fr) 2.75rem 2.75rem;
+  grid-template-columns: 2.3rem minmax(0, 1fr) 2.75rem 2.75rem 2.75rem;
   align-items: center;
   gap: 0.55rem;
   min-height: 4.55rem;
@@ -1228,6 +1375,7 @@ button {
 }
 
 .take-play,
+.take-export,
 .take-delete {
   width: 2.65rem;
   height: 2.65rem;
@@ -1244,11 +1392,21 @@ button {
   color: var(--practice-cyan);
 }
 
+.take-export {
+  color: rgba(255, 209, 126, 0.94);
+}
+
+.take-export:disabled {
+  color: rgba(255, 209, 126, 0.52);
+  cursor: progress;
+}
+
 .take-delete {
   color: rgba(255, 151, 112, 0.88);
 }
 
 .take-play svg,
+.take-export svg,
 .take-delete svg {
   width: 1.15rem;
   fill: none;
@@ -1516,7 +1674,7 @@ button {
   }
 
   .take-card {
-    grid-template-columns: 2.1rem minmax(0, 1fr) 2.55rem 2.55rem;
+    grid-template-columns: 2.1rem minmax(0, 1fr) 2.55rem 2.55rem 2.55rem;
     gap: 0.38rem;
   }
 }

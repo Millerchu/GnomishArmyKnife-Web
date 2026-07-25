@@ -22,6 +22,7 @@
 
     <div
       class="piano-keybed piano-play-zone"
+      :style="{'--black-key-width': `${(0.72 / whiteKeys.length) * 100}%`}"
       role="group"
       :aria-label="`钢琴键盘，当前${keyRangeLabel}`"
       @pointerdown="onKeyboardPointerDown"
@@ -69,7 +70,7 @@
 </template>
 
 <script setup>
-import {computed, onBeforeUnmount, reactive, ref} from 'vue'
+import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 
 import {getInstrumentDefinition, midiToNoteName} from '../instruments/definitions.js'
 import {
@@ -96,25 +97,33 @@ const emit = defineEmits(['performance', 'interaction'])
 
 const definition = getInstrumentDefinition('piano')
 const activeBankId = ref('middle')
+const isWideLandscape = ref(false)
 const activePointers = reactive(new Map())
 const {pointerTracker, crossingTracker, clear: clearPointers} = useInstrumentPointers()
+let orientationPreference = null
 
 const activeBank = computed(() => (
   definition.layout.keyBanks.find((bank) => bank.id === activeBankId.value)
   || definition.layout.keyBanks[1]
   || definition.layout.keyBanks[0]
 ))
-const keyboardKeys = computed(() => createKeyboardKeys(activeBank.value.firstMidi))
+const visibleKeyCount = computed(() => (isWideLandscape.value ? 25 : 13))
+const visibleWhiteKeyCount = computed(() => (isWideLandscape.value ? 15 : 8))
+const keyboardKeys = computed(() => createKeyboardKeys(
+  activeBank.value.firstMidi,
+  visibleKeyCount.value,
+  visibleWhiteKeyCount.value
+))
 const whiteKeys = computed(() => keyboardKeys.value.filter((key) => !key.isBlack))
 const blackKeys = computed(() => keyboardKeys.value.filter((key) => key.isBlack))
 const keyRangeLabel = computed(() => {
   const firstMidi = activeBank.value.firstMidi
-  return `${midiToNoteName(firstMidi)} — ${midiToNoteName(firstMidi + 12)}`
+  return `${midiToNoteName(firstMidi)} — ${midiToNoteName(firstMidi + visibleKeyCount.value - 1)}`
 })
 
-function createKeyboardKeys(firstMidi) {
+function createKeyboardKeys(firstMidi, keyCount, whiteKeyCount) {
   let whiteIndex = 0
-  return Array.from({length: 13}, (_, index) => {
+  return Array.from({length: keyCount}, (_, index) => {
     const midi = firstMidi + index
     const pitchClass = ((midi % 12) + 12) % 12
     const isBlack = BLACK_KEY_PITCH_CLASSES.has(pitchClass)
@@ -127,13 +136,25 @@ function createKeyboardKeys(firstMidi) {
       blackPosition: 0
     }
     if (isBlack) {
-      key.blackPosition = ((whiteIndex / 8) * 100)
+      key.blackPosition = ((whiteIndex / whiteKeyCount) * 100)
     } else {
       whiteIndex += 1
     }
     return key
   })
 }
+
+function updateOrientation(event) {
+  isWideLandscape.value = Boolean(event?.matches)
+}
+
+onMounted(() => {
+  orientationPreference = globalThis.matchMedia?.(
+    '(orientation: landscape) and (min-width: 40rem)'
+  ) || null
+  updateOrientation(orientationPreference)
+  orientationPreference?.addEventListener?.('change', updateOrientation)
+})
 
 function selectBank(bankId) {
   const bank = definition.layout.keyBanks.find((item) => item.id === bankId)
@@ -237,6 +258,7 @@ function isKeyPressed(midi) {
 }
 
 onBeforeUnmount(() => {
+  orientationPreference?.removeEventListener?.('change', updateOrientation)
   activePointers.clear()
 })
 </script>
@@ -370,7 +392,7 @@ onBeforeUnmount(() => {
   position: absolute;
   z-index: 2;
   top: clamp(1.9rem, 8vw, 2.5rem);
-  width: min(12%, 3.7rem);
+  width: var(--black-key-width, 8.5%);
   height: 57%;
   padding: 0;
   transform: translateX(-50%);
