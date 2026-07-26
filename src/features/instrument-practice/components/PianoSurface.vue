@@ -48,7 +48,12 @@
           @keydown.enter.prevent="playKeyFromKeyboard($event, key)"
           @keydown.space.prevent="playKeyFromKeyboard($event, key)"
         >
-          <span v-if="key.isTonic" class="piano-note-label">{{ key.note }}</span>
+          <span
+            v-if="props.showNumberedNotes || key.isTonic"
+            class="piano-note-label"
+          >
+            {{ props.showNumberedNotes ? numberedNoteLabel(key.midi) : key.note }}
+          </span>
         </button>
       </div>
       <button
@@ -63,16 +68,24 @@
         :aria-pressed="isKeyPressed(key.midi)"
         @keydown.enter.prevent="playKeyFromKeyboard($event, key)"
         @keydown.space.prevent="playKeyFromKeyboard($event, key)"
-      />
+      >
+        <span v-if="props.showNumberedNotes" class="piano-note-label">
+          {{ numberedNoteLabel(key.midi) }}
+        </span>
+      </button>
       <span class="piano-hint" aria-hidden="true">轻触 · 滑奏 · 多指和声</span>
     </div>
   </section>
 </template>
 
 <script setup>
-import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
+import {computed, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
 
-import {getInstrumentDefinition, midiToNoteName} from '../instruments/definitions.js'
+import {
+  getInstrumentDefinition,
+  midiToNoteName,
+  midiToNumberedNote
+} from '../instruments/definitions.js'
 import {
   capturePointer,
   releasePointer,
@@ -90,6 +103,14 @@ const props = defineProps({
   reducedMotion: {
     type: Boolean,
     default: false
+  },
+  showNumberedNotes: {
+    type: Boolean,
+    default: false
+  },
+  playbackEvents: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -101,6 +122,7 @@ const isWideLandscape = ref(false)
 const activePointers = reactive(new Map())
 const {pointerTracker, crossingTracker, clear: clearPointers} = useInstrumentPointers()
 let orientationPreference = null
+let handledPlaybackVisualId = 0
 
 const activeBank = computed(() => (
   definition.layout.keyBanks.find((bank) => bank.id === activeBankId.value)
@@ -154,6 +176,30 @@ onMounted(() => {
   ) || null
   updateOrientation(orientationPreference)
   orientationPreference?.addEventListener?.('change', updateOrientation)
+})
+
+watch(() => props.playbackEvents, (playbackEvents) => {
+  for (const playbackEvent of playbackEvents) {
+    if (playbackEvent.playbackVisualId <= handledPlaybackVisualId) {
+      continue
+    }
+    handledPlaybackVisualId = playbackEvent.playbackVisualId
+    if (playbackEvent.type !== 'note' || !Number.isFinite(playbackEvent.midi)) {
+      continue
+    }
+    const currentFirstMidi = activeBank.value.firstMidi
+    const currentLastMidi = currentFirstMidi + visibleKeyCount.value - 1
+    if (playbackEvent.midi >= currentFirstMidi && playbackEvent.midi <= currentLastMidi) {
+      continue
+    }
+    const playbackBank = definition.layout.keyBanks.find((bank) => (
+      playbackEvent.midi >= bank.firstMidi
+      && playbackEvent.midi < bank.firstMidi + visibleKeyCount.value
+    ))
+    if (playbackBank) {
+      activeBankId.value = playbackBank.id
+    }
+  }
 })
 
 function selectBank(bankId) {
@@ -255,6 +301,11 @@ function onKeyboardPointerCancel(event) {
 
 function isKeyPressed(midi) {
   return [...activePointers.values()].includes(midi)
+    || props.playbackEvents.some((event) => event.type === 'note' && event.midi === midi)
+}
+
+function numberedNoteLabel(midi) {
+  return midiToNumberedNote(midi, 60)
 }
 
 onBeforeUnmount(() => {
@@ -422,6 +473,15 @@ onBeforeUnmount(() => {
 
 .piano-key-white.pressed .piano-note-label {
   color: rgba(0, 44, 52, 0.72);
+}
+
+.piano-key-black .piano-note-label {
+  bottom: 0.38rem;
+  color: rgba(224, 251, 253, 0.76);
+}
+
+.piano-key-black.pressed .piano-note-label {
+  color: #d8ffff;
 }
 
 .piano-hint {

@@ -239,3 +239,14 @@ export function midiToNoteName(midi) {
   const octave = Math.floor(normalizedMidi / 12) - 1
   return `${noteNames[((normalizedMidi % 12) + 12) % 12]}${octave}`
 }
+
+/**
+ * 将 MIDI 音高转换为首调唱名。升降音沿用易读的单字符前缀，
+ * 乐器可传入当前调式主音，让古筝 D/G 调都从“1”开始。
+ */
+export function midiToNumberedNote(midi, tonicMidi = 60) {
+  const numberedNotes = ['1', '♯1', '2', '♭3', '3', '4', '♯4', '5', '♭6', '6', '♭7', '7']
+  const pitchDistance = Math.round(Number(midi)) - Math.round(Number(tonicMidi))
+  const pitchClass = ((pitchDistance % 12) + 12) % 12
+  return numberedNotes[pitchClass]
+}

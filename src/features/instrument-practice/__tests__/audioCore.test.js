@@ -6,6 +6,14 @@ import {
     normalizeSampleManifest,
     selectNearestSample
 } from '../audio/sampleSelection.js'
+import {midiToNumberedNote} from '../instruments/definitions.js'
+
+test('numbered notation follows the selected tonic and marks accidentals', () => {
+    assert.equal(midiToNumberedNote(62, 62), '1')
+    assert.equal(midiToNumberedNote(64, 62), '2')
+    assert.equal(midiToNumberedNote(63, 62), '♯1')
+    assert.equal(midiToNumberedNote(59, 60), '7')
+})
 
 class FakeAudioParam {
     constructor(value = 0) {

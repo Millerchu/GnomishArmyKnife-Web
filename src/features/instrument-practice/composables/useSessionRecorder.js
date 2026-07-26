@@ -29,21 +29,61 @@ export function useSessionRecorder({
     dispatchEvent,
     maxTakes = MAX_INSTRUMENT_TAKE_CACHE
 } = {}) {
+    const PLAYBACK_VISUAL_DURATION_MS = 180
     const fallbackClock = createFallbackClock()
     const timelineClock = clock || (() => engine.context ? engine.currentTime : fallbackClock())
     const takes = ref([])
     const isRecording = ref(false)
     const activePlaybackId = ref(null)
+    const activePlaybackEvents = ref([])
+    const playbackVisualTimerIds = new Set()
+    let playbackVisualSequence = 0
     let durationTimerId = null
 
     const recorder = new SessionRecorder({clock: timelineClock, maxTakes})
     const playback = new PerformancePlaybackScheduler({
         clock: timelineClock,
-        dispatchEvent: dispatchEvent || ((event, when) => engine.playPerformanceEvent(event, when)),
+        dispatchEvent: (event, when) => {
+            const eventDispatcher = dispatchEvent
+                || ((performanceEvent, scheduledAt) => engine.playPerformanceEvent(performanceEvent, scheduledAt))
+            eventDispatcher(event, when)
+            schedulePlaybackVisual(event, when)
+        },
         onComplete: () => {
             activePlaybackId.value = null
         }
     })
+
+    function clearPlaybackVisuals() {
+        for (const timerId of playbackVisualTimerIds) {
+            globalThis.clearTimeout?.(timerId)
+        }
+        playbackVisualTimerIds.clear()
+        activePlaybackEvents.value = []
+    }
+
+    function schedulePlaybackVisual(event, when) {
+        const delayMs = Math.max(0, (Number(when) - timelineClock()) * 1000)
+        const scheduleTimerId = globalThis.setTimeout?.(() => {
+            playbackVisualTimerIds.delete(scheduleTimerId)
+            const visualEvent = {
+                ...event,
+                playbackVisualId: ++playbackVisualSequence
+            }
+            activePlaybackEvents.value = [...activePlaybackEvents.value, visualEvent]
+            const removeTimerId = globalThis.setTimeout?.(() => {
+                playbackVisualTimerIds.delete(removeTimerId)
+                activePlaybackEvents.value = activePlaybackEvents.value
+                    .filter(candidate => candidate.playbackVisualId !== visualEvent.playbackVisualId)
+            }, PLAYBACK_VISUAL_DURATION_MS)
+            if (removeTimerId !== undefined) {
+                playbackVisualTimerIds.add(removeTimerId)
+            }
+        }, delayMs)
+        if (scheduleTimerId !== undefined) {
+            playbackVisualTimerIds.add(scheduleTimerId)
+        }
+    }
 
     function syncTakes() {
         takes.value = [...recorder.takes]
@@ -98,6 +138,7 @@ export function useSessionRecorder({
             return false
         }
         engine.stopAll()
+        clearPlaybackVisuals()
         activePlaybackId.value = takeId
         return playback.play(take)
     }
@@ -105,6 +146,7 @@ export function useSessionRecorder({
     function stopPlayback() {
         playback.stop()
         engine.stopAll()
+        clearPlaybackVisuals()
         activePlaybackId.value = null
     }
 
@@ -153,6 +195,7 @@ export function useSessionRecorder({
         takes: readonly(takes),
         isRecording: readonly(isRecording),
         activePlaybackId: readonly(activePlaybackId),
+        activePlaybackEvents: readonly(activePlaybackEvents),
         startRecording,
         capture,
         stopRecording,

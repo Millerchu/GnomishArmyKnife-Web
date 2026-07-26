@@ -70,7 +70,8 @@
               class="fret-cell"
               :class="{
                 selected: isFretActive(stringIndex, fret),
-                muted: resolvedFret(stringIndex) < 0
+                muted: resolvedFret(stringIndex) < 0,
+                'playback-active': isPlaybackFretActive(stringIndex, fret)
               }"
               type="button"
               :data-string-index="stringIndex"
@@ -88,6 +89,9 @@
                 {{ resolvedFret(stringIndex) < 0 ? '×' : '○' }}
               </span>
               <span v-else-if="isFretActive(stringIndex, fret)" class="finger-dot"/>
+              <span v-if="props.showNumberedNotes" class="fret-note-number">
+                {{ numberedNoteLabel(stringIndex, fret) }}
+              </span>
             </button>
           </div>
 
@@ -125,7 +129,10 @@
           @keydown.space.prevent="playString(stringIndex, 0.62)"
         >
           <span
-            :class="{active: stringEnergy(instrumentString.id) > 0.02}"
+            :class="{
+              active: stringEnergy(instrumentString.id) > 0.02,
+              'playback-active': isPlaybackStringActive(instrumentString.id)
+            }"
             :style="stringStyle(instrumentString.id)"
           />
         </button>
@@ -156,7 +163,8 @@ import ChordRail from './ChordRail.vue'
 import {
   getChord,
   getInstrumentDefinition,
-  getTuning
+  getTuning,
+  midiToNumberedNote
 } from '../instruments/definitions.js'
 import {
   capturePointer,
@@ -195,6 +203,14 @@ const props = defineProps({
   reducedMotion: {
     type: Boolean,
     default: false
+  },
+  showNumberedNotes: {
+    type: Boolean,
+    default: false
+  },
+  playbackEvents: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -223,6 +239,7 @@ const {pointerTracker, crossingTracker, clear: clearPointers} = useInstrumentPoi
 const stringDynamics = useStringDynamics({
   reducedMotion: () => props.reducedMotion
 })
+let handledPlaybackVisualId = 0
 
 const fretNumbers = computed(() => (
   Array.from({length: (definition.value.layout.maxFret || 7) + 1}, (_, index) => index)
@@ -253,6 +270,22 @@ watch(definition, (nextDefinition) => {
   activeFrets.clear()
   clearPointers()
   stringDynamics.stop()
+})
+
+watch(() => props.playbackEvents, (playbackEvents) => {
+  for (const playbackEvent of playbackEvents) {
+    if (playbackEvent.playbackVisualId <= handledPlaybackVisualId) {
+      continue
+    }
+    handledPlaybackVisualId = playbackEvent.playbackVisualId
+    if (playbackEvent.type === 'damp') {
+      stringDynamics.stop()
+      continue
+    }
+    if (playbackEvent.type === 'note' && playbackEvent.stringId) {
+      stringDynamics.pluck(playbackEvent.stringId, playbackEvent.velocity)
+    }
+  }
 })
 
 function selectMode(mode) {
@@ -301,6 +334,31 @@ function isFretActive(stringIndex, fret) {
   }
   return [...activeFrets.values()]
     .some((fretState) => fretState.stringIndex === stringIndex && fretState.fret === 0)
+}
+
+function playbackFret(stringIndex) {
+  const instrumentString = definition.value.strings[stringIndex]
+  const playbackEvent = [...props.playbackEvents].reverse().find((event) => (
+    event.type === 'note' && event.stringId === instrumentString?.id
+  ))
+  if (!playbackEvent || !Number.isFinite(playbackEvent.midi)) {
+    return null
+  }
+  return playbackEvent.midi - activeTuning.value.midiNotes[stringIndex]
+}
+
+function isPlaybackFretActive(stringIndex, fret) {
+  return playbackFret(stringIndex) === fret
+}
+
+function isPlaybackStringActive(stringId) {
+  return props.playbackEvents.some((event) => (
+    event.type === 'note' && event.stringId === stringId
+  ))
+}
+
+function numberedNoteLabel(stringIndex, fret) {
+  return midiToNumberedNote(activeTuning.value.midiNotes[stringIndex] + fret, 60)
 }
 
 function emitPerformance(performanceEvent) {
@@ -640,6 +698,10 @@ onBeforeUnmount(() => {
   background: radial-gradient(circle, var(--cyan-soft) 0 23%, transparent 25%);
 }
 
+.fret-cell.playback-active {
+  background: radial-gradient(circle, rgba(96, 230, 238, 0.72) 0 24%, rgba(96, 230, 238, 0.18) 26% 42%, transparent 44%);
+}
+
 .finger-dot {
   position: absolute;
   z-index: 3;
@@ -651,6 +713,22 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: var(--cyan);
   box-shadow: 0 0 0 3px rgba(8, 24, 30, 0.48), 0 0 16px rgba(96, 230, 238, 0.68);
+}
+
+.fret-note-number {
+  position: absolute;
+  z-index: 4;
+  right: 0.18rem;
+  bottom: 0.1rem;
+  color: rgba(255, 240, 213, 0.64);
+  font-size: 0.52rem;
+  font-weight: 760;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.fret-cell.playback-active .fret-note-number {
+  color: #d9ffff;
 }
 
 .open-mark {
@@ -728,6 +806,12 @@ onBeforeUnmount(() => {
 
 .strum-string > span.active {
   background: var(--cyan);
+}
+
+.strum-string > span.playback-active {
+  height: 2px;
+  background: var(--cyan);
+  box-shadow: 0 0 0.9rem rgba(96, 230, 238, 0.82);
 }
 
 .strum-hint {

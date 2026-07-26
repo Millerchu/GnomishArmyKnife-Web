@@ -64,6 +64,7 @@ vi.mock('@/features/instrument-practice/composables/index.js', async () => {
     takes: ref([]),
     isRecording: ref(false),
     activePlaybackId: ref(null),
+    activePlaybackEvents: ref([]),
     startRecording: vi.fn(() => {
       recorder.isRecording.value = true
       return true
@@ -84,7 +85,7 @@ vi.mock('@/features/instrument-practice/composables/index.js', async () => {
       return take
     }),
     stopPlayback: vi.fn(),
-    replayTake: vi.fn(),
+    replayTake: vi.fn(() => true),
     deleteTake: vi.fn(),
     replaceTakes: vi.fn((takes) => {
       recorder.takes.value = takes
@@ -137,6 +138,7 @@ beforeEach(() => {
   __instrumentPracticeMocks.recorder.takes.value = []
   __instrumentPracticeMocks.recorder.isRecording.value = false
   __instrumentPracticeMocks.recorder.activePlaybackId.value = null
+  __instrumentPracticeMocks.recorder.activePlaybackEvents.value = []
   vi.stubGlobal('matchMedia', vi.fn(() => ({
     matches: false,
     addEventListener: vi.fn(),
@@ -226,6 +228,114 @@ describe('随身乐器页面流程', () => {
       expect.objectContaining({confirmText: '继续录制'})
     )
     expect(__instrumentPracticeMocks.recorder.startRecording).toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('取消删除确认后保留练习片段且不请求删除', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    __instrumentPracticeMocks.recorder.takes.value = [{
+      id: 101,
+      instrumentId: 'guzheng',
+      tuningId: 'd-pentatonic',
+      bpm: 80,
+      meter: '4/4',
+      durationMs: 1000,
+      events: [],
+      createdAt: 1
+    }]
+    confirmDialogMock.mockResolvedValueOnce(false)
+    await wrapper.get('button[aria-label="打开已保存的练习录音列表"]').trigger('click')
+    await wrapper.get('button[aria-label="删除片段"]').trigger('click')
+    await flushPromises()
+
+    expect(confirmDialogMock).toHaveBeenCalledWith(
+      expect.stringContaining('无法恢复'),
+      expect.objectContaining({confirmText: '删除', cancelText: '保留'})
+    )
+    expect(__instrumentPracticeMocks.recorder.deleteTake).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('录音片段展示录制完成时间', async () => {
+    const completedAt = new Date(2026, 6, 26, 20, 13).getTime()
+    const wrapper = mountPage()
+    await flushPromises()
+    __instrumentPracticeMocks.recorder.takes.value = [{
+      id: 102,
+      instrumentId: 'guzheng',
+      tuningId: 'd-pentatonic',
+      bpm: 80,
+      meter: '4/4',
+      durationMs: 1000,
+      events: [],
+      createdAt: completedAt
+    }]
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('button[aria-label="打开已保存的练习录音列表"]').trigger('click')
+
+    expect(wrapper.get('.take-copy').text()).toContain('完成于 2026-07-26 20:13')
+    wrapper.unmount()
+  })
+
+  it('录音列表只展示当前乐器片段', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    __instrumentPracticeMocks.recorder.takes.value = [
+      {
+        id: 201,
+        instrumentId: 'guzheng',
+        tuningId: 'd-pentatonic',
+        bpm: 80,
+        meter: '4/4',
+        durationMs: 1000,
+        events: [],
+        createdAt: 1
+      },
+      {
+        id: 202,
+        instrumentId: 'guitar',
+        tuningId: 'standard',
+        bpm: 96,
+        meter: '3/4',
+        durationMs: 2000,
+        events: [],
+        createdAt: 2
+      }
+    ]
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('button[aria-label="打开已保存的练习录音列表"]').trigger('click')
+
+    expect(wrapper.findAll('.take-card')).toHaveLength(1)
+    expect(wrapper.get('[role="dialog"]').text()).toContain('D 调')
+    expect(wrapper.get('[role="dialog"]').text()).not.toContain('标准 EADGBE')
+    wrapper.unmount()
+  })
+
+  it('回放片段时关闭列表并进入琴面演示', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    __instrumentPracticeMocks.recorder.takes.value = [{
+      id: 203,
+      instrumentId: 'guzheng',
+      tuningId: 'g-pentatonic',
+      bpm: 80,
+      meter: '4/4',
+      durationMs: 1000,
+      events: [{at: 0, type: 'note', instrumentId: 'guzheng', stringId: 'string-1', midi: 43}],
+      createdAt: 3
+    }]
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('button[aria-label="打开已保存的练习录音列表"]').trigger('click')
+    await wrapper.get('button[aria-label="回放片段"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(__instrumentPracticeMocks.recorder.replayTake).toHaveBeenCalledWith(203)
+    expect(wrapper.get('[data-test="guzheng-surface"]').attributes('tuning-id')).toBe('g-pentatonic')
     wrapper.unmount()
   })
 

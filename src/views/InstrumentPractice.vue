@@ -72,12 +72,16 @@
           v-model:tuning-id="activeTuningId"
           v-model:tremolo="tremoloActive"
           :reduced-motion="reducedMotion"
+          :show-numbered-notes="showNumberedNotes"
+          :playback-events="recorder.activePlaybackEvents.value"
           @interaction="handleInteraction"
           @performance="handlePerformance"
         />
         <PianoSurface
           v-else-if="currentInstrumentId === 'piano'"
           :reduced-motion="reducedMotion"
+          :show-numbered-notes="showNumberedNotes"
+          :playback-events="recorder.activePlaybackEvents.value"
           @interaction="handleInteraction"
           @performance="handlePerformance"
         />
@@ -88,6 +92,8 @@
           v-model:chord-id="activeChordId"
           :instrument-id="currentInstrumentId"
           :reduced-motion="reducedMotion"
+          :show-numbered-notes="showNumberedNotes"
+          :playback-events="recorder.activePlaybackEvents.value"
           @interaction="handleInteraction"
           @performance="handlePerformance"
         />
@@ -196,25 +202,26 @@
 
     <MacDialog
       v-model="takesDialogVisible"
-      title="已保存的练习片段"
-      subtitle="已同步至 NAS；每种乐器最多保留 10 段"
+      :title="`${currentDefinition.label}练习片段`"
+      :subtitle="`仅显示${currentDefinition.label}录音；最多保留 10 段`"
       width="560px"
       mobile-presentation="sheet"
       :confirm-on-dirty="false"
       panel-class="instrument-practice-sheet"
     >
-      <div v-if="recorder.takes.value.length" class="take-list">
+      <div v-if="currentInstrumentTakes.length" class="take-list">
         <article
-          v-for="(take, index) in reversedTakes"
+          v-for="(take, index) in currentInstrumentTakes"
           :key="take.id"
           class="take-card"
           :class="{playing: recorder.activePlaybackId.value === take.id}"
         >
-          <div class="take-index" aria-hidden="true">{{ recorder.takes.value.length - index }}</div>
+          <div class="take-index" aria-hidden="true">{{ currentInstrumentTakes.length - index }}</div>
           <div class="take-copy">
             <strong>{{ instrumentLabel(take.instrumentId) }}</strong>
             <span>{{ tuningLabel(take) }} · {{ take.bpm }} BPM · {{ take.meter }}</span>
             <small>{{ formatDuration(take.durationMs) }} · {{ take.events.length }} 个动作</small>
+            <small>完成于 {{ formatTakeCompletedAt(take.createdAt) }}</small>
           </div>
           <button
             class="take-play"
@@ -327,6 +334,13 @@
         <section class="settings-section compact-settings">
           <label class="toggle-field">
             <span>
+              <strong>显示简谱音符</strong>
+              <small>在琴弦、指板和琴键上标注 1–7</small>
+            </span>
+            <input v-model="showNumberedNotes" type="checkbox">
+          </label>
+          <label class="toggle-field">
+            <span>
               <strong>触感提示</strong>
               <small>仅在开始与停止录制时轻触反馈</small>
             </span>
@@ -391,6 +405,7 @@ const noticeMessage = ref('')
 const instrumentVolume = ref(1)
 const metronomeVolume = ref(0.55)
 const hapticsEnabled = ref(true)
+const showNumberedNotes = ref(false)
 const reducedMotion = ref(false)
 const compactLandscape = ref(false)
 const landscapeChromeHidden = ref(false)
@@ -431,7 +446,9 @@ const activeChordId = computed({
     chordIds[currentInstrumentId.value] = chordId
   }
 })
-const reversedTakes = computed(() => [...recorder.takes.value].reverse())
+const currentInstrumentTakes = computed(() => recorder.takes.value
+  .filter((take) => take.instrumentId === currentInstrumentId.value)
+  .reverse())
 const currentInstrumentTakeCount = computed(() => recorder.takes.value
   .filter((take) => take.instrumentId === currentInstrumentId.value).length)
 const visibleBeatCount = computed(() => Number(metronome.meter.value.split('/')[0]) || 4)
@@ -612,6 +629,18 @@ async function deleteTake(take) {
   if (!take) {
     return
   }
+  const confirmed = await confirmDialog(
+    `${instrumentLabel(take.instrumentId)}练习片段将被永久删除，无法恢复。`,
+    {
+      title: '删除练习片段？',
+      tone: 'danger',
+      confirmText: '删除',
+      cancelText: '保留'
+    }
+  )
+  if (!confirmed) {
+    return
+  }
   try {
     await deleteInstrumentPracticeTake(take.id)
     recorder.deleteTake(take.id)
@@ -647,6 +676,7 @@ async function toggleTakePlayback(take) {
     recorder.stopPlayback()
     return
   }
+  takesDialogVisible.value = false
   const unlockPromise = audio.unlock()
   if (take.instrumentId !== currentInstrumentId.value) {
     const switched = await selectInstrument(take.instrumentId, {announce: false})
@@ -656,13 +686,19 @@ async function toggleTakePlayback(take) {
   } else {
     await prepareInstrument(take.instrumentId)
   }
+  tuningIds[take.instrumentId] = getTuning(
+    getInstrumentDefinition(take.instrumentId),
+    take.tuningId
+  ).id
   const unlocked = await unlockPromise
   if (!unlocked) {
     showNotice('声音未启用，请轻触演奏区重试')
     return
   }
   syncVolumes()
-  recorder.replayTake(take.id)
+  if (recorder.replayTake(take.id)) {
+    showNotice(`${instrumentLabel(take.instrumentId)}录音回放中`)
+  }
 }
 
 function instrumentLabel(instrumentId) {
@@ -679,6 +715,18 @@ function formatDuration(durationMs) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = `${totalSeconds % 60}`.padStart(2, '0')
   return `${minutes}:${seconds}`
+}
+
+function formatTakeCompletedAt(completedAt) {
+  const completedDate = new Date(Number(completedAt))
+  if (Number.isNaN(completedDate.getTime())) {
+    return '时间未知'
+  }
+  const month = `${completedDate.getMonth() + 1}`.padStart(2, '0')
+  const day = `${completedDate.getDate()}`.padStart(2, '0')
+  const hour = `${completedDate.getHours()}`.padStart(2, '0')
+  const minute = `${completedDate.getMinutes()}`.padStart(2, '0')
+  return `${completedDate.getFullYear()}-${month}-${day} ${hour}:${minute}`
 }
 
 function unwrapData(response) {

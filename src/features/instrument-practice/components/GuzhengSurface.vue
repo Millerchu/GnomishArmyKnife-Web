@@ -48,7 +48,8 @@
         class="guzheng-string-row"
         :class="{
           'outside-active-bank': !isStringInActiveBank(stringIndex),
-          pressed: isStringPressed(instrumentString.id)
+          pressed: isStringPressed(instrumentString.id),
+          'playback-active': isPlaybackStringActive(instrumentString.id)
         }"
         :data-string-index="stringIndex"
       >
@@ -129,7 +130,8 @@ import {
   clamp,
   getInstrumentDefinition,
   getTuning,
-  midiToNoteName
+  midiToNoteName,
+  midiToNumberedNote
 } from '../instruments/definitions.js'
 import {
   capturePointer,
@@ -160,6 +162,14 @@ const props = defineProps({
   reducedMotion: {
     type: Boolean,
     default: false
+  },
+  showNumberedNotes: {
+    type: Boolean,
+    default: false
+  },
+  playbackEvents: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -183,6 +193,7 @@ const {pointerTracker, crossingTracker, clear: clearPointers} = useInstrumentPoi
 const stringDynamics = useStringDynamics({
   reducedMotion: () => props.reducedMotion
 })
+let handledPlaybackVisualId = 0
 
 const activeTuning = computed(() => getTuning(definition, localTuningId.value))
 const activeBank = computed(() => (
@@ -205,6 +216,33 @@ watch(isTremoloActive, (active) => {
     if (pointerState.payload.kind === 'pluck') {
       startTremolo(pointerState.pointerId, pointerState.payload.stringIndex)
     }
+  }
+})
+
+watch(() => props.playbackEvents, (playbackEvents) => {
+  for (const playbackEvent of playbackEvents) {
+    if (playbackEvent.playbackVisualId <= handledPlaybackVisualId) {
+      continue
+    }
+    handledPlaybackVisualId = playbackEvent.playbackVisualId
+    if (playbackEvent.type === 'damp') {
+      stringDynamics.stop()
+      continue
+    }
+    if (playbackEvent.type !== 'note') {
+      continue
+    }
+    const stringIndex = definition.strings.findIndex((item) => item.id === playbackEvent.stringId)
+    if (stringIndex < 0) {
+      continue
+    }
+    const playbackBank = definition.layout.stringBanks.find((bank) => (
+      stringIndex >= bank.start && stringIndex <= bank.end
+    ))
+    if (playbackBank) {
+      activeBankId.value = playbackBank.id
+    }
+    stringDynamics.pluck(playbackEvent.stringId, playbackEvent.velocity)
   }
 })
 
@@ -244,7 +282,16 @@ function isStringInActiveBank(stringIndex) {
 }
 
 function noteLabel(stringIndex) {
-  return midiToNoteName(activeTuning.value.midiNotes[stringIndex])
+  const midi = activeTuning.value.midiNotes[stringIndex]
+  return props.showNumberedNotes
+    ? midiToNumberedNote(midi, activeTuning.value.midiNotes[0])
+    : midiToNoteName(midi)
+}
+
+function isPlaybackStringActive(stringId) {
+  return props.playbackEvents.some((event) => (
+    event.type === 'note' && event.stringId === stringId
+  ))
 }
 
 function interaction(event) {
@@ -666,6 +713,12 @@ onBeforeUnmount(() => {
 
 .guzheng-string-row.pressed .guzheng-string {
   background: linear-gradient(90deg, var(--cyan) 0 42%, #fff0c7 49%);
+}
+
+.guzheng-string-row.playback-active .guzheng-string {
+  height: 2px;
+  background: var(--cyan);
+  box-shadow: 0 0 0.85rem rgba(96, 230, 238, 0.78);
 }
 
 .pluck-target {
