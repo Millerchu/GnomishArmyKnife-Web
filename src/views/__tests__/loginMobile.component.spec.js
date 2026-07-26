@@ -9,6 +9,7 @@ import {getCaptchaApi, getPasswordPublicKeyApi} from '@/api/auth'
 import {getPublicKnowledgeHighlights} from '@/api/knowledgeBase'
 
 vi.mock('vue-router', () => ({
+  useRoute: () => ({query: {}}),
   useRouter: () => ({push: vi.fn()})
 }))
 

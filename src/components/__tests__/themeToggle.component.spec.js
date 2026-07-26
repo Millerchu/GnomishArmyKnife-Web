@@ -3,6 +3,7 @@
 import {mount} from '@vue/test-utils'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
+import {AUTH_TOKEN_STORAGE_KEY, AUTH_USER_STORAGE_KEY} from '../../utils/authStorage'
 import {THEME_STORAGE_KEY} from '../../utils/themePreference'
 import ThemeToggle from '../ThemeToggle.vue'
 
@@ -52,8 +53,8 @@ describe('ThemeToggle', () => {
   it('连续点击同步主题、偏好、colorScheme 和本地存储', async () => {
     const wrapper = mount(ThemeToggle)
     const button = wrapper.get('button')
-    localStorage.setItem('token', 'keep-token')
-    localStorage.setItem('user', '{"username":"theme-user"}')
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'keep-token')
+    localStorage.setItem(AUTH_USER_STORAGE_KEY, '{"username":"theme-user"}')
 
     await button.trigger('click')
 
@@ -61,8 +62,8 @@ describe('ThemeToggle', () => {
     expect(document.documentElement.dataset.themePreference).toBe('light')
     expect(document.documentElement.style.colorScheme).toBe('light')
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
-    expect(localStorage.getItem('token')).toBe('keep-token')
-    expect(localStorage.getItem('user')).toBe('{"username":"theme-user"}')
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBe('keep-token')
+    expect(localStorage.getItem(AUTH_USER_STORAGE_KEY)).toBe('{"username":"theme-user"}')
     expect(button.attributes('aria-label')).toBe('切换为深色主题')
     expect(button.attributes('title')).toBe('切换为深色主题')
     expect(wrapper.find('[data-theme-icon="moon"]').exists()).toBe(true)

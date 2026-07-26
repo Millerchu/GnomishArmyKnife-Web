@@ -1,12 +1,15 @@
 import axios from 'axios'
-import {clearAuthState} from '@/utils/authStorage'
+import {AUTH_TOKEN_STORAGE_KEY, clearAuthState} from '@/utils/authStorage'
+import {buildAppPath} from '@/utils/appPaths'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || buildAppPath('api')
 const PUBLIC_REQUEST_PATHS = [
   '/auth/login',
   '/auth/register',
   '/auth/captcha',
   '/auth/password-public-key',
+  '/auth/nas-sso/exchange',
+  '/auth/logout',
   '/knowledge-base/public-highlights'
 ]
 let authRedirecting = false
@@ -45,14 +48,15 @@ function isAuthExpiredMessage(message = '') {
   ].some((item) => normalized.includes(item.toLowerCase()))
 }
 
-function redirectToLogin() {
+function redirectToAuthentication() {
   if (authRedirecting) {
     return
   }
   authRedirecting = true
   clearAuthState(localStorage)
-  if (window.location.pathname !== '/login') {
-    window.location.replace('/login')
+  const authenticationPath = buildAppPath()
+  if (window.location.pathname !== authenticationPath) {
+    window.location.replace(authenticationPath)
     return
   }
   window.location.reload()
@@ -82,7 +86,7 @@ const request = axios.create({
 
 request.interceptors.request.use((config) => {
   // 登录成功后自动附带 Bearer Token，业务接口无需重复处理鉴权头。
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
   if (token) {
     config.headers = config.headers || {}
     config.headers.Authorization = `Bearer ${token}`
@@ -93,14 +97,14 @@ request.interceptors.request.use((config) => {
 request.interceptors.response.use(
   (response) => {
     if (shouldForceLogout(response?.data, response?.status, response?.config?.url || '')) {
-      redirectToLogin()
+      redirectToAuthentication()
       return Promise.reject(new Error('登录状态已失效'))
     }
     return response
   },
   (error) => {
     if (shouldForceLogout(error?.response?.data, error?.response?.status, error?.config?.url || '')) {
-      redirectToLogin()
+      redirectToAuthentication()
       return Promise.reject(new Error('登录状态已失效'))
     }
     return Promise.reject(error)

@@ -1,6 +1,7 @@
-const PUBLIC_ROUTES = new Set(['/login', '/register'])
+const PUBLIC_ROUTES = new Set(['/', '/login', '/syslogin', '/register', '/nas-sso-callback'])
+const AUTH_ENTRY_ROUTES = new Set(['/', '/login', '/syslogin', '/nas-sso-callback'])
 const DEFAULT_AUTHENTICATED_PATH = '/home'
-const DEFAULT_GUEST_PATH = '/login'
+const DEFAULT_GUEST_PATH = '/'
 
 export function isPublicRoute(path = '') {
   return PUBLIC_ROUTES.has(`${path || ''}`.trim())
@@ -15,7 +16,7 @@ export function resolveNavigationTarget(path = '', authState = {}) {
   const authenticated = hasAuthenticatedSession(authState)
 
   if (isPublicRoute(normalizedPath)) {
-    return authenticated && normalizedPath === DEFAULT_GUEST_PATH
+    return authenticated && AUTH_ENTRY_ROUTES.has(normalizedPath)
       ? DEFAULT_AUTHENTICATED_PATH
       : null
   }

@@ -148,7 +148,7 @@
 
 <script>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   getCaptchaApi,
   getPasswordPublicKeyApi,
@@ -160,6 +160,19 @@ import { buildKnowledgeTickerItems, getNextTickerIndex } from '@/utils/loginKnow
 import { encryptPasswordByPublicKey } from '@/utils/rsaEncrypt'
 
 const TICKER_INTERVAL_MS = 6000
+const NAS_SSO_REASON_MESSAGES = {
+  nas_bridge_unavailable: '未读取到有效的 NAS 登录状态，请确认 NAS 仍处于登录状态',
+  nas_sso_disabled: 'GAK 的 NAS 单点登录功能尚未启用',
+  nas_sso_unavailable: 'GAK 后端暂时无法连接 NAS 身份服务',
+  nas_sso_token_invalid: 'NAS 登录状态无效或已过期，请重新登录 NAS',
+  nas_sso_user_invalid: 'NAS 返回的当前用户信息无法识别',
+  nas_sso_user_not_found: '当前 NAS 用户尚未在 GAK 中创建同名账号',
+  user_disabled: '对应的 GAK 用户已被禁用',
+  nas_sso_state_invalid: '单点登录回调状态已失效，请重新打开 GAK',
+  nas_sso_code_invalid: '单点登录交换凭证已失效，请重新打开 GAK',
+  nas_sso_exchange_failed: 'GAK 登录凭证交换失败，请重新打开 GAK',
+  nas_sso_failed: 'NAS 单点登录失败，请使用 GAK 账号登录'
+}
 
 function unwrapData(res) {
   const payload = res?.data
@@ -172,6 +185,7 @@ function unwrapData(res) {
 export default {
   setup() {
     const router = useRouter()
+    const route = useRoute()
 
     const form = reactive({
       username: '',
@@ -363,8 +377,12 @@ export default {
       }
     }
 
-    onMounted(() => {
-      initLoginDependencies()
+    onMounted(async () => {
+      await initLoginDependencies()
+      const ssoReason = `${route.query.reason || ''}`.trim().toLowerCase()
+      if (!errorMessage.value && NAS_SSO_REASON_MESSAGES[ssoReason]) {
+        errorMessage.value = NAS_SSO_REASON_MESSAGES[ssoReason]
+      }
     })
 
     onBeforeUnmount(() => {

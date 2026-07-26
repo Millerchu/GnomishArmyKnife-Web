@@ -554,6 +554,7 @@ import {
 } from '@/api/dataMigration'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {mergeAppCatalogList, normalizeSystemApp, resolveAppCatalogList} from '@/utils/appCatalogDraft'
+import {readAuthState} from '@/utils/authStorage'
 
 const EXPORT_SCOPE_MODES = [
   {value: 'ALL', label: '全部数据', description: '同时导出系统数据和全部业务应用数据。'},
@@ -682,12 +683,7 @@ function parseListPayload(payload) {
 }
 
 function readCurrentUser() {
-  try {
-    const raw = localStorage.getItem('user')
-    return JSON.parse(raw || '{}')
-  } catch (error) {
-    return {}
-  }
+  return readAuthState(localStorage).user || {}
 }
 
 function normalizeCurrentUser(source = {}) {

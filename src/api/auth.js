@@ -13,6 +13,14 @@ export function loginApi(data) {
   return request.post('/auth/login', data)
 }
 
+export function nasSsoExchangeApi(data) {
+  return request.post('/auth/nas-sso/exchange', data)
+}
+
+export function logoutApi() {
+  return request.post('/auth/logout')
+}
+
 export function registerApi(data) {
   return request.post('/auth/register', data)
 }

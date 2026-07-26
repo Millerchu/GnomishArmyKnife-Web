@@ -389,6 +389,7 @@ import {
   updateSystemAppStatus,
 } from '@/api/appManagement'
 import {uploadAttachment} from '@/api/attachment'
+import {buildAppPath} from '@/utils/appPaths'
 import {resolveGenericAppIcon} from '@/constants/appIconAssets'
 import {APP_PRESET_ICONS, getPresetIconSvg} from '@/constants/appIconLibrary'
 import {
@@ -744,7 +745,7 @@ export default {
         const payload = unwrapData(res) || {}
         form.iconType = 'UPLOAD'
         form.iconAttachmentId = payload.id
-        form.iconUrl = `/api/attachments/${payload.id}/content`
+        form.iconUrl = buildAppPath(`api/attachments/${payload.id}/content`)
         form.iconStorageType = 'FILE_SERVER'
         form.iconFileName = payload.originalFileName || file.name
         form.iconChromaKey = ''

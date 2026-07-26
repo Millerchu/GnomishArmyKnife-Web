@@ -12,6 +12,7 @@ import {
   listKnowledgeEntries,
   publishKnowledgeEntry
 } from '@/api/knowledgeBase'
+import {AUTH_USER_STORAGE_KEY} from '@/utils/authStorage'
 
 const mountedWrappers = []
 const pendingEntry = {
@@ -69,7 +70,7 @@ async function openPendingDetail() {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.stubGlobal('localStorage', createMemoryStorage())
-  localStorage.setItem('user', JSON.stringify({id: 1, username: 'admin', roleCode: 'ADMIN'}))
+  localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify({id: 1, username: 'admin', roleCode: 'ADMIN'}))
   listKnowledgeEntries.mockResolvedValue(buildApiResponse({list: [], total: 0}))
   getKnowledgeHighlights.mockResolvedValue(buildApiResponse([]))
   getKnowledgeEntryDetail.mockResolvedValue(buildApiResponse(pendingEntry))

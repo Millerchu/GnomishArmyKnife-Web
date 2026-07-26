@@ -332,7 +332,7 @@
 <script>
 import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
-import {changePasswordApi, getPasswordPublicKeyApi} from '@/api/auth'
+import {changePasswordApi, getPasswordPublicKeyApi, logoutApi} from '@/api/auth'
 import AppIconImage from '@/components/AppIconImage.vue'
 import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import AttachmentManager from '@/components/AttachmentManager.vue'
@@ -737,9 +737,15 @@ export default {
       }
     }
 
-    const logout = () => {
-      clearAuthState(localStorage)
-      router.push('/login')
+    const logout = async () => {
+      try {
+        await logoutApi()
+      } catch (error) {
+        // 本地登录态仍需清除，避免网络异常导致用户无法主动退出。
+      } finally {
+        clearAuthState(localStorage)
+        await router.push('/syslogin')
+      }
     }
 
     const requestLogout = () => {

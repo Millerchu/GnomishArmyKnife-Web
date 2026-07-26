@@ -14,6 +14,7 @@ import {
   listWorkLogs,
   updateWorkLog
 } from '@/api/workLog'
+import {AUTH_USER_STORAGE_KEY} from '@/utils/authStorage'
 
 const routerPush = vi.fn()
 const mountedWrappers = []
@@ -222,7 +223,7 @@ async function openEditDialog(wrapper) {
 
 beforeEach(() => {
   vi.stubGlobal('localStorage', createMemoryStorage())
-  localStorage.setItem('user', JSON.stringify({
+  localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify({
     id: '1001',
     username: 'component-test-user'
   }))

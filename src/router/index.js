@@ -3,8 +3,10 @@ import {readAuthState} from '@/utils/authStorage'
 import {resolveNavigationTarget} from '@/utils/routeAccess'
 
 const routes = [
-    {path: '/', redirect: '/login'}, // 打开直接进入登录页
-    {path: '/login', component: () => import('../views/Login.vue')},
+    {path: '/', component: () => import('../views/NasSsoStart.vue')},
+    {path: '/login', redirect: '/'},
+    {path: '/syslogin', component: () => import('../views/Login.vue')},
+    {path: '/nas-sso-callback', component: () => import('../views/NasSsoCallback.vue')},
     {path: '/register', component: () => import('../views/Register.vue')},
     {path: '/star-interactive', component: () => import('../views/StarInteractive.vue')},
     {path: '/home', component: () => import('../views/Home.vue')},
@@ -27,7 +29,7 @@ const routes = [
 ]
 
 const router = createRouter({
-    history: createWebHistory(),
+    history: createWebHistory(import.meta.env.BASE_URL),
     routes
 })
 

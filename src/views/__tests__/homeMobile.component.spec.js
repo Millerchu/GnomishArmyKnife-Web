@@ -7,6 +7,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import Home from '../Home.vue'
 import {getCurrentUserAccessibleApps} from '@/api/permission'
 import {getMyAvatarAttachments} from '@/api/attachment'
+import {AUTH_TOKEN_STORAGE_KEY, AUTH_USER_STORAGE_KEY} from '@/utils/authStorage'
 
 const routerPush = vi.fn()
 const mountedWrappers = []
@@ -95,8 +96,8 @@ beforeEach(() => {
   vi.resetAllMocks()
   routerPush.mockReset()
   vi.stubGlobal('localStorage', createMemoryStorage())
-  localStorage.setItem('token', 'component-test-token')
-  localStorage.setItem('user', JSON.stringify({
+  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'component-test-token')
+  localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify({
     id: '1001',
     username: 'mobile-user',
     displayName: '移动用户',

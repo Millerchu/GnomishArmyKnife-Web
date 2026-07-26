@@ -697,6 +697,7 @@ import {
   serializeWorkItemEntries,
   shiftMonthByOffset
 } from '@/utils/workLogCalendar'
+import {readAuthState} from '@/utils/authStorage'
 
 const WEEK_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const MOBILE_MEDIA_QUERY = '(max-width: 720px)'
@@ -965,7 +966,7 @@ export default {
   },
   setup() {
     const router = useRouter()
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+    const currentUser = readAuthState(localStorage).user || {}
     const currentUserId = toSafeIdText(currentUser.id || currentUser.userId || currentUser.userid || '')
     const legacyRoundedUserId = resolveLegacyRoundedUserId(currentUserId)
 

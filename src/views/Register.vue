@@ -71,7 +71,7 @@
 
       <p class="tip">
         已有账号？
-        <router-link to="/login">去登录</router-link>
+        <router-link to="/syslogin">去登录</router-link>
       </p>
     </div>
   </div>
@@ -141,7 +141,7 @@ export default {
         await registerApi(payload)
 
         alert('注册成功，请登录')
-        router.push('/login')
+        router.push('/syslogin')
       } catch (err) {
         console.error(err)
         errorMessage.value = extractErrorMessage(err, '注册失败，请检查输入')
