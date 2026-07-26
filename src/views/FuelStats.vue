@@ -377,16 +377,19 @@
 
           <div class="detail-grid">
           <p><span>车辆名称</span><strong>{{ detailRecord.vehicleName || '-' }}</strong></p>
-          <p><span>加油日期</span><strong>{{ detailRecord.fuelDate || '-' }}</strong></p>
+          <p><span>加油时间</span><strong>{{ formatDateTime(detailRecord.fuelTime || detailRecord.fuelDate) }}</strong></p>
           <p><span>当前里程</span><strong>{{ formatNumber(detailRecord.odometerKm) }} km</strong></p>
           <p><span>里程差</span><strong>{{ detailRecord.distanceKm ? `${formatNumber(detailRecord.distanceKm)} km` : '-' }}</strong></p>
           <p><span>加油量</span><strong>{{ formatNumber(detailRecord.fuelVolume) }} L</strong></p>
-          <p><span>加油金额</span><strong>{{ formatCurrency(detailRecord.totalAmount) }}</strong></p>
+          <p><span>机显单价</span><strong>{{ formatUnitPrice(detailRecord.machineUnitPrice) }}</strong></p>
+          <p><span>机显金额</span><strong>{{ formatCurrency(detailRecord.totalAmount) }}</strong></p>
+          <p><span>实付单价</span><strong>{{ formatUnitPrice(detailRecord.unitPrice) }}</strong></p>
           <p><span>优惠后金额</span><strong>{{ formatCurrency(detailRecord.discountedAmount) }}</strong></p>
           <p><span>优惠金额</span><strong>{{ formatCurrency(detailRecord.discountAmount) }}</strong></p>
-          <p><span>单价</span><strong>{{ formatUnitPrice(detailRecord.unitPrice) }}</strong></p>
-          <p><span>油号</span><strong>{{ formatFuelTypeText(detailRecord.fuelType) }}</strong></p>
+          <p><span>燃油标号</span><strong>{{ formatFuelTypeText(detailRecord.fuelType) }}</strong></p>
           <p><span>加油方式</span><strong>{{ formatFillTypeText(detailRecord.fillType) }}</strong></p>
+          <p><span>油量警告灯</span><strong>{{ detailRecord.fuelWarningLight ? '已亮' : '未亮' }}</strong></p>
+          <p><span>上次记录</span><strong>{{ detailRecord.lastRecordKnown ? '已记录' : '未记录' }}</strong></p>
           <p><span>油站名称</span><strong>{{ detailRecord.stationName || '-' }}</strong></p>
           <p class="wide"><span>备注</span><strong>{{ detailRecord.note || '-' }}</strong></p>
         </div>
@@ -410,8 +413,8 @@
     >
         <form id="fuel-record-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitDialog">
           <div class="form-inline-grid dialog-grid-group">
-            <label class="form-field">
-              <span>选择车辆</span>
+            <label class="form-field dialog-span-2">
+              <span>选择车辆 <i>*</i></span>
               <select v-model="form.vehicleName" class="input" required @change="handleFormVehicleChange">
                 <option value="" disabled>{{ vehicleOptions.length ? '请选择车辆' : '请先维护车辆' }}</option>
                 <option v-for="item in vehicleOptions" :key="item.id || item.vehicleName" :value="item.vehicleName">
@@ -421,60 +424,91 @@
               <button v-if="!vehicleOptions.length" type="button" class="form-link-btn" @click="openVehicleDialog">去维护车辆</button>
             </label>
 
-            <label class="form-field">
-              <span>加油日期</span>
-              <input v-model="form.fuelDate" class="input" type="date" required />
-            </label>
-          </div>
-          <div class="form-inline-grid dialog-grid-group">
-            <label class="form-field">
-              <span>当前里程(km)</span>
-              <input v-model.number="form.odometerKm" class="input" type="number" min="0" step="1" placeholder="例如：15236" required />
-            </label>
-
-            <label class="form-field">
-              <span>{{ energyFieldLabels.volume }}</span>
-              <input v-model.number="form.fuelVolume" class="input" type="number" min="0" step="0.01" placeholder="例如：38.52" required />
+            <label class="form-field dialog-span-2">
+              <span>{{ energyFieldLabels.time }} <i>*</i></span>
+              <input v-model="form.fuelTime" class="input" type="datetime-local" required />
             </label>
           </div>
 
-          <div class="form-inline-grid dialog-grid-group">
-            <label class="form-field">
-              <span>{{ energyFieldLabels.totalAmount }}</span>
-              <input v-model.number="form.totalAmount" class="input" type="number" min="0" step="0.01" placeholder="例如：312.5" required />
-            </label>
+          <label class="form-field dialog-span-all">
+            <span>当前里程(km) <i>*</i></span>
+            <input v-model.number="form.odometerKm" class="input" type="number" min="0" step="1" placeholder="请输入当前里程" required />
+          </label>
 
-            <label class="form-field">
-              <span>{{ energyFieldLabels.discountedAmount }}</span>
-              <input v-model.number="form.discountedAmount" class="input" type="number" min="0" step="0.01" placeholder="例如：298.8" required />
-            </label>
+          <section class="energy-calculation-card dialog-span-all">
+            <div class="calculation-row">
+              <label class="form-field">
+                <span>{{ energyFieldLabels.machineUnitPrice }} <i>*</i></span>
+                <input v-model.number="form.machineUnitPrice" class="input calculation-input" type="number" min="0" step="0.001" placeholder="0.000" required @input="syncMachineAmountFromUnitPrice" />
+              </label>
+              <span class="calculation-operator" aria-hidden="true">×</span>
+              <label class="form-field">
+                <span>{{ energyFieldLabels.volume }} <i>*</i></span>
+                <input v-model.number="form.fuelVolume" class="input calculation-input" type="number" min="0" step="0.01" placeholder="0.00" required @input="handleFuelVolumeInput" />
+              </label>
+              <span class="calculation-operator" aria-hidden="true">＝</span>
+              <label class="form-field">
+                <span>{{ energyFieldLabels.totalAmount }} <i>*</i></span>
+                <input v-model.number="form.totalAmount" class="input calculation-input" type="number" min="0" step="0.01" placeholder="请输入机显金额" required @input="syncMachineUnitPriceFromAmount" />
+              </label>
+            </div>
+
+            <div class="calculation-row secondary">
+              <div class="form-field calculation-result">
+                <span>{{ energyFieldLabels.actualUnitPrice }}</span>
+                <strong>{{ formatEnergyUnitPrice(calculatedActualUnitPrice) }}</strong>
+              </div>
+              <span class="calculation-operator" aria-hidden="true">－</span>
+              <div class="form-field calculation-result">
+                <span>优惠金额</span>
+                <strong>{{ formatCurrency(calculatedDiscountAmount) }}</strong>
+              </div>
+              <span class="calculation-operator" aria-hidden="true">＝</span>
+              <label class="form-field">
+                <span>实付金额 <i>*</i></span>
+                <input v-model.number="form.discountedAmount" class="input calculation-input" type="number" min="0" step="0.01" placeholder="请输入实际支付金额" required />
+              </label>
+            </div>
+          </section>
+
+          <div class="record-status-grid dialog-span-all">
+            <div class="record-status-field">
+              <span>{{ energyFieldLabels.fillQuestion }} <i>*</i></span>
+              <div class="segmented-control">
+                <button v-for="item in formFillTypeOptions" :key="item.value" type="button" :class="{active: form.fillType === item.value}" @click="form.fillType = item.value">{{ item.label }}</button>
+              </div>
+            </div>
+            <div v-if="currentFormEnergyType !== 'ELECTRIC'" class="record-status-field">
+              <span>油量警告灯亮了吗？ <i>*</i></span>
+              <div class="segmented-control">
+                <button type="button" :class="{active: form.fuelWarningLight}" @click="form.fuelWarningLight = true">油灯亮</button>
+                <button type="button" :class="{active: !form.fuelWarningLight}" @click="form.fuelWarningLight = false">没有亮</button>
+              </div>
+            </div>
           </div>
 
           <div class="form-inline-grid dialog-grid-group">
-            <label class="form-field">
-              <span>{{ energyFieldLabels.unitPrice }}</span>
-              <input v-model.number="form.unitPrice" class="input" type="number" min="0" step="0.001" placeholder="例如：8.110" />
+            <label class="form-field dialog-span-2">
+              <span>{{ energyFieldLabels.stationName }}</span>
+              <input v-model.trim="form.stationName" class="input" maxlength="60" :placeholder="energyFieldLabels.stationPlaceholder" />
             </label>
-
-            <label class="form-field">
+            <label class="form-field dialog-span-2">
               <span>{{ energyFieldLabels.energyType }}</span>
               <select v-model="form.fuelType" class="input">
                 <option v-for="item in formFuelTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
               </select>
             </label>
-
-            <label class="form-field">
-              <span>{{ energyFieldLabels.fillType }}</span>
-              <select v-model="form.fillType" class="input">
-                <option v-for="item in formFillTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select>
-            </label>
           </div>
 
-          <label class="form-field dialog-span-3">
-            <span>{{ energyFieldLabels.stationName }}</span>
-            <input v-model.trim="form.stationName" class="input" maxlength="60" :placeholder="energyFieldLabels.stationPlaceholder" />
-          </label>
+          <div class="record-status-grid record-status-grid-single dialog-span-2">
+            <div class="record-status-field">
+              <span>上次记录了吗？ <i>*</i></span>
+              <div class="segmented-control">
+                <button type="button" :class="{active: form.lastRecordKnown}" @click="form.lastRecordKnown = true">记录了</button>
+                <button type="button" :class="{active: !form.lastRecordKnown}" @click="form.lastRecordKnown = false">没记录</button>
+              </div>
+            </div>
+          </div>
 
           <label class="form-field dialog-span-all">
             <span>备注</span>
@@ -482,6 +516,7 @@
           </label>
 
           <AttachmentManager
+            class="dialog-span-all"
             v-model="form.attachments"
             usage-type="IMAGE"
             :max-count="3"
@@ -618,19 +653,24 @@ function normalizeRecord(item = {}) {
   const totalAmount = Number(item.totalAmount ?? item.amount ?? 0)
   const discountedAmount = Number(item.discountedAmount ?? item.actualAmount ?? item.paidAmount ?? totalAmount)
   const unitPrice = Number(item.unitPrice ?? (fuelVolume > 0 ? discountedAmount / fuelVolume : 0))
+  const machineUnitPrice = Number(item.machineUnitPrice ?? (fuelVolume > 0 ? totalAmount / fuelVolume : unitPrice))
 
   return {
     id: item.id ?? item.recordId ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     vehicleName: item.vehicleName || item.carName || '',
     fuelDate: item.fuelDate || item.recordDate || '',
+    fuelTime: item.fuelTime || item.recordTime || item.fuelDate || item.recordDate || '',
     odometerKm: Number(item.odometerKm ?? item.odometer ?? 0),
     fuelVolume,
+    machineUnitPrice,
     totalAmount,
     discountedAmount,
-    discountAmount: Math.max(0, totalAmount - discountedAmount),
+    discountAmount: Number(item.discountAmount ?? Math.max(0, totalAmount - discountedAmount)),
     unitPrice,
     fuelType: item.fuelType || '95',
     fillType: item.fillType || 'FULL',
+    fuelWarningLight: Boolean(item.fuelWarningLight),
+    lastRecordKnown: item.lastRecordKnown !== false,
     stationName: item.stationName || item.station || '',
     note: item.note || item.remark || '',
     createdAt: item.createdAt || item.createTime || '',
@@ -650,6 +690,16 @@ function normalizeFuelVehicle(item = {}) {
     defaultFuelType: item.defaultFuelType || (item.energyType === 'ELECTRIC' ? 'ELECTRIC' : '95'),
     defaultVehicle: Boolean(item.defaultVehicle ?? item.isDefault)
   }
+}
+
+function formatDateTimeInput(value) {
+  if (!value) {
+    const now = new Date()
+    const offsetTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    return offsetTime.toISOString().slice(0, 16)
+  }
+  const normalized = `${value}`.replace(' ', 'T')
+  return normalized.length >= 16 ? normalized.slice(0, 16) : `${normalized}T00:00`
 }
 
 // 里程差和百公里油耗依赖同车上一条记录，这里集中补全派生指标。
@@ -811,14 +861,16 @@ export default {
 
     const form = reactive({
       vehicleName: '',
-      fuelDate: '',
+      fuelTime: '',
       odometerKm: 0,
       fuelVolume: 0,
+      machineUnitPrice: 0,
       totalAmount: 0,
       discountedAmount: 0,
-      unitPrice: null,
       fuelType: '95',
       fillType: 'FULL',
+      fuelWarningLight: false,
+      lastRecordKnown: true,
       stationName: '',
       note: '',
       attachments: []
@@ -878,15 +930,26 @@ export default {
     const vehicleDefaultFuelTypeOptions = computed(() => (
       vehicleForm.energyType === 'ELECTRIC' ? ELECTRIC_FUEL_TYPE_OPTIONS : FUEL_TYPE_OPTIONS
     ))
+    const calculatedMachineAmount = computed(() => Number(form.totalAmount || 0))
+    const actualPaidAmount = computed(() => Number(form.discountedAmount || 0))
+    const calculatedActualUnitPrice = computed(() => {
+      const volume = Number(form.fuelVolume || 0)
+      return volume > 0 ? Number((actualPaidAmount.value / volume).toFixed(3)) : 0
+    })
+    const calculatedDiscountAmount = computed(() => Number(Math.max(
+      0,
+      calculatedMachineAmount.value - actualPaidAmount.value
+    ).toFixed(2)))
     const energyFieldLabels = computed(() => {
       if (currentFormEnergyType.value === 'ELECTRIC') {
         return {
+          time: '充电时间',
           volume: '充电量(kWh)',
-          totalAmount: '充电金额',
-          discountedAmount: '优惠后金额',
-          unitPrice: '电价（可选，留空自动计算）',
+          machineUnitPrice: '桩显单价(元/kWh)',
+          totalAmount: '桩显金额',
+          actualUnitPrice: '实付单价(元/kWh)',
           energyType: '充电类型',
-          fillType: '充电方式',
+          fillQuestion: '是否充满？',
           stationName: '充电站名称',
           stationPlaceholder: '例如：特来电滨江站',
           voucherTitle: '充电凭证',
@@ -898,20 +961,21 @@ export default {
         }
       }
       return {
+        time: '加油时间',
         volume: '加油量(L)',
-        totalAmount: '加油金额',
-        discountedAmount: '实际优惠后金额',
-        unitPrice: '单价（可选，留空自动计算）',
-          energyType: '油号',
-          fillType: '加油方式',
-          stationName: '油站名称',
-          stationPlaceholder: '例如：中国石化滨江站',
-          voucherTitle: '加油凭证',
-          voucherHint: '最多 3 张，可上传小票、仪表盘或加油机照片。',
-          createTitle: '新增加油记录',
-          editTitle: '编辑加油记录',
-          saveText: '保存加油记录',
-          updateText: '更新加油记录'
+        machineUnitPrice: '机显单价(元/L)',
+        totalAmount: '机显金额',
+        actualUnitPrice: '实付单价(元/L)',
+          energyType: '燃油标号',
+        fillQuestion: '是否加满？',
+          stationName: '加油站',
+        stationPlaceholder: '例如：中国石化滨江站',
+        voucherTitle: '加油凭证',
+        voucherHint: '最多 3 张，可上传小票、仪表盘或加油机照片。',
+        createTitle: '新增加油记录',
+        editTitle: '编辑加油记录',
+        saveText: '保存加油记录',
+        updateText: '更新加油记录'
       }
     })
     const consumptionSourceRecords = computed(() => {
@@ -1007,6 +1071,8 @@ export default {
 
     const formatCurrency = (value) => `¥${Number(value || 0).toFixed(2)}`
     const formatUnitPrice = (value) => value ? `¥${Number(value).toFixed(3)}/L` : '-'
+    const formatEnergyUnitPrice = (value) => `¥${Number(value || 0).toFixed(3)}${currentFormEnergyType.value === 'ELECTRIC' ? '/kWh' : '/L'}`
+    const formatDateTime = (value) => value ? `${value}`.replace('T', ' ').slice(0, 16) : '-'
     const formatConsumption = (value) => value ? `${Number(value).toFixed(2)} L/100km` : '-'
     const formatFuelTypeText = (value) => (
       value === 'ELECTRIC'
@@ -1160,17 +1226,43 @@ export default {
       }
     }
 
+    // 机显单价和机显金额均可录入，始终以用户最后编辑的字段反算另一个字段。
+    const machineAmountSource = ref('UNIT_PRICE')
+    const syncMachineAmountFromUnitPrice = () => {
+      machineAmountSource.value = 'UNIT_PRICE'
+      form.totalAmount = Number(Math.max(
+        0,
+        Number(form.machineUnitPrice || 0) * Number(form.fuelVolume || 0)
+      ).toFixed(2))
+    }
+    const syncMachineUnitPriceFromAmount = () => {
+      machineAmountSource.value = 'TOTAL_AMOUNT'
+      const volume = Number(form.fuelVolume || 0)
+      if (volume > 0) {
+        form.machineUnitPrice = Number((Number(form.totalAmount || 0) / volume).toFixed(3))
+      }
+    }
+    const handleFuelVolumeInput = () => {
+      if (machineAmountSource.value === 'TOTAL_AMOUNT') {
+        syncMachineUnitPriceFromAmount()
+        return
+      }
+      syncMachineAmountFromUnitPrice()
+    }
+
     const resetForm = () => {
       const defaultVehicle = fuelVehicles.value.find((item) => item.defaultVehicle) || vehicleOptions.value[0]
       form.vehicleName = defaultVehicle?.vehicleName || ''
-      form.fuelDate = ''
+      form.fuelTime = formatDateTimeInput()
       form.odometerKm = 0
       form.fuelVolume = 0
+      form.machineUnitPrice = 0
       form.totalAmount = 0
       form.discountedAmount = 0
-      form.unitPrice = null
       form.fuelType = '95'
       form.fillType = 'FULL'
+      form.fuelWarningLight = false
+      form.lastRecordKnown = true
       form.stationName = ''
       form.note = ''
       form.attachments = []
@@ -1179,17 +1271,20 @@ export default {
 
     const fillForm = (record) => {
       form.vehicleName = record.vehicleName || ''
-      form.fuelDate = record.fuelDate || ''
+      form.fuelTime = formatDateTimeInput(record.fuelTime || record.fuelDate)
       form.odometerKm = Number(record.odometerKm || 0)
       form.fuelVolume = Number(record.fuelVolume || 0)
+      form.machineUnitPrice = Number(record.machineUnitPrice || 0)
       form.totalAmount = Number(record.totalAmount || 0)
-      form.discountedAmount = Number(record.discountedAmount || record.totalAmount || 0)
-      form.unitPrice = Number(record.unitPrice || 0)
+      form.discountedAmount = Number(record.discountedAmount || 0)
       form.fuelType = record.fuelType || '95'
       form.fillType = record.fillType || 'FULL'
+      form.fuelWarningLight = Boolean(record.fuelWarningLight)
+      form.lastRecordKnown = record.lastRecordKnown !== false
       form.stationName = record.stationName || ''
       form.note = record.note || ''
       form.attachments = [...(record.attachments || [])]
+      machineAmountSource.value = 'UNIT_PRICE'
     }
 
     const openCreateDialog = () => {
@@ -1231,6 +1326,9 @@ export default {
         return
       }
       form.fuelType = vehicle.defaultFuelType || (vehicle.energyType === 'ELECTRIC' ? 'ELECTRIC' : '95')
+      const price = Number(latestFuelPrices.prices[form.fuelType] || 0)
+      form.machineUnitPrice = price
+      syncMachineAmountFromUnitPrice()
       if (!formFillTypeOptions.value.some((item) => item.value === form.fillType)) {
         form.fillType = 'FULL'
       }
@@ -1323,18 +1421,20 @@ export default {
 
     const buildFormPayload = () => {
       const fuelVolume = Number(form.fuelVolume || 0)
-      const totalAmount = Number(form.totalAmount || 0)
-      const discountedAmount = Number(form.discountedAmount || 0)
       return {
         vehicleName: form.vehicleName,
-        fuelDate: form.fuelDate,
+        fuelTime: form.fuelTime,
         odometerKm: Number(form.odometerKm || 0),
         fuelVolume,
-        totalAmount,
-        discountedAmount,
-        unitPrice: Number(form.unitPrice || 0) || (fuelVolume > 0 ? discountedAmount / fuelVolume : 0),
+        machineUnitPrice: Number(form.machineUnitPrice || 0),
+        totalAmount: calculatedMachineAmount.value,
+        discountAmount: calculatedDiscountAmount.value,
+        discountedAmount: actualPaidAmount.value,
+        unitPrice: calculatedActualUnitPrice.value,
         fuelType: form.fuelType,
         fillType: form.fillType,
+        fuelWarningLight: form.fuelWarningLight,
+        lastRecordKnown: form.lastRecordKnown,
         stationName: form.stationName,
         note: form.note,
         attachmentIds: form.attachments.map((item) => item.id)
@@ -1346,8 +1446,8 @@ export default {
         alert('请输入车辆名称')
         return
       }
-      if (!form.fuelDate) {
-        alert('请选择加油日期')
+      if (!form.fuelTime) {
+        alert(`请选择${energyFieldLabels.value.time}`)
         return
       }
       if (!form.odometerKm) {
@@ -1355,19 +1455,23 @@ export default {
         return
       }
       if (!form.fuelVolume) {
-        alert('请输入加油量')
+        alert(`请输入${energyFieldLabels.value.volume}`)
         return
       }
-      if (!form.totalAmount) {
-        alert('请输入加油金额')
+      if (!form.machineUnitPrice) {
+        alert(`请输入${energyFieldLabels.value.machineUnitPrice}`)
         return
       }
-      if (!form.discountedAmount) {
-        alert('请输入实际优惠后金额')
+      if (!calculatedMachineAmount.value) {
+        alert(`请输入${energyFieldLabels.value.totalAmount}`)
         return
       }
-      if (Number(form.discountedAmount) > Number(form.totalAmount)) {
-        alert('优惠后金额不能大于加油金额')
+      if (form.discountedAmount === '' || form.discountedAmount === null || Number(form.discountedAmount) < 0) {
+        alert('请输入实付金额')
+        return
+      }
+      if (actualPaidAmount.value > calculatedMachineAmount.value) {
+        alert('实付金额不能大于机显金额')
         return
       }
       if (submitting.value) {
@@ -1478,6 +1582,12 @@ export default {
       formFuelTypeOptions,
       formFillTypeOptions,
       vehicleDefaultFuelTypeOptions,
+      calculatedMachineAmount,
+      calculatedActualUnitPrice,
+      calculatedDiscountAmount,
+      syncMachineAmountFromUnitPrice,
+      syncMachineUnitPriceFromAmount,
+      handleFuelVolumeInput,
       energyFieldLabels,
       totalPages,
       maxYearlyCost,
@@ -1489,6 +1599,8 @@ export default {
       formatNumber,
       formatCurrency,
       formatUnitPrice,
+      formatEnergyUnitPrice,
+      formatDateTime,
       formatConsumption,
       formatFuelTypeText,
       formatFillTypeText,
@@ -1925,6 +2037,12 @@ export default {
   color: var(--theme-text-muted);
 }
 
+.form-field span i,
+.record-status-field > span i {
+  color: #ff5b61;
+  font-style: normal;
+}
+
 .form-link-btn {
   align-self: flex-start;
   padding: 0;
@@ -2335,6 +2453,108 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.energy-calculation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--theme-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--theme-surface-muted) 84%, transparent);
+}
+
+.calculation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr) 22px minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+}
+
+.calculation-row.secondary {
+  padding-top: 12px;
+  border-top: 1px solid var(--theme-table-divider);
+}
+
+.calculation-operator {
+  align-self: end;
+  padding-bottom: 10px;
+  color: var(--theme-text-muted);
+  font-size: 20px;
+  text-align: center;
+}
+
+.calculation-input {
+  font-variant-numeric: tabular-nums;
+}
+
+.calculation-result {
+  min-height: 40px;
+}
+
+.calculation-result strong {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  color: var(--theme-text);
+  background: var(--theme-field-surface);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.calculation-result.emphasis strong {
+  color: #54e3b1;
+}
+
+.record-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.record-status-grid-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.record-status-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.record-status-field > span {
+  color: var(--theme-text-muted);
+  font-size: 12px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.segmented-control button {
+  min-height: 40px;
+  padding: 0 8px;
+  border: 1px solid var(--theme-border-strong);
+  border-radius: 11px;
+  color: var(--theme-text-muted);
+  background: var(--theme-control-surface);
+  cursor: pointer;
+  transition: transform 100ms ease-out, color 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.segmented-control button.active {
+  border-color: rgba(39, 213, 164, 0.42);
+  color: var(--theme-on-accent);
+  background: linear-gradient(135deg, #1996ff, #27d5a4);
+}
+
+.segmented-control button:active {
+  transform: scale(0.97);
 }
 
 .vehicle-dialog {
@@ -2823,6 +3043,28 @@ export default {
   .vehicle-form {
     grid-template-columns: 1fr;
     padding: 12px;
+  }
+
+  .energy-calculation-card {
+    padding: 12px;
+  }
+
+  .calculation-row {
+    grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr) 18px minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .calculation-operator {
+    font-size: 16px;
+  }
+
+  .calculation-result strong {
+    padding: 0 8px;
+    font-size: 14px;
+  }
+
+  .record-status-grid {
+    grid-template-columns: 1fr;
   }
 
   .vehicle-item {
