@@ -1,9 +1,13 @@
 <template>
   <div class="fuel-page">
     <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBack">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
+      <button type="button" class="nav-icon-btn back-home-btn" aria-label="返回桌面" @click="goBack">
+        <span class="back-home-icon" aria-hidden="true">‹</span>
+        <span class="back-home-text">返回桌面</span>
+      </button>
+      <strong class="mobile-nav-title">油耗统计</strong>
+      <button type="button" class="nav-icon-btn mobile-nav-add" aria-label="新增加油记录" @click="openCreateDialog">
+        <span aria-hidden="true">＋</span>
       </button>
     </div>
 
@@ -154,6 +158,7 @@
         <div class="toolbar">
           <div class="toolbar-left">
             <button class="action-btn" :disabled="loading || submitting" @click="openCreateDialog">新增记录</button>
+            <button class="ghost-btn" :disabled="submitting" @click="openVehicleDialog">车辆管理</button>
             <button class="ghost-btn" :disabled="loading || submitting" @click="loadRecords">刷新列表</button>
           </div>
           <div class="toolbar-right">
@@ -197,7 +202,11 @@
           </div>
 
           <div v-if="pagedRecords.length" class="mobile-record-list">
-            <article v-for="item in pagedRecords" :key="item.id" class="mobile-record-card">
+            <article
+              v-for="item in pagedRecords"
+              :key="item.id"
+              class="mobile-record-card"
+            >
               <div class="mobile-record-head">
                 <div>
                   <strong class="mobile-record-title">{{ item.vehicleName }}</strong>
@@ -216,9 +225,13 @@
               </div>
 
               <div class="mobile-card-actions">
-                <button class="mini-btn" @click="openDetailDialog(item)">详情</button>
-                <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
-                <button class="mini-btn danger" @click="removeRecord(item)">删除</button>
+                <button type="button" class="mobile-detail-hint" @click="openDetailDialog(item)">
+                  查看详情 <span aria-hidden="true">›</span>
+                </button>
+                <div class="mobile-secondary-actions">
+                  <button class="mini-btn" @click.stop="openEditDialog(item)">编辑</button>
+                  <button class="mini-btn danger" @click.stop="removeRecord(item)">删除</button>
+                </div>
               </div>
             </article>
           </div>
@@ -330,12 +343,28 @@
       </div>
     </section>
 
+    <nav class="mobile-action-dock" aria-label="油耗统计快捷操作">
+      <button type="button" class="dock-secondary-btn" :disabled="loading || submitting" @click="loadRecords">
+        <span class="dock-icon" aria-hidden="true">↻</span>
+        <span>刷新</span>
+      </button>
+      <button type="button" class="dock-primary-btn" :disabled="loading || submitting" @click="openCreateDialog">
+        <span class="dock-plus" aria-hidden="true">＋</span>
+        <span>新增记录</span>
+      </button>
+      <button type="button" class="dock-secondary-btn" :disabled="submitting" @click="openVehicleDialog">
+        <span class="dock-icon" aria-hidden="true">▱</span>
+        <span>车辆</span>
+      </button>
+    </nav>
+
     <MacDialog
       v-model="showDetailDialog"
       title="加油记录详情"
       :subtitle="detailRecord ? `${detailRecord.vehicleName} · ${detailRecord.fuelDate}` : ''"
       width="960px"
       panel-class="fuel-record-detail-dialog"
+      mobile-presentation="sheet"
       :close-disabled="false"
       @cancel="closeDetailDialog"
     >
@@ -372,17 +401,24 @@
 
     <MacDialog
       v-model="showDialog"
-      :title="dialogMode === 'create' ? '新增加油记录' : '编辑加油记录'"
+      :title="dialogMode === 'create' ? energyFieldLabels.createTitle : energyFieldLabels.editTitle"
       width="1040px"
       panel-class="fuel-record-dialog"
+      mobile-presentation="fullScreen"
       :close-disabled="submitting"
       @cancel="closeDialog"
     >
         <form id="fuel-record-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitDialog">
           <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
-              <span>车辆名称</span>
-              <input v-model.trim="form.vehicleName" class="input" maxlength="40" placeholder="例如：Model Y" required />
+              <span>选择车辆</span>
+              <select v-model="form.vehicleName" class="input" required @change="handleFormVehicleChange">
+                <option value="" disabled>{{ vehicleOptions.length ? '请选择车辆' : '请先维护车辆' }}</option>
+                <option v-for="item in vehicleOptions" :key="item.id || item.vehicleName" :value="item.vehicleName">
+                  {{ item.vehicleName }}{{ item.legacy ? '（历史记录）' : '' }}
+                </option>
+              </select>
+              <button v-if="!vehicleOptions.length" type="button" class="form-link-btn" @click="openVehicleDialog">去维护车辆</button>
             </label>
 
             <label class="form-field">
@@ -397,47 +433,47 @@
             </label>
 
             <label class="form-field">
-              <span>加油量(L)</span>
+              <span>{{ energyFieldLabels.volume }}</span>
               <input v-model.number="form.fuelVolume" class="input" type="number" min="0" step="0.01" placeholder="例如：38.52" required />
             </label>
           </div>
 
           <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
-              <span>加油金额</span>
+              <span>{{ energyFieldLabels.totalAmount }}</span>
               <input v-model.number="form.totalAmount" class="input" type="number" min="0" step="0.01" placeholder="例如：312.5" required />
             </label>
 
             <label class="form-field">
-              <span>实际优惠后金额</span>
+              <span>{{ energyFieldLabels.discountedAmount }}</span>
               <input v-model.number="form.discountedAmount" class="input" type="number" min="0" step="0.01" placeholder="例如：298.8" required />
             </label>
           </div>
 
           <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
-              <span>单价（可选，留空自动计算）</span>
+              <span>{{ energyFieldLabels.unitPrice }}</span>
               <input v-model.number="form.unitPrice" class="input" type="number" min="0" step="0.001" placeholder="例如：8.110" />
             </label>
 
             <label class="form-field">
-              <span>油号</span>
+              <span>{{ energyFieldLabels.energyType }}</span>
               <select v-model="form.fuelType" class="input">
-                <option v-for="item in fuelTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+                <option v-for="item in formFuelTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
               </select>
             </label>
 
             <label class="form-field">
-              <span>加油方式</span>
+              <span>{{ energyFieldLabels.fillType }}</span>
               <select v-model="form.fillType" class="input">
-                <option v-for="item in fillTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+                <option v-for="item in formFillTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
               </select>
             </label>
           </div>
 
           <label class="form-field dialog-span-3">
-            <span>油站名称</span>
-            <input v-model.trim="form.stationName" class="input" maxlength="60" placeholder="例如：中国石化滨江站" />
+            <span>{{ energyFieldLabels.stationName }}</span>
+            <input v-model.trim="form.stationName" class="input" maxlength="60" :placeholder="energyFieldLabels.stationPlaceholder" />
           </label>
 
           <label class="form-field dialog-span-all">
@@ -449,16 +485,77 @@
             v-model="form.attachments"
             usage-type="IMAGE"
             :max-count="3"
-            title="加油凭证"
-            hint="最多 3 张，可上传小票、仪表盘或加油机照片。"
+            :title="energyFieldLabels.voucherTitle"
+            :hint="energyFieldLabels.voucherHint"
           />
 
         </form>
         <template #footer>
           <button form="fuel-record-dialog-form" type="submit" class="action-btn" :disabled="submitting">
-            {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存记录' : '更新记录') }}
+            {{ submitting ? '提交中...' : (dialogMode === 'create' ? energyFieldLabels.saveText : energyFieldLabels.updateText) }}
           </button>
         </template>
+    </MacDialog>
+
+    <MacDialog
+      v-model="showVehicleDialog"
+      title="车辆管理"
+      subtitle="维护车辆后，加油或充电记录可直接选择。"
+      width="720px"
+      panel-class="fuel-vehicle-dialog"
+      mobile-presentation="sheet"
+      :close-disabled="vehicleSubmitting"
+      @cancel="closeVehicleDialog"
+    >
+      <div class="vehicle-dialog">
+        <form id="fuel-vehicle-form" class="vehicle-form" @submit.prevent="submitVehicle">
+          <label class="form-field vehicle-name-field">
+            <span>车辆名称</span>
+            <input v-model.trim="vehicleForm.vehicleName" class="input" maxlength="64" placeholder="例如：CS75 PLUS / Model Y" required />
+          </label>
+          <label class="form-field">
+            <span>能源类型</span>
+            <select v-model="vehicleForm.energyType" class="input" @change="handleVehicleEnergyTypeChange">
+              <option v-for="item in vehicleEnergyTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+          <label class="form-field">
+            <span>{{ vehicleForm.energyType === 'ELECTRIC' ? '默认充电类型' : '默认油号' }}</span>
+            <select v-model="vehicleForm.defaultFuelType" class="input">
+              <option v-for="item in vehicleDefaultFuelTypeOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+          <label class="vehicle-default-option">
+            <input v-model="vehicleForm.defaultVehicle" type="checkbox" />
+            <span>作为默认车辆</span>
+          </label>
+        </form>
+
+        <div class="vehicle-list-head">
+          <h4>已维护车辆</h4>
+          <span>{{ fuelVehicles.length }} 台</span>
+        </div>
+        <div v-if="fuelVehicles.length" class="vehicle-list">
+          <article v-for="item in fuelVehicles" :key="item.id" class="vehicle-item">
+            <div class="vehicle-item-main">
+              <strong>{{ item.vehicleName }}</strong>
+              <span>{{ formatVehicleEnergyText(item.energyType) }} · 默认{{ formatFuelTypeText(item.defaultFuelType) }}</span>
+            </div>
+            <span v-if="item.defaultVehicle" class="default-vehicle-chip">默认</span>
+            <div class="vehicle-item-actions">
+              <button type="button" class="mini-btn" @click="openVehicleEdit(item)">编辑</button>
+              <button type="button" class="mini-btn danger" @click="removeVehicle(item)">删除</button>
+            </div>
+          </article>
+        </div>
+        <div v-else class="subtle-empty">还没有车辆，先添加一台用于后续记录。</div>
+      </div>
+      <template #footer>
+        <button type="button" class="ghost-btn" :disabled="vehicleSubmitting" @click="resetVehicleForm">新增车辆</button>
+        <button form="fuel-vehicle-form" type="submit" class="action-btn" :disabled="vehicleSubmitting">
+          {{ vehicleSubmitting ? '保存中...' : (vehicleDialogMode === 'create' ? '保存车辆' : '更新车辆') }}
+        </button>
+      </template>
     </MacDialog>
   </div>
 </template>
@@ -472,12 +569,16 @@ import AttachmentManager from '@/components/AttachmentManager.vue'
 import AttachmentGallery from '@/components/AttachmentGallery.vue'
 import {
   createFuelRecord,
+  createFuelVehicle,
   deleteFuelRecord,
+  deleteFuelVehicle,
   getFuelReports,
   getLatestFuelPrices,
   getFuelSummary,
+  listFuelVehicles,
   listFuelRecords,
-  updateFuelRecord
+  updateFuelRecord,
+  updateFuelVehicle
 } from '@/api/fuelStats'
 
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
@@ -487,9 +588,20 @@ const FUEL_TYPE_OPTIONS = [
   {value: '98', label: '98 号汽油'},
   {value: 'DIESEL', label: '柴油'}
 ]
+const ELECTRIC_FUEL_TYPE_OPTIONS = [
+  {value: 'ELECTRIC', label: '交流 / 直流充电'}
+]
 const FILL_TYPE_OPTIONS = [
   {value: 'FULL', label: '满油'},
   {value: 'PARTIAL', label: '补油'}
+]
+const ELECTRIC_FILL_TYPE_OPTIONS = [
+  {value: 'FULL', label: '充满'},
+  {value: 'PARTIAL', label: '补电'}
+]
+const VEHICLE_ENERGY_TYPE_OPTIONS = [
+  {value: 'FUEL', label: '燃油车'},
+  {value: 'ELECTRIC', label: '新能源车'}
 ]
 // 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
@@ -526,6 +638,17 @@ function normalizeRecord(item = {}) {
     distanceKm: Number(item.distanceKm ?? 0),
     fuelConsumption: item.fuelConsumption != null ? Number(item.fuelConsumption) : null,
     attachments: Array.isArray(item.attachments) ? item.attachments : []
+  }
+}
+
+// 车辆档案与历史加油记录分开维护，名称仍作为旧记录兼容键。
+function normalizeFuelVehicle(item = {}) {
+  return {
+    id: item.id ?? '',
+    vehicleName: item.vehicleName || '',
+    energyType: item.energyType === 'ELECTRIC' ? 'ELECTRIC' : 'FUEL',
+    defaultFuelType: item.defaultFuelType || (item.energyType === 'ELECTRIC' ? 'ELECTRIC' : '95'),
+    defaultVehicle: Boolean(item.defaultVehicle ?? item.isDefault)
   }
 }
 
@@ -646,6 +769,7 @@ export default {
     const recentRecords = ref([])
     const monthlyFuelReport = ref([])
     const yearlyCostReport = ref([])
+    const fuelVehicles = ref([])
     const selectedVehicleName = ref('')
     const latestFuelPrices = reactive({
       publishDate: '',
@@ -672,9 +796,13 @@ export default {
 
     const showDialog = ref(false)
     const showDetailDialog = ref(false)
+    const showVehicleDialog = ref(false)
     const dialogMode = ref('create')
+    const vehicleDialogMode = ref('create')
     const editingId = ref('')
+    const editingVehicleId = ref('')
     const detailRecord = ref(null)
+    const vehicleSubmitting = ref(false)
 
     const query = reactive({
       pageNo: 1,
@@ -695,10 +823,17 @@ export default {
       note: '',
       attachments: []
     })
+    const vehicleForm = reactive({
+      vehicleName: '',
+      energyType: 'FUEL',
+      defaultFuelType: '95',
+      defaultVehicle: false
+    })
 
     const pageSizeOptions = PAGE_SIZE_OPTIONS
     const fuelTypeOptions = FUEL_TYPE_OPTIONS
     const fillTypeOptions = FILL_TYPE_OPTIONS
+    const vehicleEnergyTypeOptions = VEHICLE_ENERGY_TYPE_OPTIONS
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
     const currentYearLabel = `${new Date().getFullYear()}年`
@@ -708,6 +843,77 @@ export default {
       {code: '98', label: '98 号汽油', priceText: latestFuelPrices.prices['98'] ? `¥${Number(latestFuelPrices.prices['98']).toFixed(2)}/L` : '-'},
       {code: 'DIESEL', label: '柴油', priceText: latestFuelPrices.prices.DIESEL ? `¥${Number(latestFuelPrices.prices.DIESEL).toFixed(2)}/L` : '-'}
     ]))
+    const vehicleOptions = computed(() => {
+      const maintainedNames = new Set(fuelVehicles.value.map((item) => item.vehicleName))
+      const legacyVehicleMap = new Map()
+      const candidateRecords = [...recentRecords.value, ...pagedRecords.value]
+      candidateRecords.forEach((item) => {
+        if (!item.vehicleName || maintainedNames.has(item.vehicleName) || legacyVehicleMap.has(item.vehicleName)) {
+          return
+        }
+        const electricVehicle = item.fuelType === 'ELECTRIC'
+        legacyVehicleMap.set(item.vehicleName, {
+          id: `legacy-${item.vehicleName}`,
+          vehicleName: item.vehicleName,
+          energyType: electricVehicle ? 'ELECTRIC' : 'FUEL',
+          defaultFuelType: electricVehicle ? 'ELECTRIC' : '95',
+          legacy: true
+        })
+      })
+      const legacyVehicles = Array.from(legacyVehicleMap.values())
+      return [...fuelVehicles.value, ...legacyVehicles]
+    })
+    const currentFormVehicle = computed(() => (
+      vehicleOptions.value.find((item) => item.vehicleName === form.vehicleName) || null
+    ))
+    const currentFormEnergyType = computed(() => (
+      currentFormVehicle.value?.energyType || (form.fuelType === 'ELECTRIC' ? 'ELECTRIC' : 'FUEL')
+    ))
+    const formFuelTypeOptions = computed(() => (
+      currentFormEnergyType.value === 'ELECTRIC' ? ELECTRIC_FUEL_TYPE_OPTIONS : FUEL_TYPE_OPTIONS
+    ))
+    const formFillTypeOptions = computed(() => (
+      currentFormEnergyType.value === 'ELECTRIC' ? ELECTRIC_FILL_TYPE_OPTIONS : FILL_TYPE_OPTIONS
+    ))
+    const vehicleDefaultFuelTypeOptions = computed(() => (
+      vehicleForm.energyType === 'ELECTRIC' ? ELECTRIC_FUEL_TYPE_OPTIONS : FUEL_TYPE_OPTIONS
+    ))
+    const energyFieldLabels = computed(() => {
+      if (currentFormEnergyType.value === 'ELECTRIC') {
+        return {
+          volume: '充电量(kWh)',
+          totalAmount: '充电金额',
+          discountedAmount: '优惠后金额',
+          unitPrice: '电价（可选，留空自动计算）',
+          energyType: '充电类型',
+          fillType: '充电方式',
+          stationName: '充电站名称',
+          stationPlaceholder: '例如：特来电滨江站',
+          voucherTitle: '充电凭证',
+          voucherHint: '最多 3 张，可上传充电订单、仪表盘或充电桩照片。',
+          createTitle: '新增充电记录',
+          editTitle: '编辑充电记录',
+          saveText: '保存充电记录',
+          updateText: '更新充电记录'
+        }
+      }
+      return {
+        volume: '加油量(L)',
+        totalAmount: '加油金额',
+        discountedAmount: '实际优惠后金额',
+        unitPrice: '单价（可选，留空自动计算）',
+          energyType: '油号',
+          fillType: '加油方式',
+          stationName: '油站名称',
+          stationPlaceholder: '例如：中国石化滨江站',
+          voucherTitle: '加油凭证',
+          voucherHint: '最多 3 张，可上传小票、仪表盘或加油机照片。',
+          createTitle: '新增加油记录',
+          editTitle: '编辑加油记录',
+          saveText: '保存加油记录',
+          updateText: '更新加油记录'
+      }
+    })
     const consumptionSourceRecords = computed(() => {
       const merged = [...recentRecords.value, ...pagedRecords.value]
       const uniqueMap = new Map()
@@ -802,7 +1008,11 @@ export default {
     const formatCurrency = (value) => `¥${Number(value || 0).toFixed(2)}`
     const formatUnitPrice = (value) => value ? `¥${Number(value).toFixed(3)}/L` : '-'
     const formatConsumption = (value) => value ? `${Number(value).toFixed(2)} L/100km` : '-'
-    const formatFuelTypeText = (value) => fuelTypeOptions.find((item) => item.value === value)?.label || value || '-'
+    const formatFuelTypeText = (value) => (
+      value === 'ELECTRIC'
+        ? '交流 / 直流充电'
+        : (fuelTypeOptions.find((item) => item.value === value)?.label || value || '-')
+    )
     const formatFillTypeText = (value) => fillTypeOptions.find((item) => item.value === value)?.label || value || '-'
 
     const getConsumptionLevel = (value) => {
@@ -938,8 +1148,21 @@ export default {
       }
     }
 
+    const loadFuelVehicles = async () => {
+      try {
+        const response = await listFuelVehicles()
+        const payload = unwrapData(response) || []
+        const list = Array.isArray(payload) ? payload : (payload.list || payload.records || [])
+        fuelVehicles.value = list.map((item) => normalizeFuelVehicle(item))
+      } catch (error) {
+        // 车辆接口不可用时仍保留历史记录推导出的兼容选项，避免阻断旧数据编辑。
+        fuelVehicles.value = []
+      }
+    }
+
     const resetForm = () => {
-      form.vehicleName = ''
+      const defaultVehicle = fuelVehicles.value.find((item) => item.defaultVehicle) || vehicleOptions.value[0]
+      form.vehicleName = defaultVehicle?.vehicleName || ''
       form.fuelDate = ''
       form.odometerKm = 0
       form.fuelVolume = 0
@@ -951,6 +1174,7 @@ export default {
       form.stationName = ''
       form.note = ''
       form.attachments = []
+      handleFormVehicleChange()
     }
 
     const fillForm = (record) => {
@@ -999,6 +1223,102 @@ export default {
       }
       showDialog.value = false
       resetForm()
+    }
+
+    const handleFormVehicleChange = () => {
+      const vehicle = vehicleOptions.value.find((item) => item.vehicleName === form.vehicleName)
+      if (!vehicle) {
+        return
+      }
+      form.fuelType = vehicle.defaultFuelType || (vehicle.energyType === 'ELECTRIC' ? 'ELECTRIC' : '95')
+      if (!formFillTypeOptions.value.some((item) => item.value === form.fillType)) {
+        form.fillType = 'FULL'
+      }
+    }
+
+    const resetVehicleForm = () => {
+      vehicleDialogMode.value = 'create'
+      editingVehicleId.value = ''
+      vehicleForm.vehicleName = ''
+      vehicleForm.energyType = 'FUEL'
+      vehicleForm.defaultFuelType = '95'
+      vehicleForm.defaultVehicle = fuelVehicles.value.length === 0
+    }
+
+    const openVehicleDialog = async () => {
+      await loadFuelVehicles()
+      resetVehicleForm()
+      showVehicleDialog.value = true
+    }
+
+    const closeVehicleDialog = () => {
+      if (vehicleSubmitting.value) {
+        return
+      }
+      showVehicleDialog.value = false
+      resetVehicleForm()
+    }
+
+    const handleVehicleEnergyTypeChange = () => {
+      vehicleForm.defaultFuelType = vehicleForm.energyType === 'ELECTRIC' ? 'ELECTRIC' : '95'
+    }
+
+    const openVehicleEdit = (vehicle) => {
+      vehicleDialogMode.value = 'edit'
+      editingVehicleId.value = vehicle.id
+      vehicleForm.vehicleName = vehicle.vehicleName
+      vehicleForm.energyType = vehicle.energyType
+      vehicleForm.defaultFuelType = vehicle.defaultFuelType
+      vehicleForm.defaultVehicle = vehicle.defaultVehicle
+    }
+
+    const buildVehiclePayload = () => ({
+      vehicleName: vehicleForm.vehicleName,
+      energyType: vehicleForm.energyType,
+      defaultFuelType: vehicleForm.defaultFuelType,
+      defaultVehicle: vehicleForm.defaultVehicle
+    })
+
+    const submitVehicle = async () => {
+      if (!vehicleForm.vehicleName) {
+        alert('请输入车辆名称')
+        return
+      }
+      if (vehicleSubmitting.value) {
+        return
+      }
+      vehicleSubmitting.value = true
+      try {
+        if (vehicleDialogMode.value === 'create') {
+          await createFuelVehicle(buildVehiclePayload())
+        } else {
+          await updateFuelVehicle(editingVehicleId.value, buildVehiclePayload())
+        }
+        await loadFuelVehicles()
+        resetVehicleForm()
+      } catch (error) {
+        alert(error?.response?.data?.message || '保存车辆失败')
+      } finally {
+        vehicleSubmitting.value = false
+      }
+    }
+
+    const removeVehicle = async (vehicle) => {
+      if (!await confirmDialog(`删除“${vehicle.vehicleName}”后不能再从车辆列表选择它。`, {
+        title: '删除车辆？',
+        confirmText: '删除车辆'
+      })) {
+        return
+      }
+      try {
+        await deleteFuelVehicle(vehicle.id)
+        await loadFuelVehicles()
+        if (editingVehicleId.value === vehicle.id) {
+          resetVehicleForm()
+        }
+      } catch (error) {
+        alert(error?.response?.data?.message || '删除车辆失败')
+      }
     }
 
     const buildFormPayload = () => {
@@ -1117,6 +1437,7 @@ export default {
     }
 
     onMounted(() => {
+      loadFuelVehicles()
       loadRecords()
     })
 
@@ -1130,6 +1451,7 @@ export default {
       recentRecords,
       monthlyFuelReport,
       yearlyCostReport,
+      fuelVehicles,
       latestFuelPrices,
       latestConsumptionRecord,
       consumptionVehicleOptions,
@@ -1138,15 +1460,25 @@ export default {
       fuelPriceExtraItems,
       query,
       form,
+      vehicleForm,
       showDialog,
       showDetailDialog,
+      showVehicleDialog,
       dialogMode,
+      vehicleDialogMode,
       detailRecord,
+      vehicleSubmitting,
       pageSizeOptions,
       fuelTypeOptions,
       fillTypeOptions,
+      vehicleEnergyTypeOptions,
       currentYearLabel,
       fuelPriceCards,
+      vehicleOptions,
+      formFuelTypeOptions,
+      formFillTypeOptions,
+      vehicleDefaultFuelTypeOptions,
+      energyFieldLabels,
       totalPages,
       maxYearlyCost,
       monthlyTrendPoints,
@@ -1160,17 +1492,26 @@ export default {
       formatConsumption,
       formatFuelTypeText,
       formatFillTypeText,
+      formatVehicleEnergyText: (value) => value === 'ELECTRIC' ? '新能源' : '燃油车',
       getConsumptionLevel,
       getBarWidth,
       switchConsumptionVehicle,
       changePage,
       handlePageSizeChange,
       openCreateDialog,
+      openVehicleDialog,
       openDetailDialog,
       openEditDialog,
       closeDetailDialog,
       closeDialog,
       submitDialog,
+      closeVehicleDialog,
+      resetVehicleForm,
+      handleVehicleEnergyTypeChange,
+      openVehicleEdit,
+      submitVehicle,
+      removeVehicle,
+      handleFormVehicleChange,
       removeRecord,
       loadRecords,
       goBack
@@ -1190,24 +1531,30 @@ export default {
 
 .page-nav {
   display: flex;
+  align-items: center;
   justify-content: flex-start;
   margin-bottom: 12px;
 }
 
-.back-home-btn {
+.nav-icon-btn {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 16px 0 12px;
+  justify-content: center;
   border: 1px solid var(--theme-border);
-  border-radius: 999px;
   color: var(--theme-text-soft);
   cursor: pointer;
   background: var(--theme-control-surface);
   box-shadow: var(--theme-shadow-xs);
-  backdrop-filter: blur(12px);
-  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  transition: transform 100ms ease-out, background 180ms ease, border-color 180ms ease;
+}
+
+.back-home-btn {
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 16px 0 12px;
+  border-radius: 999px;
 }
 
 .back-home-btn:hover {
@@ -1223,9 +1570,26 @@ export default {
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1;
   background: var(--theme-surface-muted);
+}
+
+.mobile-nav-title,
+.mobile-nav-add,
+.mobile-action-dock {
+  display: none;
+}
+
+.nav-icon-btn:active,
+.headline-switch-btn:active,
+.action-btn:active,
+.ghost-btn:active,
+.mini-btn:active,
+.mobile-record-card:active {
+  transform: scale(0.97);
+  transition-duration: 100ms;
 }
 
 .hero-panel,
@@ -1327,6 +1691,7 @@ export default {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  max-width: 100%;
 }
 
 .headline-switch-btn {
@@ -1339,6 +1704,7 @@ export default {
   font-size: 12px;
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  touch-action: manipulation;
 }
 
 .headline-switch-btn:hover {
@@ -1559,6 +1925,17 @@ export default {
   color: var(--theme-text-muted);
 }
 
+.form-link-btn {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  color: var(--theme-link);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .input {
   width: 100%;
   min-height: 40px;
@@ -1678,7 +2055,7 @@ export default {
   margin: 0;
   padding: 11px 12px;
   border-radius: 12px;
-  background: var(--theme-surface-muted);
+  background: var(--theme-control-surface);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1960,6 +2337,106 @@ export default {
   gap: 14px;
 }
 
+.vehicle-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.vehicle-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(150px, 0.7fr) minmax(150px, 0.85fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--theme-border);
+  border-radius: 16px;
+  background: var(--theme-surface-muted);
+}
+
+.vehicle-default-option {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--theme-text-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.vehicle-default-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--theme-link);
+}
+
+.vehicle-list-head,
+.vehicle-item,
+.vehicle-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vehicle-list-head {
+  justify-content: space-between;
+}
+
+.vehicle-list-head h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.vehicle-list-head span {
+  color: var(--theme-text-muted);
+  font-size: 13px;
+}
+
+.vehicle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vehicle-item {
+  min-height: 70px;
+  padding: 12px 14px;
+  border: 1px solid var(--theme-border);
+  border-radius: 14px;
+  background: var(--theme-surface-muted);
+}
+
+.vehicle-item-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vehicle-item-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vehicle-item-main span {
+  color: var(--theme-text-muted);
+  font-size: 12px;
+}
+
+.default-vehicle-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--theme-link);
+  background: var(--theme-accent-soft);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .dialog-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -2003,6 +2480,30 @@ export default {
   grid-column: 1 / -1;
 }
 
+.mobile-detail-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  color: var(--theme-link);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mobile-detail-hint > span {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.mobile-secondary-actions {
+  display: flex;
+  gap: 8px;
+}
+
 @media (max-width: 1100px) {
   .headline-card,
   .price-layout,
@@ -2030,7 +2531,68 @@ export default {
 
 @media (max-width: 720px) {
   .fuel-page {
-    padding: 12px;
+    padding: 0 12px calc(112px + env(safe-area-inset-bottom));
+    scroll-padding-top: calc(68px + env(safe-area-inset-top));
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+    font-optical-sizing: auto;
+  }
+
+  .page-nav {
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    min-height: calc(56px + env(safe-area-inset-top));
+    margin: 0 -12px 10px;
+    padding: env(safe-area-inset-top) 12px 0;
+    justify-content: space-between;
+    background: color-mix(in srgb, var(--theme-surface) 72%, transparent);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+  }
+
+  .page-nav::after {
+    position: absolute;
+    right: 0;
+    bottom: -12px;
+    left: 0;
+    height: 12px;
+    content: "";
+    pointer-events: none;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--theme-surface) 22%, transparent), transparent);
+  }
+
+  .back-home-btn,
+  .mobile-nav-add {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-color: transparent;
+    border-radius: 50%;
+    box-shadow: none;
+  }
+
+  .back-home-text {
+    display: none;
+  }
+
+  .back-home-icon {
+    width: auto;
+    height: auto;
+    background: transparent;
+  }
+
+  .mobile-nav-title {
+    display: block;
+    font-size: 17px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+
+  .mobile-nav-add {
+    font-size: 24px;
+    color: var(--theme-link);
   }
 
   .hero-panel,
@@ -2043,11 +2605,118 @@ export default {
     align-items: stretch;
   }
 
+  .hero-panel {
+    gap: 12px;
+    padding: 2px 0 6px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .hero-panel > div:first-child {
+    display: none;
+  }
+
+  .hero-tags {
+    flex-wrap: nowrap;
+    margin: 0 -2px;
+    padding: 2px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .hero-tags::-webkit-scrollbar,
+  .headline-switches::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hero-tag {
+    flex: 0 0 auto;
+    min-height: 32px;
+    scroll-snap-align: start;
+  }
+
+  .headline-card {
+    display: block;
+  }
+
+  .headline-copy {
+    min-height: 184px;
+    justify-content: flex-end;
+  }
+
+  .headline-label {
+    font-size: 11px;
+  }
+
+  .headline-switches {
+    width: 100%;
+    padding-bottom: 2px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .headline-switch-btn {
+    flex: 0 0 auto;
+    min-height: 36px;
+    scroll-snap-align: start;
+  }
+
+  .headline-value {
+    font-size: clamp(38px, 12vw, 54px);
+    letter-spacing: -0.055em;
+  }
+
+  .headline-meta {
+    font-size: 13px;
+  }
+
+  .headline-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .headline-stat {
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .headline-stat strong {
+    overflow: hidden;
+    font-size: clamp(14px, 4vw, 18px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .toolbar-left,
   .toolbar-right,
   .pager-left,
   .pager-right {
     width: 100%;
+  }
+
+  .toolbar-left {
+    display: none;
+  }
+
+  .toolbar {
+    padding: 0;
+    margin-top: 10px;
+    background: transparent;
+  }
+
+  .toolbar-right {
+    justify-content: flex-end;
+    color: var(--theme-text-muted);
+    font-size: 13px;
   }
 
   .toolbar-left .action-btn,
@@ -2066,6 +2735,76 @@ export default {
     display: grid;
   }
 
+  .mobile-record-card {
+    padding: 16px;
+    border-radius: 20px;
+    box-shadow: var(--theme-shadow-xs);
+  }
+
+  .mobile-record-grid {
+    gap: 8px;
+  }
+
+  .mobile-record-grid p {
+    min-height: 64px;
+  }
+
+  .mobile-card-actions {
+    min-height: 52px;
+    margin-top: 12px;
+    padding-top: 10px;
+    justify-content: space-between;
+    border-top: 1px solid var(--theme-table-divider);
+  }
+
+  .mobile-secondary-actions .mini-btn {
+    min-width: 54px;
+    min-height: 40px;
+  }
+
+  .mobile-secondary-actions .mini-btn.danger {
+    color: #ff6b6b;
+    background: transparent;
+  }
+
+  .price-panel,
+  .list-panel,
+  .insight-panel,
+  .report-panel {
+    box-shadow: var(--theme-shadow-xs);
+  }
+
+  .panel-title {
+    font-size: 19px;
+    letter-spacing: -0.015em;
+  }
+
+  .panel-tip {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .line-chart {
+    overflow: hidden;
+  }
+
+  .line-chart-svg {
+    height: 210px;
+  }
+
+  .line-chart-path {
+    stroke-width: 3.5;
+  }
+
+  .summary-card {
+    min-height: 92px;
+  }
+
+  .summary-card strong {
+    font-size: clamp(18px, 6vw, 24px);
+    letter-spacing: -0.025em;
+  }
+
   .summary-grid,
   .form-inline-grid,
   .detail-grid {
@@ -2074,6 +2813,108 @@ export default {
 
   .report-grid {
     grid-template-columns: 1fr;
+  }
+
+  .input {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .vehicle-form {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .vehicle-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .vehicle-item-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .fuel-vehicle-dialog .ghost-btn,
+  .fuel-vehicle-dialog .action-btn {
+    min-height: 46px;
+  }
+
+  .action-btn[form="fuel-record-dialog-form"] {
+    width: 100%;
+    min-height: 50px;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .mobile-action-dock {
+    position: fixed;
+    z-index: 30;
+    right: 12px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 12px;
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr) 68px;
+    align-items: center;
+    gap: 8px;
+    min-height: 76px;
+    padding: 8px;
+    border: 1px solid color-mix(in srgb, var(--theme-border-strong) 72%, transparent);
+    border-radius: 26px;
+    background: color-mix(in srgb, var(--theme-surface) 78%, transparent);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+  }
+
+  .dock-secondary-btn,
+  .dock-primary-btn {
+    min-height: 58px;
+    border: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .dock-secondary-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 18px;
+    color: var(--theme-text-muted);
+    background: transparent;
+    font-size: 11px;
+  }
+
+  .dock-icon {
+    font-size: 21px;
+    line-height: 1;
+  }
+
+  .dock-primary-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 19px;
+    color: #fff;
+    background: linear-gradient(135deg, #0a84ff, #20c997);
+    box-shadow: 0 8px 22px rgba(10, 132, 255, 0.28);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .dock-plus {
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1;
+  }
+
+  .dock-secondary-btn:active,
+  .dock-primary-btn:active {
+    transform: scale(0.96);
   }
 }
 
@@ -2090,10 +2931,6 @@ export default {
     border-radius: 16px;
   }
 
-  .page-title {
-    font-size: 24px;
-  }
-
   .mobile-record-grid,
   .price-grid {
     grid-template-columns: 1fr;
@@ -2105,10 +2942,6 @@ export default {
 
   .headline-switches {
     justify-content: flex-start;
-  }
-
-  .headline-stats {
-    grid-template-columns: 1fr;
   }
 
   .line-chart-labels {
@@ -2125,14 +2958,52 @@ export default {
     margin-top: -2px;
   }
 
-  .toolbar-left .action-btn,
-  .toolbar-left .ghost-btn,
   .pager-right .ghost-btn,
   .dialog-actions .action-btn,
-  .dialog-actions .ghost-btn,
-  .mobile-card-actions .mini-btn {
+  .dialog-actions .ghost-btn {
     flex-basis: 100%;
   }
 
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-icon-btn,
+  .headline-switch-btn,
+  .action-btn,
+  .ghost-btn,
+  .mini-btn,
+  .mobile-record-card,
+  .dock-secondary-btn,
+  .dock-primary-btn,
+  .bar-fill {
+    scroll-behavior: auto;
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .page-nav,
+  .mobile-action-dock,
+  .nav-icon-btn,
+  .hero-panel,
+  .headline-panel,
+  .price-panel,
+  .list-panel,
+  .insight-panel,
+  .report-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: var(--theme-surface);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .page-nav,
+  .mobile-action-dock,
+  .mobile-record-card,
+  .price-card,
+  .summary-card {
+    border-color: var(--theme-text);
+  }
 }
 </style>

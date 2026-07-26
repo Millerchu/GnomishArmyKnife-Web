@@ -29,3 +29,20 @@ export function getLatestFuelPrices(params) {
 export function getFuelReports(params) {
   return request.get('/fuel-records/reports', {params})
 }
+
+// 车辆档案独立维护，录入能源记录时由页面直接复用车辆选项。
+export function listFuelVehicles() {
+  return request.get('/fuel-vehicles')
+}
+
+export function createFuelVehicle(data) {
+  return request.post('/fuel-vehicles', data)
+}
+
+export function updateFuelVehicle(id, data) {
+  return request.put(`/fuel-vehicles/${id}`, data)
+}
+
+export function deleteFuelVehicle(id) {
+  return request.delete(`/fuel-vehicles/${id}`)
+}
