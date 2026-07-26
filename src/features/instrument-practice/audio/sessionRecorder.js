@@ -229,24 +229,40 @@ export class PerformancePlaybackScheduler {
         return Boolean(this.activePlayback)
     }
 
-    play(take, {startDelaySeconds = 0.03} = {}) {
+    play(take, {startDelaySeconds = 0.03, offsetMs = 0} = {}) {
         if (!take) {
             return false
         }
         this.stop()
+        const normalizedOffsetMs = clamp(Number(offsetMs) || 0, 0, take.durationMs)
         const events = sortPerformanceEvents(take.events)
             .filter(event => event.at >= 0 && event.at <= take.durationMs)
+        const eventIndex = events.findIndex(event => event.at >= normalizedOffsetMs)
         this.activePlayback = {
             take,
             events,
-            eventIndex: 0,
-            startedAtSeconds: this.clock() + Math.max(0, Number(startDelaySeconds) || 0)
+            eventIndex: eventIndex < 0 ? events.length : eventIndex,
+            offsetMs: normalizedOffsetMs,
+            startedAtSeconds: this.clock()
+                + Math.max(0, Number(startDelaySeconds) || 0)
+                - normalizedOffsetMs / 1000
         }
         this.tick()
         if (typeof this.setIntervalFn === 'function') {
             this.intervalId = this.setIntervalFn(() => this.tick(), this.lookAheadMs)
         }
         return true
+    }
+
+    getPositionMs() {
+        if (!this.activePlayback) {
+            return 0
+        }
+        return clamp(
+            (this.clock() - this.activePlayback.startedAtSeconds) * 1000,
+            this.activePlayback.offsetMs,
+            this.activePlayback.take.durationMs
+        )
     }
 
     tick() {

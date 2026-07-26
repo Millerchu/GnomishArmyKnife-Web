@@ -35,10 +35,17 @@ export function useSessionRecorder({
     const takes = ref([])
     const isRecording = ref(false)
     const activePlaybackId = ref(null)
+    const activePlaybackKind = ref(null)
     const activePlaybackEvents = ref([])
+    const isPlaybackPaused = ref(false)
+    const playbackProgressMs = ref(0)
+    const activePlaybackDurationMs = ref(0)
     const playbackVisualTimerIds = new Set()
     let playbackVisualSequence = 0
     let durationTimerId = null
+    let progressTimerId = null
+    let currentPlaybackTake = null
+    let pausedOffsetMs = 0
 
     const recorder = new SessionRecorder({clock: timelineClock, maxTakes})
     const playback = new PerformancePlaybackScheduler({
@@ -50,7 +57,7 @@ export function useSessionRecorder({
             schedulePlaybackVisual(event, when)
         },
         onComplete: () => {
-            activePlaybackId.value = null
+            resetPlaybackState()
         }
     })
 
@@ -71,11 +78,15 @@ export function useSessionRecorder({
                 playbackVisualId: ++playbackVisualSequence
             }
             activePlaybackEvents.value = [...activePlaybackEvents.value, visualEvent]
+            const visualDurationMs = Math.min(
+                1200,
+                Math.max(PLAYBACK_VISUAL_DURATION_MS, Number(event.durationSeconds) * 1000 || 0)
+            )
             const removeTimerId = globalThis.setTimeout?.(() => {
                 playbackVisualTimerIds.delete(removeTimerId)
                 activePlaybackEvents.value = activePlaybackEvents.value
                     .filter(candidate => candidate.playbackVisualId !== visualEvent.playbackVisualId)
-            }, PLAYBACK_VISUAL_DURATION_MS)
+            }, visualDurationMs)
             if (removeTimerId !== undefined) {
                 playbackVisualTimerIds.add(removeTimerId)
             }
@@ -94,6 +105,57 @@ export function useSessionRecorder({
             globalThis.clearTimeout?.(durationTimerId)
         }
         durationTimerId = null
+    }
+
+    function clearProgressTimer() {
+        if (progressTimerId !== null) {
+            globalThis.clearInterval?.(progressTimerId)
+        }
+        progressTimerId = null
+    }
+
+    function updatePlaybackProgress() {
+        if (playback.isPlaying) {
+            playbackProgressMs.value = playback.getPositionMs()
+        }
+    }
+
+    function startProgressTimer() {
+        clearProgressTimer()
+        updatePlaybackProgress()
+        progressTimerId = globalThis.setInterval?.(updatePlaybackProgress, 80)
+    }
+
+    function resetPlaybackState() {
+        clearProgressTimer()
+        clearPlaybackVisuals()
+        activePlaybackId.value = null
+        activePlaybackKind.value = null
+        isPlaybackPaused.value = false
+        playbackProgressMs.value = 0
+        activePlaybackDurationMs.value = 0
+        currentPlaybackTake = null
+        pausedOffsetMs = 0
+    }
+
+    function playTake(take, kind, offsetMs = 0) {
+        playback.stop()
+        engine.stopAll()
+        clearPlaybackVisuals()
+        currentPlaybackTake = take
+        pausedOffsetMs = offsetMs
+        activePlaybackId.value = take.id
+        activePlaybackKind.value = kind
+        isPlaybackPaused.value = false
+        playbackProgressMs.value = offsetMs
+        activePlaybackDurationMs.value = Number(take.durationMs) || 0
+        const started = playback.play(take, {offsetMs})
+        if (started) {
+            startProgressTimer()
+        } else {
+            resetPlaybackState()
+        }
+        return started
     }
 
     function startRecording(metadata) {
@@ -137,17 +199,49 @@ export function useSessionRecorder({
         if (!take) {
             return false
         }
+        return playTake(take, 'take')
+    }
+
+    function playPerformanceSequence(sequence) {
+        if (isRecording.value) {
+            stopRecording()
+        }
+        if (!sequence?.id || !Array.isArray(sequence.events)) {
+            return false
+        }
+        return playTake(sequence, 'score')
+    }
+
+    function pausePlayback() {
+        if (!playback.isPlaying || !currentPlaybackTake) {
+            return false
+        }
+        pausedOffsetMs = playback.getPositionMs()
+        playbackProgressMs.value = pausedOffsetMs
+        playback.stop()
         engine.stopAll()
+        clearProgressTimer()
         clearPlaybackVisuals()
-        activePlaybackId.value = takeId
-        return playback.play(take)
+        isPlaybackPaused.value = true
+        return true
+    }
+
+    function resumePlayback() {
+        if (!isPlaybackPaused.value || !currentPlaybackTake) {
+            return false
+        }
+        isPlaybackPaused.value = false
+        const resumed = playback.play(currentPlaybackTake, {offsetMs: pausedOffsetMs})
+        if (resumed) {
+            startProgressTimer()
+        }
+        return resumed
     }
 
     function stopPlayback() {
         playback.stop()
         engine.stopAll()
-        clearPlaybackVisuals()
-        activePlaybackId.value = null
+        resetPlaybackState()
     }
 
     function deleteTake(takeId) {
@@ -195,11 +289,18 @@ export function useSessionRecorder({
         takes: readonly(takes),
         isRecording: readonly(isRecording),
         activePlaybackId: readonly(activePlaybackId),
+        activePlaybackKind: readonly(activePlaybackKind),
         activePlaybackEvents: readonly(activePlaybackEvents),
+        isPlaybackPaused: readonly(isPlaybackPaused),
+        playbackProgressMs: readonly(playbackProgressMs),
+        activePlaybackDurationMs: readonly(activePlaybackDurationMs),
         startRecording,
         capture,
         stopRecording,
         replayTake,
+        playPerformanceSequence,
+        pausePlayback,
+        resumePlayback,
         stopPlayback,
         deleteTake,
         replaceTakes,

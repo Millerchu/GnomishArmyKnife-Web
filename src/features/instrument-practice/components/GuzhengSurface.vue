@@ -49,7 +49,8 @@
         :class="{
           'outside-active-bank': !isStringInActiveBank(stringIndex),
           pressed: isStringPressed(instrumentString.id),
-          'playback-active': isPlaybackStringActive(instrumentString.id)
+          'playback-active': isPlaybackStringActive(instrumentString.id),
+          'playback-altered': isPlaybackStringAltered(instrumentString.id)
         }"
         :data-string-index="stringIndex"
       >
@@ -291,6 +292,12 @@ function noteLabel(stringIndex) {
 function isPlaybackStringActive(stringId) {
   return props.playbackEvents.some((event) => (
     event.type === 'note' && event.stringId === stringId
+  ))
+}
+
+function isPlaybackStringAltered(stringId) {
+  return props.playbackEvents.some((event) => (
+    event.type === 'note' && event.stringId === stringId && event.scoreAltered
   ))
 }
 
@@ -719,6 +726,11 @@ onBeforeUnmount(() => {
   height: 2px;
   background: var(--cyan);
   box-shadow: 0 0 0.85rem rgba(96, 230, 238, 0.78);
+}
+
+.guzheng-string-row.playback-altered .pressure-zone {
+  background: linear-gradient(90deg, rgba(96, 230, 238, 0.24), rgba(96, 230, 238, 0.02) 72%, transparent);
+  box-shadow: inset 0.2rem 0 rgba(96, 230, 238, 0.58);
 }
 
 .pluck-target {

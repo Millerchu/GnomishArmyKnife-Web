@@ -47,6 +47,10 @@
  * @property {number} [velocity]
  * @property {number} [bendCents]
  * @property {boolean} [damped] - 按住闷音时产生的短音符。
+ * @property {number} [durationSeconds] - 临时曲谱回放的发声时长，不写入后端录音协议。
+ * @property {number} [scoreMeasureIndex] - 临时曲谱的小节序号，仅用于前端演示。
+ * @property {boolean} [scoreAltered] - 古筝变音需同步显示左手按弦反馈。
+ * @property {number} [fret] - 临时曲谱映射到有品乐器的位置，仅用于前端演示。
  */
 
 /**
@@ -59,6 +63,39 @@
  * @property {number} durationMs
  * @property {PerformanceEvent[]} events
  * @property {number} createdAt
+ */
+
+/**
+ * @typedef {Object} NumberedScoreDraft
+ * @property {string} notation
+ * @property {number} tonic - C 至 B 对应 0–11。
+ * @property {'major' | 'natural-minor'} mode
+ * @property {'2/4' | '3/4' | '4/4' | '6/8'} meter
+ * @property {number} bpm
+ * @property {InstrumentId | ''} instrumentId
+ * @property {string} tuningId
+ */
+
+/**
+ * @typedef {Object} ParsedScoreNote
+ * @property {'note' | 'rest'} kind
+ * @property {number} atBeat
+ * @property {number} durationBeats
+ * @property {number} measureIndex
+ * @property {number} [midi]
+ */
+
+/**
+ * @typedef {Object} ScorePerformanceSequence
+ * @property {string} id
+ * @property {'score'} kind
+ * @property {string} title
+ * @property {InstrumentId} instrumentId
+ * @property {string} tuningId
+ * @property {number} bpm
+ * @property {string} meter
+ * @property {number} durationMs
+ * @property {PerformanceEvent[]} events
  */
 
 export const PERFORMANCE_EVENT_TYPES = Object.freeze({

@@ -64,7 +64,11 @@ vi.mock('@/features/instrument-practice/composables/index.js', async () => {
     takes: ref([]),
     isRecording: ref(false),
     activePlaybackId: ref(null),
+    activePlaybackKind: ref(null),
     activePlaybackEvents: ref([]),
+    isPlaybackPaused: ref(false),
+    playbackProgressMs: ref(0),
+    activePlaybackDurationMs: ref(0),
     startRecording: vi.fn(() => {
       recorder.isRecording.value = true
       return true
@@ -84,8 +88,26 @@ vi.mock('@/features/instrument-practice/composables/index.js', async () => {
       recorder.takes.value = [take]
       return take
     }),
-    stopPlayback: vi.fn(),
+    stopPlayback: vi.fn(() => {
+      recorder.activePlaybackId.value = null
+      recorder.activePlaybackKind.value = null
+      recorder.isPlaybackPaused.value = false
+    }),
     replayTake: vi.fn(() => true),
+    playPerformanceSequence: vi.fn((sequence) => {
+      recorder.activePlaybackId.value = sequence.id
+      recorder.activePlaybackKind.value = 'score'
+      recorder.activePlaybackDurationMs.value = sequence.durationMs
+      return true
+    }),
+    pausePlayback: vi.fn(() => {
+      recorder.isPlaybackPaused.value = true
+      return true
+    }),
+    resumePlayback: vi.fn(() => {
+      recorder.isPlaybackPaused.value = false
+      return true
+    }),
     deleteTake: vi.fn(),
     replaceTakes: vi.fn((takes) => {
       recorder.takes.value = takes
@@ -138,7 +160,11 @@ beforeEach(() => {
   __instrumentPracticeMocks.recorder.takes.value = []
   __instrumentPracticeMocks.recorder.isRecording.value = false
   __instrumentPracticeMocks.recorder.activePlaybackId.value = null
+  __instrumentPracticeMocks.recorder.activePlaybackKind.value = null
   __instrumentPracticeMocks.recorder.activePlaybackEvents.value = []
+  __instrumentPracticeMocks.recorder.isPlaybackPaused.value = false
+  __instrumentPracticeMocks.recorder.playbackProgressMs.value = 0
+  __instrumentPracticeMocks.recorder.activePlaybackDurationMs.value = 0
   vi.stubGlobal('matchMedia', vi.fn(() => ({
     matches: false,
     addEventListener: vi.fn(),
@@ -201,7 +227,7 @@ describe('随身乐器页面流程', () => {
     expect(__instrumentPracticeMocks.audio.stopAll).toHaveBeenCalled()
     expect(wrapper.get('h1').text()).toBe('乌克丽丽')
     expect(wrapper.get('.record-button').attributes('aria-label')).toBe('开始录制')
-    expect(wrapper.get('.practice-toolbar .tool-button:nth-of-type(3) small').text()).toBe('0/10')
+    expect(wrapper.get('button[aria-label="打开已保存的练习录音列表"] small').text()).toBe('0/10')
     wrapper.unmount()
   })
 
@@ -349,6 +375,40 @@ describe('随身乐器页面流程', () => {
     await wrapper.get('button[aria-label="打开练习设置"]').trigger('click')
     expect(wrapper.get('[role="dialog"]').text()).toContain('节拍器')
     expect(wrapper.get('[role="dialog"]').text()).toContain('不读取麦克风')
+    wrapper.unmount()
+  })
+
+  it('输入合法简谱后切换目标乐器并提供暂停与停止控制', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('button[aria-label="打开简谱自动演奏"]').trigger('click')
+    await wrapper.get('.instrument-card-grid button:nth-child(4)').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.get('.start-score-button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('h1').text()).toBe('钢琴')
+    expect(__instrumentPracticeMocks.recorder.playPerformanceSequence)
+      .toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'score',
+        instrumentId: 'piano',
+        tuningId: 'concert-pitch'
+      }))
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.get('.score-playback-strip').text()).toContain('钢琴自动演奏')
+    expect(wrapper.find('.manual-performance-lock').text()).toContain('暂停后可手动弹奏')
+    expect(wrapper.get('.instrument-stage').attributes('inert')).toBeDefined()
+
+    await wrapper.get('button[aria-label="暂停自动演奏"]').trigger('click')
+    expect(__instrumentPracticeMocks.recorder.pausePlayback).toHaveBeenCalled()
+    expect(wrapper.find('.manual-performance-lock').exists()).toBe(false)
+    expect(wrapper.get('.instrument-stage').attributes('inert')).toBeUndefined()
+    await wrapper.get('button[aria-label="继续自动演奏"]').trigger('click')
+    expect(__instrumentPracticeMocks.recorder.resumePlayback).toHaveBeenCalled()
+    expect(wrapper.find('.manual-performance-lock').exists()).toBe(true)
+    await wrapper.get('button[aria-label="停止自动演奏"]').trigger('click')
+    expect(__instrumentPracticeMocks.recorder.stopPlayback).toHaveBeenCalled()
     wrapper.unmount()
   })
 

@@ -159,6 +159,38 @@ test('playback dispatches events against the audio clock in look-ahead windows',
     assert.equal(playback.isPlaying, false)
 })
 
+test('playback resumes from an audio-clock offset without replaying earlier notes', () => {
+    let currentTime = 20
+    const dispatched = []
+    const playback = new PerformancePlaybackScheduler({
+        clock: () => currentTime,
+        dispatchEvent: (event, when) => dispatched.push([event.at, when]),
+        setIntervalFn: null,
+        clearIntervalFn: null,
+        scheduleAheadSeconds: 0.1
+    })
+    const sequence = {
+        id: 'score-a',
+        durationMs: 1000,
+        events: [
+            {at: 0, type: 'note', instrumentId: 'piano', stringId: 'key-60', midi: 60},
+            {at: 400, type: 'note', instrumentId: 'piano', stringId: 'key-62', midi: 62},
+            {at: 800, type: 'note', instrumentId: 'piano', stringId: 'key-64', midi: 64}
+        ]
+    }
+
+    playback.play(sequence, {startDelaySeconds: 0, offsetMs: 350})
+    assert.equal(dispatched[0][0], 400)
+    assert.ok(Math.abs(dispatched[0][1] - 20.05) < 0.000001)
+    assert.ok(Math.abs(playback.getPositionMs() - 350) < 0.000001)
+
+    currentTime = 20.4
+    playback.tick()
+    assert.equal(dispatched[1][0], 800)
+    assert.ok(Math.abs(dispatched[1][1] - 20.45) < 0.000001)
+    assert.ok(Math.abs(playback.getPositionMs() - 750) < 0.000001)
+})
+
 test('session helpers reject invalid events and keep recent values', () => {
     assert.equal(normalizePerformanceEvent({type: 'note'}, 0), null)
     assert.deepEqual(normalizePerformanceEvent({

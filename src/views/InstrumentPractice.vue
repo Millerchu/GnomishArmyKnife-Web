@@ -62,7 +62,12 @@
     </header>
 
     <main class="practice-main">
-      <section class="instrument-stage" :aria-busy="audio.status.value === 'loading'">
+      <section
+        class="instrument-stage"
+        :aria-busy="audio.status.value === 'loading'"
+        :aria-disabled="isScorePlaybackRunning"
+        :inert="isScorePlaybackRunning"
+      >
         <div v-if="audio.status.value === 'loading'" class="loading-material" aria-hidden="true">
           <span/><span/><span/>
         </div>
@@ -98,7 +103,62 @@
           @performance="handlePerformance"
         />
       </section>
+      <div
+        v-if="isScorePlaybackRunning"
+        class="manual-performance-lock"
+        role="status"
+        aria-live="polite"
+      >
+        <span class="manual-performance-lock-message">
+          <i aria-hidden="true">⌁</i>
+          自动演奏中，暂停后可手动弹奏
+        </span>
+      </div>
     </main>
+
+    <Transition name="score-playback">
+      <aside
+        v-if="recorder.activePlaybackKind.value === 'score'"
+        class="score-playback-strip"
+        aria-label="简谱自动演奏控制"
+      >
+        <div class="score-playback-copy">
+          <span class="score-playback-pulse" :class="{paused: recorder.isPlaybackPaused.value}" aria-hidden="true"/>
+          <span>
+            <strong>{{ recorder.isPlaybackPaused.value ? '简谱已暂停' : `${currentDefinition.label}自动演奏` }}</strong>
+            <small>
+              {{ formatDuration(recorder.playbackProgressMs.value) }}
+              /
+              {{ formatDuration(recorder.activePlaybackDurationMs.value) }}
+            </small>
+          </span>
+        </div>
+        <progress
+          :value="recorder.playbackProgressMs.value"
+          :max="Math.max(1, recorder.activePlaybackDurationMs.value)"
+          aria-label="简谱演奏进度"
+        />
+        <div class="score-playback-actions">
+          <button
+            type="button"
+            :aria-label="recorder.isPlaybackPaused.value ? '继续自动演奏' : '暂停自动演奏'"
+            @click="toggleScorePlaybackPause"
+          >
+            <svg v-if="recorder.isPlaybackPaused.value" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 7 8 5-8 5V7Z"/>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 7v10M16 7v10"/>
+            </svg>
+          </button>
+          <button type="button" aria-label="停止自动演奏" @click="stopScorePlayback">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 8h8v8H8z"/>
+            </svg>
+          </button>
+        </div>
+      </aside>
+    </Transition>
 
     <footer
       id="practice-toolbar"
@@ -144,8 +204,23 @@
       </button>
 
       <button
+        class="tool-button score-button"
+        :class="{active: recorder.activePlaybackKind.value === 'score'}"
+        type="button"
+        aria-label="打开简谱自动演奏"
+        @click="scoreDialogVisible = true"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h3"/>
+          <circle cx="16.5" cy="15.5" r="1.5"/>
+        </svg>
+        <span>曲谱</span>
+        <small>{{ recorder.activePlaybackKind.value === 'score' ? '演奏中' : '输入' }}</small>
+      </button>
+
+      <button
         class="tool-button"
-        :class="{active: recorder.activePlaybackId.value}"
+        :class="{active: recorder.activePlaybackKind.value === 'take'}"
         type="button"
         aria-label="打开已保存的练习录音列表"
         @click="takesDialogVisible = true"
@@ -199,6 +274,21 @@
         {{ noticeMessage }}
       </p>
     </Transition>
+
+    <MacDialog
+      v-model="scoreDialogVisible"
+      title="简谱自动演奏"
+      subtitle="输入单声部简谱，再选择一种乐器演奏"
+      width="640px"
+      mobile-presentation="sheet"
+      :confirm-on-dirty="false"
+      panel-class="instrument-practice-sheet score-practice-sheet"
+    >
+      <NumberedScoreSheet
+        v-model:draft="scoreDraft"
+        @play="startScorePlayback"
+      />
+    </MacDialog>
 
     <MacDialog
       v-model="takesDialogVisible"
@@ -373,6 +463,7 @@ import {
 import FrettedInstrumentSurface from '@/features/instrument-practice/components/FrettedInstrumentSurface.vue'
 import GuzhengSurface from '@/features/instrument-practice/components/GuzhengSurface.vue'
 import PianoSurface from '@/features/instrument-practice/components/PianoSurface.vue'
+import NumberedScoreSheet from '@/features/instrument-practice/components/NumberedScoreSheet.vue'
 import {
   buildTakeAudioFileName,
   renderTakeToWav,
@@ -389,6 +480,10 @@ import {
   getInstrumentDefinition,
   getTuning
 } from '@/features/instrument-practice/instruments/definitions.js'
+import {
+  buildScorePerformanceSequence,
+  createDefaultNumberedScoreDraft
+} from '@/features/instrument-practice/score/numberedScore.js'
 
 const NOTICE_DURATION_MS = 2600
 const meterOptions = Object.freeze(['2/4', '3/4', '4/4', '6/8'])
@@ -401,6 +496,8 @@ const currentInstrumentId = ref('guzheng')
 const tremoloActive = ref(false)
 const takesDialogVisible = ref(false)
 const settingsDialogVisible = ref(false)
+const scoreDialogVisible = ref(false)
+const scoreDraft = ref(createDefaultNumberedScoreDraft())
 const noticeMessage = ref('')
 const instrumentVolume = ref(1)
 const metronomeVolume = ref(0.55)
@@ -451,6 +548,9 @@ const currentInstrumentTakes = computed(() => recorder.takes.value
   .reverse())
 const currentInstrumentTakeCount = computed(() => recorder.takes.value
   .filter((take) => take.instrumentId === currentInstrumentId.value).length)
+const isScorePlaybackRunning = computed(() => (
+  recorder.activePlaybackKind.value === 'score' && !recorder.isPlaybackPaused.value
+))
 const visibleBeatCount = computed(() => Number(metronome.meter.value.split('/')[0]) || 4)
 const canRetryAudio = computed(() => (
   ['blocked', 'error', 'suspended'].includes(audio.status.value)
@@ -533,6 +633,9 @@ async function selectInstrument(instrumentId, {announce = true} = {}) {
 }
 
 function handleInteraction() {
+  if (isScorePlaybackRunning.value) {
+    return
+  }
   void audio.unlock().then((unlocked) => {
     if (unlocked) {
       syncVolumes()
@@ -541,6 +644,9 @@ function handleInteraction() {
 }
 
 function handlePerformance(performanceEvent) {
+  if (isScorePlaybackRunning.value) {
+    return
+  }
   void audio.playPerformanceEvent(performanceEvent)
   recorder.capture(performanceEvent)
 }
@@ -591,6 +697,63 @@ async function toggleRecording() {
     vibrate(12)
     showNotice('开始记录演奏动作')
   }
+}
+
+async function startScorePlayback({draft, parsedScore}) {
+  const unlockPromise = audio.unlock()
+  if (recorder.isRecording.value) {
+    await finishRecording({announce: false})
+  }
+  recorder.stopPlayback()
+  tuningIds[draft.instrumentId] = getTuning(
+    getInstrumentDefinition(draft.instrumentId),
+    draft.tuningId
+  ).id
+  if (draft.instrumentId !== currentInstrumentId.value) {
+    const switched = await selectInstrument(draft.instrumentId, {announce: false})
+    if (!switched) {
+      showNotice('目标乐器加载失败，曲谱已保留')
+      return
+    }
+  } else {
+    const prepared = await prepareInstrument(draft.instrumentId)
+    if (!prepared) {
+      showNotice('目标乐器加载失败，曲谱已保留')
+      return
+    }
+  }
+  const unlocked = await unlockPromise
+  if (!unlocked) {
+    showNotice('声音未启用，曲谱已保留，请重试')
+    return
+  }
+
+  try {
+    const sequence = buildScorePerformanceSequence(parsedScore, {
+      ...draft,
+      tuningId: tuningIds[draft.instrumentId]
+    })
+    syncVolumes()
+    scoreDialogVisible.value = false
+    if (recorder.playPerformanceSequence(sequence)) {
+      showNotice(`${getInstrumentDefinition(draft.instrumentId).label}开始自动演奏`)
+    }
+  } catch (error) {
+    showNotice(extractErrorMessage(error, '无法生成自动演奏序列'))
+  }
+}
+
+function toggleScorePlaybackPause() {
+  if (recorder.isPlaybackPaused.value) {
+    recorder.resumePlayback()
+    return
+  }
+  recorder.pausePlayback()
+}
+
+function stopScorePlayback() {
+  recorder.stopPlayback()
+  showNotice('已停止自动演奏')
 }
 
 async function finishRecording({announce = true} = {}) {
@@ -790,6 +953,7 @@ function toggleLandscapeChrome() {
 }
 
 function goHome() {
+  recorder.stopPlayback()
   router.push('/home')
 }
 
@@ -1161,6 +1325,7 @@ button {
 }
 
 .practice-main {
+  position: relative;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -1179,6 +1344,55 @@ button {
   min-height: 100%;
   margin: 0 auto;
   display: flex;
+}
+
+.manual-performance-lock {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.72rem;
+  color: rgba(230, 249, 253, 0.92);
+  background: rgba(3, 14, 22, 0.035);
+  font-size: 0.68rem;
+  font-weight: 720;
+  letter-spacing: 0.01em;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.manual-performance-lock::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.manual-performance-lock {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.manual-performance-lock-message {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.68rem;
+  background: rgba(7, 27, 38, 0.82);
+  border: 1px solid rgba(96, 230, 238, 0.28);
+  border-radius: 999px;
+  box-shadow: 0 0.55rem 1.4rem rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.manual-performance-lock-message i {
+  color: var(--practice-cyan);
+  font-style: normal;
+  font-size: 1rem;
+  line-height: 0.7;
 }
 
 .loading-material {
@@ -1217,10 +1431,10 @@ button {
   position: relative;
   z-index: 12;
   justify-self: center;
-  min-width: min(100%, 25rem);
+  min-width: min(100%, 30rem);
   min-height: 4.65rem;
   display: grid;
-  grid-template-columns: repeat(4, minmax(3.6rem, 1fr));
+  grid-template-columns: repeat(5, minmax(3.5rem, 1fr));
   align-items: center;
   gap: 0.35rem;
   margin: 0 auto max(0.55rem, env(safe-area-inset-bottom));
@@ -1232,6 +1446,132 @@ button {
     0 1.2rem 3rem rgba(0, 0, 0, 0.34),
     inset 0 1px rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(24px) saturate(150%);
+}
+
+.score-playback-strip {
+  position: fixed;
+  z-index: 16;
+  left: 50%;
+  bottom: max(6.35rem, calc(env(safe-area-inset-bottom) + 5.8rem));
+  width: min(31rem, calc(100% - 1.4rem));
+  min-height: 3.45rem;
+  display: grid;
+  grid-template-columns: auto minmax(4rem, 1fr) auto;
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0.55rem 0.62rem 0.55rem 0.78rem;
+  color: rgba(238, 250, 254, 0.9);
+  background: linear-gradient(145deg, rgba(15, 42, 55, 0.94), rgba(5, 21, 31, 0.95));
+  border: 1px solid rgba(96, 230, 238, 0.25);
+  border-radius: 1.08rem;
+  box-shadow: 0 1rem 2.6rem rgba(0, 0, 0, 0.34), inset 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(22px) saturate(145%);
+  transform: translateX(-50%);
+}
+
+.score-playback-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-playback-copy > span:last-child {
+  display: grid;
+  white-space: nowrap;
+}
+
+.score-playback-copy strong {
+  font-size: 0.67rem;
+}
+
+.score-playback-copy small {
+  margin-top: 0.08rem;
+  color: rgba(205, 228, 236, 0.52);
+  font-size: 0.55rem;
+}
+
+.score-playback-pulse {
+  width: 0.48rem;
+  height: 0.48rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--practice-cyan);
+  box-shadow: 0 0 0.65rem rgba(96, 230, 238, 0.72);
+  animation: status-breathe 760ms ease-in-out infinite alternate;
+}
+
+.score-playback-pulse.paused {
+  background: #f0c479;
+  box-shadow: none;
+  animation: none;
+}
+
+.score-playback-strip progress {
+  width: 100%;
+  height: 0.28rem;
+  overflow: hidden;
+  appearance: none;
+  background: rgba(193, 224, 233, 0.13);
+  border: 0;
+  border-radius: 999px;
+}
+
+.score-playback-strip progress::-webkit-progress-bar {
+  background: rgba(193, 224, 233, 0.13);
+  border-radius: 999px;
+}
+
+.score-playback-strip progress::-webkit-progress-value {
+  background: linear-gradient(90deg, #4fd9e3, #8ff2ef);
+  border-radius: 999px;
+}
+
+.score-playback-strip progress::-moz-progress-bar {
+  background: linear-gradient(90deg, #4fd9e3, #8ff2ef);
+  border-radius: 999px;
+}
+
+.score-playback-actions {
+  display: flex;
+  gap: 0.32rem;
+}
+
+.score-playback-actions button {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: rgba(234, 248, 252, 0.82);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(174, 222, 234, 0.13);
+  border-radius: 0.7rem;
+}
+
+.score-playback-actions button:active {
+  transform: scale(0.92);
+  background: rgba(96, 230, 238, 0.14);
+}
+
+.score-playback-actions svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.score-playback-enter-active,
+.score-playback-leave-active {
+  transition: opacity 160ms ease, transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.score-playback-enter-from,
+.score-playback-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 0.65rem) scale(0.97);
 }
 
 .beat-readout {
@@ -1721,6 +2061,19 @@ button {
     width: calc(100% - 1.1rem);
   }
 
+  .score-playback-strip {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+  }
+
+  .score-playback-strip progress {
+    position: absolute;
+    left: 0.8rem;
+    right: 0.8rem;
+    bottom: 0.28rem;
+    width: calc(100% - 1.6rem);
+  }
+
   .take-card {
     grid-template-columns: 2.1rem minmax(0, 1fr) 2.55rem 2.55rem 2.55rem;
     gap: 0.38rem;
@@ -1788,7 +2141,7 @@ button {
     position: absolute;
     left: 50%;
     bottom: max(0.25rem, env(safe-area-inset-bottom));
-    width: min(25rem, calc(100% - 7rem));
+    width: min(30rem, calc(100% - 7rem));
     min-height: 3.8rem;
     margin: 0;
     transform: translateX(-50%);
@@ -1801,6 +2154,22 @@ button {
   .tool-button,
   .record-button {
     min-height: 3rem;
+  }
+
+  .score-playback-strip {
+    left: max(0.65rem, env(safe-area-inset-left));
+    bottom: max(4.55rem, calc(env(safe-area-inset-bottom) + 4rem));
+    width: min(27rem, calc(100% - 7rem));
+    transform: none;
+  }
+
+  .chrome-hidden .score-playback-strip {
+    bottom: max(0.55rem, env(safe-area-inset-bottom));
+  }
+
+  .score-playback-enter-from,
+  .score-playback-leave-to {
+    transform: translateY(0.65rem) scale(0.97);
   }
 
   .landscape-chrome-toggle {
@@ -1911,6 +2280,7 @@ button {
 @media (prefers-reduced-transparency: reduce) {
   .practice-header,
   .practice-toolbar,
+  .score-playback-strip,
   .landscape-chrome-toggle,
   .practice-notice,
   .loading-material {
@@ -1922,6 +2292,7 @@ button {
 @media (prefers-contrast: more) {
   .practice-header,
   .practice-toolbar,
+  .score-playback-strip,
   .landscape-chrome-toggle,
   .instrument-switcher,
   .audio-status,
@@ -2002,6 +2373,23 @@ button {
   background: linear-gradient(180deg, rgba(250, 253, 253, 0.9), rgba(235, 244, 246, 0.94));
   border-color: rgba(31, 70, 78, 0.16);
   box-shadow: 0 1.2rem 3rem rgba(30, 61, 69, 0.18), inset 0 1px rgba(255, 255, 255, 0.8);
+}
+
+:root[data-theme="light"] .instrument-practice-page .score-playback-strip {
+  color: #17303a;
+  background: linear-gradient(145deg, rgba(250, 253, 253, 0.96), rgba(231, 243, 246, 0.97));
+  border-color: rgba(31, 117, 128, 0.24);
+  box-shadow: 0 1rem 2.6rem rgba(30, 61, 69, 0.2), inset 0 1px rgba(255, 255, 255, 0.9);
+}
+
+:root[data-theme="light"] .instrument-practice-page .score-playback-copy small {
+  color: rgba(23, 48, 58, 0.52);
+}
+
+:root[data-theme="light"] .instrument-practice-page .score-playback-actions button {
+  color: rgba(23, 48, 58, 0.82);
+  background: rgba(30, 91, 104, 0.08);
+  border-color: rgba(31, 70, 78, 0.13);
 }
 
 :root[data-theme="light"] .instrument-practice-page .landscape-chrome-toggle {
