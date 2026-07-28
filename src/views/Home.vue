@@ -162,6 +162,7 @@
             : '当前账号暂无可见应用，请先在权限管理中完成授权。' }}
         </div>
       </section>
+      <RequirementBoard :current-user="user" @notice="showSurfaceNotice" />
       <button class="mobile-quick-create" type="button" :disabled="appPermissionLoading || !quickCreateTypes.length" aria-label="快速新增" @click="showQuickCreateDialog = true">
         <span class="mobile-quick-create-icon" aria-hidden="true">＋</span>
         <span>快速新增</span>
@@ -338,6 +339,7 @@ import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import AttachmentManager from '@/components/AttachmentManager.vue'
 import MacDialog from '@/components/MacDialog.vue'
 import QuickCreateDialog from '@/components/QuickCreateDialog.vue'
+import RequirementBoard from '@/components/RequirementBoard.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import {getCurrentUserAccessibleApps} from '@/api/permission'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
@@ -502,6 +504,7 @@ export default {
     AttachmentManager,
     MacDialog,
     QuickCreateDialog,
+    RequirementBoard,
     ThemeToggle
   },
   setup() {

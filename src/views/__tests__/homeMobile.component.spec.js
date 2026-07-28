@@ -80,6 +80,7 @@ async function mountHome() {
           template: '<div v-if="modelValue"><slot /><slot name="footer" /></div>'
         },
         QuickCreateDialog: {template: '<div />'},
+        RequirementBoard: {template: '<div />'},
         ThemeToggle: {template: '<button type="button" aria-label="切换主题" />'},
         Transition: true
       }
