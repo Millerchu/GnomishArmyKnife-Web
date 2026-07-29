@@ -40,12 +40,14 @@ function buildBoardPayload() {
       {
         id: '100', creatorUserId: '1', creatorName: '小王', appCode: 'APP_TODO_LIST', appName: '待办清单',
         title: '支持导出需求', description: '按状态导出看板',
-        status: 'PENDING_REVIEW', version: 1, createdAt: '2026-07-28T09:30:00', updatedAt: '2026-07-28T09:30:00'
+        priority: 'HIGH', status: 'PENDING_REVIEW', version: 1,
+        createdAt: '2026-07-28T09:30:00', updatedAt: '2026-07-28T09:30:00'
       },
       {
         id: '101', creatorUserId: '2', creatorName: '小李', appCode: 'APP_FUEL_STATS', appName: '油耗统计',
         title: '优化移动端布局', description: '',
-        status: 'PLANNED', version: 2, createdAt: '2026-07-27T09:30:00', updatedAt: '2026-07-27T09:30:00'
+        priority: 'LOW', status: 'PLANNED', version: 2,
+        createdAt: '2026-07-27T09:30:00', updatedAt: '2026-07-27T09:30:00'
       }
     ]
   }
@@ -84,7 +86,9 @@ describe('RequirementBoard', () => {
   it('loads shared cards and renders status totals', async () => {
     const wrapper = await mountBoard()
 
-    expect(listRequirementItems).toHaveBeenCalledWith({pageNo: 1, pageSize: 50, keyword: '', status: '', appCode: ''})
+    expect(listRequirementItems).toHaveBeenCalledWith({
+      pageNo: 1, pageSize: 50, keyword: '', status: '', appCode: '', priority: ''
+    })
     expect(wrapper.findAll('.requirement-card')).toHaveLength(0)
     await wrapper.get('.board-trigger').trigger('click')
     expect(wrapper.findAll('.requirement-card')).toHaveLength(2)
@@ -119,6 +123,7 @@ describe('RequirementBoard', () => {
     await wrapper.get('.board-trigger').trigger('click')
     await wrapper.get('.notice-primary-button').trigger('click')
     await wrapper.get('#requirement-form select').setValue('APP_FUEL_STATS')
+    await wrapper.findAll('#requirement-form select')[1].setValue('HIGH')
     await wrapper.get('#requirement-form input').setValue('支持批量归档')
     await wrapper.get('#requirement-form textarea').setValue('降低长期需求的管理成本')
     await wrapper.get('#requirement-form').trigger('submit')
@@ -126,6 +131,7 @@ describe('RequirementBoard', () => {
 
     expect(createRequirementItem).toHaveBeenCalledWith({
       appCode: 'APP_FUEL_STATS',
+      priority: 'HIGH',
       title: '支持批量归档',
       description: '降低长期需求的管理成本'
     })

@@ -69,6 +69,15 @@
           </option>
         </select>
       </label>
+      <label class="notice-select notice-priority-filter">
+        <span class="sr-only">按优先级筛选</span>
+        <select v-model="query.priority" @change="handleFilterChange">
+          <option value="">全部优先级</option>
+          <option v-for="priority in priorityOptions" :key="priority.value" :value="priority.value">
+            {{ priority.label }}
+          </option>
+        </select>
+      </label>
       <button type="button" class="notice-icon-button" :disabled="boardLoading" title="刷新需求看板" @click="loadBoard">
         <span aria-hidden="true">↻</span><span class="sr-only">刷新</span>
       </button>
@@ -107,9 +116,14 @@
             <span class="notice-app-mark" aria-hidden="true">{{ appMark(item.appName) }}</span>
             {{ item.appName || '通用' }}
           </span>
-          <span class="notice-status">
-            <span class="notice-status-dot" :class="statusClass(item.status)" aria-hidden="true"></span>
-            {{ formatStatus(item.status) }}
+          <span class="notice-card-badges">
+            <span class="notice-priority" :class="priorityClass(item.priority)">
+              {{ formatPriority(item.priority) }}
+            </span>
+            <span class="notice-status">
+              <span class="notice-status-dot" :class="statusClass(item.status)" aria-hidden="true"></span>
+              {{ formatStatus(item.status) }}
+            </span>
           </span>
         </span>
         <strong>{{ item.title }}</strong>
@@ -156,6 +170,14 @@
           </select>
         </label>
         <label>
+          <span>优先级</span>
+          <select v-model="requirementForm.priority" required>
+            <option v-for="priority in priorityOptions" :key="priority.value" :value="priority.value">
+              {{ priority.label }}
+            </option>
+          </select>
+        </label>
+        <label>
           <span>需求标题</span>
           <input v-model.trim="requirementForm.title" maxlength="100" required placeholder="一句话说清楚想要什么">
         </label>
@@ -191,6 +213,9 @@
             <span class="notice-status-dot" :class="statusClass(detailRequirement.status)" aria-hidden="true"></span>
             {{ formatStatus(detailRequirement.status) }}
           </span>
+          <span class="notice-priority" :class="priorityClass(detailRequirement.priority)">
+            {{ formatPriority(detailRequirement.priority) }}优先级
+          </span>
           <span>{{ detailRequirement.creatorName || '未知用户' }} · {{ formatDateTime(detailRequirement.createdAt) }}</span>
         </div>
 
@@ -199,6 +224,14 @@
             <span>所属应用</span>
             <select v-model="requirementForm.appCode" required>
               <option v-for="app in applicationOptions" :key="app.appCode" :value="app.appCode">{{ app.appName }}</option>
+            </select>
+          </label>
+          <label>
+            <span>优先级</span>
+            <select v-model="requirementForm.priority" required>
+              <option v-for="priority in priorityOptions" :key="priority.value" :value="priority.value">
+                {{ priority.label }}
+              </option>
             </select>
           </label>
           <label>
@@ -294,6 +327,11 @@ const STATUS_OPTIONS = [
   {value: 'DECLINED', label: '不采纳'}
 ]
 const BOARD_STATUS_OPTIONS = STATUS_OPTIONS.filter((item) => item.value)
+const PRIORITY_OPTIONS = [
+  {value: 'HIGH', label: '高'},
+  {value: 'MEDIUM', label: '中'},
+  {value: 'LOW', label: '低'}
+]
 
 function unwrapData(response) {
   const payload = response?.data
@@ -308,7 +346,7 @@ function extractErrorMessage(error, fallback) {
 }
 
 function buildRequirementForm(appCode = '') {
-  return {id: null, appCode, title: '', description: '', version: null}
+  return {id: null, appCode, priority: 'MEDIUM', title: '', description: '', version: null}
 }
 
 function buildProgressForm(status = 'PENDING_REVIEW') {
@@ -343,7 +381,7 @@ export default {
     const detailEditing = ref(false)
     const requirementForm = reactive(buildRequirementForm())
     const progressForm = reactive(buildProgressForm())
-    const query = reactive({pageNo: 1, pageSize: 50, keyword: '', status: '', appCode: ''})
+    const query = reactive({pageNo: 1, pageSize: 50, keyword: '', status: '', appCode: '', priority: ''})
     let panelHideTimer = null
 
     const totalPages = computed(() => Math.max(1, Math.ceil(boardTotal.value / query.pageSize)))
@@ -464,6 +502,7 @@ export default {
       try {
         await createRequirementItem({
           appCode: requirementForm.appCode,
+          priority: requirementForm.priority,
           title: requirementForm.title,
           description: requirementForm.description || null
         })
@@ -512,6 +551,7 @@ export default {
       Object.assign(requirementForm, {
         id: detailRequirement.value.id,
         appCode: detailRequirement.value.appCode,
+        priority: detailRequirement.value.priority || 'MEDIUM',
         title: detailRequirement.value.title,
         description: detailRequirement.value.description || '',
         version: detailRequirement.value.version
@@ -529,6 +569,7 @@ export default {
       try {
         detailRequirement.value = unwrapData(await updateRequirementItem(requirementForm.id, {
           appCode: requirementForm.appCode,
+          priority: requirementForm.priority,
           title: requirementForm.title,
           description: requirementForm.description || null,
           version: requirementForm.version
@@ -592,6 +633,8 @@ export default {
 
     const formatStatus = (status) => BOARD_STATUS_OPTIONS.find((item) => item.value === status)?.label || status || '-'
     const statusClass = (status) => status ? `status-${status.toLowerCase().replace(/_/g, '-')}` : ''
+    const formatPriority = (priority) => PRIORITY_OPTIONS.find((item) => item.value === priority)?.label || '中'
+    const priorityClass = (priority) => `priority-${(priority || 'MEDIUM').toLowerCase()}`
     const appMark = (appName) => (appName || '通').trim().slice(0, 1)
     const formatDateTime = (value) => {
       if (!value) {
@@ -621,6 +664,7 @@ export default {
       boardError,
       statusOptions: STATUS_OPTIONS,
       boardStatusOptions: BOARD_STATUS_OPTIONS,
+      priorityOptions: PRIORITY_OPTIONS,
       query,
       totalPages,
       showFormDialog,
@@ -657,6 +701,8 @@ export default {
       removeRequirement,
       formatStatus,
       statusClass,
+      formatPriority,
+      priorityClass,
       appMark,
       formatDateTime
     }
@@ -1062,13 +1108,43 @@ export default {
 }
 
 .notice-app,
-.notice-status {
+.notice-status,
+.notice-priority {
   display: inline-flex;
   min-width: 0;
   align-items: center;
   gap: 6px;
   color: var(--theme-text-muted);
   font-size: 11px;
+}
+
+.notice-card-badges {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.notice-priority {
+  min-height: 19px;
+  border-radius: 6px;
+  padding: 0 6px;
+  font-weight: 750;
+}
+
+.notice-priority.priority-high {
+  color: #b42318;
+  background: color-mix(in srgb, #ef4444 12%, var(--theme-control-surface));
+}
+
+.notice-priority.priority-medium {
+  color: #b54708;
+  background: color-mix(in srgb, #f59e0b 13%, var(--theme-control-surface));
+}
+
+.notice-priority.priority-low {
+  color: #344054;
+  background: color-mix(in srgb, #64748b 11%, var(--theme-control-surface));
 }
 
 .notice-app {
