@@ -92,54 +92,111 @@
         </div>
 
         <article class="report-card trend-card">
-          <div class="panel-head">
+          <div class="trend-card-head">
             <div>
-              <h2 class="panel-title">{{ currentYearLabel }}每月用油走势</h2>
-              <p class="panel-tip">同时展示月度加油量和月度实付金额，便于一起观察出行强度与支出变化。</p>
+              <span class="trend-eyebrow">年度用油概览</span>
+              <h2 class="panel-title">{{ currentYearLabel }}用油节奏</h2>
+              <p class="panel-tip">油量与支出拆分呈现，快速看清出行强度和实际花费。</p>
+            </div>
+            <div class="trend-summary" aria-label="年度用油汇总">
+              <div>
+                <span>累计油量</span>
+                <strong>{{ formatNumber(yearFuelVolume) }} L</strong>
+              </div>
+              <div>
+                <span>年度实付</span>
+                <strong>{{ formatCurrency(yearPaidAmount) }}</strong>
+              </div>
+              <div>
+                <span>活跃月份</span>
+                <strong>{{ activeFuelMonthCount }} 个月</strong>
+              </div>
             </div>
           </div>
 
-          <div v-if="monthlyFuelReport.length" class="line-chart">
-            <div class="line-chart-legend">
-              <span class="line-chart-legend-item">
-                <i class="legend-dot fuel"></i>
-                <span>加油量(L)</span>
-              </span>
-              <span class="line-chart-legend-item">
-                <i class="legend-dot amount"></i>
-                <span>实付金额</span>
-              </span>
-            </div>
+          <div v-if="monthlyFuelReport.length" class="analytics-chart-grid">
+            <section class="analytics-chart-card volume-chart-card">
+              <header class="analytics-chart-head">
+                <div>
+                  <span class="chart-kicker fuel">油量</span>
+                  <h3>月度加油量</h3>
+                </div>
+                <div class="chart-peak">
+                  <span>峰值 · {{ monthlyPeakVolume.label }}</span>
+                  <strong>{{ formatNumber(monthlyPeakVolume.value) }} L</strong>
+                </div>
+              </header>
 
-            <svg class="line-chart-svg" viewBox="0 0 360 190" preserveAspectRatio="none" aria-hidden="true">
-              <polyline class="line-chart-grid" points="30,22 30,160 338,160" />
-              <polyline class="line-chart-path fuel" :points="monthlyTrendPolyline" />
-              <polyline class="line-chart-path amount" :points="monthlyAmountPolyline" />
-              <circle
-                v-for="point in monthlyTrendPoints"
-                :key="`${point.label}-fuel`"
-                class="line-chart-dot fuel"
-                :cx="point.x"
-                :cy="point.y"
-                r="4"
-              />
-              <circle
-                v-for="point in monthlyAmountPoints"
-                :key="`${point.label}-amount`"
-                class="line-chart-dot amount"
-                :cx="point.x"
-                :cy="point.y"
-                r="4"
-              />
-            </svg>
-
-            <div class="line-chart-labels">
-              <div v-for="(point, index) in monthlyTrendPoints" :key="point.label" class="line-chart-label">
-                <span>{{ point.label }}</span>
-                <strong>{{ formatNumber(point.value) }}L</strong>
-                <em>{{ formatCurrency(monthlyAmountPoints[index]?.value || 0) }}</em>
+              <div class="volume-chart" role="img" :aria-label="`${currentYearLabel}每月加油量柱状图`">
+                <div class="volume-chart-guides" aria-hidden="true">
+                  <i></i><i></i><i></i>
+                </div>
+                <div class="volume-bars">
+                  <button
+                    v-for="item in monthlyVolumeBars"
+                    :key="`${item.label}-volume`"
+                    type="button"
+                    class="volume-bar-item"
+                    :class="{ empty: !item.value }"
+                    :aria-label="`${item.label}加油量${formatNumber(item.value)}升`"
+                    :title="`${item.label} · ${formatNumber(item.value)} L`"
+                  >
+                    <span class="volume-bar-value">{{ item.value ? formatNumber(item.value) : '0' }}</span>
+                    <span class="volume-bar-track">
+                      <i :style="{ height: `${item.height}%` }"></i>
+                    </span>
+                    <span class="volume-bar-month">{{ item.label }}</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            </section>
+
+            <section class="analytics-chart-card amount-chart-card">
+              <header class="analytics-chart-head">
+                <div>
+                  <span class="chart-kicker amount">支出</span>
+                  <h3>月度实付趋势</h3>
+                </div>
+                <div class="chart-peak">
+                  <span>月均实付</span>
+                  <strong>{{ formatCurrency(averageMonthlyPaidAmount) }}</strong>
+                </div>
+              </header>
+
+              <div class="amount-area-chart">
+                <svg
+                  class="amount-area-svg"
+                  viewBox="0 0 360 190"
+                  preserveAspectRatio="none"
+                  role="img"
+                  :aria-label="`${currentYearLabel}每月实付金额面积趋势图`"
+                >
+                  <defs>
+                    <linearGradient id="fuel-spend-area" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#ffb44a" stop-opacity="0.42" />
+                      <stop offset="100%" stop-color="#ffb44a" stop-opacity="0.02" />
+                    </linearGradient>
+                  </defs>
+                  <line v-for="lineY in amountChartGridLines" :key="lineY" class="amount-chart-grid-line" x1="26" :y1="lineY" x2="338" :y2="lineY" />
+                  <path class="amount-chart-area" :d="monthlyAmountAreaPath" />
+                  <polyline class="amount-chart-line" :points="monthlyAmountPolyline" />
+                  <g
+                    v-for="point in monthlyAmountPoints"
+                    :key="`${point.label}-amount`"
+                    class="amount-chart-point"
+                    :class="{ empty: !point.value, peak: point.index === monthlyPeakAmount.index }"
+                  >
+                    <circle class="amount-chart-point-halo" :cx="point.x" :cy="point.y" r="8" />
+                    <circle class="amount-chart-point-core" :cx="point.x" :cy="point.y" r="3.5">
+                      <title>{{ point.label }} · {{ formatCurrency(point.value) }}</title>
+                    </circle>
+                  </g>
+                </svg>
+                <div class="amount-chart-months" aria-hidden="true">
+                  <span v-for="point in monthlyAmountPoints" :key="`${point.label}-month`">{{ point.label }}</span>
+                </div>
+              </div>
+            </section>
           </div>
           <div v-else class="subtle-empty">暂无月度统计数据</div>
         </article>
@@ -1019,42 +1076,78 @@ export default {
       {label: '调价说明', value: latestFuelPrices.priceChangeHint || latestFuelPrices.remark || '暂无说明'}
     ]))
     const maxYearlyCost = computed(() => Math.max(1, ...yearlyCostReport.value.map((item) => Number(item.totalAmount || 0))))
-    const monthlyTrendPoints = computed(() => {
-      const chartWidth = 308
-      const chartHeight = 138
-      const offsetX = 30
-      const offsetY = 22
-      const maxValue = Math.max(1, ...monthlyFuelReport.value.map((item) => Number(item.fuelVolume || 0)))
-      return monthlyFuelReport.value.map((item, index) => {
-        const x = offsetX + (chartWidth / 11) * index
-        const y = offsetY + chartHeight - (Number(item.fuelVolume || 0) / maxValue) * chartHeight
+    const activeMonthlyFuelReport = computed(() => monthlyFuelReport.value.filter((item) => (
+      Number(item.fuelVolume || 0) > 0 || Number(item.totalAmount || 0) > 0
+    )))
+    const yearFuelVolume = computed(() => monthlyFuelReport.value.reduce(
+      (sum, item) => sum + Number(item.fuelVolume || 0),
+      0
+    ))
+    const yearPaidAmount = computed(() => monthlyFuelReport.value.reduce(
+      (sum, item) => sum + Number(item.totalAmount || 0),
+      0
+    ))
+    const activeFuelMonthCount = computed(() => activeMonthlyFuelReport.value.length)
+    const averageMonthlyPaidAmount = computed(() => (
+      activeFuelMonthCount.value
+        ? yearPaidAmount.value / activeFuelMonthCount.value
+        : 0
+    ))
+    const monthlyPeakVolume = computed(() => monthlyFuelReport.value.reduce(
+      (peak, item, index) => {
+        const value = Number(item.fuelVolume || 0)
+        return value > peak.value ? {label: item.label, value, index} : peak
+      },
+      {label: '-', value: 0, index: -1}
+    ))
+    const monthlyPeakAmount = computed(() => monthlyFuelReport.value.reduce(
+      (peak, item, index) => {
+        const value = Number(item.totalAmount || 0)
+        return value > peak.value ? {label: item.label, value, index} : peak
+      },
+      {label: '-', value: 0, index: -1}
+    ))
+    const monthlyVolumeBars = computed(() => {
+      const maxValue = Math.max(1, monthlyPeakVolume.value.value)
+      return monthlyFuelReport.value.map((item) => {
+        const value = Number(item.fuelVolume || 0)
         return {
           label: item.label,
-          value: Number(item.fuelVolume || 0),
-          x: Number(x.toFixed(2)),
-          y: Number(y.toFixed(2))
+          value,
+          height: value > 0 ? Math.max(8, Number(((value / maxValue) * 100).toFixed(2))) : 0
         }
       })
     })
-    const monthlyTrendPolyline = computed(() => monthlyTrendPoints.value.map((point) => `${point.x},${point.y}`).join(' '))
     const monthlyAmountPoints = computed(() => {
-      const chartWidth = 308
-      const chartHeight = 138
-      const offsetX = 30
-      const offsetY = 22
+      const chartWidth = 312
+      const chartHeight = 120
+      const offsetX = 26
+      const offsetY = 34
       const maxValue = Math.max(1, ...monthlyFuelReport.value.map((item) => Number(item.totalAmount || 0)))
       return monthlyFuelReport.value.map((item, index) => {
-        const x = offsetX + (chartWidth / 11) * index
+        const x = offsetX + (chartWidth / Math.max(1, monthlyFuelReport.value.length - 1)) * index
         const y = offsetY + chartHeight - (Number(item.totalAmount || 0) / maxValue) * chartHeight
         return {
           label: item.label,
           value: Number(item.totalAmount || 0),
+          index,
           x: Number(x.toFixed(2)),
           y: Number(y.toFixed(2))
         }
       })
     })
     const monthlyAmountPolyline = computed(() => monthlyAmountPoints.value.map((point) => `${point.x},${point.y}`).join(' '))
+    const monthlyAmountAreaPath = computed(() => {
+      if (!monthlyAmountPoints.value.length) {
+        return ''
+      }
+      const baselineY = 154
+      const [firstPoint] = monthlyAmountPoints.value
+      const lastPoint = monthlyAmountPoints.value[monthlyAmountPoints.value.length - 1]
+      const linePoints = monthlyAmountPoints.value.map((point) => `L ${point.x} ${point.y}`).join(' ')
+      return `M ${firstPoint.x} ${baselineY} ${linePoints} L ${lastPoint.x} ${baselineY} Z`
+    })
+    const amountChartGridLines = [34, 74, 114, 154]
 
     const consumptionClassMap = {
       low: 'low',
@@ -1591,10 +1684,17 @@ export default {
       energyFieldLabels,
       totalPages,
       maxYearlyCost,
-      monthlyTrendPoints,
-      monthlyTrendPolyline,
+      yearFuelVolume,
+      yearPaidAmount,
+      activeFuelMonthCount,
+      averageMonthlyPaidAmount,
+      monthlyPeakVolume,
+      monthlyPeakAmount,
+      monthlyVolumeBars,
       monthlyAmountPoints,
       monthlyAmountPolyline,
+      monthlyAmountAreaPath,
+      amountChartGridLines,
       consumptionClassMap,
       formatNumber,
       formatCurrency,
@@ -2221,115 +2321,352 @@ export default {
 }
 
 .trend-card {
+  position: relative;
   display: flex;
   flex-direction: column;
+  gap: 18px;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--theme-border-strong) 72%, transparent);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(48, 214, 192, 0.1), transparent 34%),
+    radial-gradient(circle at 92% 8%, rgba(255, 159, 10, 0.1), transparent 30%),
+    color-mix(in srgb, var(--theme-surface-muted) 92%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--theme-highlight-soft) 80%, transparent),
+    0 16px 40px color-mix(in srgb, var(--theme-scrim) 16%, transparent);
 }
 
-.line-chart {
-  margin-top: 14px;
-}
-
-.line-chart-legend {
+.trend-card-head {
+  position: relative;
+  z-index: 1;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 8px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
 }
 
-.line-chart-legend-item {
+.trend-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: #30d6c0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.trend-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  gap: 8px;
+  min-width: min(100%, 360px);
+}
+
+.trend-summary > div {
+  display: grid;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--theme-border) 76%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--theme-control-surface) 76%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+.trend-summary span {
+  color: var(--theme-text-muted);
+  font-size: 10px;
+}
+
+.trend-summary strong {
+  color: var(--theme-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.analytics-chart-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.analytics-chart-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--theme-border) 80%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--theme-surface) 74%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--theme-highlight-soft) 72%, transparent);
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+}
+
+.analytics-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.analytics-chart-head h3 {
+  margin: 5px 0 0;
+  color: var(--theme-text);
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.chart-kicker {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--theme-chart-axis);
+  gap: 6px;
+  color: var(--theme-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
-.legend-dot {
-  display: inline-flex;
-  width: 10px;
-  height: 10px;
+.chart-kicker::before {
+  width: 14px;
+  height: 3px;
   border-radius: 999px;
+  content: "";
 }
 
-.legend-dot.fuel {
-  background: #4fd1ff;
+.chart-kicker.fuel::before {
+  background: #30d6c0;
+  box-shadow: 0 0 12px rgba(48, 214, 192, 0.46);
 }
 
-.legend-dot.amount {
-  background: #f59e0b;
+.chart-kicker.amount::before {
+  background: #ff9f0a;
+  box-shadow: 0 0 12px rgba(255, 159, 10, 0.42);
 }
 
-.line-chart-svg {
-  display: block;
-  width: 100%;
-  height: 190px;
-}
-
-.line-chart-grid {
-  fill: none;
-  stroke: var(--theme-chart-grid);
-  stroke-width: 1.2;
-}
-
-.line-chart-path {
-  fill: none;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.line-chart-path.fuel {
-  stroke: #4fd1ff;
-}
-
-.line-chart-path.amount {
-  stroke: #f59e0b;
-  stroke-dasharray: 0;
-}
-
-.line-chart-dot {
-  stroke: var(--theme-chart-point-stroke);
-  stroke-width: 2;
-}
-
-.line-chart-dot.fuel {
-  fill: #7ef9c7;
-}
-
-.line-chart-dot.amount {
-  fill: #ffd37a;
-}
-
-.line-chart-labels {
+.chart-peak {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
+}
+
+.chart-peak span {
+  color: var(--theme-text-muted);
+  font-size: 10px;
+}
+
+.chart-peak strong {
+  color: var(--theme-text);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.volume-chart {
+  position: relative;
+  height: 218px;
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.volume-chart-guides {
+  position: absolute;
+  inset: 34px 0 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.volume-chart-guides i {
+  width: 100%;
+  border-top: 1px dashed color-mix(in srgb, var(--theme-chart-grid) 78%, transparent);
+}
+
+.volume-bars {
+  position: absolute;
+  z-index: 1;
+  inset: 10px 0 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: stretch;
+  gap: clamp(3px, 0.8vw, 8px);
+}
+
+.volume-bar-item {
+  display: grid;
+  grid-template-rows: 24px minmax(0, 1fr) 24px;
+  align-items: end;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 100ms ease-out;
+}
+
+.volume-bar-item:active {
+  transform: scale(0.97);
+}
+
+.volume-bar-item:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--theme-focus-ring);
+  outline-offset: 2px;
+}
+
+.volume-bar-value,
+.volume-bar-month {
+  overflow: hidden;
+  color: var(--theme-text-muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.volume-bar-value {
+  align-self: start;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 140ms ease-out, transform 180ms ease-out;
+}
+
+.volume-bar-item:hover .volume-bar-value,
+.volume-bar-item:focus-visible .volume-bar-value {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.volume-bar-track {
+  position: relative;
+  align-self: stretch;
+  justify-self: center;
+  width: clamp(8px, 48%, 22px);
+  overflow: hidden;
+  border-radius: 8px 8px 4px 4px;
+  background: color-mix(in srgb, var(--theme-control-surface) 84%, transparent);
+}
+
+.volume-bar-track > i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #65ead8 0%, #30d6c0 48%, #0a8f83 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 0 16px rgba(48, 214, 192, 0.22);
+  transition: height 420ms cubic-bezier(0.2, 0.82, 0.2, 1), filter 160ms ease-out;
+}
+
+.volume-bar-item:hover .volume-bar-track > i,
+.volume-bar-item:focus-visible .volume-bar-track > i {
+  filter: brightness(1.14);
+}
+
+.volume-bar-item.empty {
+  opacity: 0.46;
+}
+
+.volume-bar-item.empty .volume-bar-track::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--theme-text-muted);
+  content: "";
+}
+
+.volume-bar-month {
+  align-self: end;
+  padding-top: 8px;
+}
+
+.amount-area-chart {
+  position: relative;
   margin-top: 10px;
 }
 
-.line-chart-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
-  border: 1px solid var(--theme-border);
-  border-radius: 12px;
-  background: var(--theme-surface-muted);
+.amount-area-svg {
+  display: block;
+  width: 100%;
+  height: 190px;
+  overflow: visible;
 }
 
-.line-chart-label span,
-.line-chart-label strong,
-.line-chart-label em {
-  font-size: 12px;
+.amount-chart-grid-line {
+  stroke: color-mix(in srgb, var(--theme-chart-grid) 82%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  vector-effect: non-scaling-stroke;
 }
 
-.line-chart-label span {
-  color: var(--theme-chart-axis);
+.amount-chart-area {
+  fill: url(#fuel-spend-area);
 }
 
-.line-chart-label em {
-  font-style: normal;
-  color: rgba(255, 224, 163, 0.92);
+.amount-chart-line {
+  fill: none;
+  stroke: #ff9f0a;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 5px 8px rgba(255, 159, 10, 0.18));
+}
+
+.amount-chart-point {
+  color: #ffb340;
+  transition: opacity 140ms ease-out;
+}
+
+.amount-chart-point-halo {
+  fill: currentColor;
+  opacity: 0.12;
+  transition: opacity 140ms ease-out;
+}
+
+.amount-chart-point-core {
+  fill: currentColor;
+  stroke: var(--theme-chart-point-stroke);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.amount-chart-point:hover .amount-chart-point-halo,
+.amount-chart-point.peak .amount-chart-point-halo {
+  opacity: 0.34;
+}
+
+.amount-chart-point.empty {
+  color: var(--theme-text-muted);
+  opacity: 0.42;
+}
+
+.amount-chart-months {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  margin: -13px 0 0;
+}
+
+.amount-chart-months span {
+  overflow: hidden;
+  color: var(--theme-text-muted);
+  font-size: 9px;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .bar-chart {
@@ -2739,9 +3076,12 @@ export default {
 }
 
 @media (max-width: 860px) {
-  .price-grid,
-  .line-chart-labels {
+  .price-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analytics-chart-grid {
+    grid-template-columns: 1fr;
   }
 
   .detail-grid {
@@ -3008,12 +3348,28 @@ export default {
     overflow: hidden;
   }
 
-  .line-chart-svg {
-    height: 210px;
+  .trend-card-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
   }
 
-  .line-chart-path {
-    stroke-width: 3.5;
+  .trend-summary {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .analytics-chart-card {
+    padding: 13px;
+    border-radius: 16px;
+  }
+
+  .volume-chart {
+    height: 208px;
+  }
+
+  .amount-area-svg {
+    height: 184px;
   }
 
   .summary-card {
@@ -3186,8 +3542,36 @@ export default {
     justify-content: flex-start;
   }
 
-  .line-chart-labels {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .trend-card {
+    gap: 14px;
+  }
+
+  .trend-summary {
+    gap: 6px;
+  }
+
+  .trend-summary > div {
+    min-width: 0;
+    padding: 8px;
+  }
+
+  .trend-summary strong {
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .analytics-chart-head {
+    gap: 8px;
+  }
+
+  .chart-peak strong {
+    font-size: 13px;
+  }
+
+  .volume-bars {
+    gap: 3px;
   }
 
   .bar-row {
@@ -3232,7 +3616,10 @@ export default {
   .price-panel,
   .list-panel,
   .insight-panel,
-  .report-panel {
+  .report-panel,
+  .trend-card,
+  .analytics-chart-card,
+  .trend-summary > div {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     background-color: var(--theme-surface);
@@ -3244,7 +3631,10 @@ export default {
   .mobile-action-dock,
   .mobile-record-card,
   .price-card,
-  .summary-card {
+  .summary-card,
+  .trend-card,
+  .analytics-chart-card,
+  .trend-summary > div {
     border-color: var(--theme-text);
   }
 }
