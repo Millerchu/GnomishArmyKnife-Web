@@ -68,15 +68,46 @@
     <section class="price-panel">
       <div class="price-layout">
         <div class="price-info">
-          <div class="panel-head">
+          <div class="panel-head price-panel-head">
             <div>
               <h2 class="panel-title">最新油价</h2>
-              <p class="panel-tip">默认展示当前维护的最新参考油价，后续联调后可切换为实时地区油价。</p>
+              <p class="panel-tip">选择地区后手动查询，避免自动消耗每日接口次数。</p>
             </div>
-            <span class="price-date">{{ latestFuelPrices.publishDate || '暂无发布时间' }}</span>
+            <div class="price-head-actions">
+              <label class="price-region-picker">
+                <span>地区</span>
+                <select
+                  v-model="selectedFuelPriceRegion"
+                  :disabled="fuelPriceLoading"
+                  aria-label="选择油价地区"
+                  @change="handleFuelPriceRegionChange"
+                >
+                  <option v-for="region in fuelPriceRegionOptions" :key="region" :value="region">
+                    {{ region }}
+                  </option>
+                </select>
+              </label>
+              <button
+                type="button"
+                class="price-refresh-btn"
+                :disabled="fuelPriceLoading"
+                :aria-label="fuelPriceLoading ? '正在查询当前地区油价' : '查询当前地区油价'"
+                @click="loadLatestFuelPrices"
+              >
+                <span aria-hidden="true">{{ fuelPriceLoading ? '查询中…' : '查询油价' }}</span>
+              </button>
+            </div>
           </div>
 
-          <div class="price-grid">
+          <div class="price-source-row" aria-live="polite">
+            <span class="price-source-badge" :class="{ online: latestFuelPrices.onlineData }">
+              {{ latestFuelPrices.onlineData ? '在线数据' : (latestFuelPrices.dataSource || '等待查询') }}
+            </span>
+            <span>{{ latestFuelPrices.region || selectedFuelPriceRegion }}</span>
+            <span class="price-date">{{ latestFuelPrices.publishDate ? formatDateTime(latestFuelPrices.publishDate) : '暂无更新时间' }}</span>
+          </div>
+
+          <div class="price-grid" :class="{ loading: fuelPriceLoading }" :aria-busy="fuelPriceLoading">
             <article v-for="item in fuelPriceCards" :key="item.code" class="price-card">
               <span>{{ item.label }}</span>
               <strong>{{ item.priceText }}</strong>
@@ -695,6 +726,12 @@ const VEHICLE_ENERGY_TYPE_OPTIONS = [
   {value: 'FUEL', label: '燃油车'},
   {value: 'ELECTRIC', label: '新能源车'}
 ]
+const FUEL_PRICE_REGIONS = [
+  '北京', '天津', '河北', '山西', '内蒙古', '辽宁', '吉林', '黑龙江',
+  '上海', '江苏', '浙江', '安徽', '福建', '江西', '山东', '河南',
+  '湖北', '湖南', '广东', '广西', '海南', '重庆', '四川', '贵州',
+  '云南', '西藏', '陕西', '甘肃', '青海', '宁夏', '新疆'
+]
 // 兼容统一响应包装与直接返回数据的两种接口形态。
 function unwrapData(res) {
   const payload = res?.data
@@ -878,12 +915,19 @@ export default {
     const yearlyCostReport = ref([])
     const fuelVehicles = ref([])
     const selectedVehicleName = ref('')
+    const selectedFuelPriceRegion = ref('重庆')
+    const fuelPriceLoading = ref(false)
     const latestFuelPrices = reactive({
       publishDate: '',
       nextAdjustTime: '',
       adjustWindow: '',
       priceChangeHint: '',
       remark: '',
+      region: '重庆',
+      dataSource: '',
+      onlineData: false,
+      dataNotice: '',
+      supportedRegions: [],
       prices: {
         '92': 0,
         '95': 0,
@@ -946,6 +990,11 @@ export default {
 
     const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
     const currentYearLabel = `${new Date().getFullYear()}年`
+    const fuelPriceRegionOptions = computed(() => (
+      latestFuelPrices.supportedRegions.length
+        ? latestFuelPrices.supportedRegions
+        : FUEL_PRICE_REGIONS
+    ))
     const fuelPriceCards = computed(() => ([
       {code: '92', label: '92 号汽油', priceText: latestFuelPrices.prices['92'] ? `¥${Number(latestFuelPrices.prices['92']).toFixed(2)}/L` : '-'},
       {code: '95', label: '95 号汽油', priceText: latestFuelPrices.prices['95'] ? `¥${Number(latestFuelPrices.prices['95']).toFixed(2)}/L` : '-'},
@@ -1071,9 +1120,15 @@ export default {
       Number(activeVehicleStat.value?.averageConsumption ?? summary.averageConsumption ?? 0)
     ))
     const fuelPriceExtraItems = computed(() => ([
-      {label: '下次调价时间', value: latestFuelPrices.nextAdjustTime || '待维护'},
-      {label: '调价窗口', value: latestFuelPrices.adjustWindow || '待维护'},
-      {label: '调价说明', value: latestFuelPrices.priceChangeHint || latestFuelPrices.remark || '暂无说明'}
+      {label: '数据来源', value: latestFuelPrices.dataSource || '等待查询'},
+      {
+        label: '数据状态',
+        value: latestFuelPrices.dataNotice || latestFuelPrices.priceChangeHint || latestFuelPrices.remark || '暂无说明'
+      },
+      {
+        label: '调价信息',
+        value: latestFuelPrices.adjustWindow || latestFuelPrices.priceChangeHint || '以国家发改委及当地加油站公告为准'
+      }
     ]))
     const maxYearlyCost = computed(() => Math.max(1, ...yearlyCostReport.value.map((item) => Number(item.totalAmount || 0))))
     const activeMonthlyFuelReport = computed(() => monthlyFuelReport.value.filter((item) => (
@@ -1193,10 +1248,43 @@ export default {
       latestFuelPrices.adjustWindow = payload.adjustWindow || payload.nextAdjustWindow || ''
       latestFuelPrices.priceChangeHint = payload.priceChangeHint || payload.priceTrend || payload.trend || ''
       latestFuelPrices.remark = payload.remark || payload.description || ''
+      latestFuelPrices.region = payload.region || selectedFuelPriceRegion.value
+      latestFuelPrices.dataSource = payload.dataSource || ''
+      latestFuelPrices.onlineData = Boolean(payload.onlineData)
+      latestFuelPrices.dataNotice = payload.dataNotice || ''
+      latestFuelPrices.supportedRegions = Array.isArray(payload.supportedRegions)
+        ? payload.supportedRegions
+        : latestFuelPrices.supportedRegions
       latestFuelPrices.prices['92'] = Number(payload.prices?.['92'] ?? payload.price92 ?? 0)
       latestFuelPrices.prices['95'] = Number(payload.prices?.['95'] ?? payload.price95 ?? 0)
       latestFuelPrices.prices['98'] = Number(payload.prices?.['98'] ?? payload.price98 ?? 0)
       latestFuelPrices.prices.DIESEL = Number(payload.prices?.DIESEL ?? payload.priceDiesel ?? 0)
+    }
+
+    const loadLatestFuelPrices = async () => {
+      fuelPriceLoading.value = true
+      try {
+        const priceRes = await getLatestFuelPrices({region: selectedFuelPriceRegion.value})
+        applyLatestPrices(unwrapData(priceRes) || {})
+      } catch (error) {
+        applyLatestPrices({
+          region: selectedFuelPriceRegion.value,
+          dataSource: '查询失败',
+          dataNotice: error?.response?.data?.message || '暂时无法获取当前地区油价'
+        })
+      } finally {
+        fuelPriceLoading.value = false
+      }
+    }
+
+    const handleFuelPriceRegionChange = () => {
+      const supportedRegions = latestFuelPrices.supportedRegions
+      applyLatestPrices({
+        region: selectedFuelPriceRegion.value,
+        dataSource: '等待查询',
+        dataNotice: '点击“查询油价”后获取该地区最新参考价',
+        supportedRegions
+      })
     }
 
     const syncSelectedVehicle = () => {
@@ -1267,13 +1355,6 @@ export default {
         }
 
         try {
-          const priceRes = await getLatestFuelPrices()
-          applyLatestPrices(unwrapData(priceRes) || {})
-        } catch (error) {
-          applyLatestPrices()
-        }
-
-        try {
           const reportRes = await getFuelReports()
           applyReports(unwrapData(reportRes) || {})
         } catch (error) {
@@ -1286,15 +1367,6 @@ export default {
         recentRecords.value = []
         monthlyFuelReport.value = []
         yearlyCostReport.value = []
-        latestFuelPrices.publishDate = ''
-        latestFuelPrices.nextAdjustTime = ''
-        latestFuelPrices.adjustWindow = ''
-        latestFuelPrices.priceChangeHint = ''
-        latestFuelPrices.remark = ''
-        latestFuelPrices.prices['92'] = 0
-        latestFuelPrices.prices['95'] = 0
-        latestFuelPrices.prices['98'] = 0
-        latestFuelPrices.prices.DIESEL = 0
         summary.totalAmount = 0
         summary.totalDiscountAmount = 0
         summary.totalFuelVolume = 0
@@ -1649,7 +1721,10 @@ export default {
       monthlyFuelReport,
       yearlyCostReport,
       fuelVehicles,
+      fuelPriceLoading,
       latestFuelPrices,
+      selectedFuelPriceRegion,
+      fuelPriceRegionOptions,
       latestConsumptionRecord,
       consumptionVehicleOptions,
       activeConsumptionVehicleName,
@@ -1725,6 +1800,8 @@ export default {
       removeVehicle,
       handleFormVehicleChange,
       removeRecord,
+      handleFuelPriceRegionChange,
+      loadLatestFuelPrices,
       loadRecords,
       goBack
     }
@@ -2026,6 +2103,125 @@ export default {
 .price-date {
   font-size: 12px;
   color: var(--theme-text-muted);
+}
+
+.price-panel-head {
+  align-items: flex-end;
+}
+
+.price-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.price-region-picker {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  color: var(--theme-text-muted);
+  background: color-mix(in srgb, var(--theme-control-surface) 88%, transparent);
+  font-size: 11px;
+  transition: border-color 160ms ease-out, background 160ms ease-out;
+}
+
+.price-region-picker:focus-within {
+  border-color: var(--theme-focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-focus-ring) 22%, transparent);
+}
+
+.price-region-picker select {
+  min-width: 72px;
+  height: 36px;
+  padding: 0 24px 0 8px;
+  border: 0;
+  outline: none;
+  color: var(--theme-text);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.price-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 82px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  color: var(--theme-link);
+  background: color-mix(in srgb, var(--theme-control-surface) 88%, transparent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 100ms ease-out, border-color 160ms ease-out, background 160ms ease-out;
+}
+
+.price-refresh-btn:hover {
+  border-color: var(--theme-border-strong);
+  background: var(--theme-surface-hover);
+}
+
+.price-refresh-btn:active {
+  transform: scale(0.94);
+}
+
+.price-refresh-btn:disabled,
+.price-region-picker:has(select:disabled) {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.price-source-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  margin-top: 8px;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+}
+
+.price-source-row > span + span::before {
+  margin-right: 7px;
+  color: var(--theme-border-strong);
+  content: "·";
+}
+
+.price-source-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--theme-text-muted) 30%, transparent);
+  border-radius: 999px;
+  color: var(--theme-text-soft);
+  background: color-mix(in srgb, var(--theme-control-surface) 82%, transparent);
+  font-weight: 650;
+}
+
+.price-source-badge.online {
+  border-color: color-mix(in srgb, #30d6c0 38%, transparent);
+  color: #30d6c0;
+  background: color-mix(in srgb, #30d6c0 10%, transparent);
+}
+
+.price-grid {
+  transition: opacity 160ms ease-out;
+}
+
+.price-grid.loading {
+  opacity: 0.5;
 }
 
 .price-layout,
@@ -3344,8 +3540,27 @@ export default {
     line-height: 1.55;
   }
 
-  .line-chart {
-    overflow: hidden;
+  .price-panel-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .price-head-actions {
+    width: 100%;
+  }
+
+  .price-region-picker {
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .price-region-picker select {
+    min-width: 104px;
+    text-align: right;
+  }
+
+  .price-source-row {
+    flex-wrap: wrap;
   }
 
   .trend-card-head {
@@ -3601,7 +3816,15 @@ export default {
   .mobile-record-card,
   .dock-secondary-btn,
   .dock-primary-btn,
-  .bar-fill {
+  .bar-fill,
+  .price-grid,
+  .price-region-picker,
+  .price-refresh-btn,
+  .volume-bar-item,
+  .volume-bar-value,
+  .volume-bar-track > i,
+  .amount-chart-point,
+  .amount-chart-point-halo {
     scroll-behavior: auto;
     transition: none;
   }
