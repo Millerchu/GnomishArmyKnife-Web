@@ -21,6 +21,10 @@ export function listWorkLogs(params) {
   return request.get('/work-logs', { params })
 }
 
+export function listUnfinishedWorkItems(params) {
+  return request.get('/work-logs/unfinished-items', { params })
+}
+
 // 周摘要接口预留给后续周报概览或统计面板使用。
 export function getWeeklyBrief(params) {
   return request.get('/work-logs/weekly-brief', { params })

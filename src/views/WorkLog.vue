@@ -324,10 +324,11 @@
           <thead>
           <tr>
             <th>日期</th>
-            <th>状态</th>
+            <th>日志类型</th>
             <th>地点</th>
             <th>项目</th>
             <th>工作内容</th>
+            <th>完成状态</th>
             <th>禅道编号</th>
             <th>人天</th>
             <th>加班</th>
@@ -354,6 +355,11 @@
                   {{ workItem }}
                 </li>
               </ol>
+            </td>
+            <td>
+              <span class="work-status-badge" :class="getWorkStatusClass(item.status)">
+                {{ formatWorkStatus(item.status) }}
+              </span>
             </td>
             <td>{{ item.zentaoNo || '-' }}</td>
             <td>{{ formatPersonDayText(item.personDay) }}</td>
@@ -392,7 +398,12 @@
           >
             <div class="mobile-log-head">
               <strong class="mobile-log-date">{{ item.logDate }}</strong>
-              <span class="mobile-log-tag">{{ formatTypeCodes(item.typeCodes) }}</span>
+              <div class="mobile-log-head-tags">
+                <span class="mobile-log-tag">{{ formatTypeCodes(item.typeCodes) }}</span>
+                <span class="work-status-badge" :class="getWorkStatusClass(item.status)">
+                  {{ formatWorkStatus(item.status) }}
+                </span>
+              </div>
             </div>
             <div class="mobile-log-meta">
               <span v-if="item.location">{{ formatLocationText(item.location) }}</span>
@@ -456,6 +467,9 @@
               <strong>{{ group.projectText }}</strong>
               <div class="detail-item-actions">
                 <div class="detail-type-row">
+                  <span class="work-status-badge" :class="getWorkStatusClass(group.status)">
+                    {{ formatWorkStatus(group.status) }}
+                  </span>
                   <span
                     v-for="type in group.types"
                     :key="`${group.projectCode}-${type.code}`"
@@ -575,7 +589,25 @@
           </div>
         </div>
 
-        <label class="form-field dialog-span-2">
+        <div class="form-field">
+          <span>完成状态</span>
+          <div class="work-status-segment" role="group" aria-label="工作内容完成状态">
+            <button
+              v-for="item in workStatusOptions"
+              :key="item.value"
+              type="button"
+              class="work-status-option"
+              :class="[getWorkStatusClass(item.value), {active: form.status === item.value}]"
+              :aria-pressed="form.status === item.value"
+              @click="form.status = item.value"
+            >
+              <span class="work-status-dot" aria-hidden="true" />
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
+
+        <label class="form-field">
           <span>禅道编号</span>
           <input v-model.trim="form.zentaoNo" maxlength="255" placeholder="多个编号可用逗号分隔" />
         </label>
@@ -610,6 +642,42 @@
 
         <div class="form-field dialog-span-all">
           <span>工作内容</span>
+          <section v-if="dialogMode === 'create'" class="unfinished-reuse-panel">
+            <div class="unfinished-reuse-head">
+              <div>
+                <strong>继续未完成内容</strong>
+                <small>选择后会带入所属项目与工作内容，状态仍可调整。</small>
+              </div>
+              <button
+                v-if="unfinishedLoadError"
+                type="button"
+                class="unfinished-retry"
+                :disabled="unfinishedLoading"
+                @click="fetchUnfinishedWorkItems"
+              >重新加载</button>
+              <span v-else-if="unfinishedWorkItems.length" class="unfinished-count">
+                {{ unfinishedWorkItems.length }} 项
+              </span>
+            </div>
+            <p v-if="unfinishedLoading" class="unfinished-feedback">正在查找未完成内容…</p>
+            <p v-else-if="unfinishedLoadError" class="unfinished-feedback is-error">{{ unfinishedLoadError }}</p>
+            <div v-else-if="unfinishedWorkItems.length" class="unfinished-option-list">
+              <button
+                v-for="item in unfinishedWorkItems"
+                :key="item.id"
+                type="button"
+                class="unfinished-option"
+                @click="applyUnfinishedWorkItem(item)"
+              >
+                <span class="unfinished-option-meta">
+                  {{ formatProjectText(item.projectCode) }} · {{ item.logDate }}
+                </span>
+                <strong>{{ parseWorkItemEntries(item.workItem).join('；') }}</strong>
+                <em>带入</em>
+              </button>
+            </div>
+            <p v-else class="unfinished-feedback">暂无可继续的未完成内容</p>
+          </section>
           <div class="work-item-editor">
             <div v-for="(workItem, index) in form.workItems" :key="index" class="work-item-input-row">
               <span class="work-item-index">{{ index + 1 }}</span>
@@ -680,6 +748,7 @@ import {
   createWorkLog,
   deleteWorkLog,
   getWorkLogDetail,
+  listUnfinishedWorkItems,
   listWorkLogs,
   updateWorkLog
 } from '@/api/workLog'
@@ -715,6 +784,12 @@ const ALLOWANCE_SCENE_OUT_OF_CITY_DAILY = 'OUT_OF_CITY_DAILY'
 const CITY_BUSINESS_TRIP_ALLOWANCE = 100
 const OUT_OF_CITY_TRANSIT_ALLOWANCE = 110
 const OUT_OF_CITY_DAILY_ALLOWANCE = 160
+const WORK_STATUS_COMPLETED = 'COMPLETED'
+const WORK_STATUS_UNFINISHED = 'UNFINISHED'
+const WORK_STATUS_OPTIONS = [
+  {label: '已完成', value: WORK_STATUS_COMPLETED},
+  {label: '未完成', value: WORK_STATUS_UNFINISHED}
+]
 const LEGACY_TYPE_LABELS = {
   BUSINESS_TRIP: '出差'
 }
@@ -913,6 +988,7 @@ function normalizeLog(item) {
     location: item?.location || '',
     projectCode: item?.projectCode || '',
     workItem: item?.workItem || item?.content || item?.brief || '',
+    status: normalizeWorkStatus(item?.status || item?.workStatus),
     zentaoNo: item?.zentaoNo || '',
     personDay: toNumber(item?.personDay, 1),
     overtimeHours,
@@ -922,6 +998,19 @@ function normalizeLog(item) {
     businessTripReimbursed: Boolean(item?.businessTripReimbursed),
     remark: item?.remark || ''
   }
+}
+
+function normalizeWorkStatus(value) {
+  const normalized = `${value || ''}`.trim().toUpperCase()
+  return normalized === WORK_STATUS_UNFINISHED ? WORK_STATUS_UNFINISHED : WORK_STATUS_COMPLETED
+}
+
+function formatWorkStatus(value) {
+  return normalizeWorkStatus(value) === WORK_STATUS_UNFINISHED ? '未完成' : '已完成'
+}
+
+function getWorkStatusClass(value) {
+  return normalizeWorkStatus(value) === WORK_STATUS_UNFINISHED ? 'is-unfinished' : 'is-completed'
 }
 
 function hasTypeCode(typeCodes, typeCode) {
@@ -987,12 +1076,15 @@ export default {
     const showDialog = ref(false)
     const dialogMode = ref('create')
     const showTypeDropdown = ref(false)
+    const unfinishedLoading = ref(false)
+    const unfinishedLoadError = ref('')
 
     const weeklyLogs = ref([])
     const monthlyLogs = ref([])
     const detailDayLogs = ref([])
     const yearLogs = ref([])
     const formDayLogs = ref([])
+    const unfinishedWorkItems = ref([])
 
     const yearFilter = ref(new Date().getFullYear())
 
@@ -1007,6 +1099,7 @@ export default {
       location: '',
       projectCode: '',
       workItems: [''],
+      status: WORK_STATUS_COMPLETED,
       zentaoNo: '',
       personDay: 1,
       offWorkTime: STANDARD_OFF_WORK_TIME,
@@ -1169,6 +1262,7 @@ export default {
             logs.map((item) => formatLocationText(item.location)).filter((item) => item !== '-')
           ),
           zentaoNosText: joinOptionalValues(logs.map((item) => item.zentaoNo)),
+          status: normalizeWorkStatus(logs[0]?.status),
           remarksText: joinOptionalValues(logs.map((item) => item.remark)),
           workItems: logs.flatMap((item) => parseWorkItemEntries(item.workItem)),
           personDayTotal: logs.reduce((total, item) => total + toNumber(item.personDay, 0), 0),
@@ -1457,6 +1551,30 @@ export default {
       }
     }
 
+    async function fetchUnfinishedWorkItems() {
+      unfinishedLoading.value = true
+      unfinishedLoadError.value = ''
+      try {
+        const res = await listUnfinishedWorkItems({limit: 20})
+        const payload = unwrapData(res)
+        unfinishedWorkItems.value = (Array.isArray(payload) ? payload : [])
+          .map((item) => ({
+            id: item?.id,
+            logDate: item?.logDate || '',
+            projectCode: item?.projectCode || '',
+            workItem: item?.workItem || item?.content || '',
+            status: normalizeWorkStatus(item?.status)
+          }))
+          .filter((item) => item.id != null && parseWorkItemEntries(item.workItem).length)
+      } catch (error) {
+        console.error(error)
+        unfinishedWorkItems.value = []
+        unfinishedLoadError.value = '未完成内容加载失败，不影响手动填写'
+      } finally {
+        unfinishedLoading.value = false
+      }
+    }
+
     function resetForm() {
       form.id = null
       form.logDate = selectedDate.value
@@ -1464,6 +1582,7 @@ export default {
       form.location = getDefaultOptionValue(locationSelectOptions.value)
       form.projectCode = getDefaultOptionValue(projectSelectOptions.value)
       form.workItems = ['']
+      form.status = WORK_STATUS_COMPLETED
       form.zentaoNo = ''
       form.personDay = 1
       form.offWorkTime = isWeekendDate(selectedDate.value) ? '' : STANDARD_OFF_WORK_TIME
@@ -1481,6 +1600,7 @@ export default {
       form.location = detail.location
       form.projectCode = detail.projectCode
       form.workItems = parseWorkItemEntries(detail.workItem)
+      form.status = normalizeWorkStatus(detail.status)
       if (!form.workItems.length) {
         form.workItems = ['']
       }
@@ -1664,7 +1784,10 @@ export default {
       resetForm()
       showTypeDropdown.value = false
       showDialog.value = true
-      await fetchFormDayLogs(form.logDate)
+      await Promise.all([
+        fetchFormDayLogs(form.logDate),
+        fetchUnfinishedWorkItems()
+      ])
       form.personDay = formPersonDayMax.value
     }
 
@@ -1723,6 +1846,18 @@ export default {
       form.workItems.splice(index, 1)
     }
 
+    function applyUnfinishedWorkItem(item) {
+      const workItems = parseWorkItemEntries(item?.workItem)
+      if (!workItems.length) {
+        return
+      }
+      form.workItems = workItems
+      if (projectSelectOptions.value.some((option) => option.value === item.projectCode)) {
+        form.projectCode = item.projectCode
+      }
+      form.status = WORK_STATUS_UNFINISHED
+    }
+
     async function handleFormDateChange() {
       await fetchFormDayLogs(form.logDate)
       form.personDay = Math.min(toNumber(form.personDay, 0), formPersonDayMax.value)
@@ -1775,6 +1910,7 @@ export default {
         location: form.location,
         projectCode: form.projectCode,
         workItem,
+        status: form.status,
         zentaoNo: form.zentaoNo,
         personDay: Number(form.personDay),
         overtimeHours,
@@ -1936,6 +2072,10 @@ export default {
       yearOptions,
       yearLogs,
       form,
+      workStatusOptions: WORK_STATUS_OPTIONS,
+      unfinishedLoading,
+      unfinishedLoadError,
+      unfinishedWorkItems,
       showTypeDropdown,
       selectedTypeOptions,
       selectedTypeText,
@@ -1957,6 +2097,8 @@ export default {
       formatHoursText,
       formatMoneyText,
       formatBusinessTripAllowanceText,
+      formatWorkStatus,
+      getWorkStatusClass,
       parseWorkItemEntries,
       isToday,
       buildCalendarDayAriaLabel,
@@ -1985,6 +2127,8 @@ export default {
       clearTypes,
       addWorkItem,
       removeWorkItem,
+      applyUnfinishedWorkItem,
+      fetchUnfinishedWorkItems,
       handleFormDateChange,
       submitDialog,
       deleteLogEntry,
@@ -2920,6 +3064,207 @@ export default {
 .field-hint {
   color: rgba(255, 255, 255, 0.58);
   font-size: 11px;
+}
+
+.work-status-segment {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 40px;
+  padding: 3px;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  background: var(--theme-field-surface);
+}
+
+.work-status-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  border: 0;
+  border-radius: 9px;
+  color: var(--theme-text-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.work-status-option.active {
+  color: var(--theme-text);
+  background: var(--theme-surface-raised);
+  box-shadow: var(--theme-shadow-xs), inset 0 1px 0 var(--theme-highlight-soft);
+}
+
+.work-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.work-status-option.is-completed .work-status-dot {
+  color: var(--theme-success);
+}
+
+.work-status-option.is-unfinished .work-status-dot {
+  color: var(--theme-warning);
+}
+
+.work-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.work-status-badge.is-completed {
+  color: var(--theme-success);
+  border-color: color-mix(in srgb, var(--theme-success) 28%, transparent);
+  background: var(--theme-success-soft);
+}
+
+.work-status-badge.is-unfinished {
+  color: var(--theme-warning);
+  border-color: color-mix(in srgb, var(--theme-warning) 32%, transparent);
+  background: var(--theme-warning-soft);
+}
+
+.mobile-log-head-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.unfinished-reuse-panel {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid color-mix(in srgb, var(--theme-warning) 24%, var(--theme-border));
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, var(--theme-warning-soft), transparent 55%),
+    var(--theme-surface-muted);
+}
+
+.unfinished-reuse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.unfinished-reuse-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.unfinished-reuse-head strong {
+  color: var(--theme-text);
+  font-size: 12px;
+}
+
+.unfinished-reuse-head small,
+.unfinished-feedback {
+  color: var(--theme-text-muted);
+  font-size: 11px;
+}
+
+.unfinished-count {
+  flex: 0 0 auto;
+  color: var(--theme-warning);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.unfinished-retry {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  color: var(--theme-link);
+  background: var(--theme-control-surface);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.unfinished-feedback {
+  margin: 0;
+  padding: 4px 2px;
+}
+
+.unfinished-feedback.is-error {
+  color: var(--theme-danger);
+}
+
+.unfinished-option-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  max-height: 164px;
+  overflow-y: auto;
+}
+
+.unfinished-option {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 42px 9px 10px;
+  border: 1px solid var(--theme-divider);
+  border-radius: 10px;
+  color: var(--theme-text);
+  background: var(--theme-control-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.unfinished-option:hover,
+.unfinished-option:focus-visible {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--theme-warning) 48%, var(--theme-border));
+  background: var(--theme-surface-hover);
+}
+
+.unfinished-option-meta {
+  overflow: hidden;
+  color: var(--theme-text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unfinished-option strong {
+  overflow: hidden;
+  display: -webkit-box;
+  color: var(--theme-text-soft);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.unfinished-option em {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  color: var(--theme-warning);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  transform: translateY(-50%);
 }
 
 .work-item-editor {
@@ -4718,6 +5063,11 @@ export default {
   #work-log-dialog-form {
     --dialog-grid-columns: 1;
     gap: 12px !important;
+  }
+
+  .unfinished-option-list {
+    grid-template-columns: 1fr;
+    max-height: 190px;
   }
 
   #work-log-dialog-form .dialog-span-2,

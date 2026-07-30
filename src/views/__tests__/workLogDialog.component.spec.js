@@ -11,6 +11,7 @@ import {
   createWorkLog,
   deleteWorkLog,
   getWorkLogDetail,
+  listUnfinishedWorkItems,
   listWorkLogs,
   updateWorkLog
 } from '@/api/workLog'
@@ -54,6 +55,7 @@ vi.mock('@/api/workLog', () => ({
   createWorkLog: vi.fn(),
   deleteWorkLog: vi.fn(),
   getWorkLogDetail: vi.fn(),
+  listUnfinishedWorkItems: vi.fn(),
   listWorkLogs: vi.fn(),
   updateWorkLog: vi.fn()
 }))
@@ -107,6 +109,7 @@ const editLogDetail = {
   location: 'OFFICE',
   projectCode: 'PROJECT_ALPHA',
   workItem: '编辑前的工作内容',
+  status: 'UNFINISHED',
   zentaoNo: 'ZEN-88',
   personDay: 0,
   overtimeHours: 1.5,
@@ -239,6 +242,7 @@ beforeEach(() => {
   })))
   deleteWorkLog.mockResolvedValue(buildApiResponse(null))
   getWorkLogDetail.mockResolvedValue(buildApiResponse(editLogDetail))
+  listUnfinishedWorkItems.mockResolvedValue(buildApiResponse([]))
   listWorkLogs.mockResolvedValue(buildApiResponse([]))
   updateWorkLog.mockImplementation((id, payload) => Promise.resolve(buildApiResponse({
     ...editLogDetail,
@@ -376,6 +380,7 @@ describe('WorkLog MacDialog integration', () => {
       '地点',
       '所属项目',
       '工作内容',
+      '完成状态',
       '备注'
     ]))
   })
@@ -409,6 +414,7 @@ describe('WorkLog MacDialog integration', () => {
       location: 'OFFICE',
       projectCode: 'PROJECT_ALPHA',
       workItem: '完成 MacDialog 提交集成验证',
+      status: 'COMPLETED',
       personDay: 0
     }))
   })
@@ -442,6 +448,7 @@ describe('WorkLog MacDialog integration', () => {
       location: editLogDetail.location,
       projectCode: editLogDetail.projectCode,
       workItem: editLogDetail.workItem,
+      status: editLogDetail.status,
       zentaoNo: editLogDetail.zentaoNo,
       personDay: editLogDetail.personDay,
       offWorkTime: editLogDetail.offWorkTime,
@@ -559,6 +566,44 @@ describe('WorkLog MacDialog integration', () => {
 
     expect(createWorkLog).toHaveBeenCalledWith(expect.objectContaining({
       workItem: '第一项工作\n第二项工作'
+    }))
+  })
+
+  it('quickly fills a new log from an unfinished work item', async () => {
+    listUnfinishedWorkItems.mockResolvedValueOnce(buildApiResponse([
+      {
+        id: 701,
+        logDate: '2026-07-09',
+        projectCode: 'PROJECT_ALPHA',
+        workItem: '继续接口联调\n补齐异常场景',
+        status: 'UNFINISHED'
+      }
+    ]))
+    await mountWorkLogAndOpenCreateDialog()
+    await flushPromises()
+    const panel = getDialogPanel()
+    const reuseButton = panel.querySelector('.unfinished-option')
+
+    expect(listUnfinishedWorkItems).toHaveBeenCalledWith({limit: 20})
+    expect(reuseButton.textContent).toContain('继续接口联调；补齐异常场景')
+    reuseButton.click()
+    await nextTick()
+
+    expect([...panel.querySelectorAll('.work-item-input-row input')].map((input) => input.value)).toEqual([
+      '继续接口联调',
+      '补齐异常场景'
+    ])
+    expect(panel.querySelector('.work-status-option.is-unfinished').getAttribute('aria-pressed')).toBe('true')
+
+    panel.querySelector('input[type="number"][step="0.1"]').value = '0'
+    panel.querySelector('input[type="number"][step="0.1"]').dispatchEvent(new Event('input', {bubbles: true}))
+    panel.querySelector('.mac-dialog-actions button[type="submit"]').click()
+    await flushPromises()
+
+    expect(createWorkLog).toHaveBeenCalledWith(expect.objectContaining({
+      projectCode: 'PROJECT_ALPHA',
+      workItem: '继续接口联调\n补齐异常场景',
+      status: 'UNFINISHED'
     }))
   })
 

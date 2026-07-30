@@ -12,13 +12,14 @@ const dictionary = (key, label, featureCode, moduleCode, required = false, multi
 export const QUICK_CREATE_TYPES = [
   {
     typeCode: 'WORK_LOG', featureCode: 'APP_WORK_LOG', appName: '工作日志', label: '新增工作日志', api: 'workLog',
-    defaults: () => ({logDate: today(), typeCodes: [], location: '', projectCode: '', workItems: [''], zentaoNo: '', personDay: 1, overtimeHours: 0, remark: ''}),
+    defaults: () => ({logDate: today(), typeCodes: [], location: '', projectCode: '', workItems: [''], status: 'COMPLETED', zentaoNo: '', personDay: 1, overtimeHours: 0, remark: ''}),
     fields: [
       {key: 'logDate', label: '日期', type: 'date', required: true},
       dictionary('typeCodes', '日志类型', 'APP_WORK_LOG', 'WORK_LOG', true, true),
       dictionary('location', '地点', 'APP_WORK_LOG', 'WORK_LOG', true),
       dictionary('projectCode', '所属项目', 'APP_WORK_LOG', 'WORK_LOG', true), number('personDay', '人天', true, {step: '0.1', min: 0}),
-      {key: 'workItems', label: '工作内容', type: 'work-items', required: true}, text('zentaoNo', '禅道编号'),
+      {key: 'workItems', label: '工作内容', type: 'work-items', required: true},
+      select('status', '完成状态', [['COMPLETED', '已完成'], ['UNFINISHED', '未完成']], true), text('zentaoNo', '禅道编号'),
       number('overtimeHours', '加班时长', false, {step: '0.5', min: 0}), area('remark', '备注')
     ]
   },
