@@ -73,11 +73,23 @@
               <div v-for="(workItem, index) in form[field.key]" :key="index" class="work-item-row">
                 <span class="work-item-index">{{ index + 1 }}</span>
                 <input
-                  v-model="form[field.key][index]"
+                  v-model="workItem.content"
                   type="text"
                   maxlength="4000"
                   :placeholder="index === 0 ? '填写工作内容、处理结果或跟进结论' : '继续添加工作事项'"
                 />
+                <div class="work-item-status" :aria-label="`第 ${index + 1} 条工作内容完成状态`" role="group">
+                  <button
+                    v-for="statusOption in workStatusOptions"
+                    :key="statusOption.value"
+                    type="button"
+                    :class="[{active: workItem.status === statusOption.value}, `is-${statusOption.tone}`]"
+                    :aria-pressed="workItem.status === statusOption.value"
+                    @click.prevent="workItem.status = statusOption.value"
+                  >
+                    <span aria-hidden="true" />{{ statusOption.label }}
+                  </button>
+                </div>
                 <button type="button" :disabled="form[field.key].length === 1" @click.prevent="removeWorkItem(field.key, index)">移除</button>
               </div>
               <button type="button" class="work-item-add" @click.prevent="addWorkItem(field.key)">＋ 添加一条</button>
@@ -134,6 +146,10 @@ const packages = ref([])
 const dictionaryOptions = reactive({})
 const form = reactive({})
 const initialSnapshot = ref('{}')
+const workStatusOptions = [
+  {value: 'COMPLETED', label: '已完成', tone: 'completed'},
+  {value: 'UNFINISHED', label: '未完成', tone: 'unfinished'}
+]
 
 const activeType = computed(() => props.types.find((item) => item.typeCode === selectedTypeCode.value) || null)
 const activeApp = computed(() => props.apps.find((item) => item.featureCode === activeType.value?.featureCode) || null)
@@ -229,7 +245,7 @@ function handleVisibleChange(value) {
 function nullable(value) { return value === '' || value === undefined ? null : value }
 function numeric(value) { return value === '' || value === null ? null : Number(value) }
 function usesImageIcon(iconType) { return ['UPLOAD', 'URL'].includes(iconType) }
-function addWorkItem(fieldKey) { form[fieldKey].push('') }
+function addWorkItem(fieldKey) { form[fieldKey].push({content: '', status: 'COMPLETED'}) }
 function removeWorkItem(fieldKey, index) {
   if (form[fieldKey].length > 1) form[fieldKey].splice(index, 1)
 }
@@ -241,8 +257,11 @@ function buildPayload(type) {
     payload.typeCodes = Array.isArray(form.typeCodes) ? [...form.typeCodes] : []
     payload.personDay = Number(form.personDay)
     payload.overtimeHours = Number(form.overtimeHours || 0)
-    payload.workItem = serializeWorkItemEntries(form.workItems)
-    delete payload.workItems
+    payload.workItems = form.workItems
+      .map((item) => ({content: `${item?.content || ''}`.trim(), status: item?.status || 'COMPLETED'}))
+      .filter((item) => item.content)
+    payload.workItem = serializeWorkItemEntries(payload.workItems.map((item) => item.content))
+    payload.status = payload.workItems.some((item) => item.status === 'UNFINISHED') ? 'UNFINISHED' : 'COMPLETED'
   }
   if (type.api === 'todo') {
     payload.steps = `${form.stepsText}`.split('\n').map((title) => title.trim()).filter(Boolean).map((title, index) => ({title, done: false, sortNo: index + 1}))
@@ -281,7 +300,7 @@ async function submit() {
   if (passwordIdentityMissing) { submitError.value = '用户名、注册手机、注册邮箱至少填写一项。'; return }
   if (activeType.value.api === 'fuel' && Number(form.discountedAmount) > Number(form.totalAmount)) { submitError.value = '优惠后金额不能大于加油金额。'; return }
   if (activeType.value.api === 'bill' && Number(form.amount) <= 0) { submitError.value = '账单金额必须大于 0。'; return }
-  if (activeType.value.api === 'workLog' && !serializeWorkItemEntries(form.workItems)) { submitError.value = '请至少填写一条工作内容。'; return }
+  if (activeType.value.api === 'workLog' && !serializeWorkItemEntries(form.workItems.map((item) => item?.content))) { submitError.value = '请至少填写一条工作内容。'; return }
   submitting.value = true
   try {
     await apiHandlers[activeType.value.api](buildPayload(activeType.value))
@@ -567,7 +586,7 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
 
 .work-item-row {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: 30px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
 }
@@ -597,6 +616,49 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
 .work-item-row button:disabled {
   opacity: 0.38;
   cursor: not-allowed;
+}
+
+.work-item-status {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+  background: var(--theme-surface-muted);
+}
+
+.work-item-row .work-item-status button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.work-item-status button > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.work-item-status button.active {
+  background: var(--theme-control-surface);
+  box-shadow: var(--theme-shadow-xs);
+  color: var(--theme-text);
+}
+
+.work-item-status button.is-completed > span {
+  color: var(--theme-success);
+}
+
+.work-item-status button.is-unfinished > span {
+  color: var(--theme-warning);
 }
 
 .work-item-add {
@@ -729,6 +791,18 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
     justify-self: end;
     min-height: 44px;
     padding: 8px 12px;
+  }
+
+  .work-item-status {
+    grid-column: 2;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .work-item-row .work-item-status button {
+    grid-column: auto;
+    justify-content: center;
+    min-height: 38px;
   }
 
   .work-item-add,

@@ -380,9 +380,9 @@ describe('WorkLog MacDialog integration', () => {
       '地点',
       '所属项目',
       '工作内容',
-      '完成状态',
       '备注'
     ]))
+    expect(form.querySelectorAll('.work-item-status-segment .work-status-option')).toHaveLength(2)
   })
 
   it('keeps the footer focused on the single submit action', async () => {
@@ -415,6 +415,7 @@ describe('WorkLog MacDialog integration', () => {
       projectCode: 'PROJECT_ALPHA',
       workItem: '完成 MacDialog 提交集成验证',
       status: 'COMPLETED',
+      workItems: [{content: '完成 MacDialog 提交集成验证', status: 'COMPLETED'}],
       personDay: 0
     }))
   })
@@ -449,6 +450,7 @@ describe('WorkLog MacDialog integration', () => {
       projectCode: editLogDetail.projectCode,
       workItem: editLogDetail.workItem,
       status: editLogDetail.status,
+      workItems: [{content: editLogDetail.workItem, status: editLogDetail.status}],
       zentaoNo: editLogDetail.zentaoNo,
       personDay: editLogDetail.personDay,
       offWorkTime: editLogDetail.offWorkTime,
@@ -544,7 +546,7 @@ describe('WorkLog MacDialog integration', () => {
     expect(workItemInput.value).toBe('提交失败后保留的工作内容')
   })
 
-  it('adds numbered work items and serializes them as newline text', async () => {
+  it('adds numbered work items and submits an independent status for every item', async () => {
     await mountWorkLogAndOpenCreateDialog()
     const panel = getDialogPanel()
     const {form, submitButton} = await fillValidCreateForm(panel, '第一项工作')
@@ -558,6 +560,7 @@ describe('WorkLog MacDialog integration', () => {
     const secondInput = workItemRows[1].querySelector('input')
     secondInput.value = '第二项工作'
     secondInput.dispatchEvent(new Event('input', {bubbles: true}))
+    workItemRows[1].querySelector('.work-status-option.is-unfinished').click()
     await nextTick()
 
     expect(form.checkValidity()).toBe(true)
@@ -565,7 +568,12 @@ describe('WorkLog MacDialog integration', () => {
     await flushPromises()
 
     expect(createWorkLog).toHaveBeenCalledWith(expect.objectContaining({
-      workItem: '第一项工作\n第二项工作'
+      workItem: '第一项工作\n第二项工作',
+      status: 'UNFINISHED',
+      workItems: [
+        {content: '第一项工作', status: 'COMPLETED'},
+        {content: '第二项工作', status: 'UNFINISHED'}
+      ]
     }))
   })
 
@@ -575,7 +583,7 @@ describe('WorkLog MacDialog integration', () => {
         id: 701,
         logDate: '2026-07-09',
         projectCode: 'PROJECT_ALPHA',
-        workItem: '继续接口联调\n补齐异常场景',
+        workItem: '结构树多选问题排查修复',
         status: 'UNFINISHED'
       }
     ]))
@@ -585,13 +593,12 @@ describe('WorkLog MacDialog integration', () => {
     const reuseButton = panel.querySelector('.unfinished-option')
 
     expect(listUnfinishedWorkItems).toHaveBeenCalledWith({limit: 20})
-    expect(reuseButton.textContent).toContain('继续接口联调；补齐异常场景')
+    expect(reuseButton.textContent).toContain('结构树多选问题排查修复')
     reuseButton.click()
     await nextTick()
 
     expect([...panel.querySelectorAll('.work-item-input-row input')].map((input) => input.value)).toEqual([
-      '继续接口联调',
-      '补齐异常场景'
+      '结构树多选问题排查修复'
     ])
     expect(panel.querySelector('.work-status-option.is-unfinished').getAttribute('aria-pressed')).toBe('true')
 
@@ -602,8 +609,9 @@ describe('WorkLog MacDialog integration', () => {
 
     expect(createWorkLog).toHaveBeenCalledWith(expect.objectContaining({
       projectCode: 'PROJECT_ALPHA',
-      workItem: '继续接口联调\n补齐异常场景',
-      status: 'UNFINISHED'
+      workItem: '结构树多选问题排查修复',
+      status: 'UNFINISHED',
+      workItems: [{content: '结构树多选问题排查修复', status: 'UNFINISHED'}]
     }))
   })
 
@@ -674,7 +682,7 @@ describe('WorkLog MacDialog integration', () => {
     const detailItems = [...detailPanel.querySelectorAll('.detail-item')]
     expect(detailPanel).not.toBeNull()
     expect(detailItems).toHaveLength(2)
-    expect([...detailItems[0].querySelectorAll('.detail-work-list li')].map((item) => item.textContent)).toEqual([
+    expect([...detailItems[0].querySelectorAll('.detail-work-list li > span:first-child')].map((item) => item.textContent)).toEqual([
       '接口开发',
       '单元测试'
     ])

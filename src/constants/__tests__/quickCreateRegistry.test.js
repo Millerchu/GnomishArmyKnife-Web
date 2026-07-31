@@ -31,14 +31,10 @@ test('password memo category is loaded from its dictionary usage', () => {
   })
 })
 
-test('work log quick create includes a completed-by-default status selector', () => {
+test('work log quick create defaults every work item to completed', () => {
   const workLog = QUICK_CREATE_TYPES.find((item) => item.typeCode === 'WORK_LOG')
   const statusField = workLog.fields.find((field) => field.key === 'status')
 
-  assert.equal(workLog.defaults().status, 'COMPLETED')
-  assert.deepEqual(statusField.options, [
-    ['COMPLETED', '已完成'],
-    ['UNFINISHED', '未完成']
-  ])
-  assert.equal(statusField.required, true)
+  assert.deepEqual(workLog.defaults().workItems, [{content: '', status: 'COMPLETED'}])
+  assert.equal(statusField, undefined)
 })

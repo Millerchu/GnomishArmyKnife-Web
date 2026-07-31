@@ -328,7 +328,6 @@
             <th>地点</th>
             <th>项目</th>
             <th>工作内容</th>
-            <th>完成状态</th>
             <th>禅道编号</th>
             <th>人天</th>
             <th>加班</th>
@@ -351,15 +350,13 @@
             <td>{{ formatProjectText(item.projectCode) }}</td>
             <td>
               <ol class="table-work-list">
-                <li v-for="(workItem, index) in parseWorkItemEntries(item.workItem)" :key="`${item.id}-table-${index}`">
-                  {{ workItem }}
+                <li v-for="(workItem, index) in item.workItems" :key="`${item.id}-table-${index}`">
+                  <span>{{ workItem.content }}</span>
+                  <span class="work-status-badge" :class="getWorkStatusClass(workItem.status)">
+                    {{ formatWorkStatus(workItem.status) }}
+                  </span>
                 </li>
               </ol>
-            </td>
-            <td>
-              <span class="work-status-badge" :class="getWorkStatusClass(item.status)">
-                {{ formatWorkStatus(item.status) }}
-              </span>
             </td>
             <td>{{ item.zentaoNo || '-' }}</td>
             <td>{{ formatPersonDayText(item.personDay) }}</td>
@@ -400,9 +397,6 @@
               <strong class="mobile-log-date">{{ item.logDate }}</strong>
               <div class="mobile-log-head-tags">
                 <span class="mobile-log-tag">{{ formatTypeCodes(item.typeCodes) }}</span>
-                <span class="work-status-badge" :class="getWorkStatusClass(item.status)">
-                  {{ formatWorkStatus(item.status) }}
-                </span>
               </div>
             </div>
             <div class="mobile-log-meta">
@@ -411,8 +405,11 @@
               <span v-if="item.zentaoNo">{{ item.zentaoNo }}</span>
             </div>
             <ol class="mobile-log-work detail-work-list">
-              <li v-for="(workItem, index) in parseWorkItemEntries(item.workItem)" :key="`${item.id}-mobile-${index}`">
-                {{ workItem }}
+              <li v-for="(workItem, index) in item.workItems" :key="`${item.id}-mobile-${index}`">
+                <span>{{ workItem.content }}</span>
+                <span class="work-status-badge" :class="getWorkStatusClass(workItem.status)">
+                  {{ formatWorkStatus(workItem.status) }}
+                </span>
               </li>
             </ol>
             <div class="mobile-log-foot">
@@ -467,9 +464,6 @@
               <strong>{{ group.projectText }}</strong>
               <div class="detail-item-actions">
                 <div class="detail-type-row">
-                  <span class="work-status-badge" :class="getWorkStatusClass(group.status)">
-                    {{ formatWorkStatus(group.status) }}
-                  </span>
                   <span
                     v-for="type in group.types"
                     :key="`${group.projectCode}-${type.code}`"
@@ -494,7 +488,12 @@
             </div>
 
             <ol class="detail-work-list">
-              <li v-for="(workItem, index) in group.workItems" :key="`${group.projectCode}-${index}`">{{ workItem }}</li>
+              <li v-for="(workItem, index) in group.workItems" :key="`${group.projectCode}-${index}`">
+                <span>{{ workItem.content }}</span>
+                <span class="work-status-badge" :class="getWorkStatusClass(workItem.status)">
+                  {{ formatWorkStatus(workItem.status) }}
+                </span>
+              </li>
             </ol>
 
             <div class="detail-foot-row">
@@ -589,24 +588,6 @@
           </div>
         </div>
 
-        <div class="form-field">
-          <span>完成状态</span>
-          <div class="work-status-segment" role="group" aria-label="工作内容完成状态">
-            <button
-              v-for="item in workStatusOptions"
-              :key="item.value"
-              type="button"
-              class="work-status-option"
-              :class="[getWorkStatusClass(item.value), {active: form.status === item.value}]"
-              :aria-pressed="form.status === item.value"
-              @click="form.status = item.value"
-            >
-              <span class="work-status-dot" aria-hidden="true" />
-              {{ item.label }}
-            </button>
-          </div>
-        </div>
-
         <label class="form-field">
           <span>禅道编号</span>
           <input v-model.trim="form.zentaoNo" maxlength="255" placeholder="多个编号可用逗号分隔" />
@@ -646,7 +627,7 @@
             <div class="unfinished-reuse-head">
               <div>
                 <strong>继续未完成内容</strong>
-                <small>选择后会带入所属项目与工作内容，状态仍可调整。</small>
+                <small>选择后会追加到工作内容，并保留为未完成状态。</small>
               </div>
               <button
                 v-if="unfinishedLoadError"
@@ -672,7 +653,7 @@
                 <span class="unfinished-option-meta">
                   {{ formatProjectText(item.projectCode) }} · {{ item.logDate }}
                 </span>
-                <strong>{{ parseWorkItemEntries(item.workItem).join('；') }}</strong>
+                <strong>{{ item.workItem }}</strong>
                 <em>带入</em>
               </button>
             </div>
@@ -682,11 +663,25 @@
             <div v-for="(workItem, index) in form.workItems" :key="index" class="work-item-input-row">
               <span class="work-item-index">{{ index + 1 }}</span>
               <input
-                v-model="form.workItems[index]"
+                v-model="workItem.content"
                 type="text"
                 maxlength="4000"
                 :placeholder="index === 0 ? '填写工作内容、处理结果或跟进结论' : '继续添加工作事项'"
               />
+              <div class="work-item-status-segment" role="group" :aria-label="`第 ${index + 1} 条工作内容完成状态`">
+                <button
+                  v-for="statusOption in workStatusOptions"
+                  :key="statusOption.value"
+                  type="button"
+                  class="work-status-option"
+                  :class="[getWorkStatusClass(statusOption.value), {active: workItem.status === statusOption.value}]"
+                  :aria-pressed="workItem.status === statusOption.value"
+                  @click="workItem.status = statusOption.value"
+                >
+                  <span class="work-status-dot" aria-hidden="true" />
+                  {{ statusOption.label }}
+                </button>
+              </div>
               <button
                 type="button"
                 class="work-item-remove"
@@ -974,11 +969,35 @@ function normalizeSelectedValue(options, value, fallback = '') {
   return matched?.value || fallback
 }
 
+function normalizeWorkItemList(item) {
+  const legacyStatus = normalizeWorkStatus(item?.status || item?.workStatus)
+  const structuredItems = Array.isArray(item?.workItems)
+    ? item.workItems
+      .map((workItem) => ({
+        id: workItem?.id,
+        content: `${workItem?.content || workItem?.workItem || ''}`.trim(),
+        status: normalizeWorkStatus(workItem?.status),
+        sortNo: toNumber(workItem?.sortNo, 0)
+      }))
+      .filter((workItem) => workItem.content)
+    : []
+  if (structuredItems.length) {
+    return structuredItems
+  }
+  return parseWorkItemEntries(item?.workItem || item?.content || item?.brief)
+    .map((content, index) => ({content, status: legacyStatus, sortNo: index + 1}))
+}
+
+function createEmptyWorkItem(status = WORK_STATUS_COMPLETED) {
+  return {content: '', status: normalizeWorkStatus(status)}
+}
+
 function normalizeLog(item) {
   const logDate = item?.logDate || ''
   const overtimeHours = toNumber(item?.overtimeHours, 0)
   const offWorkTime = normalizeTimeValue(item?.offWorkTime || item?.actualOffWorkTime || item?.leaveTime || '')
   const businessTripAllowanceAmount = toNumber(item?.businessTripAllowanceAmount, 0)
+  const workItems = normalizeWorkItemList(item)
 
   return {
     id: item?.id,
@@ -987,7 +1006,8 @@ function normalizeLog(item) {
     typeCodes: normalizeTypeCodes(item?.typeCodes),
     location: item?.location || '',
     projectCode: item?.projectCode || '',
-    workItem: item?.workItem || item?.content || item?.brief || '',
+    workItem: item?.workItem || item?.content || workItems.map((workItem) => workItem.content).join('\n') || item?.brief || '',
+    workItems,
     status: normalizeWorkStatus(item?.status || item?.workStatus),
     zentaoNo: item?.zentaoNo || '',
     personDay: toNumber(item?.personDay, 1),
@@ -1098,8 +1118,7 @@ export default {
       typeCodes: [],
       location: '',
       projectCode: '',
-      workItems: [''],
-      status: WORK_STATUS_COMPLETED,
+      workItems: [createEmptyWorkItem()],
       zentaoNo: '',
       personDay: 1,
       offWorkTime: STANDARD_OFF_WORK_TIME,
@@ -1262,9 +1281,8 @@ export default {
             logs.map((item) => formatLocationText(item.location)).filter((item) => item !== '-')
           ),
           zentaoNosText: joinOptionalValues(logs.map((item) => item.zentaoNo)),
-          status: normalizeWorkStatus(logs[0]?.status),
           remarksText: joinOptionalValues(logs.map((item) => item.remark)),
-          workItems: logs.flatMap((item) => parseWorkItemEntries(item.workItem)),
+          workItems: logs.flatMap((item) => item.workItems),
           personDayTotal: logs.reduce((total, item) => total + toNumber(item.personDay, 0), 0),
           overtimeHoursTotal: logs.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0),
           allowanceTotal: logs.reduce((total, item) => total + toNumber(item.businessTripAllowanceAmount, 0), 0)
@@ -1563,7 +1581,7 @@ export default {
             logDate: item?.logDate || '',
             projectCode: item?.projectCode || '',
             workItem: item?.workItem || item?.content || '',
-            status: normalizeWorkStatus(item?.status)
+            status: WORK_STATUS_UNFINISHED
           }))
           .filter((item) => item.id != null && parseWorkItemEntries(item.workItem).length)
       } catch (error) {
@@ -1581,8 +1599,7 @@ export default {
       form.typeCodes = []
       form.location = getDefaultOptionValue(locationSelectOptions.value)
       form.projectCode = getDefaultOptionValue(projectSelectOptions.value)
-      form.workItems = ['']
-      form.status = WORK_STATUS_COMPLETED
+      form.workItems = [createEmptyWorkItem()]
       form.zentaoNo = ''
       form.personDay = 1
       form.offWorkTime = isWeekendDate(selectedDate.value) ? '' : STANDARD_OFF_WORK_TIME
@@ -1599,10 +1616,13 @@ export default {
       form.typeCodes = [...detail.typeCodes]
       form.location = detail.location
       form.projectCode = detail.projectCode
-      form.workItems = parseWorkItemEntries(detail.workItem)
-      form.status = normalizeWorkStatus(detail.status)
+      form.workItems = detail.workItems.map((workItem) => ({
+        id: workItem.id,
+        content: workItem.content,
+        status: normalizeWorkStatus(workItem.status)
+      }))
       if (!form.workItems.length) {
-        form.workItems = ['']
+        form.workItems = [createEmptyWorkItem()]
       }
       form.zentaoNo = detail.zentaoNo
       form.personDay = detail.personDay ?? 1
@@ -1836,7 +1856,7 @@ export default {
     }
 
     function addWorkItem() {
-      form.workItems.push('')
+      form.workItems.push(createEmptyWorkItem())
     }
 
     function removeWorkItem(index) {
@@ -1847,15 +1867,19 @@ export default {
     }
 
     function applyUnfinishedWorkItem(item) {
-      const workItems = parseWorkItemEntries(item?.workItem)
-      if (!workItems.length) {
+      const content = `${item?.workItem || item?.content || ''}`.trim()
+      if (!content) {
         return
       }
-      form.workItems = workItems
+      const reusableItem = {content, status: WORK_STATUS_UNFINISHED}
+      if (form.workItems.length === 1 && !form.workItems[0].content.trim()) {
+        form.workItems = [reusableItem]
+      } else if (!form.workItems.some((workItem) => workItem.content.trim() === content)) {
+        form.workItems.push(reusableItem)
+      }
       if (projectSelectOptions.value.some((option) => option.value === item.projectCode)) {
         form.projectCode = item.projectCode
       }
-      form.status = WORK_STATUS_UNFINISHED
     }
 
     async function handleFormDateChange() {
@@ -1876,7 +1900,13 @@ export default {
         alert('请选择所属项目')
         return
       }
-      const workItem = serializeWorkItemEntries(form.workItems)
+      const normalizedWorkItems = form.workItems
+        .map((workItem) => ({
+          content: `${workItem?.content || ''}`.trim(),
+          status: normalizeWorkStatus(workItem?.status)
+        }))
+        .filter((workItem) => workItem.content)
+      const workItem = serializeWorkItemEntries(normalizedWorkItems.map((item) => item.content))
       if (!workItem) {
         alert('请填写工作内容')
         return
@@ -1910,7 +1940,10 @@ export default {
         location: form.location,
         projectCode: form.projectCode,
         workItem,
-        status: form.status,
+        status: normalizedWorkItems.some((item) => item.status === WORK_STATUS_UNFINISHED)
+          ? WORK_STATUS_UNFINISHED
+          : WORK_STATUS_COMPLETED,
+        workItems: normalizedWorkItems,
         zentaoNo: form.zentaoNo,
         personDay: Number(form.personDay),
         overtimeHours,
@@ -2936,6 +2969,15 @@ export default {
   margin-top: 4px;
 }
 
+.detail-work-list li,
+.mobile-log-work li,
+.table-work-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
 .detail-edit-cue {
   margin-left: auto;
   color: rgba(154, 214, 255, 0.92);
@@ -3066,9 +3108,10 @@ export default {
   font-size: 11px;
 }
 
-.work-status-segment {
+.work-item-status-segment {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 220px;
   min-height: 40px;
   padding: 3px;
   border: 1px solid var(--theme-border);
@@ -3274,7 +3317,7 @@ export default {
 
 .work-item-input-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
 }
@@ -5086,6 +5129,26 @@ export default {
   #work-log-dialog-form textarea {
     min-height: 104px;
     font-size: 16px !important;
+  }
+
+  .work-item-input-row {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .work-item-input-row > input {
+    grid-column: 2 / -1;
+  }
+
+  .work-item-status-segment {
+    grid-column: 2;
+    width: 100%;
+    min-height: var(--mobile-control-height);
+  }
+
+  .work-item-input-row .work-item-remove {
+    grid-column: 3;
+    min-height: var(--mobile-control-height);
   }
 
   .day-detail-add-btn,
