@@ -17,6 +17,14 @@ const SYNTH_PIANO_PARTIALS = Object.freeze([
 ])
 const SYNTH_PIANO_MIN_DECAY_SECONDS = 1.35
 const SYNTH_PIANO_MAX_DECAY_SECONDS = 2.8
+const SYNTH_PLUCKED_PARTIALS = Object.freeze([
+  {ratio: 1, gain: 1, type: 'triangle'},
+  {ratio: 2, gain: 0.34, type: 'sine'},
+  {ratio: 3, gain: 0.16, type: 'sine'},
+  {ratio: 5, gain: 0.07, type: 'sine'}
+])
+const SYNTH_PLUCKED_MIN_DECAY_SECONDS = 0.48
+const SYNTH_PLUCKED_MAX_DECAY_SECONDS = 0.92
 
 function midiToFrequency(midi) {
   return 440 * 2 ** ((Number(midi) - 69) / 12)
@@ -143,6 +151,44 @@ function createSynthPianoVoice(context, destination, event, startAt) {
   }
 }
 
+function createSynthPluckedVoice(context, destination, event, startAt) {
+  const gainNode = context.createGain()
+  const normalizedVelocity = clamp(event.velocity, 0.02, 1)
+  const peakGain = normalizedVelocity * 0.42
+  const naturalDecay = SYNTH_PLUCKED_MIN_DECAY_SECONDS
+    + (SYNTH_PLUCKED_MAX_DECAY_SECONDS - SYNTH_PLUCKED_MIN_DECAY_SECONDS) * normalizedVelocity
+  const requestedDuration = Number(event.durationSeconds)
+  const releaseAt = Number.isFinite(requestedDuration) && requestedDuration > 0
+    ? Math.min(startAt + requestedDuration, startAt + naturalDecay)
+    : startAt + naturalDecay
+  const oscillators = SYNTH_PLUCKED_PARTIALS.map(({ratio, gain, type}) => {
+    const oscillator = context.createOscillator()
+    const partialGain = context.createGain()
+    oscillator.type = type
+    setAudioParamValue(oscillator.frequency, midiToFrequency(event.midi) * ratio, startAt)
+    setAudioParamValue(partialGain.gain, gain, startAt)
+    oscillator.connect(partialGain)
+    partialGain.connect(gainNode)
+    oscillator.start(startAt)
+    return oscillator
+  })
+
+  setAudioParamValue(gainNode.gain, 0, startAt)
+  rampAudioParam(gainNode.gain, peakGain, startAt + 0.002)
+  gainNode.gain.exponentialRampToValueAtTime?.(0.0001, releaseAt)
+  gainNode.connect(destination)
+  oscillators.forEach((oscillator) => oscillator.stop(releaseAt + EXPORT_FADE_SECONDS))
+
+  return {
+    stringId: event.stringId,
+    gainNode,
+    source: null,
+    basePlaybackRate: 1,
+    stopping: false,
+    stop: (when) => oscillators.forEach((oscillator) => oscillator.stop(when))
+  }
+}
+
 async function loadRequiredSampleBuffers(context, definition, events, fetchImpl) {
   const selectedSamples = events
     .filter((event) => event.type === PERFORMANCE_EVENT_TYPES.NOTE)
@@ -172,6 +218,8 @@ function playRenderedEvent(context, destination, definition, sampleBuffers, acti
     let voice = null
     if (definition.soundType === 'synth-piano') {
       voice = createSynthPianoVoice(context, destination, event, eventTime)
+    } else if (definition.soundType === 'synth-plucked') {
+      voice = createSynthPluckedVoice(context, destination, event, eventTime)
     } else {
       const sample = selectNearestSample(definition.sampleManifest, event.midi, event.velocity)
       const sampleBuffer = sample ? sampleBuffers.get(sample.id || sample.url || sample.src) : null
@@ -232,7 +280,7 @@ export async function renderTakeToWav(take, {fetchImpl = globalThis.fetch} = {})
 
   const events = sortPerformanceEvents(take?.events)
     .filter((event) => Number(event.at) >= 0 && Number(event.at) <= durationMs)
-  const sampleBuffers = definition.soundType === 'synth-piano'
+  const sampleBuffers = definition.soundType?.startsWith('synth-')
     ? new Map()
     : await loadRequiredSampleBuffers(context, definition, events, fetchImpl)
   const activeVoices = new Map()

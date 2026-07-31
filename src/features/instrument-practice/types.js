@@ -1,5 +1,5 @@
 /**
- * @typedef {'guzheng' | 'guitar' | 'ukulele' | 'piano'} InstrumentId
+ * @typedef {'guzheng' | 'guitar' | 'ukulele' | 'pipa' | 'piano'} InstrumentId
  */
 
 /**
@@ -31,7 +31,7 @@
  * @property {Array<{id: string, label: string, midiNotes: number[]}>} tuningPresets
  * @property {Array<{id: string, label: string, frets: number[]}>} [chordVoicings]
  * @property {InstrumentSampleManifest | InstrumentSample[]} sampleManifest
- * @property {'sample' | 'synth-piano'} [soundType='sample'] - 钢琴以 Web Audio 合成音色演奏，不依赖外部位图或音频素材。
+ * @property {'sample' | 'synth-piano' | 'synth-plucked'} [soundType='sample'] - 合成音色不依赖外部音频素材。
  * @property {Record<string, unknown>} [layout]
  */
 

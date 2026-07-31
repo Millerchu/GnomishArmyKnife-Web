@@ -79,6 +79,17 @@ test('钢琴提供三组八度音区与无版权素材依赖的合成音色', ()
   assert.deepEqual(piano.sampleManifest, [])
 })
 
+test('琵琶提供四弦 ADEA 常用定弦与无素材依赖的弹拨音色', () => {
+  const pipa = getInstrumentDefinition('pipa')
+
+  assert.equal(pipa.soundType, 'synth-plucked')
+  assert.equal(pipa.strings.length, 4)
+  assert.deepEqual(pipa.tuningPresets.map((preset) => preset.id), ['standard-adea'])
+  assert.deepEqual(pipa.tuningPresets[0].midiNotes, [45, 50, 52, 57])
+  assert.equal(pipa.layout.defaultMode, 'fret')
+  assert.deepEqual(pipa.sampleManifest, [])
+})
+
 test('紧凑横屏控制行不会截获和弦条触摸', () => {
   const pageSource = readFileSync(
     new URL('../../views/InstrumentPractice.vue', import.meta.url),
@@ -97,7 +108,7 @@ test('紧凑横屏控制行不会截获和弦条触摸', () => {
 
 test('采样清单与实际 MP3 产物保持一致并保留速度层', () => {
   Object.values(INSTRUMENT_DEFINITIONS).forEach((definition) => {
-    if (definition.soundType === 'synth-piano') {
+    if (definition.soundType?.startsWith('synth-')) {
       assert.deepEqual(definition.sampleManifest, [])
       return
     }

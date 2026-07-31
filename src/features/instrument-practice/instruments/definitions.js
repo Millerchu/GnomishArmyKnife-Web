@@ -165,6 +165,26 @@ const UKULELE_DEFINITION = {
 }
 
 /**
+ * 琵琶采用常用 A2–D3–E3–A3 定弦。移动端指板展示前七品，覆盖常用把位；
+ * 音色由原生 Web Audio 合成短促、明亮的弹拨泛音，不额外引入采样素材。
+ *
+ * @type {InstrumentDefinition}
+ */
+const PIPA_DEFINITION = {
+  id: 'pipa',
+  label: '琵琶',
+  family: 'fretted',
+  strings: createStrings(4),
+  tuningPresets: [
+    {id: 'standard-adea', label: '常用 ADEA', midiNotes: [45, 50, 52, 57]}
+  ],
+  chordVoicings: [],
+  sampleManifest: [],
+  soundType: 'synth-plucked',
+  layout: {maxFret: 7, defaultMode: 'fret'}
+}
+
+/**
  * 钢琴使用三个可切换的一组八度音区，竖屏也能为每个白键保留足够的触控宽度。
  * 声音通过原生 Web Audio 的短衰减泛音合成，避免引入额外的版权素材与下载体积。
  *
@@ -195,6 +215,7 @@ export const INSTRUMENT_DEFINITIONS = Object.freeze({
   guzheng: GUZHENG_DEFINITION,
   guitar: GUITAR_DEFINITION,
   ukulele: UKULELE_DEFINITION,
+  pipa: PIPA_DEFINITION,
   piano: PIANO_DEFINITION
 })
 

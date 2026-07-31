@@ -177,7 +177,7 @@ import {useStringDynamics} from '../composables/useStringDynamics.js'
 
 /**
  * 公共契约：
- * - instrumentId: guitar | ukulele；mode: chord | fret。
+ * - instrumentId: guitar | ukulele | pipa；mode: chord | fret。
  * - tuningId/chordId 为受控值，对应变更通过 update:* 发回。
  * - performance 同步发出 note/damp 标准事件；interaction 只标记真实用户手势。
  */
@@ -185,7 +185,7 @@ const props = defineProps({
   instrumentId: {
     type: String,
     required: true,
-    validator: (value) => ['guitar', 'ukulele'].includes(value)
+    validator: (value) => ['guitar', 'ukulele', 'pipa'].includes(value)
   },
   mode: {
     type: String,
@@ -223,13 +223,13 @@ const emit = defineEmits([
   'damp-change'
 ])
 
-const modeOptions = Object.freeze([
+const ALL_MODE_OPTIONS = Object.freeze([
   {id: 'chord', label: '和弦'},
   {id: 'fret', label: '指板'}
 ])
 
 const definition = computed(() => getInstrumentDefinition(props.instrumentId))
-const localMode = ref(props.mode)
+const localMode = ref(definition.value.layout?.defaultMode || props.mode)
 const localTuningId = ref(props.tuningId || definition.value.tuningPresets[0].id)
 const localChordId = ref(props.chordId)
 const activeFrets = reactive(new Map())
@@ -240,6 +240,10 @@ const stringDynamics = useStringDynamics({
   reducedMotion: () => props.reducedMotion
 })
 let handledPlaybackVisualId = 0
+
+const modeOptions = computed(() => definition.value.chordVoicings.length
+  ? ALL_MODE_OPTIONS
+  : ALL_MODE_OPTIONS.filter((modeOption) => modeOption.id === 'fret'))
 
 const fretNumbers = computed(() => (
   Array.from({length: (definition.value.layout.maxFret || 7) + 1}, (_, index) => index)
@@ -265,6 +269,8 @@ watch(() => props.chordId, (chordId) => {
 })
 
 watch(definition, (nextDefinition) => {
+  localMode.value = nextDefinition.layout?.defaultMode || props.mode
+  emit('update:mode', localMode.value)
   localTuningId.value = getTuning(nextDefinition, props.tuningId).id
   localChordId.value = getChord(nextDefinition, props.chordId)?.id || ''
   activeFrets.clear()
@@ -617,6 +623,35 @@ onBeforeUnmount(() => {
     inset 0 1px rgba(255, 230, 190, 0.34),
     inset 0 -24px 50px rgba(27, 8, 5, 0.28),
     var(--theme-shadow-sm, 0 14px 34px rgba(0, 0, 0, 0.28));
+}
+
+.instrument-pipa {
+  --cyan: #f2c572;
+  --cyan-soft: rgba(242, 197, 114, 0.24);
+  --wood-dark: #35110d;
+  --wood: #8f3825;
+  --wood-light: #e3b978;
+}
+
+.instrument-pipa .fretted-stage {
+  border-color: rgba(244, 207, 141, 0.38);
+  background:
+    radial-gradient(ellipse at 50% 82%, rgba(255, 231, 177, 0.28), transparent 42%),
+    repeating-linear-gradient(92deg, transparent 0 18px, rgba(70, 18, 9, 0.11) 19px 20px),
+    linear-gradient(125deg, var(--wood-light), var(--wood) 46%, var(--wood-dark));
+}
+
+.instrument-pipa .sound-hole {
+  width: min(27%, 5.5rem);
+  border: 0.2rem solid rgba(51, 13, 9, 0.7);
+  border-radius: 52% 48% 58% 42%;
+  background:
+    radial-gradient(circle at 34% 38%, #e7ba72 0 8%, transparent 9%),
+    radial-gradient(circle at 65% 35%, #e7ba72 0 8%, transparent 9%),
+    radial-gradient(circle at 50% 65%, #e7ba72 0 8%, transparent 9%),
+    #2b0c09;
+  box-shadow: 0 0 0 0.26rem rgba(238, 194, 116, 0.22), inset 0 0 18px #000;
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .fretboard-wrap {

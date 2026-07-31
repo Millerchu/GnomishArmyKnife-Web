@@ -41,10 +41,11 @@ describe('乐器琴面回放与简谱反馈', () => {
     wrapper.unmount()
   })
 
-  it('吉他和乌克丽丽指板均可显示简谱并定位回放品位', async () => {
+  it('吉他、乌克丽丽和琵琶指板均可显示简谱并定位回放品位', async () => {
     for (const instrument of [
       {id: 'guitar', tuningId: 'standard', midi: 43},
-      {id: 'ukulele', tuningId: 'high-g', midi: 70}
+      {id: 'ukulele', tuningId: 'high-g', midi: 70},
+      {id: 'pipa', tuningId: 'standard-adea', midi: 48}
     ]) {
       const wrapper = mount(FrettedInstrumentSurface, {
         props: {
@@ -65,6 +66,10 @@ describe('乐器琴面回放与简谱反馈', () => {
 
       expect(wrapper.findAll('.fret-note-number').length).toBeGreaterThan(0)
       expect(wrapper.get('.fret-cell.playback-active').attributes('data-fret')).toBe('3')
+      if (instrument.id === 'pipa') {
+        expect(wrapper.find('.chord-rail').exists()).toBe(false)
+        expect(wrapper.get('.mode-switch').text()).toBe('指板')
+      }
       wrapper.unmount()
     }
   })

@@ -160,6 +160,15 @@ const pianoDefinition = {
     soundType: 'synth-piano'
 }
 
+const pipaDefinition = {
+    id: 'pipa',
+    label: '琵琶',
+    strings: [],
+    tuningPresets: [],
+    sampleManifest: [],
+    soundType: 'synth-plucked'
+}
+
 test('nearest sample prioritizes pitch and then velocity layer', () => {
     const samples = instrumentDefinition.sampleManifest.samples
     assert.equal(selectNearestSample(samples, 61, 0.95).id, 'c4-hard')
@@ -260,6 +269,33 @@ test('合成钢琴无需下载采样即可加载，并以泛音振荡器演奏�
     engine.dampString({instrumentId: 'piano', stringId: 'key-60'})
     assert.equal(engine.voiceCount, 0)
     assert.equal(context.oscillators[0].stoppedAt, context.currentTime + 0.02)
+})
+
+test('合成琵琶无需下载采样即可产生短衰减弹拨音色', async () => {
+    const context = new FakeAudioContext()
+    let fetchCount = 0
+    const engine = new InstrumentAudioEngine({
+        contextFactory: () => context,
+        fetchImpl: async () => {
+            fetchCount += 1
+            throw new Error('合成琵琶不应请求外部采样')
+        }
+    })
+
+    assert.equal(await engine.loadInstrument(pipaDefinition), true)
+    assert.equal(await engine.unlock(), true)
+    const voiceId = engine.playNote({
+        instrumentId: 'pipa',
+        stringId: 'string-1',
+        midi: 45,
+        velocity: 0.8
+    })
+
+    assert.ok(voiceId)
+    assert.equal(fetchCount, 0)
+    assert.equal(context.oscillators.length, 4)
+    assert.equal(context.oscillators[0].type, 'triangle')
+    assert.ok(context.oscillators[0].stoppedAt < context.currentTime + 1)
 })
 
 test('failed background prefetch does not replace the active instrument status', async () => {

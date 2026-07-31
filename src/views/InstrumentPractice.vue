@@ -29,22 +29,48 @@
         </div>
       </div>
 
-      <nav class="instrument-switcher" aria-label="选择乐器">
+      <nav class="instrument-carousel" aria-label="选择乐器">
         <button
-          v-for="instrument in instrumentOptions"
-          :key="instrument.id"
+          class="instrument-slide-button previous"
           type="button"
-          :class="{selected: currentInstrumentId === instrument.id}"
-          :aria-current="currentInstrumentId === instrument.id ? 'page' : undefined"
-          @click="selectInstrument(instrument.id)"
+          aria-label="切换到上一件乐器"
+          @click="selectAdjacentInstrument(-1)"
         >
-          <span class="instrument-glyph" :class="`glyph-${instrument.id}`" aria-hidden="true"/>
-          {{ instrument.label }}
-          <span
-            v-if="audio.loadedInstrumentIds.value.includes(instrument.id)"
-            class="loaded-dot"
-            aria-label="采样已就绪"
-          />
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg>
+        </button>
+        <div
+          ref="instrumentSwitcherRef"
+          class="instrument-switcher"
+          role="group"
+          aria-label="乐器列表，可左右滑动切换"
+          @touchstart.passive="onInstrumentSwipeStart"
+          @touchend.passive="onInstrumentSwipeEnd"
+        >
+          <button
+            v-for="instrument in instrumentOptions"
+            :key="instrument.id"
+            type="button"
+            :data-instrument-id="instrument.id"
+            :class="{selected: currentInstrumentId === instrument.id}"
+            :aria-current="currentInstrumentId === instrument.id ? 'page' : undefined"
+            @click="selectInstrument(instrument.id)"
+          >
+            <span class="instrument-glyph" :class="`glyph-${instrument.id}`" aria-hidden="true"/>
+            {{ instrument.label }}
+            <span
+              v-if="audio.loadedInstrumentIds.value.includes(instrument.id)"
+              class="loaded-dot"
+              aria-label="采样已就绪"
+            />
+          </button>
+        </div>
+        <button
+          class="instrument-slide-button next"
+          type="button"
+          aria-label="切换到下一件乐器"
+          @click="selectAdjacentInstrument(1)"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6"/></svg>
         </button>
       </nav>
 
@@ -450,7 +476,7 @@
 </template>
 
 <script setup>
-import {computed, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 
 import MacDialog from '@/components/MacDialog.vue'
@@ -486,6 +512,7 @@ import {
 } from '@/features/instrument-practice/score/numberedScore.js'
 
 const NOTICE_DURATION_MS = 2600
+const INSTRUMENT_SWIPE_THRESHOLD_PX = 42
 const meterOptions = Object.freeze(['2/4', '3/4', '4/4', '6/8'])
 const router = useRouter()
 const audio = useInstrumentAudio()
@@ -493,6 +520,7 @@ const metronome = useMetronome({engine: audio.engine})
 const recorder = useSessionRecorder({engine: audio.engine})
 
 const currentInstrumentId = ref('guzheng')
+const instrumentSwitcherRef = ref(null)
 const tremoloActive = ref(false)
 const takesDialogVisible = ref(false)
 const settingsDialogVisible = ref(false)
@@ -512,11 +540,13 @@ const tuningIds = reactive({
   guzheng: 'd-pentatonic',
   guitar: 'standard',
   ukulele: 'high-g',
+  pipa: 'standard-adea',
   piano: 'concert-pitch'
 })
 const modes = reactive({
   guitar: 'chord',
-  ukulele: 'chord'
+  ukulele: 'chord',
+  pipa: 'fret'
 })
 const chordIds = reactive({
   guitar: 'c-major',
@@ -574,6 +604,45 @@ let noticeTimerId = null
 let mediaPreference = null
 let compactLandscapePreference = null
 let instrumentSwitchToken = 0
+let instrumentSwipeStartX = null
+
+function centerCurrentInstrument(behavior = 'smooth') {
+  void nextTick(() => {
+    const switcher = instrumentSwitcherRef.value
+    const selectedButton = switcher?.querySelector?.(`[data-instrument-id="${currentInstrumentId.value}"]`)
+    if (!switcher || !selectedButton || typeof switcher.scrollTo !== 'function') {
+      return
+    }
+    switcher.scrollTo({
+      left: selectedButton.offsetLeft - (switcher.clientWidth - selectedButton.clientWidth) / 2,
+      behavior: reducedMotion.value ? 'auto' : behavior
+    })
+  })
+}
+
+function selectAdjacentInstrument(offset) {
+  const currentIndex = instrumentOptions.findIndex((instrument) => instrument.id === currentInstrumentId.value)
+  const nextIndex = (currentIndex + offset + instrumentOptions.length) % instrumentOptions.length
+  void selectInstrument(instrumentOptions[nextIndex].id)
+}
+
+function onInstrumentSwipeStart(event) {
+  instrumentSwipeStartX = event.touches?.[0]?.clientX ?? null
+}
+
+function onInstrumentSwipeEnd(event) {
+  const endX = event.changedTouches?.[0]?.clientX
+  if (!Number.isFinite(instrumentSwipeStartX) || !Number.isFinite(endX)) {
+    instrumentSwipeStartX = null
+    return
+  }
+  const swipeDistance = endX - instrumentSwipeStartX
+  instrumentSwipeStartX = null
+  if (Math.abs(swipeDistance) < INSTRUMENT_SWIPE_THRESHOLD_PX) {
+    return
+  }
+  selectAdjacentInstrument(swipeDistance < 0 ? 1 : -1)
+}
 
 function showNotice(message) {
   noticeMessage.value = message
@@ -622,6 +691,7 @@ async function selectInstrument(instrumentId, {announce = true} = {}) {
   audio.stopAll()
   tremoloActive.value = false
   currentInstrumentId.value = instrumentId
+  centerCurrentInstrument()
   const loaded = await prepareInstrument(instrumentId)
   if (switchToken !== instrumentSwitchToken) {
     return false
@@ -1153,19 +1223,65 @@ button {
   height: 1.3rem;
 }
 
-.instrument-switcher {
+.instrument-carousel {
   justify-self: center;
+  width: min(33rem, 50vw);
+  min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(5.25rem, 1fr));
+  grid-template-columns: 2.35rem minmax(0, 1fr) 2.35rem;
+  align-items: stretch;
+  gap: 0.22rem;
+}
+
+.instrument-switcher {
+  min-width: 0;
+  display: flex;
+  overflow: hidden;
   padding: 0.22rem;
   background: rgba(1, 9, 15, 0.48);
   border: 1px solid rgba(178, 222, 235, 0.12);
   border-radius: 1rem;
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.05);
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  touch-action: pan-y;
+}
+
+.instrument-switcher::-webkit-scrollbar {
+  display: none;
+}
+
+.instrument-slide-button {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: rgba(224, 236, 243, 0.7);
+  background: rgba(1, 9, 15, 0.48);
+  border: 1px solid rgba(178, 222, 235, 0.12);
+  border-radius: 0.85rem;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.05);
+  transition: color 120ms ease, background-color 120ms ease, transform 100ms ease-out;
+}
+
+.instrument-slide-button svg {
+  width: 1.05rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.instrument-slide-button:active {
+  color: var(--practice-cyan);
+  background: rgba(96, 230, 238, 0.13);
+  transform: scale(0.94);
 }
 
 .instrument-switcher button {
   position: relative;
+  flex: 1 0 5.25rem;
   min-height: 2.65rem;
   display: flex;
   align-items: center;
@@ -1223,7 +1339,8 @@ button {
 }
 
 .glyph-guitar::before,
-.glyph-ukulele::before {
+.glyph-ukulele::before,
+.glyph-pipa::before {
   width: 0.62rem;
   height: 0.74rem;
   left: 0;
@@ -1234,7 +1351,8 @@ button {
 }
 
 .glyph-guitar::after,
-.glyph-ukulele::after {
+.glyph-ukulele::after,
+.glyph-pipa::after {
   width: 0.62rem;
   height: 1px;
   right: 0;
@@ -1246,6 +1364,17 @@ button {
 
 .glyph-ukulele {
   transform: scale(0.84);
+}
+
+.glyph-pipa::before {
+  height: 0.8rem;
+  border-radius: 48% 48% 58% 58% / 38% 38% 68% 68%;
+  transform: rotate(-12deg);
+}
+
+.glyph-pipa::after {
+  width: 0.5rem;
+  transform: rotate(-71deg);
 }
 
 .glyph-piano::before {
@@ -2023,6 +2152,10 @@ button {
   }
 
   .instrument-switcher {
+    width: auto;
+  }
+
+  .instrument-carousel {
     grid-column: 1 / -1;
     grid-row: 2;
     width: 100%;
@@ -2045,11 +2178,8 @@ button {
     display: none;
   }
 
-  .instrument-switcher {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
   .instrument-switcher button {
+    flex-basis: 4.85rem;
     padding-inline: 0.3rem;
   }
 
@@ -2098,10 +2228,10 @@ button {
     will-change: transform, opacity;
   }
 
-  .instrument-switcher {
+  .instrument-carousel {
     grid-column: auto;
     grid-row: auto;
-    width: auto;
+    width: min(25rem, 48vw);
   }
 
   .page-identity p,
@@ -2109,12 +2239,13 @@ button {
     display: none;
   }
 
-  .instrument-switcher {
-    grid-template-columns: repeat(4, minmax(3.75rem, 1fr));
+  .instrument-switcher button {
+    flex-basis: 3.75rem;
+    min-height: 2.35rem;
   }
 
-  .instrument-switcher button {
-    min-height: 2.35rem;
+  .instrument-carousel {
+    grid-template-columns: 2rem minmax(0, 1fr) 2rem;
   }
 
   .audio-status {
@@ -2348,6 +2479,7 @@ button {
 }
 
 :root[data-theme="light"] .instrument-practice-page .instrument-switcher,
+:root[data-theme="light"] .instrument-practice-page .instrument-slide-button,
 :root[data-theme="light"] .instrument-practice-page .mode-switch,
 :root[data-theme="light"] .instrument-practice-page .tuning-switch,
 :root[data-theme="light"] .instrument-practice-page .bank-switch {
@@ -2356,6 +2488,7 @@ button {
 }
 
 :root[data-theme="light"] .instrument-practice-page .instrument-switcher button,
+:root[data-theme="light"] .instrument-practice-page .instrument-slide-button,
 :root[data-theme="light"] .instrument-practice-page .mode-switch button,
 :root[data-theme="light"] .instrument-practice-page .tuning-switch button,
 :root[data-theme="light"] .instrument-practice-page .bank-switch button {

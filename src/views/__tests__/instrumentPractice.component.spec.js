@@ -177,7 +177,7 @@ afterEach(() => {
 })
 
 describe('随身乐器页面流程', () => {
-  it('默认准备古筝并可切换至吉他或钢琴演奏面', async () => {
+  it('默认准备古筝并可切换至吉他、琵琶或钢琴演奏面', async () => {
     const wrapper = mountPage()
     await flushPromises()
 
@@ -187,6 +187,7 @@ describe('随身乐器页面流程', () => {
       .toHaveBeenCalledWith([
         expect.objectContaining({id: 'guitar'}),
         expect.objectContaining({id: 'ukulele'}),
+        expect.objectContaining({id: 'pipa'}),
         expect.objectContaining({id: 'piano'})
       ])
 
@@ -200,10 +201,37 @@ describe('随身乐器页面流程', () => {
 
     await wrapper.get('.instrument-switcher button:nth-child(4)').trigger('click')
     await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('琵琶')
+    expect(wrapper.find('[data-test="fretted-surface"]').exists()).toBe(true)
+    expect(__instrumentPracticeMocks.audio.prepareInstrument)
+      .toHaveBeenLastCalledWith(expect.objectContaining({id: 'pipa'}))
+
+    await wrapper.get('.instrument-switcher button:nth-child(5)').trigger('click')
+    await flushPromises()
     expect(wrapper.get('h1').text()).toBe('钢琴')
     expect(wrapper.find('[data-test="piano-surface"]').exists()).toBe(true)
     expect(__instrumentPracticeMocks.audio.prepareInstrument)
       .toHaveBeenLastCalledWith(expect.objectContaining({id: 'piano'}))
+    wrapper.unmount()
+  })
+
+  it('乐器轨道保持单行，并支持两端按钮与移动端横滑切换', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('button[aria-label="切换到下一件乐器"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('吉他')
+
+    await wrapper.get('button[aria-label="切换到上一件乐器"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('古筝')
+
+    const switcher = wrapper.get('.instrument-switcher')
+    await switcher.trigger('touchstart', {touches: [{clientX: 240}]})
+    await switcher.trigger('touchend', {changedTouches: [{clientX: 160}]})
+    await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('吉他')
     wrapper.unmount()
   })
 
@@ -383,7 +411,7 @@ describe('随身乐器页面流程', () => {
     await flushPromises()
 
     await wrapper.get('button[aria-label="打开简谱自动演奏"]').trigger('click')
-    await wrapper.get('.instrument-card-grid button:nth-child(4)').trigger('click')
+    await wrapper.get('.instrument-card-grid button:nth-child(5)').trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper.get('.start-score-button').trigger('click')
     await flushPromises()

@@ -48,6 +48,13 @@ here so the assets remain auditable.
   harmonic partials at runtime. This avoids adding a copyright-bearing piano
   sample library while retaining low-latency touch response.
 
+## Pipa
+
+- Source: native Web Audio oscillator synthesis; no downloaded or embedded
+  audio asset is used.
+- Processing: each pluck combines a triangle fundamental with short, rapidly
+  decaying harmonic partials to produce a bright four-string attack.
+
 The listed sample processing was performed with FFmpeg 8.1.1. Runtime volume,
-pitch variation, and the piano synthesis are applied non-destructively through
+pitch variation, and the synthesized tones are applied non-destructively through
 the Web Audio API.

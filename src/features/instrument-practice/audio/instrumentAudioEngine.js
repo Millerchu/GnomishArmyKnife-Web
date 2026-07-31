@@ -11,6 +11,8 @@ const DEFAULT_MAX_VOICES_PER_STRING = 2
 const DEFAULT_FADE_SECONDS = 0.02
 const ATTACK_SECONDS = 0.005
 const SYNTH_PIANO_SOUND_TYPE = 'synth-piano'
+const SYNTH_PLUCKED_SOUND_TYPE = 'synth-plucked'
+const SYNTH_SOUND_TYPES = new Set([SYNTH_PIANO_SOUND_TYPE, SYNTH_PLUCKED_SOUND_TYPE])
 const SYNTH_PIANO_PARTIALS = Object.freeze([
     {ratio: 1, gain: 1},
     {ratio: 2, gain: 0.22},
@@ -19,6 +21,14 @@ const SYNTH_PIANO_PARTIALS = Object.freeze([
 ])
 const SYNTH_PIANO_MIN_DECAY_SECONDS = 1.35
 const SYNTH_PIANO_MAX_DECAY_SECONDS = 2.8
+const SYNTH_PLUCKED_PARTIALS = Object.freeze([
+    {ratio: 1, gain: 1, type: 'triangle'},
+    {ratio: 2, gain: 0.34, type: 'sine'},
+    {ratio: 3, gain: 0.16, type: 'sine'},
+    {ratio: 5, gain: 0.07, type: 'sine'}
+])
+const SYNTH_PLUCKED_MIN_DECAY_SECONDS = 0.48
+const SYNTH_PLUCKED_MAX_DECAY_SECONDS = 0.92
 
 function createBrowserAudioContext(options) {
     const AudioContextConstructor = globalThis.AudioContext || globalThis.webkitAudioContext
@@ -223,7 +233,7 @@ export class InstrumentAudioEngine {
         const instrumentId = definition?.id
         const samples = normalizeSampleManifest(definition?.sampleManifest)
         const soundType = definition?.soundType || 'sample'
-        if (!instrumentId || (soundType !== SYNTH_PIANO_SOUND_TYPE && samples.length === 0)) {
+        if (!instrumentId || (!SYNTH_SOUND_TYPES.has(soundType) && samples.length === 0)) {
             throw new Error('乐器采样配置不完整')
         }
         if (this.instrumentBuffers.has(instrumentId)) {
@@ -254,7 +264,7 @@ export class InstrumentAudioEngine {
                 samples
             }
         }
-        const loadPromise = soundType === SYNTH_PIANO_SOUND_TYPE
+        const loadPromise = SYNTH_SOUND_TYPES.has(soundType)
             ? this._loadSynthInstrument(definition)
             : this._loadInstrumentSamples(normalizedDefinition)
         this.instrumentLoadPromises.set(instrumentId, loadPromise)
@@ -357,6 +367,17 @@ export class InstrumentAudioEngine {
         const definition = this.instrumentDefinitions.get(instrumentId)
         if (definition?.soundType === SYNTH_PIANO_SOUND_TYPE) {
             return this._playSynthPianoNote({
+                instrumentId,
+                stringId,
+                midi,
+                velocity,
+                damped,
+                when,
+                durationSeconds
+            })
+        }
+        if (definition?.soundType === SYNTH_PLUCKED_SOUND_TYPE) {
+            return this._playSynthPluckedNote({
                 instrumentId,
                 stringId,
                 midi,
@@ -477,6 +498,90 @@ export class InstrumentAudioEngine {
                         oscillator.stop(nextStopAt)
                     } catch {
                         // OscillatorNode 可能已自然结束，重复 stop 不影响其他声部。
+                    }
+                })
+            }
+        }
+        const voice = {
+            id: `voice-${++this.voiceSequence}`,
+            source,
+            gainNode: voiceGain,
+            instrumentId,
+            stringId,
+            startedAt: startAt,
+            peakGain,
+            stopping: false
+        }
+        oscillators[0].onended = () => this._removeVoice(voice.id)
+        this.activeVoices.push(voice)
+        oscillators.forEach((oscillator) => oscillator.start(startAt))
+        source.stop(stopAt)
+        return voice.id
+    }
+
+    /**
+     * 以快速起音、高次泛音和短衰减模拟琵琶清脆的拨弦瞬态。
+     */
+    _playSynthPluckedNote({
+        instrumentId,
+        stringId,
+        midi,
+        velocity = 0.7,
+        damped = false,
+        when,
+        durationSeconds
+    }) {
+        if (typeof this.context?.createOscillator !== 'function') {
+            return null
+        }
+
+        const startAt = Math.max(this.currentTime, Number(when) || this.currentTime)
+        const normalizedVelocity = clamp(velocity, 0.02, 1)
+        const requestedDuration = damped
+            ? Math.min(Number(durationSeconds) || 0.08, 0.1)
+            : Number(durationSeconds)
+        const naturalDecay = SYNTH_PLUCKED_MIN_DECAY_SECONDS
+            + (SYNTH_PLUCKED_MAX_DECAY_SECONDS - SYNTH_PLUCKED_MIN_DECAY_SECONDS) * normalizedVelocity
+        const releaseAt = Number.isFinite(requestedDuration) && requestedDuration > 0
+            ? Math.min(startAt + requestedDuration, startAt + naturalDecay)
+            : startAt + naturalDecay
+        const stopAt = releaseAt + this.fadeSeconds
+        this._makeVoiceCapacity(instrumentId, stringId, startAt)
+        const voiceGain = this.context.createGain()
+        const peakGain = normalizedVelocity * 0.42
+        const oscillators = SYNTH_PLUCKED_PARTIALS.map(({ratio, gain, type}) => {
+            const oscillator = this.context.createOscillator()
+            const partialGain = this.context.createGain()
+            oscillator.type = type
+            setAudioParamValue(oscillator.frequency, midiToFrequency(midi) * ratio, startAt)
+            setAudioParamValue(partialGain.gain, gain, startAt)
+            oscillator.connect(partialGain)
+            partialGain.connect(voiceGain)
+            return oscillator
+        })
+
+        setAudioParamValue(voiceGain.gain, 0, startAt)
+        rampAudioParam(voiceGain.gain, peakGain, startAt + 0.002)
+        if (typeof voiceGain.gain?.exponentialRampToValueAtTime === 'function') {
+            voiceGain.gain.exponentialRampToValueAtTime(0.0001, releaseAt)
+        } else {
+            rampAudioParam(voiceGain.gain, 0, releaseAt)
+        }
+        voiceGain.connect(this.instrumentBus)
+
+        let scheduledStopAt = Number.POSITIVE_INFINITY
+        const source = {
+            stop: (stopTime) => {
+                const nextStopAt = Number(stopTime)
+                if (!Number.isFinite(nextStopAt) || nextStopAt >= scheduledStopAt) {
+                    return
+                }
+                scheduledStopAt = nextStopAt
+                oscillators.forEach((oscillator) => {
+                    try {
+                        oscillator.stop(nextStopAt)
+                    } catch {
+                        // 已自然结束的振荡器无需再次停止。
                     }
                 })
             }
