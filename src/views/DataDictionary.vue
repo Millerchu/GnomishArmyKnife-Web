@@ -38,7 +38,12 @@
         </label>
         <label class="field-item">
           <span>引用应用</span>
-          <GlassSelect v-model="filters.referenceApp" :options="referenceAppSelectOptions" :disabled="loading"/>
+          <input
+            v-model.trim="filters.referenceApp"
+            placeholder="输入应用名称，如 工作日志"
+            :disabled="loading"
+            @keyup.enter="searchDictionaries"
+          />
         </label>
       </div>
       <div class="filter-actions">
@@ -625,14 +630,6 @@ export default {
       return dictionaries.value.find((item) => item.id === selectedDictionaryId.value) || null
     })
 
-    const referenceAppOptions = computed(() => {
-      const set = new Set()
-      dictionaries.value.forEach((item) => {
-        item.referenceApps.forEach((app) => set.add(app))
-      })
-      return Array.from(set)
-    })
-
     const statusFilterOptions = [
       {label: '全部', value: ''},
       {label: '启用', value: 'ENABLED'},
@@ -660,11 +657,6 @@ export default {
       {label: '20 条/页', value: 20},
       {label: '50 条/页', value: 50}
     ]
-
-    const referenceAppSelectOptions = computed(() => [
-      {label: '全部', value: ''},
-      ...referenceAppOptions.value.map((item) => ({label: item, value: item}))
-    ])
 
     const formatApps = (apps) => {
       return apps && apps.length ? apps.join('、') : '-'
@@ -1054,8 +1046,6 @@ export default {
       filters,
       pagination,
       pageCount,
-      referenceAppOptions,
-      referenceAppSelectOptions,
       statusFilterOptions,
       statusOptions,
       scopeFilterOptions,
