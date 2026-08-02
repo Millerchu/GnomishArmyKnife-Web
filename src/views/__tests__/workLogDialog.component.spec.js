@@ -717,6 +717,47 @@ describe('WorkLog MacDialog integration', () => {
     expect(document.body.querySelector('.work-log-day-detail-dialog')).not.toBeNull()
   })
 
+  it('shows de-duplicated zentao numbers only on populated weekly day cards', async () => {
+    const currentDate = new Date()
+    const logDate = [
+      currentDate.getFullYear(),
+      `${currentDate.getMonth() + 1}`.padStart(2, '0'),
+      `${currentDate.getDate()}`.padStart(2, '0')
+    ].join('-')
+    listWorkLogs.mockResolvedValue(buildApiResponse([
+      {
+        id: 940,
+        userId: '1001',
+        logDate,
+        typeCodes: ['NORMAL'],
+        location: 'OFFICE',
+        projectCode: 'PROJECT_ALPHA',
+        workItem: '接口联调',
+        zentaoNo: 'ZEN-201, ZEN-202',
+        personDay: 0.5,
+        overtimeHours: 0
+      },
+      {
+        id: 941,
+        userId: '1001',
+        logDate,
+        typeCodes: ['NORMAL'],
+        location: 'OFFICE',
+        projectCode: 'PROJECT_ALPHA',
+        workItem: '回归测试',
+        zentaoNo: 'ZEN-202，ZEN-203',
+        personDay: 0.5,
+        overtimeHours: 0
+      }
+    ]))
+
+    const wrapper = await mountWorkLog()
+    const dailyZentaoSummaries = wrapper.findAll('.daily-zentao-summary')
+
+    expect(dailyZentaoSummaries).toHaveLength(1)
+    expect(dailyZentaoSummaries[0].text()).toBe('禅道：ZEN-201、ZEN-202、ZEN-203')
+  })
+
   it('builds a de-duplicated weekly report by project and hides it in month view', async () => {
     listWorkLogs.mockResolvedValue(buildApiResponse([
       {
@@ -727,6 +768,7 @@ describe('WorkLog MacDialog integration', () => {
         location: 'OFFICE',
         projectCode: 'PROJECT_ALPHA',
         workItem: '需求梳理\n接口开发',
+        zentaoNo: 'ZEN-101, ZEN-102',
         personDay: 0.5,
         overtimeHours: 0
       },
@@ -738,6 +780,7 @@ describe('WorkLog MacDialog integration', () => {
         location: 'OFFICE',
         projectCode: 'PROJECT_ALPHA',
         workItem: '1. 接口开发\n2. 单元测试',
+        zentaoNo: 'ZEN-102，ZEN-103',
         personDay: 0.5,
         overtimeHours: 0
       }
@@ -749,6 +792,8 @@ describe('WorkLog MacDialog integration', () => {
     expect(report.exists()).toBe(true)
     expect(wrapper.text()).not.toContain('当前状态')
     expect(report.find('.weekly-report-project h3').text()).toBe('项目 Alpha')
+    expect(report.find('.weekly-report-person-day').text()).toBe('共 1 人天')
+    expect(report.find('.weekly-report-zentao').text()).toBe('禅道：ZEN-101、ZEN-102、ZEN-103')
     expect(report.findAll('.weekly-report-project li').map((item) => item.text())).toEqual([
       '需求梳理;',
       '接口开发;',

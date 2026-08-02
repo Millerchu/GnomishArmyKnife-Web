@@ -103,24 +103,28 @@ test('buildWeeklyReportGroups groups projects chronologically and removes duplic
       logDate: '2026-07-10',
       projectCode: 'B',
       personDay: 0.5,
+      zentaoNo: 'ZEN-3',
       workItem: '1. 联调接口\n2、回归测试'
     },
     {
       logDate: '2026-07-08',
       projectCode: 'A',
       personDay: 0.5,
+      zentaoNo: 'ZEN-1, ZEN-2',
       workItem: '需求梳理\n接口开发'
     },
     {
       logDate: '2026-07-09',
       projectCode: 'A',
       personDay: 0.5,
+      zentaoNo: 'ZEN-2，ZEN-4',
       workItem: '1. 接口开发\n2. 单元测试'
     },
     {
       logDate: '2026-07-11',
       projectCode: null,
       personDay: 0.5,
+      zentaoNo: '   ',
       workItem: '历史日志整理'
     },
     {
@@ -135,16 +139,22 @@ test('buildWeeklyReportGroups groups projects chronologically and removes duplic
     {
       projectCode: 'A',
       projectText: 'A 项目',
+      personDayTotal: 1,
+      zentaoNos: ['ZEN-1', 'ZEN-2', 'ZEN-4'],
       items: ['需求梳理', '接口开发', '单元测试']
     },
     {
       projectCode: 'B',
       projectText: 'B 项目',
+      personDayTotal: 0.5,
+      zentaoNos: ['ZEN-3'],
       items: ['联调接口', '回归测试']
     },
     {
       projectCode: 'NO_PROJECT',
       projectText: '未关联项目',
+      personDayTotal: 0.5,
+      zentaoNos: [],
       items: ['历史日志整理']
     }
   ])
@@ -162,6 +172,7 @@ test('buildWeeklyReportGroups excludes zero person-day logs', () => {
       logDate: '2026-07-09',
       projectCode: 'A',
       personDay: 0,
+      zentaoNo: 'ZEN-ZERO',
       workItem: '零人天工作内容'
     },
     {
@@ -176,6 +187,8 @@ test('buildWeeklyReportGroups excludes zero person-day logs', () => {
     {
       projectCode: 'A',
       projectText: 'A 项目',
+      personDayTotal: 0.5,
+      zentaoNos: [],
       items: ['有效工作内容']
     }
   ])
@@ -204,15 +217,17 @@ test('mergeLogsByIdentity keeps multiple projects on the same date and removes d
   assert.deepEqual(result.map((item) => item.id), [11, 12])
 })
 
-test('buildDateSummaryMap exposes colored type entries and de-duplicated daily work content', () => {
+test('buildDateSummaryMap exposes colored type entries and de-duplicated daily work and zentao content', () => {
   const result = buildDateSummaryMap([
-    {date: '2026-07-10'}
+    {date: '2026-07-10'},
+    {date: '2026-07-11'}
   ], [
     {
       id: 11,
       logDate: '2026-07-10',
       typeCodes: ['NORMAL', 'OVERTIME'],
       projectCode: 'GAK',
+      zentaoNo: 'ZEN-101, ZEN-102',
       workItem: '1. 完成接口联调\n2. 补充回归测试',
       personDay: 0.5,
       overtimeHours: 2
@@ -222,6 +237,7 @@ test('buildDateSummaryMap exposes colored type entries and de-duplicated daily w
       logDate: '2026-07-10',
       typeCodes: ['NORMAL'],
       projectCode: 'CLIENT',
+      zentaoNo: 'ZEN-102， ZEN-103, ,',
       workItem: '完成接口联调\n整理上线清单',
       personDay: 0.5,
       overtimeHours: 0
@@ -237,6 +253,8 @@ test('buildDateSummaryMap exposes colored type entries and de-duplicated daily w
   ])
   assert.equal(result['2026-07-10'].projectsText, 'GAK、CLIENT')
   assert.equal(result['2026-07-10'].personDayTotal, 1)
+  assert.deepEqual(result['2026-07-10'].zentaoNos, ['ZEN-101', 'ZEN-102', 'ZEN-103'])
+  assert.deepEqual(result['2026-07-11'].zentaoNos, [])
   assert.deepEqual(result['2026-07-10'].workItems, [
     '完成接口联调',
     '补充回归测试',

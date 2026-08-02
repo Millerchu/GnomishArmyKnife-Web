@@ -98,6 +98,13 @@ export function parseWorkItemEntries(value) {
     .filter(Boolean)
 }
 
+function parseZentaoNos(value) {
+  return String(value || '')
+    .split(/[,，]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 export function serializeWorkItemEntries(entries = []) {
   return entries
     .map((item) => String(item || '').trim())
@@ -176,12 +183,23 @@ export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) =
       projectMap.set(projectCode, {
         projectCode,
         projectText: projectCode === 'NO_PROJECT' ? '未关联项目' : formatProjectText(projectCode),
+        personDayTotal: 0,
+        zentaoNos: [],
         items: [],
+        zentaoSet: new Set(),
         itemSet: new Set()
       })
     }
 
     const project = projectMap.get(projectCode)
+    project.personDayTotal += toNumber(item?.personDay, 0)
+    parseZentaoNos(item?.zentaoNo).forEach((zentaoNo) => {
+      if (project.zentaoSet.has(zentaoNo)) {
+        return
+      }
+      project.zentaoSet.add(zentaoNo)
+      project.zentaoNos.push(zentaoNo)
+    })
     parseWorkItemEntries(item?.workItem).forEach((workItem) => {
       if (project.itemSet.has(workItem)) {
         return
@@ -193,7 +211,7 @@ export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) =
 
   return Array.from(projectMap.values())
     .filter((project) => project.items.length > 0)
-    .map(({itemSet, ...project}) => project)
+    .map(({itemSet, zentaoSet, ...project}) => project)
 }
 
 export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {
@@ -223,8 +241,17 @@ export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {
     const list = groupedLogs[day.date] || []
     const typeMap = new Map()
     const workItemSet = new Set()
+    const zentaoSet = new Set()
+    const zentaoNos = []
     list.forEach((item) => {
       parseWorkItemEntries(item.workItem).forEach((workItem) => workItemSet.add(workItem))
+      parseZentaoNos(item.zentaoNo).forEach((zentaoNo) => {
+        if (zentaoSet.has(zentaoNo)) {
+          return
+        }
+        zentaoSet.add(zentaoNo)
+        zentaoNos.push(zentaoNo)
+      })
       const codes = Array.isArray(item.typeCodes) ? item.typeCodes : []
       const formattedTypes = formatTypeEntryList(codes)
       codes.forEach((code, index) => {
@@ -245,6 +272,7 @@ export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {
       inCurrentMonth: Boolean(day.inCurrentMonth),
       types: Array.from(typeMap.values()),
       workItems: Array.from(workItemSet),
+      zentaoNos,
       projectsText: joinUniqueValues(list.map((item) => formatProjectText(item.projectCode)).filter((item) => item && item !== '-')),
       personDayTotal: list.reduce((total, item) => total + toNumber(item.personDay, 0), 0),
       overtimeHoursTotal: list.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0),

@@ -114,7 +114,14 @@
           :key="group.projectCode"
           class="weekly-report-project"
         >
-          <h3>{{ group.projectText }}</h3>
+          <div class="weekly-report-project-head">
+            <h3>{{ group.projectText }}</h3>
+            <span class="weekly-report-person-day">共 {{ formatPersonDayText(group.personDayTotal) }}</span>
+          </div>
+          <p class="weekly-report-zentao">
+            <strong>禅道：</strong>
+            <span>{{ group.zentaoNos.length ? group.zentaoNos.join('、') : '暂无' }}</span>
+          </p>
           <ol>
             <li v-for="workItem in group.items" :key="workItem"><span>{{ workItem }}</span><b>;</b></li>
           </ol>
@@ -204,6 +211,9 @@
               />
             </div>
             <p class="summary-projects">{{ daySummaryMap[day.date].projectsText }}</p>
+            <p v-if="daySummaryMap[day.date].zentaoNos.length" class="daily-zentao-summary">
+              禅道：{{ daySummaryMap[day.date].zentaoNos.join('、') }}
+            </p>
             <div class="daily-work-summary">
               <div class="daily-work-summary-head">
                 <span>工作内容</span>
@@ -2556,10 +2566,41 @@ export default {
 }
 
 .weekly-report-project h3 {
-  margin: 0 0 10px;
+  margin: 0;
   color: #d6efff;
   font-size: 15px;
   line-height: 1.4;
+}
+
+.weekly-report-project-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.weekly-report-person-day {
+  flex: 0 0 auto;
+  color: rgba(184, 225, 255, 0.86);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.weekly-report-zentao {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 10px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.weekly-report-zentao strong {
+  flex: 0 0 auto;
+  font-weight: 600;
 }
 
 .weekly-report-project ol {
@@ -3768,12 +3809,17 @@ export default {
 
 .weekly-report-project h3,
 .weekly-report-project ol,
+.weekly-report-zentao,
 .summary-projects,
 .summary-metric strong,
 .detail-work-list,
 .mobile-log-work,
 .table-work-list {
   color: var(--theme-text-soft);
+}
+
+.weekly-report-person-day {
+  color: var(--theme-link);
 }
 
 .weekly-report-project li b {
@@ -3824,6 +3870,14 @@ export default {
   padding: 9px 0;
   border-top: 1px solid var(--theme-divider);
   border-bottom: 1px solid var(--theme-divider);
+}
+
+.daily-zentao-summary {
+  margin: -2px 0 2px;
+  color: var(--theme-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .daily-work-summary-head {
