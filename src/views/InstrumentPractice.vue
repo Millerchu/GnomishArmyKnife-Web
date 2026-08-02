@@ -319,7 +319,7 @@
     <MacDialog
       v-model="takesDialogVisible"
       :title="`${currentDefinition.label}练习片段`"
-      :subtitle="`仅显示${currentDefinition.label}录音；最多保留 10 段`"
+      :subtitle="`仅显示${currentDefinition.label}录音；最多保留 ${MAX_PERSISTED_TAKES_PER_INSTRUMENT} 段`"
       width="560px"
       mobile-presentation="sheet"
       :confirm-on-dirty="false"
@@ -744,7 +744,7 @@ async function toggleRecording() {
   }
   if (currentInstrumentTakeCount.value >= MAX_PERSISTED_TAKES_PER_INSTRUMENT) {
     const confirmed = await confirmDialog(
-      `${currentDefinition.value.label}已保存 10 段练习。继续录制并保存后，最旧的一段将被覆盖。`,
+      `${currentDefinition.value.label}已保存 ${MAX_PERSISTED_TAKES_PER_INSTRUMENT} 段练习。继续录制并保存后，最旧的一段将被覆盖。`,
       {
         title: '覆盖最旧练习片段？',
         tone: 'warning',
