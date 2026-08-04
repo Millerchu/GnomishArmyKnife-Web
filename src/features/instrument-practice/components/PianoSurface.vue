@@ -374,7 +374,10 @@ onBeforeUnmount(() => {
   border-radius: 1.3rem;
   background:
     radial-gradient(circle at 50% -40%, rgba(96, 230, 238, 0.2), transparent 55%),
-    linear-gradient(140deg, #162b36, #08141c 47%, #020608);
+    linear-gradient(180deg, rgba(2, 8, 12, 0.22), rgba(2, 8, 12, 0.06)),
+    url('/instrument-backgrounds/piano-studio.png');
+  background-position: center;
+  background-size: cover;
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.12),
     inset 0 -1.5rem 2.6rem rgba(0, 0, 0, 0.6),
