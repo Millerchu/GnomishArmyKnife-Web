@@ -604,6 +604,29 @@
             <div v-else class="empty-inline keybinding-empty">还没有键位方案</div>
           </section>
 
+          <section class="dialog-block">
+            <div class="dialog-block-head">
+              <div>
+                <h4 class="dialog-block-title">角色专用宏</h4>
+                <p class="dialog-block-tip">与当前角色绑定的宏命令，保存后可随时打开复制到游戏内。</p>
+              </div>
+              <button type="button" class="ghost-btn" @click="openMacroDialog()">新增宏</button>
+            </div>
+            <div v-if="form.macros.length" class="keybinding-list">
+              <div v-for="(item, index) in form.macros" :key="item.localKey" class="keybinding-row">
+                <div>
+                  <strong>{{ item.macroName }}</strong>
+                  <span class="saved">已保存宏内容</span>
+                </div>
+                <div class="keybinding-actions">
+                  <button type="button" class="mini-btn" @click="openMacroDialog(item)">编辑 / 复制</button>
+                  <button type="button" class="mini-btn danger" @click="removeMacro(index)">删除</button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-inline keybinding-empty">还没有角色专用宏</div>
+          </section>
+
           <label class="form-field">
             <span>备注</span>
             <textarea v-model.trim="form.note" class="input textarea" rows="3" maxlength="160" placeholder="补充记录当前版本定位、账号用途等" />
@@ -615,6 +638,36 @@
             {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存角色' : '更新角色') }}
           </button>
         </template>
+    </MacDialog>
+
+    <MacDialog
+      v-model="showMacroDialog"
+      :title="activeMacro?.macroName || '新增角色专用宏'"
+      subtitle="宏名称在当前角色内唯一，宏内容支持多行命令。"
+      width="720px"
+      panel-class="wow-keybinding-dialog"
+      :close-disabled="false"
+      @close="closeMacroDialog"
+    >
+      <div v-if="activeMacro" class="keybinding-editor">
+        <label class="form-field">
+          <span>宏名称</span>
+          <input v-model.trim="activeMacro.macroName" class="input" maxlength="64" placeholder="例如：爆发、焦点打断" />
+        </label>
+        <label class="form-field">
+          <span>宏内容</span>
+          <textarea
+            v-model="activeMacro.macroContent"
+            class="input textarea keybinding-textarea"
+            rows="10"
+            placeholder="例如：&#10;/cast [@focus,exists,harm,nodead][] 责难"
+          />
+        </label>
+      </div>
+      <template #footer>
+        <button v-if="activeMacro" type="button" class="ghost-btn" @click="copyActiveMacro">复制宏内容</button>
+        <button v-if="activeMacro" type="button" class="action-btn" @click="saveActiveMacro">保存宏</button>
+      </template>
     </MacDialog>
 
     <MacDialog
@@ -905,6 +958,21 @@ function normalizeKeybindingList(rawKeybindings) {
   return rawKeybindings.map((item, index) => createKeybindingDraft(item, `键位方案 ${index + 1}`))
 }
 
+function createMacroDraft(source = {}, fallbackName = '') {
+  return {
+    localKey: source.localKey || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    macroName: source.macroName || fallbackName,
+    macroContent: source.macroContent || ''
+  }
+}
+
+function normalizeMacroList(rawMacros) {
+  if (!Array.isArray(rawMacros)) {
+    return []
+  }
+  return rawMacros.map((item, index) => createMacroDraft(item, `角色宏 ${index + 1}`))
+}
+
 function normalizeCharacter(item = {}, dungeonOptions = []) {
   return {
     id: item.id ?? item.characterId ?? '',
@@ -923,6 +991,7 @@ function normalizeCharacter(item = {}, dungeonOptions = []) {
     mythicCompletedDungeonCount: toNumber(item.mythicCompletedDungeonCount, 0),
     mythicRuns: normalizeMythicRunList(item.mythicRuns || item.mythicRunList || [], dungeonOptions),
     keybindings: Array.isArray(item.keybindings) ? item.keybindings : [],
+    macros: Array.isArray(item.macros) ? item.macros : [],
     weeklyVaults: Array.isArray(item.weeklyVaults)
       ? item.weeklyVaults.map((vault) => createWeeklyVaultDraft(vault))
       : [],
@@ -984,10 +1053,13 @@ export default {
     const realmStats = ref([])
     const showDialog = ref(false)
     const showKeybindingDialog = ref(false)
+    const showMacroDialog = ref(false)
     const mythicRunsExpanded = ref(false)
     const weeklyVaultsExpanded = ref(false)
     const activeKeybinding = ref(null)
     const activeKeybindingIndex = ref(-1)
+    const activeMacro = ref(null)
+    const activeMacroIndex = ref(-1)
     const dialogMode = ref('create')
     const editingId = ref('')
     const factionOptions = ref([])
@@ -1022,6 +1094,7 @@ export default {
       mythicRuns: [],
       weeklyVaults: [],
       keybindings: [],
+      macros: [],
       professionPrimary: '',
       professionSecondary: '',
       note: ''
@@ -1101,6 +1174,7 @@ export default {
 
     const createDefaultMythicRuns = () => normalizeMythicRunList([], mythicDungeonOptions.value)
     const createDefaultKeybindings = () => []
+    const createDefaultMacros = () => []
 
     const normalizeFormSelections = () => {
       form.className = normalizeSelectedValue(classOptions.value, form.className, getDefaultClassValue())
@@ -1173,6 +1247,7 @@ export default {
         form.mythicRuns = normalizeMythicRunList(form.mythicRuns, mythicDungeonOptions.value)
       }
       form.keybindings = normalizeKeybindingList(form.keybindings)
+      form.macros = normalizeMacroList(form.macros)
       normalizeFormSelections()
       } catch (error) {
         factionOptions.value = []
@@ -1270,6 +1345,7 @@ export default {
       form.mythicRuns = createDefaultMythicRuns()
       form.weeklyVaults = []
       form.keybindings = createDefaultKeybindings()
+      form.macros = createDefaultMacros()
       form.professionPrimary = ''
       form.professionSecondary = ''
       form.note = ''
@@ -1292,6 +1368,7 @@ export default {
         ? record.weeklyVaults.map((item) => createWeeklyVaultDraft(item))
         : []
       form.keybindings = normalizeKeybindingList(record.keybindings || [])
+      form.macros = normalizeMacroList(record.macros || [])
       form.professionPrimary = normalizeSelectedValue(professionOptions.value, record.professionPrimary, '')
       form.professionSecondary = normalizeSelectedValue(professionOptions.value, record.professionSecondary, '')
       form.note = record.note || ''
@@ -1383,6 +1460,70 @@ export default {
       }
     }
 
+    const openMacroDialog = (item = null) => {
+      activeMacroIndex.value = item
+        ? form.macros.findIndex((current) => current.localKey === item.localKey)
+        : -1
+      activeMacro.value = createMacroDraft(item || {})
+      showMacroDialog.value = true
+    }
+
+    const closeMacroDialog = () => {
+      showMacroDialog.value = false
+      activeMacro.value = null
+      activeMacroIndex.value = -1
+    }
+
+    const saveActiveMacro = () => {
+      const macroName = `${activeMacro.value?.macroName || ''}`.trim()
+      const macroContent = `${activeMacro.value?.macroContent || ''}`.trim()
+      if (!macroName || !macroContent) {
+        alert('请完整填写宏名称和宏内容')
+        return
+      }
+      const normalizedName = macroName.toLocaleLowerCase()
+      const hasDuplicateName = form.macros.some((item, index) => (
+        index !== activeMacroIndex.value
+        && `${item.macroName || ''}`.trim().toLocaleLowerCase() === normalizedName
+      ))
+      if (hasDuplicateName) {
+        alert('角色专用宏名称不能重复')
+        return
+      }
+      const savedMacro = createMacroDraft({...activeMacro.value, macroName, macroContent})
+      if (activeMacroIndex.value >= 0) {
+        form.macros.splice(activeMacroIndex.value, 1, savedMacro)
+      } else {
+        form.macros.push(savedMacro)
+      }
+      closeMacroDialog()
+    }
+
+    const removeMacro = async (index) => {
+      const item = form.macros[index]
+      if (!item || !await confirmDialog(`删除后，角色专用宏【${item.macroName}】将无法恢复。`, {
+        title: '删除角色专用宏？',
+        confirmText: '删除宏'
+      })) {
+        return
+      }
+      form.macros.splice(index, 1)
+    }
+
+    const copyActiveMacro = async () => {
+      const content = activeMacro.value?.macroContent || ''
+      if (!content) {
+        alert('当前宏还没有保存内容')
+        return
+      }
+      try {
+        await navigator.clipboard.writeText(content)
+        alert('宏内容已复制')
+      } catch (error) {
+        alert('浏览器暂不允许自动复制，请手动复制弹窗中的内容')
+      }
+    }
+
     const openCreateDialog = () => {
       dialogMode.value = 'create'
       editingId.value = ''
@@ -1407,6 +1548,7 @@ export default {
       }
       showDialog.value = false
       closeKeybindingDialog()
+      closeMacroDialog()
       resetForm()
     }
 
@@ -1438,6 +1580,10 @@ export default {
       keybindings: form.keybindings.map((item) => ({
         bindingName: item.bindingName,
         bindingContent: item.bindingContent || ''
+      })),
+      macros: form.macros.map((item) => ({
+        macroName: item.macroName,
+        macroContent: item.macroContent
       })),
       professionPrimary: form.professionPrimary || null,
       professionSecondary: form.professionSecondary || null,
@@ -1477,6 +1623,21 @@ export default {
           return
         }
         keybindingNames.add(normalizedName)
+      }
+      const macroNames = new Set()
+      for (const item of form.macros) {
+        const macroName = `${item.macroName || ''}`.trim()
+        const macroContent = `${item.macroContent || ''}`.trim()
+        if (!macroName || !macroContent) {
+          alert('角色专用宏的名称和内容不能为空')
+          return
+        }
+        const normalizedName = macroName.toLocaleLowerCase()
+        if (macroNames.has(normalizedName)) {
+          alert('角色专用宏名称不能重复')
+          return
+        }
+        macroNames.add(normalizedName)
       }
       if (!form.characterName) {
         alert('请输入角色名')
@@ -1852,6 +2013,8 @@ export default {
       showDialog,
       showKeybindingDialog,
       activeKeybinding,
+      showMacroDialog,
+      activeMacro,
       mythicRunsExpanded,
       weeklyVaultsExpanded,
       dialogMode,
@@ -1900,6 +2063,11 @@ export default {
       saveActiveKeybinding,
       removeKeybinding,
       copyActiveKeybinding,
+      openMacroDialog,
+      closeMacroDialog,
+      saveActiveMacro,
+      removeMacro,
+      copyActiveMacro,
       goBack,
       formatFactionText,
       getFactionIcon,

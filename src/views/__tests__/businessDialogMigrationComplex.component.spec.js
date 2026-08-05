@@ -22,12 +22,12 @@ const pageContracts = [
     closeDisabledBindings: ['submitting', 'submitting', 'submitting']
   },
   {
-    name: '魔兽角色与嵌套键位',
+    name: '魔兽角色与键位、宏维护',
     loadSource: () => import('../WowCharacterStats.vue?raw'),
-    dialogCount: 2,
+    dialogCount: 3,
     formIds: ['wow-character-dialog-form'],
-    panelClasses: ['wow-character-dialog', 'wow-keybinding-dialog'],
-    closeDisabledBindings: ['submitting', 'false']
+    panelClasses: ['wow-character-dialog', 'wow-keybinding-dialog', 'wow-keybinding-dialog'],
+    closeDisabledBindings: ['submitting', 'false', 'false']
   }
 ]
 
