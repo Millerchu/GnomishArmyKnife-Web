@@ -377,6 +377,7 @@ describe('WorkLog MacDialog integration', () => {
       '日期',
       '人天',
       '日志类型',
+      '禅道号（自动汇总）',
       '地点',
       '所属项目',
       '工作内容',
@@ -415,7 +416,7 @@ describe('WorkLog MacDialog integration', () => {
       projectCode: 'PROJECT_ALPHA',
       workItem: '完成 MacDialog 提交集成验证',
       status: 'COMPLETED',
-      workItems: [{content: '完成 MacDialog 提交集成验证', status: 'COMPLETED'}],
+      workItems: [{content: '完成 MacDialog 提交集成验证', status: 'COMPLETED', zentaoNo: ''}],
       personDay: 0
     }))
   })
@@ -435,6 +436,7 @@ describe('WorkLog MacDialog integration', () => {
     expect(locationSelect.value).toBe(editLogDetail.location)
     expect(projectSelect.value).toBe(editLogDetail.projectCode)
     expect(form.querySelector('.work-item-input-row input').value).toBe(editLogDetail.workItem)
+    expect(form.querySelector('.zentao-summary-value').textContent.trim()).toBe(editLogDetail.zentaoNo)
     expect(form.querySelector('textarea[rows="2"]').value).toBe(editLogDetail.remark)
     expect(submitButton.form).toBe(form)
     expect(form.checkValidity()).toBe(true)
@@ -450,7 +452,7 @@ describe('WorkLog MacDialog integration', () => {
       projectCode: editLogDetail.projectCode,
       workItem: editLogDetail.workItem,
       status: editLogDetail.status,
-      workItems: [{content: editLogDetail.workItem, status: editLogDetail.status}],
+      workItems: [{content: editLogDetail.workItem, status: editLogDetail.status, zentaoNo: ''}],
       zentaoNo: editLogDetail.zentaoNo,
       personDay: editLogDetail.personDay,
       offWorkTime: editLogDetail.offWorkTime,
@@ -560,8 +562,16 @@ describe('WorkLog MacDialog integration', () => {
     const secondInput = workItemRows[1].querySelector('input')
     secondInput.value = '第二项工作'
     secondInput.dispatchEvent(new Event('input', {bubbles: true}))
+    const firstZentaoInput = workItemRows[0].querySelector('.work-item-zentao-input')
+    firstZentaoInput.value = '6419'
+    firstZentaoInput.dispatchEvent(new Event('input', {bubbles: true}))
+    const secondZentaoInput = workItemRows[1].querySelector('.work-item-zentao-input')
+    secondZentaoInput.value = '6420'
+    secondZentaoInput.dispatchEvent(new Event('input', {bubbles: true}))
     workItemRows[1].querySelector('.work-status-option.is-unfinished').click()
     await nextTick()
+
+    expect(panel.querySelector('.zentao-summary-value').textContent.trim()).toBe('6419,6420')
 
     expect(form.checkValidity()).toBe(true)
     submitButton.click()
@@ -571,8 +581,8 @@ describe('WorkLog MacDialog integration', () => {
       workItem: '第一项工作\n第二项工作',
       status: 'UNFINISHED',
       workItems: [
-        {content: '第一项工作', status: 'COMPLETED'},
-        {content: '第二项工作', status: 'UNFINISHED'}
+        {content: '第一项工作', status: 'COMPLETED', zentaoNo: '6419'},
+        {content: '第二项工作', status: 'UNFINISHED', zentaoNo: '6420'}
       ]
     }))
   })
@@ -584,7 +594,8 @@ describe('WorkLog MacDialog integration', () => {
         logDate: '2026-07-09',
         projectCode: 'PROJECT_ALPHA',
         workItem: '结构树多选问题排查修复',
-        status: 'UNFINISHED'
+        status: 'UNFINISHED',
+        zentaoNo: '6419'
       }
     ]))
     await mountWorkLogAndOpenCreateDialog()
@@ -597,9 +608,10 @@ describe('WorkLog MacDialog integration', () => {
     reuseButton.click()
     await nextTick()
 
-    expect([...panel.querySelectorAll('.work-item-input-row input')].map((input) => input.value)).toEqual([
+    expect([...panel.querySelectorAll('.work-item-content-input')].map((input) => input.value)).toEqual([
       '结构树多选问题排查修复'
     ])
+    expect(panel.querySelector('.work-item-zentao-input').value).toBe('6419')
     expect(panel.querySelector('.work-status-option.is-unfinished').getAttribute('aria-pressed')).toBe('true')
 
     panel.querySelector('input[type="number"][step="0.1"]').value = '0'
@@ -611,7 +623,7 @@ describe('WorkLog MacDialog integration', () => {
       projectCode: 'PROJECT_ALPHA',
       workItem: '结构树多选问题排查修复',
       status: 'UNFINISHED',
-      workItems: [{content: '结构树多选问题排查修复', status: 'UNFINISHED'}]
+      workItems: [{content: '结构树多选问题排查修复', status: 'UNFINISHED', zentaoNo: '6419'}]
     }))
   })
 

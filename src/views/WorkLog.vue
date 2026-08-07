@@ -598,10 +598,12 @@
           </div>
         </div>
 
-        <label class="form-field">
-          <span>禅道编号</span>
-          <input v-model.trim="form.zentaoNo" maxlength="255" placeholder="多个编号可用逗号分隔" />
-        </label>
+        <div class="form-field readonly-field dialog-span-2 zentao-summary-field">
+          <span>禅道号（自动汇总）</span>
+          <div class="readonly-value zentao-summary-value" :title="formZentaoNo || '暂无禅道号'">
+            {{ formZentaoNo || '暂无' }}
+          </div>
+        </div>
 
         <div v-if="hasBusinessTripType" class="allowance-panel dialog-span-all">
           <div class="allowance-head">
@@ -673,10 +675,19 @@
             <div v-for="(workItem, index) in form.workItems" :key="index" class="work-item-input-row">
               <span class="work-item-index">{{ index + 1 }}</span>
               <input
+                class="work-item-content-input"
                 v-model="workItem.content"
                 type="text"
                 maxlength="4000"
                 :placeholder="index === 0 ? '填写工作内容、处理结果或跟进结论' : '继续添加工作事项'"
+              />
+              <input
+                class="work-item-zentao-input"
+                v-model.trim="workItem.zentaoNo"
+                type="text"
+                maxlength="255"
+                placeholder="禅道号（选填）"
+                :aria-label="`第 ${index + 1} 条工作内容禅道号`"
               />
               <div class="work-item-status-segment" role="group" :aria-label="`第 ${index + 1} 条工作内容完成状态`">
                 <button
@@ -987,6 +998,7 @@ function normalizeWorkItemList(item) {
         id: workItem?.id,
         content: `${workItem?.content || workItem?.workItem || ''}`.trim(),
         status: normalizeWorkStatus(workItem?.status),
+        zentaoNo: `${workItem?.zentaoNo || ''}`.trim(),
         sortNo: toNumber(workItem?.sortNo, 0)
       }))
       .filter((workItem) => workItem.content)
@@ -995,11 +1007,24 @@ function normalizeWorkItemList(item) {
     return structuredItems
   }
   return parseWorkItemEntries(item?.workItem || item?.content || item?.brief)
-    .map((content, index) => ({content, status: legacyStatus, sortNo: index + 1}))
+    .map((content, index) => ({content, status: legacyStatus, zentaoNo: '', sortNo: index + 1}))
 }
 
 function createEmptyWorkItem(status = WORK_STATUS_COMPLETED) {
-  return {content: '', status: normalizeWorkStatus(status)}
+  return {content: '', status: normalizeWorkStatus(status), zentaoNo: ''}
+}
+
+function aggregateZentaoNumbers(values = []) {
+  const zentaoNumbers = new Set()
+  values.forEach((value) => {
+    `${value || ''}`.split(/[,，]/).forEach((zentaoNumber) => {
+      const normalizedZentaoNumber = zentaoNumber.trim()
+      if (normalizedZentaoNumber) {
+        zentaoNumbers.add(normalizedZentaoNumber)
+      }
+    })
+  })
+  return Array.from(zentaoNumbers).join(',')
 }
 
 function normalizeLog(item) {
@@ -1129,7 +1154,7 @@ export default {
       location: '',
       projectCode: '',
       workItems: [createEmptyWorkItem()],
-      zentaoNo: '',
+      legacyZentaoNo: '',
       personDay: 1,
       offWorkTime: STANDARD_OFF_WORK_TIME,
       manualOvertimeHours: 0,
@@ -1180,6 +1205,10 @@ export default {
 
     const projectSelectOptions = computed(() => projectOptions.value.length ? projectOptions.value : fallbackProjectOptions.value)
     const locationSelectOptions = computed(() => locationOptions.value.length ? locationOptions.value : fallbackLocationOptions.value)
+    const formZentaoNo = computed(() => {
+      return aggregateZentaoNumbers(form.workItems.map((workItem) => workItem.zentaoNo))
+        || form.legacyZentaoNo
+    })
 
     const dictionarySourceText = computed(() => {
       if (dictLoading.value) {
@@ -1591,7 +1620,8 @@ export default {
             logDate: item?.logDate || '',
             projectCode: item?.projectCode || '',
             workItem: item?.workItem || item?.content || '',
-            status: WORK_STATUS_UNFINISHED
+            status: WORK_STATUS_UNFINISHED,
+            zentaoNo: `${item?.zentaoNo || ''}`.trim()
           }))
           .filter((item) => item.id != null && parseWorkItemEntries(item.workItem).length)
       } catch (error) {
@@ -1610,7 +1640,7 @@ export default {
       form.location = getDefaultOptionValue(locationSelectOptions.value)
       form.projectCode = getDefaultOptionValue(projectSelectOptions.value)
       form.workItems = [createEmptyWorkItem()]
-      form.zentaoNo = ''
+      form.legacyZentaoNo = ''
       form.personDay = 1
       form.offWorkTime = isWeekendDate(selectedDate.value) ? '' : STANDARD_OFF_WORK_TIME
       form.manualOvertimeHours = 0
@@ -1629,12 +1659,14 @@ export default {
       form.workItems = detail.workItems.map((workItem) => ({
         id: workItem.id,
         content: workItem.content,
-        status: normalizeWorkStatus(workItem.status)
+        status: normalizeWorkStatus(workItem.status),
+        zentaoNo: `${workItem.zentaoNo || ''}`.trim()
       }))
       if (!form.workItems.length) {
         form.workItems = [createEmptyWorkItem()]
       }
-      form.zentaoNo = detail.zentaoNo
+      const hasItemZentaoNumber = form.workItems.some((workItem) => workItem.zentaoNo)
+      form.legacyZentaoNo = hasItemZentaoNumber ? '' : detail.zentaoNo
       form.personDay = detail.personDay ?? 1
       form.offWorkTime = isWeekendDate(detail.logDate) ? '' : (detail.offWorkTime || STANDARD_OFF_WORK_TIME)
       form.manualOvertimeHours = detail.overtimeHours ?? 0
@@ -1881,7 +1913,11 @@ export default {
       if (!content) {
         return
       }
-      const reusableItem = {content, status: WORK_STATUS_UNFINISHED}
+      const reusableItem = {
+        content,
+        status: WORK_STATUS_UNFINISHED,
+        zentaoNo: `${item?.zentaoNo || ''}`.trim()
+      }
       if (form.workItems.length === 1 && !form.workItems[0].content.trim()) {
         form.workItems = [reusableItem]
       } else if (!form.workItems.some((workItem) => workItem.content.trim() === content)) {
@@ -1913,7 +1949,8 @@ export default {
       const normalizedWorkItems = form.workItems
         .map((workItem) => ({
           content: `${workItem?.content || ''}`.trim(),
-          status: normalizeWorkStatus(workItem?.status)
+          status: normalizeWorkStatus(workItem?.status),
+          zentaoNo: `${workItem?.zentaoNo || ''}`.trim()
         }))
         .filter((workItem) => workItem.content)
       const workItem = serializeWorkItemEntries(normalizedWorkItems.map((item) => item.content))
@@ -1954,7 +1991,7 @@ export default {
           ? WORK_STATUS_UNFINISHED
           : WORK_STATUS_COMPLETED,
         workItems: normalizedWorkItems,
-        zentaoNo: form.zentaoNo,
+        zentaoNo: formZentaoNo.value,
         personDay: Number(form.personDay),
         overtimeHours,
         offWorkTime: isWeekendFormDate.value ? null : formatBackendOffWorkTime(form.offWorkTime || STANDARD_OFF_WORK_TIME),
@@ -2115,6 +2152,7 @@ export default {
       yearOptions,
       yearLogs,
       form,
+      formZentaoNo,
       workStatusOptions: WORK_STATUS_OPTIONS,
       unfinishedLoading,
       unfinishedLoadError,
@@ -3358,9 +3396,20 @@ export default {
 
 .work-item-input-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(132px, 0.28fr) auto auto;
   align-items: center;
   gap: 8px;
+}
+
+.work-item-zentao-input {
+  min-width: 0;
+}
+
+.zentao-summary-value {
+  overflow: hidden;
+  color: #9ed6ff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .work-item-index {
@@ -5190,7 +5239,8 @@ export default {
     align-items: start;
   }
 
-  .work-item-input-row > input {
+  .work-item-content-input,
+  .work-item-zentao-input {
     grid-column: 2 / -1;
   }
 
