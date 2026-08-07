@@ -322,15 +322,45 @@ describe('WorkLog MacDialog integration', () => {
     expect(currentMonthDay.attributes('aria-label')).toContain('暂无日志')
   })
 
-  it('keeps only range navigation, create, and annual list actions in the top toolbar', async () => {
+  it('keeps current-date location, range navigation, create, and annual list actions in the top toolbar', async () => {
     const wrapper = await mountWorkLog()
 
     expect(wrapper.find('.actions').findAll('button').map((button) => button.text())).toEqual([
+      '定位当前',
       '上一周',
       '下一周',
       '新增',
       '年度列表'
     ])
+  })
+
+  it('locates today and resets the visible range in both week and month views', async () => {
+    const wrapper = await mountWorkLog()
+    const currentDate = new Date()
+    const today = [
+      currentDate.getFullYear(),
+      `${currentDate.getMonth() + 1}`.padStart(2, '0'),
+      `${currentDate.getDate()}`.padStart(2, '0')
+    ].join('-')
+
+    await wrapper.vm.changeWeek(-2)
+    await flushPromises()
+    expect(wrapper.vm.selectedDate).not.toBe(today)
+
+    await wrapper.vm.locateCurrentDate()
+    await flushPromises()
+    expect(wrapper.vm.selectedDate).toBe(today)
+    expect(wrapper.find('.day-card.active').attributes('aria-label')).toContain(today)
+
+    await wrapper.vm.switchCalendarView('month')
+    await wrapper.vm.changeMonth(-2)
+    await flushPromises()
+    expect(wrapper.vm.selectedDate).not.toBe(today)
+
+    await wrapper.vm.locateCurrentDate()
+    await flushPromises()
+    expect(wrapper.vm.selectedDate).toBe(today)
+    expect(wrapper.find('.month-day-card.active').attributes('aria-label')).toContain(today)
   })
 
   it('groups the mobile annual list by month', async () => {

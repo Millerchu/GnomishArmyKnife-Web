@@ -156,13 +156,21 @@
         <small>{{ calendarView === 'month' ? '轻触日期查看明细' : '轻触日期查看当天日志' }}</small>
       </div>
       <div class="actions">
+        <button
+          class="action-btn current-location-action"
+          :disabled="loading"
+          aria-label="定位到当前日期"
+          @click="locateCurrentDate"
+        >
+          定位当前
+        </button>
         <button class="action-btn" :disabled="loading" @click="changeCalendarRange(-1)">
           {{ calendarView === 'month' ? '上一月' : '上一周' }}
         </button>
         <button class="action-btn" :disabled="loading" @click="changeCalendarRange(1)">
           {{ calendarView === 'month' ? '下一月' : '下一周' }}
         </button>
-        <button class="action-btn" :disabled="loading" @click="openCreateDialog">新增</button>
+        <button class="action-btn create-log-action" :disabled="loading" @click="openCreateDialog">新增</button>
         <button class="action-btn year-list-action" :disabled="loading" @click="toggleYearList">
           {{ showYearList ? '收起年度' : '年度列表' }}
         </button>
@@ -1834,6 +1842,19 @@ export default {
       await changeWeek(delta)
     }
 
+    /**
+     * 同时重置视图范围和选中日期，确保周、月视图都能立即高亮今天。
+     */
+    async function locateCurrentDate() {
+      weekOffset.value = getWeekOffsetByDate(todayDate)
+      monthOffset.value = getMonthOffsetByDate(todayDate)
+      selectedDate.value = todayDate
+      detailDate.value = todayDate
+      showDayDetail.value = false
+      selectedLogId.value = null
+      await refreshActiveCalendarLogs()
+    }
+
     async function toggleYearList() {
       showYearList.value = !showYearList.value
       if (showYearList.value) {
@@ -2198,6 +2219,7 @@ export default {
       changeWeek,
       changeMonth,
       changeCalendarRange,
+      locateCurrentDate,
       toggleYearList,
       openCreateDialog,
       openCreateDialogFromDayDetail,
@@ -2407,6 +2429,12 @@ export default {
 
 .action-btn {
   background: linear-gradient(135deg, #3277af, #4492d0);
+}
+
+.action-btn.current-location-action {
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 58%, var(--theme-border));
+  background: color-mix(in srgb, var(--theme-accent) 18%, var(--theme-control-surface));
+  box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
 }
 
 .action-btn:hover:not(:disabled),
@@ -4393,7 +4421,7 @@ export default {
 
   .actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     width: 100%;
     gap: 5px;
   }
@@ -4842,7 +4870,7 @@ export default {
 
   .actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 7px !important;
     width: 100%;
   }
@@ -4859,7 +4887,7 @@ export default {
     box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
   }
 
-  .actions .action-btn:nth-child(3) {
+  .create-log-action {
     display: none;
   }
 
