@@ -103,6 +103,7 @@
           v-model:tuning-id="activeTuningId"
           v-model:tremolo="tremoloActive"
           :reduced-motion="reducedMotion"
+          :photo-background-enabled="photoBackgroundEnabled"
           :show-numbered-notes="showNumberedNotes"
           :playback-events="recorder.activePlaybackEvents.value"
           @interaction="handleInteraction"
@@ -111,6 +112,7 @@
         <PianoSurface
           v-else-if="currentInstrumentId === 'piano'"
           :reduced-motion="reducedMotion"
+          :photo-background-enabled="photoBackgroundEnabled"
           :show-numbered-notes="showNumberedNotes"
           :playback-events="recorder.activePlaybackEvents.value"
           @interaction="handleInteraction"
@@ -123,6 +125,7 @@
           v-model:chord-id="activeChordId"
           :instrument-id="currentInstrumentId"
           :reduced-motion="reducedMotion"
+          :photo-background-enabled="photoBackgroundEnabled"
           :show-numbered-notes="showNumberedNotes"
           :playback-events="recorder.activePlaybackEvents.value"
           @interaction="handleInteraction"
@@ -450,6 +453,17 @@
         <section class="settings-section compact-settings">
           <label class="toggle-field">
             <span>
+              <strong>真实乐器背景</strong>
+              <small>开启后加载当前乐器的写实材质背景</small>
+            </span>
+            <input
+              v-model="photoBackgroundEnabled"
+              type="checkbox"
+              aria-label="启用真实乐器背景"
+            >
+          </label>
+          <label class="toggle-field">
+            <span>
               <strong>显示简谱音符</strong>
               <small>在琴弦、指板和琴键上标注 1–7</small>
             </span>
@@ -530,6 +544,7 @@ const noticeMessage = ref('')
 const instrumentVolume = ref(1)
 const metronomeVolume = ref(0.55)
 const hapticsEnabled = ref(true)
+const photoBackgroundEnabled = ref(false)
 const showNumberedNotes = ref(false)
 const reducedMotion = ref(false)
 const compactLandscape = ref(false)

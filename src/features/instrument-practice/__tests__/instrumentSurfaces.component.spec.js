@@ -20,6 +20,26 @@ afterEach(() => {
 })
 
 describe('乐器琴面回放与简谱反馈', () => {
+  it('写实背景默认关闭，并可按设置为当前琴面启用', async () => {
+    const guzhengWrapper = mount(GuzhengSurface)
+    expect(guzhengWrapper.classes()).not.toContain('photo-background')
+    await guzhengWrapper.setProps({photoBackgroundEnabled: true})
+    expect(guzhengWrapper.classes()).toContain('photo-background')
+    guzhengWrapper.unmount()
+
+    const guitarWrapper = mount(FrettedInstrumentSurface, {
+      props: {instrumentId: 'guitar', photoBackgroundEnabled: true}
+    })
+    expect(guitarWrapper.classes()).toContain('photo-background')
+    guitarWrapper.unmount()
+
+    const pianoWrapper = mount(PianoSurface, {
+      props: {photoBackgroundEnabled: true}
+    })
+    expect(pianoWrapper.classes()).toContain('photo-background')
+    pianoWrapper.unmount()
+  })
+
   it('古筝按当前调式显示简谱并高亮回放琴弦', () => {
     const wrapper = mount(GuzhengSurface, {
       props: {

@@ -1,7 +1,10 @@
 <template>
   <section
     class="guzheng-surface"
-    :class="{'reduced-motion': props.reducedMotion}"
+    :class="{
+      'photo-background': props.photoBackgroundEnabled,
+      'reduced-motion': props.reducedMotion
+    }"
     aria-label="古筝演奏区"
   >
     <div class="guzheng-controls">
@@ -161,6 +164,10 @@ const props = defineProps({
     default: false
   },
   reducedMotion: {
+    type: Boolean,
+    default: false
+  },
+  photoBackgroundEnabled: {
     type: Boolean,
     default: false
   },
@@ -623,17 +630,22 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(246, 197, 132, 0.3);
   border-radius: 1.35rem 2.4rem 1.35rem 2.4rem;
   background:
-    linear-gradient(90deg, rgba(35, 10, 5, 0.34), transparent 18% 76%, rgba(30, 7, 4, 0.5)),
+    linear-gradient(90deg, rgba(58, 17, 8, 0.2), transparent 14% 78%, rgba(45, 11, 6, 0.38)),
     repeating-linear-gradient(88deg, transparent 0 22px, rgba(64, 18, 7, 0.14) 23px 24px),
-    url('/instrument-backgrounds/guzheng-studio.png');
-  background-position: center;
-  background-size: cover;
+    linear-gradient(130deg, #d09a59, var(--wood-mid) 48%, var(--wood-deep));
   box-shadow:
     inset 0 1px rgba(255, 228, 178, 0.38),
     inset 0 -25px 60px rgba(32, 7, 3, 0.32),
     var(--theme-shadow-sm, 0 14px 34px rgba(0, 0, 0, 0.28));
   touch-action: none;
   user-select: none;
+}
+
+.guzheng-surface.photo-background .guzheng-board {
+  background:
+    linear-gradient(90deg, rgba(35, 10, 5, 0.34), transparent 18% 76%, rgba(30, 7, 4, 0.5)),
+    repeating-linear-gradient(88deg, transparent 0 22px, rgba(64, 18, 7, 0.14) 23px 24px),
+    url('/instrument-backgrounds/guzheng-studio.png') center / cover;
 }
 
 .guzheng-string-row {

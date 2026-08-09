@@ -1,7 +1,10 @@
 <template>
   <section
     class="piano-surface"
-    :class="{'reduced-motion': props.reducedMotion}"
+    :class="{
+      'photo-background': props.photoBackgroundEnabled,
+      'reduced-motion': props.reducedMotion
+    }"
     aria-label="钢琴演奏区"
   >
     <div class="piano-controls">
@@ -101,6 +104,10 @@ const BLACK_KEY_PITCH_CLASSES = new Set([1, 3, 6, 8, 10])
  */
 const props = defineProps({
   reducedMotion: {
+    type: Boolean,
+    default: false
+  },
+  photoBackgroundEnabled: {
     type: Boolean,
     default: false
   },
@@ -374,16 +381,20 @@ onBeforeUnmount(() => {
   border-radius: 1.3rem;
   background:
     radial-gradient(circle at 50% -40%, rgba(96, 230, 238, 0.2), transparent 55%),
-    linear-gradient(180deg, rgba(2, 8, 12, 0.22), rgba(2, 8, 12, 0.06)),
-    url('/instrument-backgrounds/piano-studio.png');
-  background-position: center;
-  background-size: cover;
+    linear-gradient(140deg, #162b36, #08141c 47%, #020608);
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.12),
     inset 0 -1.5rem 2.6rem rgba(0, 0, 0, 0.6),
     var(--theme-shadow-sm, 0 0.9rem 2.2rem rgba(0, 0, 0, 0.28));
   touch-action: none;
   user-select: none;
+}
+
+.piano-surface.photo-background .piano-keybed {
+  background:
+    radial-gradient(circle at 50% -40%, rgba(96, 230, 238, 0.2), transparent 55%),
+    linear-gradient(180deg, rgba(2, 8, 12, 0.22), rgba(2, 8, 12, 0.06)),
+    url('/instrument-backgrounds/piano-studio.png') center / cover;
 }
 
 .piano-lid {

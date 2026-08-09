@@ -131,15 +131,18 @@ function mountPage() {
       stubs: {
         FrettedInstrumentSurface: {
           name: 'FrettedInstrumentSurface',
-          template: '<section data-test="fretted-surface" />'
+          props: ['photoBackgroundEnabled'],
+          template: '<section data-test="fretted-surface" :data-photo-background="String(photoBackgroundEnabled)" />'
         },
         GuzhengSurface: {
           name: 'GuzhengSurface',
-          template: '<section data-test="guzheng-surface" />'
+          props: ['photoBackgroundEnabled'],
+          template: '<section data-test="guzheng-surface" :data-photo-background="String(photoBackgroundEnabled)" />'
         },
         PianoSurface: {
           name: 'PianoSurface',
-          template: '<section data-test="piano-surface" />'
+          props: ['photoBackgroundEnabled'],
+          template: '<section data-test="piano-surface" :data-photo-background="String(photoBackgroundEnabled)" />'
         },
         MacDialog: {
           props: ['modelValue'],
@@ -403,6 +406,10 @@ describe('随身乐器页面流程', () => {
     await wrapper.get('button[aria-label="打开练习设置"]').trigger('click')
     expect(wrapper.get('[role="dialog"]').text()).toContain('节拍器')
     expect(wrapper.get('[role="dialog"]').text()).toContain('不读取麦克风')
+    expect(wrapper.get('[data-test="guzheng-surface"]').attributes('data-photo-background')).toBe('false')
+
+    await wrapper.get('input[aria-label="启用真实乐器背景"]').setValue(true)
+    expect(wrapper.get('[data-test="guzheng-surface"]').attributes('data-photo-background')).toBe('true')
     wrapper.unmount()
   })
 

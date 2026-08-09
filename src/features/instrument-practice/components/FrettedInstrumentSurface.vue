@@ -4,7 +4,11 @@
     :class="[
       `instrument-${definition.id}`,
       `mode-${localMode}`,
-      {damped: isDamped, 'reduced-motion': props.reducedMotion}
+      {
+        damped: isDamped,
+        'photo-background': props.photoBackgroundEnabled,
+        'reduced-motion': props.reducedMotion
+      }
     ]"
     :aria-label="`${definition.label}演奏区`"
   >
@@ -201,6 +205,10 @@ const props = defineProps({
     default: 'c-major'
   },
   reducedMotion: {
+    type: Boolean,
+    default: false
+  },
+  photoBackgroundEnabled: {
     type: Boolean,
     default: false
   },
@@ -616,10 +624,9 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(236, 192, 134, 0.26);
   border-radius: 1.25rem;
   background:
-    linear-gradient(90deg, rgba(20, 6, 3, 0.2), transparent 22%, rgba(20, 6, 3, 0.3)),
-    url('/instrument-backgrounds/guitar-studio.png');
-  background-position: center;
-  background-size: cover;
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05), transparent 22%, rgba(34, 9, 4, 0.12)),
+    repeating-linear-gradient(92deg, transparent 0 18px, rgba(46, 12, 4, 0.12) 19px 20px),
+    linear-gradient(125deg, var(--wood-light), var(--wood) 45%, var(--wood-dark));
   box-shadow:
     inset 0 1px rgba(255, 230, 190, 0.34),
     inset 0 -24px 50px rgba(27, 8, 5, 0.28),
@@ -637,15 +644,32 @@ onBeforeUnmount(() => {
 .instrument-pipa .fretted-stage {
   border-color: rgba(244, 207, 141, 0.38);
   background:
-    radial-gradient(ellipse at 50% 82%, rgba(255, 231, 177, 0.18), transparent 42%),
-    linear-gradient(90deg, rgba(35, 9, 4, 0.22), rgba(35, 9, 4, 0.08)),
-    url('/instrument-backgrounds/pipa-studio.png');
+    radial-gradient(ellipse at 50% 82%, rgba(255, 231, 177, 0.28), transparent 42%),
+    repeating-linear-gradient(92deg, transparent 0 18px, rgba(70, 18, 9, 0.11) 19px 20px),
+    linear-gradient(125deg, var(--wood-light), var(--wood) 46%, var(--wood-dark));
 }
 
-.instrument-ukulele .fretted-stage {
+.instrument-guitar.photo-background .fretted-stage {
+  background-image:
+    linear-gradient(90deg, rgba(20, 6, 3, 0.2), transparent 22%, rgba(20, 6, 3, 0.3)),
+    url('/instrument-backgrounds/guitar-studio.png');
+  background-position: center;
+  background-size: cover;
+}
+
+.instrument-ukulele.photo-background .fretted-stage {
   background-image:
     linear-gradient(90deg, rgba(26, 10, 4, 0.22), transparent 24%, rgba(26, 10, 4, 0.34)),
     url('/instrument-backgrounds/ukulele-studio.png');
+  background-position: center;
+  background-size: cover;
+}
+
+.instrument-pipa.photo-background .fretted-stage {
+  background:
+    radial-gradient(ellipse at 50% 82%, rgba(255, 231, 177, 0.18), transparent 42%),
+    linear-gradient(90deg, rgba(35, 9, 4, 0.22), rgba(35, 9, 4, 0.08)),
+    url('/instrument-backgrounds/pipa-studio.png') center / cover;
 }
 
 .instrument-pipa .sound-hole {
@@ -684,9 +708,15 @@ onBeforeUnmount(() => {
   overflow: hidden;
   background:
     repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 2px), rgba(221, 208, 179, 0.76) calc(12.5% - 1px) 12.5%),
-    linear-gradient(180deg, rgba(31, 18, 14, 0.72), rgba(19, 10, 8, 0.78));
+    linear-gradient(180deg, #38231d, #1e1210);
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.5);
   touch-action: none;
+}
+
+.fretted-surface.photo-background .fretboard {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 2px), rgba(221, 208, 179, 0.76) calc(12.5% - 1px) 12.5%),
+    linear-gradient(180deg, rgba(31, 18, 14, 0.72), rgba(19, 10, 8, 0.78));
 }
 
 .fret-string-row {
