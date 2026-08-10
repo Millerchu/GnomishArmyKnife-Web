@@ -204,6 +204,12 @@
                 <td class="score-cell" @click="showFeaturedScorePopover($event, item)">{{ formatScore(item.mythicScore) }}</td>
                 <td>
                   <div class="row-actions">
+                    <button
+                      class="mini-btn vault-mini-btn"
+                      :disabled="!isMaxLevelCharacter(item)"
+                      :title="isMaxLevelCharacter(item) ? '查看并维护本周低保' : '满级角色才有每周低保'"
+                      @click="openWeeklyVaultDialog(item)"
+                    >低保</button>
                     <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
                     <button class="mini-btn danger" @click="removeCharacter(item)">删除</button>
                   </div>
@@ -260,6 +266,12 @@
               </div>
 
               <div class="mobile-card-actions">
+                <button
+                  class="mini-btn vault-mini-btn"
+                  :disabled="!isMaxLevelCharacter(item)"
+                  :title="isMaxLevelCharacter(item) ? '查看并维护本周低保' : '满级角色才有每周低保'"
+                  @click="openWeeklyVaultDialog(item)"
+                >低保</button>
                 <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
                 <button class="mini-btn danger" @click="removeCharacter(item)">删除</button>
               </div>
@@ -641,6 +653,89 @@
     </MacDialog>
 
     <MacDialog
+      v-model="showWeeklyVaultDialog"
+      :title="`${activeWeeklyVaultCharacter?.characterName || '角色'} · 本周宏伟宝库`"
+      subtitle="国服每周四早上 7 点自动重置；这里仅维护本周奖励进度。"
+      width="920px"
+      panel-class="wow-weekly-vault-dialog"
+      :close-disabled="weeklyVaultSubmitting"
+      @close="closeWeeklyVaultDialog"
+    >
+      <div v-if="activeWeeklyVaultCharacter" class="quick-vault-dialog-content">
+        <div class="quick-vault-character-meta">
+          <span class="name-badge" :style="buildNameBadgeStyle(activeWeeklyVaultCharacter)">
+            {{ activeWeeklyVaultCharacter.characterName }}
+          </span>
+          <span>{{ formatSpecText(activeWeeklyVaultCharacter.specName) || activeWeeklyVaultCharacter.className }}</span>
+          <span>·</span>
+          <span>{{ activeWeeklyVaultCharacter.realmName }}</span>
+        </div>
+
+        <div class="weekly-vault-grid quick-vault-progress-grid">
+          <label class="mini-field">
+            <span>周起始日</span>
+            <input v-model="quickWeeklyVault.weekStartDate" class="input compact-input" type="date" readonly />
+          </label>
+          <label class="mini-field">
+            <span>团本击杀</span>
+            <input v-model.number="quickWeeklyVault.raidProgressCount" class="input compact-input" type="number" min="0" max="99" step="1" />
+          </label>
+          <label class="mini-field">
+            <span>大秘境次数</span>
+            <input v-model.number="quickWeeklyVault.mythicProgressCount" class="input compact-input" type="number" min="0" max="99" step="1" />
+          </label>
+          <label class="mini-field">
+            <span>世界任务 / 地下堡</span>
+            <input v-model.number="quickWeeklyVault.worldProgressCount" class="input compact-input" type="number" min="0" max="99" step="1" />
+          </label>
+        </div>
+
+        <div class="vault-grand-board quick-vault-grand-board">
+          <div class="vault-grand-copy">
+            <strong>每周完成活动可以将物品添加到宏伟宝库中。</strong>
+            <span>你每周可以选择一件奖励。</span>
+          </div>
+          <div class="vault-grand-divider" />
+
+          <div
+            v-for="track in buildVaultRewardTracks(quickWeeklyVault)"
+            :key="`quick-${track.key}`"
+            class="vault-reward-row"
+          >
+            <div class="vault-track-scene" :class="`vault-track-${track.key}`">
+              <strong>{{ track.title }}</strong>
+              <span>{{ track.progress }} / {{ track.maxProgress }}</span>
+            </div>
+            <div class="vault-reward-grid">
+              <div
+                v-for="reward in track.rewards"
+                :key="`quick-${track.key}-${reward.threshold}`"
+                class="vault-reward-card"
+                :class="{ unlocked: reward.unlocked }"
+                :style="{ '--vault-progress': `${reward.percent}%` }"
+              >
+                <span class="vault-state-mark">{{ reward.unlocked ? '✓' : '锁' }}</span>
+                <strong>{{ reward.label }}</strong>
+                <span class="vault-reward-value">{{ reward.unlocked ? reward.rewardText : reward.progressText }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <label class="form-field quick-vault-note-field">
+          <span>本周备注</span>
+          <textarea v-model.trim="quickWeeklyVault.note" class="input textarea compact-textarea" rows="2" maxlength="160" placeholder="例如：本周团本只打到 4，M+ 已满 8。" />
+        </label>
+      </div>
+      <template #footer>
+        <button type="button" class="ghost-btn" :disabled="weeklyVaultSubmitting" @click="closeWeeklyVaultDialog">取消</button>
+        <button type="button" class="action-btn" :disabled="weeklyVaultSubmitting" @click="saveWeeklyVaultDialog">
+          {{ weeklyVaultSubmitting ? '保存中...' : '保存本周低保' }}
+        </button>
+      </template>
+    </MacDialog>
+
+    <MacDialog
       v-model="showMacroDialog"
       :title="activeMacro?.macroName || '新增角色专用宏'"
       subtitle="宏名称在当前角色内唯一，宏内容支持多行命令。"
@@ -754,6 +849,7 @@ import {
   deleteWowCharacter,
   getWowCharacterOverview,
   listWowCharacters,
+  resetWowCharacterWeeklyProgress,
   updateWowCharacter
 } from '@/api/wowCharacter'
 import {shouldShowEndgameSections} from '@/utils/wowCharacterDisplay'
@@ -1052,10 +1148,13 @@ export default {
     const classStats = ref([])
     const realmStats = ref([])
     const showDialog = ref(false)
+    const showWeeklyVaultDialog = ref(false)
     const showKeybindingDialog = ref(false)
     const showMacroDialog = ref(false)
+    const weeklyVaultSubmitting = ref(false)
     const mythicRunsExpanded = ref(false)
     const weeklyVaultsExpanded = ref(false)
+    const activeWeeklyVaultCharacter = ref(null)
     const activeKeybinding = ref(null)
     const activeKeybindingIndex = ref(-1)
     const activeMacro = ref(null)
@@ -1099,6 +1198,7 @@ export default {
       professionSecondary: '',
       note: ''
     })
+    const quickWeeklyVault = reactive(createWeeklyVaultDraft())
 
     const overview = reactive({
       totalCharacters: 0,
@@ -1533,13 +1633,54 @@ export default {
       showDialog.value = true
     }
 
-    const openEditDialog = (item) => {
+    const openEditDialog = async (item) => {
       dialogMode.value = 'edit'
       editingId.value = item.id
-      fillForm(item)
       mythicRunsExpanded.value = false
       weeklyVaultsExpanded.value = false
-      showDialog.value = true
+      try {
+        const response = await resetWowCharacterWeeklyProgress(item.id)
+        const record = unwrapData(response)
+        fillForm(normalizeCharacter(record || item, mythicDungeonOptions.value))
+      } catch (error) {
+        fillForm(item)
+        alert(getErrorMessage(error, '本周低保重置检查失败，已加载原角色数据'))
+      } finally {
+        showDialog.value = true
+      }
+    }
+
+    const isMaxLevelCharacter = (item) => shouldShowEndgameSections(item?.level)
+
+    const resetQuickWeeklyVault = (source = {}) => {
+      Object.assign(quickWeeklyVault, createWeeklyVaultDraft(source))
+    }
+
+    const openWeeklyVaultDialog = async (item) => {
+      if (!isMaxLevelCharacter(item) || weeklyVaultSubmitting.value) {
+        return
+      }
+      weeklyVaultSubmitting.value = true
+      try {
+        const response = await resetWowCharacterWeeklyProgress(item.id)
+        const record = normalizeCharacter(unwrapData(response) || item, mythicDungeonOptions.value)
+        activeWeeklyVaultCharacter.value = record
+        resetQuickWeeklyVault(record.weeklyVaults[0])
+        showWeeklyVaultDialog.value = true
+      } catch (error) {
+        alert(getErrorMessage(error, '本周低保加载失败'))
+      } finally {
+        weeklyVaultSubmitting.value = false
+      }
+    }
+
+    const closeWeeklyVaultDialog = () => {
+      if (weeklyVaultSubmitting.value) {
+        return
+      }
+      showWeeklyVaultDialog.value = false
+      activeWeeklyVaultCharacter.value = null
+      resetQuickWeeklyVault()
     }
 
     const closeDialog = () => {
@@ -1552,24 +1693,24 @@ export default {
       resetForm()
     }
 
-    const buildFormPayload = () => ({
-      characterName: form.characterName,
-      className: form.className,
-      specName: form.specName || null,
-      raceName: form.raceName,
-      realmName: form.realmName,
-      faction: form.faction,
-      level: Number(form.level || 0),
-      itemLevel: Number(form.itemLevel || 0),
-      isFeatured: Boolean(form.isFeatured),
-      mythicBestLevel: Number(form.mythicBestLevel || 0),
-      mythicDungeonName: form.mythicDungeonName || null,
-      mythicRuns: showEndgameSections.value ? form.mythicRuns.map((item) => ({
+    const buildCharacterPayload = (character) => ({
+      characterName: character.characterName,
+      className: character.className,
+      specName: character.specName || null,
+      raceName: character.raceName,
+      realmName: character.realmName,
+      faction: character.faction,
+      level: Number(character.level || 0),
+      itemLevel: Number(character.itemLevel || 0),
+      isFeatured: Boolean(character.isFeatured),
+      mythicBestLevel: Number(character.mythicBestLevel || 0),
+      mythicDungeonName: character.mythicDungeonName || null,
+      mythicRuns: isMaxLevelCharacter(character) ? character.mythicRuns.map((item) => ({
         dungeonName: item.dungeonName,
         bestTimedLevel: Number(item.bestTimedLevel || 0),
         score: Number(item.score || 0)
       })) : [],
-      weeklyVaults: showEndgameSections.value ? form.weeklyVaults.map((item) => ({
+      weeklyVaults: isMaxLevelCharacter(character) ? character.weeklyVaults.map((item) => ({
         id: item.id || null,
         weekStartDate: item.weekStartDate || null,
         raidProgressCount: Number(item.raidProgressCount || 0),
@@ -1577,18 +1718,40 @@ export default {
         worldProgressCount: Number(item.worldProgressCount || 0),
         note: item.note || ''
       })) : [],
-      keybindings: form.keybindings.map((item) => ({
+      keybindings: character.keybindings.map((item) => ({
         bindingName: item.bindingName,
         bindingContent: item.bindingContent || ''
       })),
-      macros: form.macros.map((item) => ({
+      macros: character.macros.map((item) => ({
         macroName: item.macroName,
         macroContent: item.macroContent
       })),
-      professionPrimary: form.professionPrimary || null,
-      professionSecondary: form.professionSecondary || null,
-      note: form.note
+      professionPrimary: character.professionPrimary || null,
+      professionSecondary: character.professionSecondary || null,
+      note: character.note
     })
+
+    const buildFormPayload = () => buildCharacterPayload(form)
+
+    const saveWeeklyVaultDialog = async () => {
+      if (!activeWeeklyVaultCharacter.value || !quickWeeklyVault.weekStartDate || weeklyVaultSubmitting.value) {
+        return
+      }
+      weeklyVaultSubmitting.value = true
+      try {
+        const character = activeWeeklyVaultCharacter.value
+        character.weeklyVaults = [createWeeklyVaultDraft(quickWeeklyVault)]
+        const response = await updateWowCharacter(character.id, buildCharacterPayload(character))
+        showWeeklyVaultDialog.value = false
+        activeWeeklyVaultCharacter.value = null
+        resetQuickWeeklyVault()
+        await loadPageData()
+      } catch (error) {
+        alert(getErrorMessage(error, '本周低保保存失败'))
+      } finally {
+        weeklyVaultSubmitting.value = false
+      }
+    }
 
     const submitDialog = async () => {
       const classOption = findOptionByAny(classOptions.value, form.className)
@@ -2011,10 +2174,14 @@ export default {
       form,
       overview,
       showDialog,
+      showWeeklyVaultDialog,
       showKeybindingDialog,
       activeKeybinding,
       showMacroDialog,
       activeMacro,
+      weeklyVaultSubmitting,
+      activeWeeklyVaultCharacter,
+      quickWeeklyVault,
       mythicRunsExpanded,
       weeklyVaultsExpanded,
       dialogMode,
@@ -2041,6 +2208,7 @@ export default {
       WORLD_THRESHOLDS,
       formatDecimal,
       formatScore,
+      isMaxLevelCharacter,
       handleSearch,
       resetQuery,
       toggleSort,
@@ -2050,6 +2218,9 @@ export default {
       handlePageSizeChange,
       openCreateDialog,
       openEditDialog,
+      openWeeklyVaultDialog,
+      closeWeeklyVaultDialog,
+      saveWeeklyVaultDialog,
       closeDialog,
       submitDialog,
       removeCharacter,
@@ -2218,6 +2389,19 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.vault-mini-btn {
+  border-color: rgba(218, 164, 60, 0.5);
+  color: #ffe4a0;
+  background: linear-gradient(135deg, rgba(103, 64, 19, 0.58), rgba(37, 25, 17, 0.7));
+  box-shadow: inset 0 1px 0 rgba(255, 232, 155, 0.15);
+}
+
+.vault-mini-btn:not(:disabled):hover {
+  border-color: rgba(255, 214, 119, 0.9);
+  color: #fff4d2;
+  background: linear-gradient(135deg, rgba(149, 95, 23, 0.72), rgba(56, 36, 18, 0.82));
 }
 
 .hero-tag,
@@ -3402,6 +3586,39 @@ export default {
 .weekly-vault-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 10px;
+}
+
+.quick-vault-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quick-vault-character-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 13px;
+}
+
+.quick-vault-progress-grid {
+  grid-template-columns: 1.1fr repeat(3, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.quick-vault-progress-grid .mini-field:first-child .input {
+  color: #ffe4a0;
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-vault-grand-board {
+  margin-top: 0;
+}
+
+.quick-vault-note-field {
+  margin-top: 0;
 }
 
 .score-field {

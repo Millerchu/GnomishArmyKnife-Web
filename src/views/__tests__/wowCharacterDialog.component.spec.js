@@ -6,7 +6,12 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import WowCharacterStats from '../WowCharacterStats.vue'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
-import {getWowCharacterOverview, listWowCharacters} from '@/api/wowCharacter'
+import {
+  getWowCharacterOverview,
+  listWowCharacters,
+  resetWowCharacterWeeklyProgress,
+  updateWowCharacter
+} from '@/api/wowCharacter'
 
 const mountedWrappers = []
 
@@ -23,6 +28,7 @@ vi.mock('@/api/wowCharacter', () => ({
   deleteWowCharacter: vi.fn(),
   getWowCharacterOverview: vi.fn(),
   listWowCharacters: vi.fn(),
+  resetWowCharacterWeeklyProgress: vi.fn(),
   updateWowCharacter: vi.fn()
 }))
 
@@ -36,6 +42,8 @@ beforeEach(() => {
   listDataDictionaryOptionsByUsage.mockResolvedValue(buildApiResponse([]))
   listWowCharacters.mockResolvedValue(buildApiResponse({list: [], total: 0}))
   getWowCharacterOverview.mockResolvedValue(buildApiResponse({}))
+  resetWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse({}))
+  updateWowCharacter.mockResolvedValue(buildApiResponse({}))
 })
 
 afterEach(() => {
@@ -102,5 +110,86 @@ describe('WowCharacterStats MacDialog integration', () => {
     expect(wrapper.vm.form.keybindings).toHaveLength(2)
     expect(wrapper.vm.form.keybindings.map((item) => item.bindingName)).toEqual(['团本治疗', '大秘境治疗'])
     expect(wrapper.vm.form.keybindings.every((item) => item.hasKeybinding)).toBe(true)
+  })
+
+  it('打开角色详情时使用重置后的本周低保与大秘钥匙数据', async () => {
+    resetWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse({
+      id: 7,
+      characterName: '风渐渐',
+      level: 90,
+      mythicBestLevel: 0,
+      mythicDungeonName: null,
+      weeklyVaults: [{
+        id: 11,
+        weekStartDate: '2026-08-06',
+        raidProgressCount: 0,
+        mythicProgressCount: 0,
+        worldProgressCount: 0
+      }]
+    }))
+    const wrapper = mount(WowCharacterStats, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+
+    await wrapper.vm.openEditDialog({id: 7, characterName: '旧数据', level: 90})
+
+    expect(resetWowCharacterWeeklyProgress).toHaveBeenCalledWith(7)
+    expect(wrapper.vm.form.characterName).toBe('风渐渐')
+    expect(wrapper.vm.form.mythicBestLevel).toBe(0)
+    expect(wrapper.vm.form.mythicDungeonName).toBe('')
+    expect(wrapper.vm.form.weeklyVaults).toMatchObject([{weekStartDate: '2026-08-06'}])
+  })
+
+  it('低保快捷弹窗加载本周记录并单独保存进度', async () => {
+    const weeklyCharacter = {
+      id: 7,
+      characterName: '风渐渐',
+      level: 90,
+      className: '法师',
+      specName: '冰霜',
+      raceName: '人类',
+      realmName: '影之哀伤',
+      faction: 'ALLIANCE',
+      itemLevel: 700,
+      mythicRuns: [],
+      keybindings: [],
+      macros: [],
+      weeklyVaults: [{
+        id: 11,
+        weekStartDate: '2026-08-06',
+        raidProgressCount: 1,
+        mythicProgressCount: 2,
+        worldProgressCount: 6
+      }]
+    }
+    resetWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse(weeklyCharacter))
+    updateWowCharacter.mockResolvedValue(buildApiResponse(weeklyCharacter))
+    const wrapper = mount(WowCharacterStats, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+
+    await wrapper.vm.openWeeklyVaultDialog({id: 7, level: 90})
+
+    expect(wrapper.vm.showWeeklyVaultDialog).toBe(true)
+    expect(wrapper.vm.quickWeeklyVault).toMatchObject({
+      weekStartDate: '2026-08-06',
+      raidProgressCount: 1,
+      mythicProgressCount: 2,
+      worldProgressCount: 6
+    })
+
+    wrapper.vm.quickWeeklyVault.mythicProgressCount = 4
+    await wrapper.vm.saveWeeklyVaultDialog()
+
+    expect(updateWowCharacter).toHaveBeenCalledWith(7, expect.objectContaining({
+      weeklyVaults: [expect.objectContaining({mythicProgressCount: 4})]
+    }))
+    expect(wrapper.vm.showWeeklyVaultDialog).toBe(false)
   })
 })
