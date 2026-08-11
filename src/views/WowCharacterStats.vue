@@ -116,6 +116,17 @@
             <option v-for="item in classOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
           </select>
         </label>
+
+        <label class="field">
+          <span>服务器</span>
+          <input
+            v-model.trim="query.realmName"
+            class="input"
+            maxlength="32"
+            placeholder="输入或点击右侧服务器 Top 5"
+            @keyup.enter="handleSearch"
+          />
+        </label>
       </div>
 
       <div class="filter-actions">
@@ -326,23 +337,39 @@
           <section class="insight-block compact-insight-block">
             <div class="insight-head">
               <h3 class="insight-title">阵营与服务器</h3>
-              <span class="insight-head-meta">服务器 Top 3</span>
+              <span class="insight-head-meta">服务器 Top 5 · 点击筛选</span>
             </div>
             <div class="faction-summary-grid">
-              <div v-for="item in factionStats" :key="item.label" class="faction-summary-item">
+              <button
+                v-for="item in factionStats"
+                :key="item.label"
+                type="button"
+                class="faction-summary-item insight-filter-item"
+                :class="{active: isInsightFilterActive('faction', item.label)}"
+                :title="`筛选${item.label}角色`"
+                @click="applyInsightFilter('faction', item.label)"
+              >
                 <div>
                   <strong>{{ item.label }}</strong>
                   <span>{{ item.count }} 角色</span>
                 </div>
                 <b>{{ item.ratio }}</b>
-              </div>
+              </button>
             </div>
             <div class="realm-summary-list">
-              <div v-for="item in realmStats.slice(0, 3)" :key="item.realmName" class="realm-summary-row">
+              <button
+                v-for="item in realmStats"
+                :key="item.realmName"
+                type="button"
+                class="realm-summary-row insight-filter-item"
+                :class="{active: isInsightFilterActive('realmName', item.realmName)}"
+                :title="`筛选${item.realmName}角色`"
+                @click="applyInsightFilter('realmName', item.realmName)"
+              >
                 <strong>{{ item.realmName }}</strong>
                 <span>{{ item.count }} 角色</span>
                 <b>最高 {{ formatDecimal(item.highestItemLevel) }}</b>
-              </div>
+              </button>
             </div>
           </section>
 
@@ -352,18 +379,22 @@
               <span class="insight-head-meta">{{ classStats.length }} 职业</span>
             </div>
             <div class="class-stat-list compact-class-stat-grid">
-              <div
+              <button
                 v-for="item in classStats"
                 :key="item.className"
+                type="button"
                 class="class-stat-item compact-class-stat-item"
+                :class="{active: isInsightFilterActive('className', item.className)}"
                 :style="buildClassStatStyle(item.className)"
+                :title="`筛选${item.className}角色`"
+                @click="applyInsightFilter('className', item.className)"
               >
                 <div class="class-stat-main">
                   <strong>{{ item.className }}</strong>
                   <b>{{ item.count }}</b>
                 </div>
                 <span>平均装等 {{ formatDecimal(item.averageItemLevel) }}</span>
-              </div>
+              </button>
             </div>
           </section>
         </div>
@@ -1172,6 +1203,7 @@ export default {
       keyword: '',
       faction: '',
       className: '',
+      realmName: '',
       pageNo: 1,
       pageSize: PAGE_SIZE_OPTIONS[0],
       sortField: '',
@@ -1406,6 +1438,7 @@ export default {
           keyword: query.keyword || undefined,
           faction: query.faction || undefined,
           className: query.className || undefined,
+          realmName: query.realmName || undefined,
           sortField: query.sortField || undefined,
           sortDirection: query.sortDirection || undefined
         })
@@ -1894,11 +1927,36 @@ export default {
       query.keyword = ''
       query.faction = ''
       query.className = ''
+      query.realmName = ''
       query.pageNo = 1
       query.pageSize = PAGE_SIZE_OPTIONS[0]
       query.sortField = ''
       query.sortDirection = ''
       loadCharacters()
+    }
+
+    const isInsightFilterActive = (filterField, value) => {
+      if (filterField === 'faction') {
+        return query.faction === normalizeSelectedValue(factionOptions.value, value, value)
+      }
+      if (filterField === 'className') {
+        return query.className === normalizeSelectedValue(classOptions.value, value, value)
+      }
+      return query.realmName === value
+    }
+
+    const applyInsightFilter = async (filterField, value) => {
+      if (loading.value) {
+        return
+      }
+      const nextValue = filterField === 'faction'
+        ? normalizeSelectedValue(factionOptions.value, value, value)
+        : (filterField === 'className'
+          ? normalizeSelectedValue(classOptions.value, value, value)
+          : value)
+      query[filterField] = query[filterField] === nextValue ? '' : nextValue
+      query.pageNo = 1
+      await loadCharacters()
     }
 
     const toggleSort = async (field) => {
@@ -2209,8 +2267,10 @@ export default {
       formatDecimal,
       formatScore,
       isMaxLevelCharacter,
+      isInsightFilterActive,
       handleSearch,
       resetQuery,
+      applyInsightFilter,
       toggleSort,
       getSortIndicator,
       getSortButtonTitle,
@@ -2710,7 +2770,7 @@ export default {
 }
 
 .filter-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .field,
@@ -2847,14 +2907,19 @@ export default {
 
 .faction-summary-item {
   display: flex;
+  width: 100%;
   min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
   padding: 7px 8px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.055);
+  cursor: pointer;
 }
 
 .faction-summary-item > div {
@@ -2892,12 +2957,18 @@ export default {
 
 .realm-summary-row {
   display: grid;
+  width: 100%;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
   min-height: 30px;
   padding: 5px 2px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  cursor: pointer;
 }
 
 .realm-summary-row:last-child {
@@ -2934,6 +3005,26 @@ export default {
   gap: 2px;
   padding: 7px 8px;
   border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.insight-filter-item {
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.insight-filter-item:hover {
+  border-color: rgba(255, 215, 110, 0.52);
+  background-color: rgba(255, 215, 110, 0.1);
+  transform: translateY(-1px);
+}
+
+.insight-filter-item.active {
+  border-color: rgba(255, 215, 110, 0.86);
+  background: linear-gradient(135deg, rgba(255, 205, 84, 0.2), rgba(255, 255, 255, 0.07));
+  box-shadow: inset 3px 0 0 #ffd76e, 0 5px 14px rgba(0, 0, 0, 0.14);
 }
 
 .class-stat-main {

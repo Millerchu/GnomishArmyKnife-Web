@@ -192,4 +192,31 @@ describe('WowCharacterStats MacDialog integration', () => {
     }))
     expect(wrapper.vm.showWeeklyVaultDialog).toBe(false)
   })
+
+  it('概览统计点击后同步设置角色列表筛选条件', async () => {
+    const wrapper = mount(WowCharacterStats, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+    wrapper.vm.factionOptions = [{value: 'ALLIANCE', label: '联盟'}]
+    wrapper.vm.classOptions = [{value: '法师', label: '法师'}]
+
+    await wrapper.vm.applyInsightFilter('faction', '联盟')
+    expect(wrapper.vm.query.faction).toBe('ALLIANCE')
+    expect(listWowCharacters).toHaveBeenLastCalledWith(expect.objectContaining({faction: 'ALLIANCE'}))
+
+    await wrapper.vm.applyInsightFilter('className', '法师')
+    expect(wrapper.vm.query.className).toBe('法师')
+    expect(listWowCharacters).toHaveBeenLastCalledWith(expect.objectContaining({className: '法师'}))
+
+    await wrapper.vm.applyInsightFilter('realmName', '影之哀伤')
+    expect(wrapper.vm.query.realmName).toBe('影之哀伤')
+    expect(listWowCharacters).toHaveBeenLastCalledWith(expect.objectContaining({realmName: '影之哀伤'}))
+
+    await wrapper.vm.applyInsightFilter('realmName', '影之哀伤')
+    expect(wrapper.vm.query.realmName).toBe('')
+    expect(listWowCharacters).toHaveBeenLastCalledWith(expect.objectContaining({realmName: undefined}))
+  })
 })
