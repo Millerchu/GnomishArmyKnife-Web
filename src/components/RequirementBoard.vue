@@ -14,7 +14,7 @@
       @click.stop="togglePanel"
     >
       <span class="board-trigger-icon" aria-hidden="true">▤</span>
-      <span>需求看板</span>
+      <span>用户看板</span>
       <small v-if="allStatusCount">{{ allStatusCount }}</small>
     </button>
 
@@ -28,10 +28,10 @@
       >
     <header class="notice-board-header">
       <div class="notice-board-heading">
-        <span class="notice-board-kicker" aria-hidden="true">需求</span>
+        <span class="notice-board-kicker" aria-hidden="true">反馈</span>
         <div>
-          <h2 id="requirement-board-title">需求看板</h2>
-          <p>所有用户共享需求和处理进度。</p>
+          <h2 id="requirement-board-title">用户看板</h2>
+          <p>所有用户共享需求、Bug 和处理进度。</p>
         </div>
       </div>
       <div class="notice-board-header-actions">
@@ -42,21 +42,21 @@
           :disabled="!applicationOptions.length"
           @click="openCreateDialog"
         >
-          <span aria-hidden="true">＋</span>发布需求
+          <span aria-hidden="true">＋</span>发布反馈
         </button>
-        <button type="button" class="board-close-button" aria-label="关闭需求看板" @click="closePanel">×</button>
+        <button type="button" class="board-close-button" aria-label="关闭用户看板" @click="closePanel">×</button>
       </div>
     </header>
 
     <div class="notice-toolbar">
       <label class="notice-search">
-        <span class="sr-only">搜索需求</span>
+        <span class="sr-only">搜索反馈</span>
         <span class="notice-search-icon" aria-hidden="true">⌕</span>
         <input
           v-model.trim="query.keyword"
           type="search"
           maxlength="100"
-          placeholder="搜索需求"
+          placeholder="搜索需求或 Bug"
           @keyup.enter="handleSearch"
         >
       </label>
@@ -69,6 +69,15 @@
           </option>
         </select>
       </label>
+      <label class="notice-select notice-type-filter">
+        <span class="sr-only">按类型筛选</span>
+        <select v-model="query.type" @change="handleFilterChange">
+          <option value="">全部类型</option>
+          <option v-for="type in typeOptions" :key="type.value" :value="type.value">
+            {{ type.label }}
+          </option>
+        </select>
+      </label>
       <label class="notice-select notice-priority-filter">
         <span class="sr-only">按优先级筛选</span>
         <select v-model="query.priority" @change="handleFilterChange">
@@ -78,7 +87,7 @@
           </option>
         </select>
       </label>
-      <button type="button" class="notice-icon-button" :disabled="boardLoading" title="刷新需求看板" @click="loadBoard">
+      <button type="button" class="notice-icon-button" :disabled="boardLoading" title="刷新用户看板" @click="loadBoard">
         <span aria-hidden="true">↻</span><span class="sr-only">刷新</span>
       </button>
     </div>
@@ -102,7 +111,7 @@
       <button type="button" @click="loadBoard">重试</button>
     </div>
 
-    <div v-if="boardLoading && !requirements.length" class="notice-empty">正在读取需求...</div>
+    <div v-if="boardLoading && !requirements.length" class="notice-empty">正在读取反馈...</div>
     <div v-else-if="requirements.length" class="notice-grid" aria-live="polite">
       <button
         v-for="item in requirements"
@@ -117,6 +126,9 @@
             {{ item.appName || '通用' }}
           </span>
           <span class="notice-card-badges">
+            <span class="notice-type" :class="typeClass(item.type)">
+              {{ formatType(item.type) }}
+            </span>
             <span class="notice-priority" :class="priorityClass(item.priority)">
               {{ formatPriority(item.priority) }}
             </span>
@@ -135,8 +147,8 @@
       </button>
     </div>
     <div v-else class="notice-empty">
-      <strong>这里还没有需求</strong>
-      <span>换个筛选条件，或提交第一条需求。</span>
+      <strong>这里还没有反馈</strong>
+      <span>换个筛选条件，或提交第一条需求或 Bug。</span>
     </div>
 
     <footer v-if="boardTotal > query.pageSize" class="notice-pager">
@@ -151,8 +163,8 @@
 
     <MacDialog
       v-model="showFormDialog"
-      :title="formMode === 'create' ? '发布需求' : '编辑需求'"
-      subtitle="选择所属应用，让这条需求更容易被找到。"
+      :title="formMode === 'create' ? '发布反馈' : '编辑反馈'"
+      subtitle="选择类型和所属应用，让这条反馈更容易被找到。"
       width="640px"
       panel-class="requirement-form-dialog"
       mobile-presentation="sheet"
@@ -160,6 +172,14 @@
       @cancel="closeFormDialog"
     >
       <form id="requirement-form" class="notice-form" @submit.prevent="submitRequirementForm">
+        <label>
+          <span>类型</span>
+          <select v-model="requirementForm.type" required>
+            <option v-for="type in typeOptions" :key="type.value" :value="type.value">
+              {{ type.label }}
+            </option>
+          </select>
+        </label>
         <label>
           <span>所属应用</span>
           <select v-model="requirementForm.appCode" required>
@@ -178,8 +198,8 @@
           </select>
         </label>
         <label>
-          <span>需求标题</span>
-          <input v-model.trim="requirementForm.title" maxlength="100" required placeholder="一句话说清楚想要什么">
+          <span>标题</span>
+          <input v-model.trim="requirementForm.title" maxlength="100" required placeholder="一句话说清楚需求或问题">
         </label>
         <label>
           <span>详细描述 <em>可选</em></span>
@@ -195,19 +215,22 @@
 
     <MacDialog
       v-model="showDetailDialog"
-      :title="detailRequirement?.title || '需求详情'"
+      :title="detailRequirement?.title || '反馈详情'"
       width="800px"
       panel-class="requirement-detail-dialog"
       mobile-presentation="fullScreen"
       :close-disabled="detailSubmitting"
       @cancel="closeDetailDialog"
     >
-      <div v-if="detailLoading" class="notice-empty">正在读取需求详情...</div>
+      <div v-if="detailLoading" class="notice-empty">正在读取反馈详情...</div>
       <div v-else-if="detailRequirement" class="notice-detail">
         <div class="notice-detail-topline">
           <span class="notice-app">
             <span class="notice-app-mark" aria-hidden="true">{{ appMark(detailRequirement.appName) }}</span>
             {{ detailRequirement.appName || '通用' }}
+          </span>
+          <span class="notice-type" :class="typeClass(detailRequirement.type)">
+            {{ formatType(detailRequirement.type) }}
           </span>
           <span class="notice-status">
             <span class="notice-status-dot" :class="statusClass(detailRequirement.status)" aria-hidden="true"></span>
@@ -220,6 +243,14 @@
         </div>
 
         <form v-if="detailEditing" id="requirement-edit-form" class="notice-form" @submit.prevent="submitContentUpdate">
+          <label>
+            <span>类型</span>
+            <select v-model="requirementForm.type" required>
+              <option v-for="type in typeOptions" :key="type.value" :value="type.value">
+                {{ type.label }}
+              </option>
+            </select>
+          </label>
           <label>
             <span>所属应用</span>
             <select v-model="requirementForm.appCode" required>
@@ -235,7 +266,7 @@
             </select>
           </label>
           <label>
-            <span>需求标题</span>
+            <span>标题</span>
             <input v-model.trim="requirementForm.title" maxlength="100" required>
           </label>
           <label>
@@ -332,6 +363,10 @@ const PRIORITY_OPTIONS = [
   {value: 'MEDIUM', label: '中'},
   {value: 'LOW', label: '低'}
 ]
+const TYPE_OPTIONS = [
+  {value: 'REQUIREMENT', label: '需求'},
+  {value: 'BUG', label: 'Bug'}
+]
 
 function unwrapData(response) {
   const payload = response?.data
@@ -346,7 +381,7 @@ function extractErrorMessage(error, fallback) {
 }
 
 function buildRequirementForm(appCode = '') {
-  return {id: null, appCode, priority: 'MEDIUM', title: '', description: '', version: null}
+  return {id: null, appCode, type: 'REQUIREMENT', priority: 'MEDIUM', title: '', description: '', version: null}
 }
 
 function buildProgressForm(status = 'PENDING_REVIEW') {
@@ -381,7 +416,7 @@ export default {
     const detailEditing = ref(false)
     const requirementForm = reactive(buildRequirementForm())
     const progressForm = reactive(buildProgressForm())
-    const query = reactive({pageNo: 1, pageSize: 50, keyword: '', status: '', appCode: '', priority: ''})
+    const query = reactive({pageNo: 1, pageSize: 50, keyword: '', status: '', appCode: '', priority: '', type: ''})
     let panelHideTimer = null
 
     const totalPages = computed(() => Math.max(1, Math.ceil(boardTotal.value / query.pageSize)))
@@ -400,7 +435,7 @@ export default {
         applicationOptions.value = Array.isArray(payload) ? payload : []
       } catch (error) {
         applicationOptions.value = []
-        emit('notice', 'error', '应用列表加载失败', extractErrorMessage(error, '暂时无法选择需求所属应用，请稍后刷新。'))
+        emit('notice', 'error', '应用列表加载失败', extractErrorMessage(error, '暂时无法选择反馈所属应用，请稍后刷新。'))
       }
     }
 
@@ -413,7 +448,7 @@ export default {
         statusCounts.value = Array.isArray(payload.statusCounts) ? payload.statusCounts : []
         boardTotal.value = Number(payload.total || 0)
       } catch (error) {
-        boardError.value = extractErrorMessage(error, '需求看板暂时无法加载，请稍后重试。')
+        boardError.value = extractErrorMessage(error, '用户看板暂时无法加载，请稍后重试。')
         requirements.value = []
         statusCounts.value = []
         boardTotal.value = 0
@@ -484,7 +519,7 @@ export default {
 
     const openCreateDialog = () => {
       formMode.value = 'create'
-      resetRequirementForm(applicationOptions.value[0]?.appCode || '')
+      resetRequirementForm()
       closePanel()
       showFormDialog.value = true
     }
@@ -502,15 +537,17 @@ export default {
       try {
         await createRequirementItem({
           appCode: requirementForm.appCode,
+          type: requirementForm.type,
           priority: requirementForm.priority,
           title: requirementForm.title,
           description: requirementForm.description || null
         })
-        emit('notice', 'success', '需求已提交', '需求已共享给所有登录用户。')
+        const typeName = formatType(requirementForm.type)
+        emit('notice', 'success', `${typeName}已提交`, `${typeName}已共享给所有登录用户。`)
         closeFormDialog(true)
         await loadBoard()
       } catch (error) {
-        emit('notice', 'error', '保存失败', extractErrorMessage(error, '保存需求失败，请稍后重试。'))
+        emit('notice', 'error', '保存失败', extractErrorMessage(error, '保存反馈失败，请稍后重试。'))
       } finally {
         formSubmitting.value = false
       }
@@ -526,7 +563,7 @@ export default {
         detailRequirement.value = unwrapData(await getRequirementItemDetail(item.id)) || null
         resetProgressForm(detailRequirement.value?.status)
       } catch (error) {
-        emit('notice', 'error', '读取失败', extractErrorMessage(error, '读取需求详情失败，请稍后重试。'))
+        emit('notice', 'error', '读取失败', extractErrorMessage(error, '读取反馈详情失败，请稍后重试。'))
         showDetailDialog.value = false
       } finally {
         detailLoading.value = false
@@ -551,6 +588,7 @@ export default {
       Object.assign(requirementForm, {
         id: detailRequirement.value.id,
         appCode: detailRequirement.value.appCode,
+        type: detailRequirement.value.type || 'REQUIREMENT',
         priority: detailRequirement.value.priority || 'MEDIUM',
         title: detailRequirement.value.title,
         description: detailRequirement.value.description || '',
@@ -569,6 +607,7 @@ export default {
       try {
         detailRequirement.value = unwrapData(await updateRequirementItem(requirementForm.id, {
           appCode: requirementForm.appCode,
+          type: requirementForm.type,
           priority: requirementForm.priority,
           title: requirementForm.title,
           description: requirementForm.description || null,
@@ -577,9 +616,10 @@ export default {
         resetProgressForm(detailRequirement.value.status)
         detailEditing.value = false
         await loadBoard()
-        emit('notice', 'success', '需求已更新', '需求内容和所属应用已保存。')
+        const typeName = formatType(detailRequirement.value.type)
+        emit('notice', 'success', `${typeName}已更新`, `${typeName}内容、类型和所属应用已保存。`)
       } catch (error) {
-        emit('notice', 'error', '更新失败', extractErrorMessage(error, '需求可能已被其他用户更新，请刷新后重试。'))
+        emit('notice', 'error', '更新失败', extractErrorMessage(error, '反馈可能已被其他用户更新，请刷新后重试。'))
       } finally {
         detailSubmitting.value = false
       }
@@ -598,9 +638,9 @@ export default {
         }))
         resetProgressForm(detailRequirement.value.status)
         await loadBoard()
-        emit('notice', 'success', '进度已同步', `需求已更新为“${formatStatus(detailRequirement.value.status)}”。`)
+        emit('notice', 'success', '进度已同步', `${formatType(detailRequirement.value.type)}已更新为“${formatStatus(detailRequirement.value.status)}”。`)
       } catch (error) {
-        emit('notice', 'error', '更新失败', extractErrorMessage(error, '需求可能已被其他用户更新，请刷新后重试。'))
+        emit('notice', 'error', '更新失败', extractErrorMessage(error, '反馈可能已被其他用户更新，请刷新后重试。'))
       } finally {
         detailSubmitting.value = false
       }
@@ -610,9 +650,10 @@ export default {
       if (!detailRequirement.value) {
         return
       }
-      const confirmed = await confirmDialog(`确定删除需求“${detailRequirement.value.title}”吗？相关进度记录将一并删除。`, {
-        title: '删除共享需求',
-        confirmText: '删除需求',
+      const typeName = formatType(detailRequirement.value.type)
+      const confirmed = await confirmDialog(`确定删除${typeName}“${detailRequirement.value.title}”吗？相关进度记录将一并删除。`, {
+        title: `删除${typeName}`,
+        confirmText: `删除${typeName}`,
         tone: 'danger'
       })
       if (!confirmed) {
@@ -623,9 +664,9 @@ export default {
         await deleteRequirementItem(detailRequirement.value.id, detailRequirement.value.version)
         closeDetailDialog(true)
         await loadBoard()
-        emit('notice', 'success', '需求已删除', '需求及其进度记录已删除。')
+        emit('notice', 'success', `${typeName}已删除`, `${typeName}及其进度记录已删除。`)
       } catch (error) {
-        emit('notice', 'error', '删除失败', extractErrorMessage(error, '需求可能已被其他用户更新，请刷新后重试。'))
+        emit('notice', 'error', '删除失败', extractErrorMessage(error, '反馈可能已被其他用户更新，请刷新后重试。'))
       } finally {
         detailSubmitting.value = false
       }
@@ -635,6 +676,8 @@ export default {
     const statusClass = (status) => status ? `status-${status.toLowerCase().replace(/_/g, '-')}` : ''
     const formatPriority = (priority) => PRIORITY_OPTIONS.find((item) => item.value === priority)?.label || '中'
     const priorityClass = (priority) => `priority-${(priority || 'MEDIUM').toLowerCase()}`
+    const formatType = (type) => TYPE_OPTIONS.find((item) => item.value === type)?.label || '需求'
+    const typeClass = (type) => `type-${(type || 'REQUIREMENT').toLowerCase()}`
     const appMark = (appName) => (appName || '通').trim().slice(0, 1)
     const formatDateTime = (value) => {
       if (!value) {
@@ -665,6 +708,7 @@ export default {
       statusOptions: STATUS_OPTIONS,
       boardStatusOptions: BOARD_STATUS_OPTIONS,
       priorityOptions: PRIORITY_OPTIONS,
+      typeOptions: TYPE_OPTIONS,
       query,
       totalPages,
       showFormDialog,
@@ -703,6 +747,8 @@ export default {
       statusClass,
       formatPriority,
       priorityClass,
+      formatType,
+      typeClass,
       appMark,
       formatDateTime
     }
@@ -1007,6 +1053,14 @@ export default {
   flex: 0 1 180px;
 }
 
+.notice-type-filter {
+  flex-basis: 122px;
+}
+
+.notice-priority-filter {
+  flex-basis: 138px;
+}
+
 .notice-search input:focus,
 .notice-select select:focus,
 .notice-form input:focus,
@@ -1109,7 +1163,8 @@ export default {
 
 .notice-app,
 .notice-status,
-.notice-priority {
+.notice-priority,
+.notice-type {
   display: inline-flex;
   min-width: 0;
   align-items: center;
@@ -1130,6 +1185,24 @@ export default {
   border-radius: 6px;
   padding: 0 6px;
   font-weight: 750;
+}
+
+.notice-type {
+  min-height: 19px;
+  border-radius: 999px;
+  padding: 0 7px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.notice-type.type-requirement {
+  color: #175cd3;
+  background: color-mix(in srgb, #2e90fa 13%, var(--theme-control-surface));
+}
+
+.notice-type.type-bug {
+  color: #c11574;
+  background: color-mix(in srgb, #ee46bc 13%, var(--theme-control-surface));
 }
 
 .notice-priority.priority-high {

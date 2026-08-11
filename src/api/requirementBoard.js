@@ -1,6 +1,6 @@
 import request from '@/api/request'
 
-// 共享需求看板：所有接口均要求已登录，不依赖应用目录授权。
+// 用户看板：所有接口均要求已登录，不依赖应用目录授权。
 export function listRequirementItems(params) {
   return request.get('/requirement-items', {params})
 }
