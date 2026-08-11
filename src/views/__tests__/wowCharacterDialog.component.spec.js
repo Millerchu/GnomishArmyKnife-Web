@@ -9,9 +9,11 @@ import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   getWowCharacterOverview,
   listWowCharacters,
+  resetAllWowCharacterWeeklyProgress,
   resetWowCharacterWeeklyProgress,
   updateWowCharacter
 } from '@/api/wowCharacter'
+import {confirmDialog} from '@/components/systemDialog'
 
 const mountedWrappers = []
 
@@ -28,8 +30,13 @@ vi.mock('@/api/wowCharacter', () => ({
   deleteWowCharacter: vi.fn(),
   getWowCharacterOverview: vi.fn(),
   listWowCharacters: vi.fn(),
+  resetAllWowCharacterWeeklyProgress: vi.fn(),
   resetWowCharacterWeeklyProgress: vi.fn(),
   updateWowCharacter: vi.fn()
+}))
+
+vi.mock('@/components/systemDialog', () => ({
+  confirmDialog: vi.fn()
 }))
 
 function buildApiResponse(payload) {
@@ -42,6 +49,8 @@ beforeEach(() => {
   listDataDictionaryOptionsByUsage.mockResolvedValue(buildApiResponse([]))
   listWowCharacters.mockResolvedValue(buildApiResponse({list: [], total: 0}))
   getWowCharacterOverview.mockResolvedValue(buildApiResponse({}))
+  confirmDialog.mockResolvedValue(true)
+  resetAllWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse(0))
   resetWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse({}))
   updateWowCharacter.mockResolvedValue(buildApiResponse({}))
 })
@@ -218,5 +227,28 @@ describe('WowCharacterStats MacDialog integration', () => {
     await wrapper.vm.applyInsightFilter('realmName', '影之哀伤')
     expect(wrapper.vm.query.realmName).toBe('')
     expect(listWowCharacters).toHaveBeenLastCalledWith(expect.objectContaining({realmName: undefined}))
+  })
+
+  it('批量重置低保后刷新角色列表与概览', async () => {
+    resetAllWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse(2))
+    const wrapper = mount(WowCharacterStats, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+    listWowCharacters.mockClear()
+    getWowCharacterOverview.mockClear()
+
+    await wrapper.vm.resetAllWeeklyVaults()
+
+    expect(confirmDialog).toHaveBeenCalledWith(
+      expect.stringContaining('清空所有满级角色'),
+      expect.objectContaining({confirmText: '确认重置'})
+    )
+    expect(resetAllWowCharacterWeeklyProgress).toHaveBeenCalledTimes(1)
+    expect(listWowCharacters).toHaveBeenCalledTimes(1)
+    expect(getWowCharacterOverview).toHaveBeenCalledTimes(1)
+    expect(globalThis.alert).toHaveBeenCalledWith('已重置 2 个满级角色的低保数据')
   })
 })

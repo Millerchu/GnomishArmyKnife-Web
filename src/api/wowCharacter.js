@@ -17,6 +17,10 @@ export function resetWowCharacterWeeklyProgress(id) {
   return request.post(`/wow-characters/${id}/weekly-reset`)
 }
 
+export function resetAllWowCharacterWeeklyProgress() {
+  return request.post('/wow-characters/weekly-reset')
+}
+
 export function deleteWowCharacter(id) {
   return request.delete(`/wow-characters/${id}`)
 }

@@ -147,7 +147,10 @@
         <div class="toolbar">
           <div class="toolbar-left">
             <button class="action-btn" :disabled="loading || submitting" @click="openCreateDialog">新增角色</button>
-            <button class="ghost-btn" :disabled="loading || submitting" @click="loadPageData">刷新列表</button>
+            <button class="ghost-btn" :disabled="loading || submitting || weeklyVaultResetting" @click="loadPageData">刷新列表</button>
+            <button class="ghost-btn reset-weekly-btn" :disabled="loading || submitting || weeklyVaultResetting" @click="resetAllWeeklyVaults">
+              {{ weeklyVaultResetting ? '重置中...' : '重置低保' }}
+            </button>
           </div>
           <div class="toolbar-right">
             <span>共 {{ total }} 条</span>
@@ -208,6 +211,7 @@
                     <span>{{ formatSpecText(item.specName) || '-' }}</span>
                   </div>
                 </td>
+                <td>{{ formatRaceText(item.raceName) }}</td>
                 <td>{{ item.level || '-' }}</td>
                 <td>{{ item.realmName || '-' }}</td>
                 <td>{{ formatDecimal(item.itemLevel) }}</td>
@@ -264,7 +268,7 @@
                   >
                   <div>
                     <h3 class="mobile-card-title">{{ item.characterName }}</h3>
-                    <p class="mobile-card-subtitle">{{ formatSpecText(item.specName) || '-' }} · {{ item.realmName }}</p>
+                    <p class="mobile-card-subtitle">{{ formatRaceText(item.raceName) }} · {{ formatSpecText(item.specName) || '-' }} · {{ item.realmName }}</p>
                   </div>
                 </div>
               </div>
@@ -880,6 +884,7 @@ import {
   deleteWowCharacter,
   getWowCharacterOverview,
   listWowCharacters,
+  resetAllWowCharacterWeeklyProgress,
   resetWowCharacterWeeklyProgress,
   updateWowCharacter
 } from '@/api/wowCharacter'
@@ -890,6 +895,7 @@ const CHARACTER_SORT_COLUMNS = [
   {field: 'faction', label: '阵营'},
   {field: 'characterName', label: '角色名', mobileLabel: '角色'},
   {field: 'specName', label: '专精'},
+  {field: 'raceName', label: '种族'},
   {field: 'level', label: '等级'},
   {field: 'realmName', label: '服务器'},
   {field: 'itemLevel', label: '装等'},
@@ -1171,6 +1177,7 @@ export default {
 
     const loading = ref(false)
     const submitting = ref(false)
+    const weeklyVaultResetting = ref(false)
     const total = ref(0)
     const pagedRecords = ref([])
     const featuredCharacters = ref([])
@@ -1918,6 +1925,29 @@ export default {
       }
     }
 
+    const resetAllWeeklyVaults = async () => {
+      if (weeklyVaultResetting.value) {
+        return
+      }
+      if (!await confirmDialog('将清空所有满级角色的当前钥匙和低保进度，并创建本周空白低保记录。此操作不可恢复。', {
+        title: '重置所有满级角色低保？',
+        confirmText: '确认重置'
+      })) {
+        return
+      }
+      weeklyVaultResetting.value = true
+      try {
+        const response = await resetAllWowCharacterWeeklyProgress()
+        const resetCount = toNumber(unwrapData(response), 0)
+        await loadPageData()
+        alert(`已重置 ${resetCount} 个满级角色的低保数据`)
+      } catch (error) {
+        alert(getErrorMessage(error, '低保批量重置失败'))
+      } finally {
+        weeklyVaultResetting.value = false
+      }
+    }
+
     const handleSearch = () => {
       query.pageNo = 1
       loadCharacters()
@@ -2220,6 +2250,7 @@ export default {
     return {
       loading,
       submitting,
+      weeklyVaultResetting,
       total,
       pagedRecords,
       featuredCharacters,
@@ -2284,6 +2315,7 @@ export default {
       closeDialog,
       submitDialog,
       removeCharacter,
+      resetAllWeeklyVaults,
       loadPageData,
       appendWeeklyVault,
       removeWeeklyVault,
@@ -3112,6 +3144,19 @@ export default {
   background: linear-gradient(135deg, #1996ff, #27d5a4);
 }
 
+.reset-weekly-btn {
+  border: 1px solid rgba(255, 195, 74, 0.5);
+  color: #ffe5a8;
+  background: linear-gradient(135deg, rgba(143, 83, 15, 0.7), rgba(91, 45, 12, 0.74));
+  box-shadow: inset 0 1px 0 rgba(255, 236, 179, 0.14);
+}
+
+.reset-weekly-btn:not(:disabled):hover {
+  border-color: rgba(255, 218, 119, 0.92);
+  color: #fff5d7;
+  background: linear-gradient(135deg, rgba(184, 111, 18, 0.82), rgba(118, 58, 13, 0.86));
+}
+
 .ghost-btn {
   background: rgba(255, 255, 255, 0.12);
 }
@@ -3156,7 +3201,7 @@ export default {
 
 .character-table {
   width: 100%;
-  min-width: 860px;
+  min-width: 940px;
   border-collapse: collapse;
 }
 
