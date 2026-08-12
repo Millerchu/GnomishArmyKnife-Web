@@ -24,10 +24,16 @@ const pageContracts = [
   {
     name: '魔兽角色与键位、宏维护',
     loadSource: () => import('../WowCharacterStats.vue?raw'),
-    dialogCount: 3,
+    dialogCount: 5,
     formIds: ['wow-character-dialog-form'],
-    panelClasses: ['wow-character-dialog', 'wow-keybinding-dialog', 'wow-keybinding-dialog'],
-    closeDisabledBindings: ['submitting', 'false', 'false']
+    panelClasses: [
+      'wow-character-dialog',
+      'wow-weekly-vault-dialog',
+      'wow-mythic-history-dialog',
+      'wow-keybinding-dialog',
+      'wow-keybinding-dialog'
+    ],
+    closeDisabledBindings: ['submitting', 'weeklyVaultSubmitting', 'false', 'false', 'false']
   }
 ]
 

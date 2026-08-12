@@ -28,3 +28,15 @@ export function deleteWowCharacter(id) {
 export function getWowCharacterOverview(params) {
   return request.get('/wow-characters/overview', {params})
 }
+
+export function getWowSeasonInfo() {
+  return request.get('/wow-characters/season')
+}
+
+export function resetWowMythicSeason() {
+  return request.post('/wow-characters/mythic-season-reset')
+}
+
+export function listWowCharacterMythicSeasonHistory(id) {
+  return request.get(`/wow-characters/${id}/mythic-season-history`)
+}

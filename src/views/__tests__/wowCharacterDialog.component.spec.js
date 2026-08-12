@@ -8,6 +8,7 @@ import WowCharacterStats from '../WowCharacterStats.vue'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   getWowCharacterOverview,
+  getWowSeasonInfo,
   listWowCharacters,
   resetAllWowCharacterWeeklyProgress,
   resetWowCharacterWeeklyProgress,
@@ -29,8 +30,11 @@ vi.mock('@/api/wowCharacter', () => ({
   createWowCharacter: vi.fn(),
   deleteWowCharacter: vi.fn(),
   getWowCharacterOverview: vi.fn(),
+  getWowSeasonInfo: vi.fn(),
+  listWowCharacterMythicSeasonHistory: vi.fn(),
   listWowCharacters: vi.fn(),
   resetAllWowCharacterWeeklyProgress: vi.fn(),
+  resetWowMythicSeason: vi.fn(),
   resetWowCharacterWeeklyProgress: vi.fn(),
   updateWowCharacter: vi.fn()
 }))
@@ -49,6 +53,7 @@ beforeEach(() => {
   listDataDictionaryOptionsByUsage.mockResolvedValue(buildApiResponse([]))
   listWowCharacters.mockResolvedValue(buildApiResponse({list: [], total: 0}))
   getWowCharacterOverview.mockResolvedValue(buildApiResponse({}))
+  getWowSeasonInfo.mockResolvedValue(buildApiResponse({highlights: [], dungeons: []}))
   confirmDialog.mockResolvedValue(true)
   resetAllWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse(0))
   resetWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse({}))

@@ -20,6 +20,68 @@
       </div>
     </div>
 
+    <section class="season-briefing">
+      <div class="season-version-mark">
+        <span>LIVE VERSION</span>
+        <strong>{{ seasonInfo.versionName || '--' }}</strong>
+        <b>{{ seasonInfo.seasonName || '赛季信息维护中' }}</b>
+      </div>
+      <div class="season-main-copy">
+        <span class="season-kicker">艾泽拉斯作战简报</span>
+        <h2>{{ seasonInfo.headline || '当前版本与赛季资讯' }}</h2>
+        <p>{{ seasonInfo.summary || '版本资讯数据源待维护。' }}</p>
+        <div class="season-highlight-list">
+          <span v-for="item in seasonInfo.highlights" :key="item">{{ item }}</span>
+        </div>
+      </div>
+      <div class="season-dungeon-pool">
+        <div class="season-pool-head">
+          <span>本赛季地下城</span>
+          <b>{{ seasonInfo.dungeons.length }} / 8</b>
+        </div>
+        <div class="season-dungeon-grid">
+          <span v-for="(dungeon, index) in seasonInfo.dungeons" :key="dungeon">
+            <i>{{ String(index + 1).padStart(2, '0') }}</i>{{ dungeon }}
+          </span>
+        </div>
+      </div>
+      <div class="crest-limit-strip">
+        <div v-for="crest in seasonInfo.crestLimits" :key="crest.name" class="crest-limit-item">
+          <span>{{ crest.name }}</span>
+          <strong>{{ crest.weeklyCap }}</strong>
+          <b>每周上限</b>
+        </div>
+        <div class="crest-limit-item special-limit-item">
+          <span>套装转化</span>
+          <strong>{{ extractLimitValue(seasonInfo.catalystLimit) }}</strong>
+          <b>特殊上限</b>
+        </div>
+        <div class="crest-limit-item special-limit-item">
+          <span>赛季火花</span>
+          <strong>{{ extractLimitValue(seasonInfo.sparkLimit) }}</strong>
+          <b>特殊上限</b>
+        </div>
+      </div>
+      <div class="season-operations-board">
+        <div class="season-activity-grid">
+          <article class="season-activity-card world-boss-card">
+            <span class="activity-icon">☠</span>
+            <div><b>世界首领</b><strong>{{ seasonInfo.worldBoss }}</strong></div>
+          </article>
+          <article class="season-activity-card">
+            <b>假日活动</b>
+            <span>本周：{{ seasonInfo.holidayThisWeek }}</span>
+            <span>下周：{{ seasonInfo.holidayNextWeek }}</span>
+          </article>
+          <article class="season-activity-card">
+            <b>特殊事件</b>
+            <strong>{{ seasonInfo.specialEvent }}</strong>
+            <span>{{ seasonInfo.specialEventDateRange }}</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
     <section class="spotlight-panel">
       <div class="panel-head">
         <div>
@@ -151,6 +213,9 @@
             <button class="ghost-btn reset-weekly-btn" :disabled="loading || submitting || weeklyVaultResetting" @click="resetAllWeeklyVaults">
               {{ weeklyVaultResetting ? '重置中...' : '重置低保' }}
             </button>
+            <button class="ghost-btn season-reset-btn" :disabled="loading || submitting || mythicSeasonResetting" @click="resetMythicSeason">
+              {{ mythicSeasonResetting ? '归档中...' : '赛季结算' }}
+            </button>
           </div>
           <div class="toolbar-right">
             <span>共 {{ total }} 条</span>
@@ -225,6 +290,7 @@
                       :title="isMaxLevelCharacter(item) ? '查看并维护本周低保' : '满级角色才有每周低保'"
                       @click="openWeeklyVaultDialog(item)"
                     >低保</button>
+                    <button class="mini-btn history-mini-btn" @click="openMythicHistoryDialog(item)">赛季历史</button>
                     <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
                     <button class="mini-btn danger" @click="removeCharacter(item)">删除</button>
                   </div>
@@ -287,6 +353,7 @@
                   :title="isMaxLevelCharacter(item) ? '查看并维护本周低保' : '满级角色才有每周低保'"
                   @click="openWeeklyVaultDialog(item)"
                 >低保</button>
+                <button class="mini-btn history-mini-btn" @click="openMythicHistoryDialog(item)">赛季历史</button>
                 <button class="mini-btn" @click="openEditDialog(item)">编辑</button>
                 <button class="mini-btn danger" @click="removeCharacter(item)">删除</button>
               </div>
@@ -574,6 +641,24 @@
                   <span>备注</span>
                   <textarea v-model.trim="item.note" class="input textarea compact-textarea" rows="2" maxlength="160" placeholder="例如：本周团本只打到 4，M+ 已满 8。" />
                 </label>
+                <div class="vault-attachment-box">
+                  <div class="vault-attachment-head">
+                    <span>低保凭证附件</span>
+                    <label class="mini-btn upload-mini-btn">
+                      上传附件
+                      <input type="file" hidden :disabled="vaultAttachmentUploading" @change="handleVaultFileSelected($event, item)" />
+                    </label>
+                  </div>
+                  <div v-if="item.attachments.length" class="vault-attachment-list">
+                    <div v-for="attachment in item.attachments" :key="attachment.id" class="attachment-row">
+                      <button type="button" class="attachment-chip" @click="downloadVaultAttachment(attachment)">
+                        <span>{{ attachment.originalFileName }}</span><b>{{ formatFileSize(attachment.fileSize) }}</b>
+                      </button>
+                      <button type="button" class="attachment-remove" @click="removeVaultAttachment(item, attachment)">×</button>
+                    </div>
+                  </div>
+                  <span v-else class="attachment-empty">可上传截图、PDF 或其他文件，最多 10 个。</span>
+                </div>
               </div>
             </div>
 
@@ -761,13 +846,58 @@
           <span>本周备注</span>
           <textarea v-model.trim="quickWeeklyVault.note" class="input textarea compact-textarea" rows="2" maxlength="160" placeholder="例如：本周团本只打到 4，M+ 已满 8。" />
         </label>
+        <div class="vault-attachment-box quick-vault-attachments">
+          <div class="vault-attachment-head">
+            <span>本周低保凭证</span>
+            <label class="mini-btn upload-mini-btn">
+              {{ vaultAttachmentUploading ? '上传中...' : '上传附件' }}
+              <input type="file" hidden :disabled="vaultAttachmentUploading" @change="handleVaultFileSelected($event, quickWeeklyVault)" />
+            </label>
+          </div>
+          <div v-if="quickWeeklyVault.attachments.length" class="vault-attachment-list">
+            <div v-for="attachment in quickWeeklyVault.attachments" :key="attachment.id" class="attachment-row">
+              <button type="button" class="attachment-chip" @click="downloadVaultAttachment(attachment)">
+                <span>{{ attachment.originalFileName }}</span><b>{{ formatFileSize(attachment.fileSize) }}</b>
+              </button>
+              <button type="button" class="attachment-remove" @click="removeVaultAttachment(quickWeeklyVault, attachment)">×</button>
+            </div>
+          </div>
+          <span v-else class="attachment-empty">上传开箱截图、掉落记录或备注文件，历史周可在角色编辑中查看。</span>
+        </div>
       </div>
       <template #footer>
-        <button type="button" class="ghost-btn" :disabled="weeklyVaultSubmitting" @click="closeWeeklyVaultDialog">取消</button>
+        <button type="button" class="ghost-btn" :disabled="weeklyVaultSubmitting" @click="closeWeeklyVaultDialog">暂不保存</button>
         <button type="button" class="action-btn" :disabled="weeklyVaultSubmitting" @click="saveWeeklyVaultDialog">
           {{ weeklyVaultSubmitting ? '保存中...' : '保存本周低保' }}
         </button>
       </template>
+    </MacDialog>
+
+    <MacDialog
+      v-model="showMythicHistoryDialog"
+      :title="`${activeHistoryCharacter?.characterName || '角色'} · M+ 赛季历史`"
+      subtitle="赛季结算时保存总分与逐副本成绩快照。"
+      width="760px"
+      panel-class="wow-mythic-history-dialog"
+      :close-disabled="false"
+      @close="closeMythicHistoryDialog"
+    >
+      <div v-if="mythicHistoryLoading" class="empty-state">历史加载中...</div>
+      <div v-else-if="mythicSeasonHistory.length" class="mythic-history-list">
+        <article v-for="history in mythicSeasonHistory" :key="history.id" class="mythic-history-card">
+          <div class="mythic-history-head">
+            <div><span>{{ history.seasonCode }}</span><strong>{{ history.seasonName }}</strong></div>
+            <b>{{ formatScore(history.mythicScore) }} 分</b>
+          </div>
+          <div class="mythic-history-runs">
+            <span v-for="run in history.mythicRuns" :key="run.dungeonName">
+              {{ formatDungeonShortLabel(run.dungeonName) }} <b>{{ formatScore(run.score) }}</b> / +{{ run.bestTimedLevel || 0 }}
+            </span>
+          </div>
+          <p>归档于 {{ history.archivedAt }}</p>
+        </article>
+      </div>
+      <div v-else class="empty-state">暂无赛季历史；完成一次“赛季结算”后会显示在这里。</div>
     </MacDialog>
 
     <MacDialog
@@ -883,11 +1013,15 @@ import {
   createWowCharacter,
   deleteWowCharacter,
   getWowCharacterOverview,
+  getWowSeasonInfo,
+  listWowCharacterMythicSeasonHistory,
   listWowCharacters,
   resetAllWowCharacterWeeklyProgress,
+  resetWowMythicSeason,
   resetWowCharacterWeeklyProgress,
   updateWowCharacter
 } from '@/api/wowCharacter'
+import {downloadAttachment, uploadAttachment} from '@/api/attachment'
 import {shouldShowEndgameSections} from '@/utils/wowCharacterDisplay'
 
 const PAGE_SIZE_OPTIONS = [12, 20, 40]
@@ -944,6 +1078,14 @@ const VAULT_REWARD_TRACKS = [
   }
 ]
 const DUNGEON_SHORT_LABELS = {
+  '毒牙祭坛': '毒牙',
+  '密谋小径': '密谋',
+  '纳洛拉克的洞穴': '纳洛',
+  '夺目谷': '夺目',
+  '虚空之痕竞技场': '虚痕',
+  '诸王之眠': '诸王',
+  '红玉新生法池': '红玉',
+  '塞塔里斯神庙': '蛇庙',
   '魔导师平台': '魔导',
   '迈萨拉洞窟': '洞窟',
   '节点希纳斯': '节点',
@@ -1048,7 +1190,8 @@ function createWeeklyVaultDraft(source = {}) {
     raidProgressCount: toNumber(source.raidProgressCount, 0),
     mythicProgressCount: toNumber(source.mythicProgressCount, 0),
     worldProgressCount: toNumber(source.worldProgressCount, 0),
-    note: source.note || ''
+    note: source.note || '',
+    attachments: Array.isArray(source.attachments) ? source.attachments.map((attachment) => ({...attachment})) : []
   }
 }
 
@@ -1178,6 +1321,8 @@ export default {
     const loading = ref(false)
     const submitting = ref(false)
     const weeklyVaultResetting = ref(false)
+    const mythicSeasonResetting = ref(false)
+    const vaultAttachmentUploading = ref(false)
     const total = ref(0)
     const pagedRecords = ref([])
     const featuredCharacters = ref([])
@@ -1189,6 +1334,10 @@ export default {
     const showWeeklyVaultDialog = ref(false)
     const showKeybindingDialog = ref(false)
     const showMacroDialog = ref(false)
+    const showMythicHistoryDialog = ref(false)
+    const mythicHistoryLoading = ref(false)
+    const mythicSeasonHistory = ref([])
+    const activeHistoryCharacter = ref(null)
     const weeklyVaultSubmitting = ref(false)
     const mythicRunsExpanded = ref(false)
     const weeklyVaultsExpanded = ref(false)
@@ -1205,6 +1354,23 @@ export default {
     const specOptions = ref([])
     const professionOptions = ref([])
     const mythicDungeonOptions = ref([])
+    const seasonInfo = reactive({
+      versionName: '',
+      seasonCode: '',
+      seasonName: '',
+      headline: '',
+      summary: '',
+      highlights: [],
+      dungeons: [],
+      crestLimits: [],
+      worldBoss: '待维护',
+      holidayThisWeek: '待维护',
+      holidayNextWeek: '待维护',
+      catalystLimit: '套装转化：待维护',
+      sparkLimit: '火花上限：待维护',
+      specialEvent: '待维护',
+      specialEventDateRange: '时间待维护'
+    })
 
     const query = reactive({
       keyword: '',
@@ -1433,6 +1599,32 @@ export default {
       } catch (error) {
         resetOverview()
         alert(getErrorMessage(error, 'WoW角色概览加载失败'))
+      }
+    }
+
+    const loadSeasonInfo = async () => {
+      try {
+        const response = await getWowSeasonInfo()
+        const payload = unwrapData(response) || {}
+        Object.assign(seasonInfo, {
+          versionName: payload.versionName || '',
+          seasonCode: payload.seasonCode || '',
+          seasonName: payload.seasonName || '',
+          headline: payload.headline || '',
+          summary: payload.summary || '',
+          highlights: Array.isArray(payload.highlights) ? payload.highlights : [],
+          dungeons: Array.isArray(payload.dungeons) ? payload.dungeons : [],
+          crestLimits: Array.isArray(payload.crestLimits) ? payload.crestLimits : [],
+          worldBoss: payload.worldBoss || '待维护',
+          holidayThisWeek: payload.holidayThisWeek || '待维护',
+          holidayNextWeek: payload.holidayNextWeek || '待维护',
+          catalystLimit: payload.catalystLimit || '套装转化：待维护',
+          sparkLimit: payload.sparkLimit || '火花上限：待维护',
+          specialEvent: payload.specialEvent || '待维护',
+          specialEventDateRange: payload.specialEventDateRange || '时间待维护'
+        })
+      } catch (error) {
+        alert(getErrorMessage(error, '版本与赛季资讯加载失败'))
       }
     }
 
@@ -1723,6 +1915,77 @@ export default {
       resetQuickWeeklyVault()
     }
 
+    const handleVaultFileSelected = async (event, vault) => {
+      const file = event?.target?.files?.[0]
+      if (!file || !vault || vaultAttachmentUploading.value) {
+        return
+      }
+      if (vault.attachments.length >= 10) {
+        alert('每周低保最多上传 10 个附件')
+        event.target.value = ''
+        return
+      }
+      vaultAttachmentUploading.value = true
+      try {
+        const response = await uploadAttachment(file, 'ATTACHMENT')
+        const attachment = unwrapData(response)
+        if (attachment?.id) {
+          vault.attachments.push(attachment)
+        }
+      } catch (error) {
+        alert(getErrorMessage(error, '低保附件上传失败'))
+      } finally {
+        vaultAttachmentUploading.value = false
+        event.target.value = ''
+      }
+    }
+
+    const removeVaultAttachment = (vault, attachment) => {
+      vault.attachments = vault.attachments.filter((item) => item.id !== attachment.id)
+    }
+
+    const downloadVaultAttachment = async (attachment) => {
+      try {
+        await downloadAttachment(attachment)
+      } catch (error) {
+        alert(getErrorMessage(error, '附件下载失败'))
+      }
+    }
+
+    const formatFileSize = (fileSize) => {
+      const bytes = toNumber(fileSize, 0)
+      if (bytes < 1024) return `${bytes} B`
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+      return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    }
+
+    const extractLimitValue = (limitText) => {
+      const normalized = `${limitText || ''}`.trim()
+      const separatorIndex = normalized.indexOf('：')
+      return separatorIndex >= 0 ? normalized.slice(separatorIndex + 1) : (normalized || '待维护')
+    }
+
+    const openMythicHistoryDialog = async (item) => {
+      activeHistoryCharacter.value = item
+      mythicSeasonHistory.value = []
+      showMythicHistoryDialog.value = true
+      mythicHistoryLoading.value = true
+      try {
+        const response = await listWowCharacterMythicSeasonHistory(item.id)
+        mythicSeasonHistory.value = Array.isArray(unwrapData(response)) ? unwrapData(response) : []
+      } catch (error) {
+        alert(getErrorMessage(error, 'M+ 赛季历史加载失败'))
+      } finally {
+        mythicHistoryLoading.value = false
+      }
+    }
+
+    const closeMythicHistoryDialog = () => {
+      showMythicHistoryDialog.value = false
+      activeHistoryCharacter.value = null
+      mythicSeasonHistory.value = []
+    }
+
     const closeDialog = () => {
       if (submitting.value) {
         return
@@ -1756,7 +2019,8 @@ export default {
         raidProgressCount: Number(item.raidProgressCount || 0),
         mythicProgressCount: Number(item.mythicProgressCount || 0),
         worldProgressCount: Number(item.worldProgressCount || 0),
-        note: item.note || ''
+        note: item.note || '',
+        attachmentIds: item.attachments.map((attachment) => attachment.id)
       })) : [],
       keybindings: character.keybindings.map((item) => ({
         bindingName: item.bindingName,
@@ -1780,7 +2044,11 @@ export default {
       weeklyVaultSubmitting.value = true
       try {
         const character = activeWeeklyVaultCharacter.value
-        character.weeklyVaults = [createWeeklyVaultDraft(quickWeeklyVault)]
+        const currentVault = createWeeklyVaultDraft(quickWeeklyVault)
+        character.weeklyVaults = [
+          currentVault,
+          ...character.weeklyVaults.filter((item) => item.id !== currentVault.id && item.weekStartDate !== currentVault.weekStartDate)
+        ]
         const response = await updateWowCharacter(character.id, buildCharacterPayload(character))
         showWeeklyVaultDialog.value = false
         activeWeeklyVaultCharacter.value = null
@@ -1929,7 +2197,7 @@ export default {
       if (weeklyVaultResetting.value) {
         return
       }
-      if (!await confirmDialog('将清空所有满级角色的当前钥匙和低保进度，并创建本周空白低保记录。此操作不可恢复。', {
+      if (!await confirmDialog('将清空所有满级角色的当前钥匙，并创建本周空白低保记录。以往低保周记录和附件会继续保留。', {
         title: '重置所有满级角色低保？',
         confirmText: '确认重置'
       })) {
@@ -1945,6 +2213,25 @@ export default {
         alert(getErrorMessage(error, '低保批量重置失败'))
       } finally {
         weeklyVaultResetting.value = false
+      }
+    }
+
+    const resetMythicSeason = async () => {
+      if (mythicSeasonResetting.value) return
+      if (!await confirmDialog('将所有满级角色当前 M+ 总分和逐副本成绩归档到赛季历史，然后清零评分与当前钥匙。低保历史不会受影响。', {
+        title: '执行 M+ 赛季结算？',
+        confirmText: '归档并重置'
+      })) return
+      mythicSeasonResetting.value = true
+      try {
+        const response = await resetWowMythicSeason()
+        const resetCount = toNumber(unwrapData(response), 0)
+        await loadPageData()
+        alert(`已归档并重置 ${resetCount} 个满级角色的 M+ 赛季数据`)
+      } catch (error) {
+        alert(getErrorMessage(error, 'M+ 赛季结算失败'))
+      } finally {
+        mythicSeasonResetting.value = false
       }
     }
 
@@ -2244,13 +2531,15 @@ export default {
     onMounted(async () => {
       await loadDictionaryOptions()
       resetForm()
-      await loadPageData()
+      await Promise.all([loadSeasonInfo(), loadPageData()])
     })
 
     return {
       loading,
       submitting,
       weeklyVaultResetting,
+      mythicSeasonResetting,
+      vaultAttachmentUploading,
       total,
       pagedRecords,
       featuredCharacters,
@@ -2262,12 +2551,17 @@ export default {
       query,
       form,
       overview,
+      seasonInfo,
       showDialog,
       showWeeklyVaultDialog,
       showKeybindingDialog,
       activeKeybinding,
       showMacroDialog,
       activeMacro,
+      showMythicHistoryDialog,
+      mythicHistoryLoading,
+      mythicSeasonHistory,
+      activeHistoryCharacter,
       weeklyVaultSubmitting,
       activeWeeklyVaultCharacter,
       quickWeeklyVault,
@@ -2316,6 +2610,14 @@ export default {
       submitDialog,
       removeCharacter,
       resetAllWeeklyVaults,
+      resetMythicSeason,
+      openMythicHistoryDialog,
+      closeMythicHistoryDialog,
+      handleVaultFileSelected,
+      removeVaultAttachment,
+      downloadVaultAttachment,
+      formatFileSize,
+      extractLimitValue,
       loadPageData,
       appendWeeklyVault,
       removeWeeklyVault,
@@ -4073,13 +4375,124 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.season-briefing {
+  display: grid;
+  grid-template-columns: 160px minmax(270px, 0.7fr) minmax(400px, 1fr) minmax(480px, 1.2fr);
+  margin-bottom: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(217, 184, 102, 0.42);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 42% 10%, rgba(174, 73, 32, 0.25), transparent 40%),
+    linear-gradient(110deg, rgba(18, 12, 11, 0.96), rgba(24, 35, 37, 0.93));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3), inset 0 1px rgba(255, 235, 181, 0.12);
+}
+
+.season-version-mark {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px 20px;
+  border-right: 1px solid rgba(217, 184, 102, 0.26);
+  background: linear-gradient(145deg, rgba(118, 29, 18, 0.68), rgba(35, 13, 12, 0.25));
+}
+
+.season-version-mark span,
+.season-kicker,
+.season-pool-head span {
+  color: #d8b96d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.season-version-mark strong { margin: 6px 0 3px; font-size: 30px; line-height: 1; }
+.season-version-mark b { color: #f1dfb3; font-size: 13px; }
+.season-main-copy { align-self: center; padding: 15px 22px; }
+.season-main-copy h2 { margin: 6px 0; color: #fff6df; font-size: 20px; }
+.season-main-copy p { margin: 0; color: #c8c2b6; font-size: 12px; line-height: 1.55; }
+.season-highlight-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.season-highlight-list span { padding: 5px 9px; border: 1px solid rgba(222, 188, 106, 0.24); border-radius: 4px; color: #e4d3a6; background: rgba(211, 151, 62, 0.08); font-size: 11px; }
+.season-dungeon-pool { align-self: stretch; padding: 14px 18px; border-left: 1px solid rgba(217, 184, 102, 0.2); background: rgba(4, 15, 17, 0.35); }
+.season-pool-head { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.season-pool-head b { color: #9db6a7; font-size: 12px; }
+.season-dungeon-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px 12px; }
+.season-dungeon-grid span { overflow: hidden; color: #e4e9e5; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.season-dungeon-grid i { margin-right: 8px; color: #6e8178; font-style: normal; font-size: 10px; }
+.season-operations-board { grid-column: 1 / -1; border-top: 1px solid rgba(217, 184, 102, 0.24); background: rgba(3, 11, 12, 0.48); }
+.crest-limit-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-left: 1px solid rgba(217, 184, 102, 0.2); background: rgba(5, 13, 13, 0.3); }
+.crest-limit-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; padding: 10px 7px; border-right: 1px solid rgba(217, 184, 102, 0.18); text-align: center; }
+.crest-limit-item:last-child { border-right: 0; }
+.crest-limit-item span { color: #f3ead4; font-size: 11px; font-weight: 800; line-height: 1.25; }
+.crest-limit-item strong { color: #fff7e6; font-size: 18px; line-height: 1; }
+.crest-limit-item b { color: #71857b; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; }
+.special-limit-item { background: rgba(217, 184, 102, 0.035); }
+.special-limit-item strong { color: #d8c58e; font-size: 15px; }
+.season-activity-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.season-activity-card { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-height: 92px; padding: 15px 18px; border-right: 1px solid rgba(217, 184, 102, 0.16); }
+.season-activity-card:last-child { border-right: 0; }
+.season-activity-card > b { color: #f2eee3; font-size: 14px; }
+.season-activity-card > strong { color: #d7c691; font-size: 12px; }
+.season-activity-card > span { color: #afb9b4; font-size: 11px; }
+.world-boss-card { flex-direction: row; align-items: center; justify-content: flex-start; gap: 13px; }
+.world-boss-card div { display: flex; flex-direction: column; gap: 5px; }
+.world-boss-card b { color: #f2eee3; }
+.world-boss-card strong { color: #d7c691; font-size: 12px; }
+.activity-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border: 1px solid rgba(217, 184, 102, 0.3); border-radius: 4px; color: #cdb97f; background: radial-gradient(circle, rgba(124, 91, 39, 0.24), rgba(10, 23, 21, 0.82)); font-size: 20px; }
+.activity-token-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.activity-token-list span { padding: 5px 8px; color: #c9d1cd; background: rgba(211, 220, 215, 0.1); font-size: 11px; }
+
+.vault-attachment-box { margin-top: 12px; padding: 12px; border: 1px dashed rgba(125, 211, 252, 0.25); border-radius: 10px; background: rgba(3, 17, 28, 0.32); }
+.vault-attachment-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #d8e9f2; font-size: 12px; font-weight: 700; }
+.upload-mini-btn { cursor: pointer; }
+.vault-attachment-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.attachment-row { display: flex; align-items: center; gap: 3px; }
+.attachment-chip { display: inline-flex; gap: 9px; max-width: 260px; padding: 7px 9px; border: 1px solid rgba(125, 211, 252, 0.2); border-radius: 7px; color: #d8edf7; background: rgba(14, 50, 68, 0.52); cursor: pointer; }
+.attachment-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-chip b { color: #7f9aaa; font-size: 10px; white-space: nowrap; }
+.attachment-remove { width: 25px; height: 25px; border: 0; border-radius: 50%; color: #ff9b9b; background: rgba(127, 29, 29, 0.36); cursor: pointer; }
+.attachment-empty { display: block; margin-top: 9px; color: #738a98; font-size: 11px; }
+.mythic-history-list { display: grid; gap: 12px; }
+.mythic-history-card { padding: 16px; border: 1px solid rgba(217, 184, 102, 0.25); border-radius: 12px; background: linear-gradient(135deg, rgba(31, 24, 17, 0.8), rgba(12, 31, 39, 0.76)); }
+.mythic-history-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mythic-history-head div { display: flex; flex-direction: column; gap: 4px; }
+.mythic-history-head span { color: #a58d55; font-size: 10px; letter-spacing: 0.12em; }
+.mythic-history-head strong { color: #fff1c9; }
+.mythic-history-head > b { color: #f7d57e; font-size: 22px; }
+.mythic-history-runs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-top: 14px; }
+.mythic-history-runs span { padding: 7px; border-radius: 6px; color: #aebcc2; background: rgba(255,255,255,0.04); font-size: 11px; }
+.mythic-history-runs b { color: #e4eef2; }
+.mythic-history-card p { margin: 12px 0 0; color: #697d87; font-size: 10px; }
+.season-reset-btn { border-color: rgba(217, 184, 102, 0.4); color: #f0d795; }
+
 @media (max-width: 1400px) {
+  .season-briefing {
+    grid-template-columns: minmax(280px, 0.8fr) minmax(500px, 1.2fr);
+  }
+
+  .season-version-mark {
+    border-bottom: 1px solid rgba(217, 184, 102, 0.2);
+  }
+
+  .season-main-copy {
+    border-bottom: 1px solid rgba(217, 184, 102, 0.2);
+  }
+
+  .season-dungeon-pool {
+    border-left: 0;
+  }
+
   .spotlight-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 1180px) {
+  .season-briefing { grid-template-columns: minmax(250px, 0.75fr) minmax(450px, 1.25fr); }
+  .season-dungeon-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .crest-limit-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .season-activity-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .content-layout {
     grid-template-columns: 1fr;
   }
@@ -4128,6 +4541,16 @@ button:disabled {
 }
 
 @media (max-width: 720px) {
+  .season-briefing { grid-template-columns: 1fr; }
+  .season-version-mark { border-right: 0; border-bottom: 1px solid rgba(217, 184, 102, 0.22); }
+  .season-main-copy { border-bottom: 0; }
+  .season-dungeon-pool { grid-column: auto; }
+  .season-dungeon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crest-limit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid rgba(217, 184, 102, 0.2); border-left: 0; }
+  .season-activity-grid { grid-template-columns: 1fr; }
+  .crest-limit-item, .season-activity-card { border-right: 0; border-bottom: 1px solid rgba(217, 184, 102, 0.16); }
+  .season-activity-card:last-child { border-bottom: 0; }
+  .mythic-history-runs { grid-template-columns: repeat(2, 1fr); }
   .wow-page {
     padding: 8px;
     font-size: 13px;
