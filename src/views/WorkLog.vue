@@ -559,32 +559,56 @@
 
           <label class="form-field">
             <span>地点</span>
-            <select v-model="form.location" :disabled="!locationSelectOptions.length">
+            <select v-model="form.location" :disabled="isLeaveTypeSelected || !locationSelectOptions.length">
               <option value="">{{ locationSelectOptions.length ? '请选择地点' : '暂无地点字典项' }}</option>
               <option v-for="item in locationSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
             </select>
+            <small v-if="isLeaveTypeSelected" class="field-hint">请假日志固定为居家</small>
           </label>
 
           <label class="form-field">
             <span>所属项目</span>
-            <select v-model="form.projectCode" :disabled="!projectSelectOptions.length">
+            <select v-model="form.projectCode" :disabled="isLeaveTypeSelected || !projectSelectOptions.length">
               <option value="">{{ projectSelectOptions.length ? '请选择项目' : '暂无项目字典项' }}</option>
               <option v-for="item in projectSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
             </select>
+            <small v-if="isLeaveTypeSelected" class="field-hint">请假日志固定归属“请假”项目</small>
           </label>
         </div>
 
         <div class="form-field dialog-span-2">
           <span>日志类型</span>
           <div class="multi-select" :class="{open: showTypeDropdown}">
-            <button type="button" class="multi-select-trigger" @click="toggleTypeDropdown">
-              <span>{{ selectedTypeText }}</span>
-              <strong>{{ showTypeDropdown ? '收起' : '展开' }}</strong>
-            </button>
+            <div class="multi-select-trigger">
+              <div v-if="selectedTypeOptions.length" class="multi-select-tags" aria-label="已选日志类型">
+                <button
+                  v-for="item in selectedTypeOptions"
+                  :key="item.value"
+                  type="button"
+                  class="multi-select-tag"
+                  :aria-label="`移除${item.label}`"
+                  @click.stop="removeType(item.value)"
+                >
+                  <span>{{ item.label }}</span>
+                  <b aria-hidden="true">×</b>
+                </button>
+              </div>
+              <span v-else class="multi-select-placeholder">{{ selectedTypeText }}</span>
+              <button
+                type="button"
+                class="multi-select-toggle"
+                :aria-expanded="showTypeDropdown"
+                aria-label="切换日志类型选项"
+                @click="toggleTypeDropdown"
+              >
+                <span>{{ selectedTypeOptions.length }} 项</span>
+                <b aria-hidden="true">⌄</b>
+              </button>
+            </div>
 
             <div v-if="showTypeDropdown" class="multi-select-panel" @click.stop>
               <div class="multi-select-actions">
-                <button type="button" class="mini-link" @click="selectAllTypes">全选</button>
+                <span>选择一个或多个类型</span>
                 <button type="button" class="mini-link" @click="clearTypes">清空</button>
               </div>
 
@@ -596,10 +620,10 @@
                   :class="{checked: form.typeCodes.includes(item.value)}"
                 >
                   <input v-model="form.typeCodes" class="multi-option-input" type="checkbox" :value="item.value" />
+                  <span class="multi-option-label">{{ item.label }}</span>
                   <span class="multi-option-check" aria-hidden="true">
                     <span class="multi-option-checkmark" />
                   </span>
-                  <span class="multi-option-label">{{ item.label }}</span>
                 </label>
               </div>
             </div>
@@ -799,9 +823,12 @@ const WORK_LOG_MODULE_CODE = 'WORK_LOG'
 const TYPE_FIELD_CODE = 'typeCodes'
 const LOCATION_FIELD_CODE = 'location'
 const PROJECT_FIELD_CODE = 'projectCode'
+const TYPE_LEAVE = 'LEAVE'
 const TYPE_CITY_BUSINESS_TRIP = 'CITY_BUSINESS_TRIP'
 const TYPE_OUT_OF_CITY_BUSINESS_TRIP = 'OUT_OF_CITY_BUSINESS_TRIP'
 const TYPE_LEGACY_BUSINESS_TRIP = 'BUSINESS_TRIP'
+const LEAVE_LOCATION_VALUE = '居家'
+const LEAVE_PROJECT_VALUE = 'LEAVE'
 const ALLOWANCE_SCENE_CITY = 'CITY'
 const ALLOWANCE_SCENE_OUT_OF_CITY_TRANSIT = 'OUT_OF_CITY_TRANSIT'
 const ALLOWANCE_SCENE_OUT_OF_CITY_DAILY = 'OUT_OF_CITY_DAILY'
@@ -815,17 +842,19 @@ const WORK_STATUS_OPTIONS = [
   {label: '未完成', value: WORK_STATUS_UNFINISHED}
 ]
 const LEGACY_TYPE_LABELS = {
-  BUSINESS_TRIP: '出差'
+  BUSINESS_TRIP: '出差',
+  SICK_LEAVE: '病假'
 }
 const DEFAULT_TYPE_OPTIONS = [
   {itemCode: 'normal', label: '正常工作', value: 'NORMAL', isDefault: true, sortNo: 1},
   {itemCode: 'overtime', label: '加班', value: 'OVERTIME', isDefault: false, sortNo: 2},
-  {itemCode: 'leave', label: '请假', value: 'LEAVE', isDefault: false, sortNo: 3},
+  {itemCode: 'leave', label: '请假', value: TYPE_LEAVE, isDefault: false, sortNo: 3},
   {itemCode: 'city_business_trip', label: '市内出差', value: TYPE_CITY_BUSINESS_TRIP, isDefault: false, sortNo: 4},
   {itemCode: 'out_of_city_business_trip', label: '市外出差', value: TYPE_OUT_OF_CITY_BUSINESS_TRIP, isDefault: false, sortNo: 5},
-  {itemCode: 'sick_leave', label: '病假', value: 'SICK_LEAVE', isDefault: false, sortNo: 6},
-  {itemCode: 'other', label: '其他', value: 'OTHER', isDefault: false, sortNo: 7}
+  {itemCode: 'other', label: '其他', value: 'OTHER', isDefault: false, sortNo: 6}
 ]
+const LEAVE_LOCATION_OPTION = {itemCode: 'home', label: LEAVE_LOCATION_VALUE, value: LEAVE_LOCATION_VALUE, isDefault: false, sortNo: 9998}
+const LEAVE_PROJECT_OPTION = {itemCode: 'leave', label: '请假', value: LEAVE_PROJECT_VALUE, isDefault: false, sortNo: 9999}
 const BUSINESS_TRIP_ALLOWANCE_SCENE_OPTIONS = [
   {label: '往返机场/火车站', value: ALLOWANCE_SCENE_OUT_OF_CITY_TRANSIT, amount: OUT_OF_CITY_TRANSIT_ALLOWANCE},
   {label: '平时', value: ALLOWANCE_SCENE_OUT_OF_CITY_DAILY, amount: OUT_OF_CITY_DAILY_ALLOWANCE}
@@ -977,6 +1006,16 @@ function normalizeDictionaryOptions(payload) {
     }))
     .filter((item) => item.label && item.value)
     .sort((prev, next) => prev.sortNo - next.sortNo || `${prev.label}`.localeCompare(`${next.label}`))
+}
+
+/**
+ * 请假需要使用固定地点和项目；字典尚未完成同步时也必须提供可提交的对应选项。
+ */
+function withRequiredOption(options, requiredOption) {
+  if (options.some((item) => item.value === requiredOption.value)) {
+    return options
+  }
+  return [...options, requiredOption]
 }
 
 function buildFallbackOptions(values = []) {
@@ -1211,8 +1250,14 @@ export default {
     const fallbackProjectOptions = computed(() => buildFallbackOptions(knownLogs.value.map((item) => item.projectCode)))
     const fallbackLocationOptions = computed(() => buildFallbackOptions(knownLogs.value.map((item) => item.location)))
 
-    const projectSelectOptions = computed(() => projectOptions.value.length ? projectOptions.value : fallbackProjectOptions.value)
-    const locationSelectOptions = computed(() => locationOptions.value.length ? locationOptions.value : fallbackLocationOptions.value)
+    const projectSelectOptions = computed(() => withRequiredOption(
+      projectOptions.value.length ? projectOptions.value : fallbackProjectOptions.value,
+      LEAVE_PROJECT_OPTION
+    ))
+    const locationSelectOptions = computed(() => withRequiredOption(
+      locationOptions.value.length ? locationOptions.value : fallbackLocationOptions.value,
+      LEAVE_LOCATION_OPTION
+    ))
     const formZentaoNo = computed(() => {
       return aggregateZentaoNumbers(form.workItems.map((workItem) => workItem.zentaoNo))
         || form.legacyZentaoNo
@@ -1365,6 +1410,7 @@ export default {
     })
 
     const selectedTypeOptions = computed(() => typeOptions.value.filter((item) => form.typeCodes.includes(item.value)))
+    const isLeaveTypeSelected = computed(() => form.typeCodes.includes(TYPE_LEAVE))
     const hasCityBusinessTripType = computed(() => form.typeCodes.includes(TYPE_CITY_BUSINESS_TRIP))
     const hasOutOfCityBusinessTripType = computed(() => {
       return form.typeCodes.includes(TYPE_OUT_OF_CITY_BUSINESS_TRIP) || form.typeCodes.includes(TYPE_LEGACY_BUSINESS_TRIP)
@@ -1446,6 +1492,16 @@ export default {
       }
       form.projectCode = normalizeSelectedValue(projectSelectOptions.value, form.projectCode, form.projectCode || '')
       form.location = normalizeSelectedValue(locationSelectOptions.value, form.location, form.location || '')
+      applyLeaveFormDefaults()
+    }
+
+    /** 请假不关联实际办公地点或项目，避免用户误填导致统计失真。 */
+    function applyLeaveFormDefaults() {
+      if (!isLeaveTypeSelected.value) {
+        return
+      }
+      form.location = LEAVE_LOCATION_VALUE
+      form.projectCode = LEAVE_PROJECT_VALUE
     }
 
     async function loadDictionaryOptions() {
@@ -1470,10 +1526,12 @@ export default {
           })
         ])
 
-        typeOptions.value = typeResult.status === 'fulfilled'
-          ? (normalizeDictionaryOptions(unwrapData(typeResult.value)).length
-              ? normalizeDictionaryOptions(unwrapData(typeResult.value))
-              : [...DEFAULT_TYPE_OPTIONS])
+        const dictionaryTypeOptions = typeResult.status === 'fulfilled'
+          ? normalizeDictionaryOptions(unwrapData(typeResult.value))
+          : []
+        const selectableDictionaryTypeOptions = dictionaryTypeOptions.filter((item) => item.value !== 'SICK_LEAVE')
+        typeOptions.value = selectableDictionaryTypeOptions.length
+          ? selectableDictionaryTypeOptions
           : [...DEFAULT_TYPE_OPTIONS]
 
         projectOptions.value = projectResult.status === 'fulfilled'
@@ -1910,12 +1968,12 @@ export default {
       showTypeDropdown.value = !showTypeDropdown.value
     }
 
-    function selectAllTypes() {
-      form.typeCodes = typeOptions.value.map((item) => item.value)
-    }
-
     function clearTypes() {
       form.typeCodes = []
+    }
+
+    function removeType(typeCode) {
+      form.typeCodes = form.typeCodes.filter((value) => value !== typeCode)
     }
 
     function addWorkItem() {
@@ -1955,6 +2013,7 @@ export default {
     }
 
     async function submitDialog() {
+      applyLeaveFormDefaults()
       if (!form.typeCodes.length) {
         alert('请至少选择一个日志类型')
         return
@@ -2112,6 +2171,7 @@ export default {
     })
 
     watch(() => [...form.typeCodes], () => {
+      applyLeaveFormDefaults()
       if (hasCityBusinessTripType.value) {
         form.businessTripAllowanceScene = ALLOWANCE_SCENE_CITY
       } else if (hasOutOfCityBusinessTripType.value && !BUSINESS_TRIP_ALLOWANCE_SCENE_OPTIONS.some((item) => item.value === form.businessTripAllowanceScene)) {
@@ -2181,6 +2241,7 @@ export default {
       showTypeDropdown,
       selectedTypeOptions,
       selectedTypeText,
+      isLeaveTypeSelected,
       hasBusinessTripType,
       hasOutOfCityBusinessTripType,
       businessTripAllowanceSceneOptions,
@@ -2226,8 +2287,8 @@ export default {
       openEditDialog,
       closeDialog,
       toggleTypeDropdown,
-      selectAllTypes,
       clearTypes,
+      removeType,
       addWorkItem,
       removeWorkItem,
       applyUnfinishedWorkItem,
@@ -3499,24 +3560,85 @@ export default {
 .multi-select-trigger {
   width: 100%;
   min-height: 42px;
-  padding: 0 12px;
+  padding: 6px 8px 6px 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(38, 58, 79, 0.92), rgba(27, 47, 68, 0.92));
   color: #fff;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 12px;
-  cursor: pointer;
   font-size: 13px;
 }
 
-.multi-select-trigger span {
+.multi-select-tags {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.multi-select-placeholder {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--theme-text-muted);
+}
+
+.multi-select-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 8px 0 9px;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 38%, transparent);
+  border-radius: 8px;
+  background: var(--theme-accent-soft);
+  color: var(--theme-link);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.multi-select-tag:hover {
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent-soft) 72%, var(--theme-control-surface));
+}
+
+.multi-select-tag b {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.multi-select-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 4px 0 8px;
+  border: none;
+  border-left: 1px solid var(--theme-border);
+  color: var(--theme-text-muted);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.multi-select-toggle b {
+  color: var(--theme-text-soft);
+  font-size: 17px;
+  line-height: 1;
+  transition: transform 0.16s ease;
+}
+
+.multi-select.open .multi-select-toggle b {
+  transform: rotate(180deg);
 }
 
 .multi-select-panel {
@@ -3543,9 +3665,15 @@ export default {
 
 .multi-select-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 0 2px;
+}
+
+.multi-select-actions > span {
+  color: var(--theme-text-muted);
+  font-size: 12px;
 }
 
 .mini-link {
@@ -3564,8 +3692,9 @@ export default {
 }
 
 .multi-option-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
   max-width: 100%;
@@ -3576,8 +3705,10 @@ export default {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  max-width: 100%;
   min-height: 40px;
   padding: 0 10px;
   border-radius: 12px;
@@ -3636,7 +3767,6 @@ export default {
 }
 
 .multi-option-label {
-  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4231,10 +4361,6 @@ export default {
 
   .actions .action-btn {
     flex: 1 1 calc(50% - 8px);
-  }
-
-  .multi-option-grid {
-    grid-template-columns: 1fr;
   }
 
   .desktop-year-table {

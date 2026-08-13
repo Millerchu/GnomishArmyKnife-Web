@@ -83,12 +83,12 @@ insert into seed_dictionary_items (
   (5003002, 5003, 'WORK_LOG_TYPE', 'leave', '请假', 'LEAVE', 2, 'ENABLED', false, '请假记录', null),
   (5003006, 5003, 'WORK_LOG_TYPE', 'city_business_trip', '市内出差', 'CITY_BUSINESS_TRIP', 3, 'ENABLED', false, '市内出差记录，补助 100 元', null),
   (5003007, 5003, 'WORK_LOG_TYPE', 'out_of_city_business_trip', '市外出差', 'OUT_OF_CITY_BUSINESS_TRIP', 4, 'ENABLED', false, '市外出差记录，按往返/平时计算补助', null),
-  (5003004, 5003, 'WORK_LOG_TYPE', 'sick_leave', '病假', 'SICK_LEAVE', 5, 'ENABLED', false, '病假记录', null),
   (5003005, 5003, 'WORK_LOG_TYPE', 'other', '其他', 'OTHER', 6, 'ENABLED', false, '其他类型', null),
 
   (5004001, 5004, 'WORK_LOG_PROJECT', 'gak', 'GAK', 'GAK', 1, 'ENABLED', true, '当前主工程', null),
   (5004002, 5004, 'WORK_LOG_PROJECT', 'client', '客户项目', 'CLIENT', 2, 'ENABLED', false, '客户交付项目', null),
   (5004003, 5004, 'WORK_LOG_PROJECT', 'ops', '运维支持', 'OPS', 3, 'ENABLED', false, '运维支持类事项', null),
+  (5004004, 5004, 'WORK_LOG_PROJECT', 'leave', '请假', 'LEAVE', 4, 'ENABLED', false, '请假日志固定归属项目', null),
 
   (5005001, 5005, 'APP_SECURITY_LEVEL', 'public', '公开', 'PUBLIC', 1, 'ENABLED', false, '公开级应用', null),
   (5005002, 5005, 'APP_SECURITY_LEVEL', 'internal', '内部', 'INTERNAL', 2, 'ENABLED', true, '内部级应用', null),

@@ -79,6 +79,13 @@ const dictionaryOptionsByField = {
       itemValue: 'OVERTIME',
       isDefault: false,
       sortNo: 2
+    },
+    {
+      itemCode: 'leave',
+      itemLabel: '请假',
+      itemValue: 'LEAVE',
+      isDefault: false,
+      sortNo: 3
     }
   ],
   location: [
@@ -88,6 +95,13 @@ const dictionaryOptionsByField = {
       itemValue: 'OFFICE',
       isDefault: true,
       sortNo: 1
+    },
+    {
+      itemCode: 'home',
+      itemLabel: '居家',
+      itemValue: '居家',
+      isDefault: false,
+      sortNo: 2
     }
   ],
   projectCode: [
@@ -97,6 +111,13 @@ const dictionaryOptionsByField = {
       itemValue: 'PROJECT_ALPHA',
       isDefault: true,
       sortNo: 1
+    },
+    {
+      itemCode: 'leave',
+      itemLabel: '请假',
+      itemValue: 'LEAVE',
+      isDefault: false,
+      sortNo: 2
     }
   ]
 }
@@ -424,6 +445,24 @@ describe('WorkLog MacDialog integration', () => {
     )
     expect(footerButtons).toHaveLength(1)
     expect(footerButtons[0].type).toBe('submit')
+  })
+
+  it('locks location and project to home and leave when leave is selected', async () => {
+    const wrapper = await mountWorkLogAndOpenCreateDialog()
+    const panel = getDialogPanel()
+    const form = panel.querySelector('form#work-log-dialog-form')
+    const [locationSelect, projectSelect] = form.querySelectorAll('select')
+
+    wrapper.vm.form.typeCodes = ['LEAVE']
+    await nextTick()
+
+    expect(panel.querySelector('.multi-select-tag').textContent).toContain('请假')
+    expect(locationSelect.value).toBe('居家')
+    expect(projectSelect.value).toBe('LEAVE')
+    expect(locationSelect.disabled).toBe(true)
+    expect(projectSelect.disabled).toBe(true)
+    expect(form.textContent).toContain('请假日志固定为居家')
+    expect(form.textContent).toContain('请假日志固定归属“请假”项目')
   })
 
   it('submits a valid create form from the teleported footer button', async () => {
