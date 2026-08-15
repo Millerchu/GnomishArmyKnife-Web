@@ -1036,6 +1036,7 @@ import {
   resetAllWowCharacterWeeklyProgress,
   resetWowMythicSeason,
   resetWowCharacterWeeklyProgress,
+  saveWowCharacterWeeklyVault,
   updateWowCharacter
 } from '@/api/wowCharacter'
 import {downloadAttachment, uploadAttachment} from '@/api/attachment'
@@ -2055,6 +2056,16 @@ export default {
 
     const buildFormPayload = () => buildCharacterPayload(form)
 
+    const buildWeeklyVaultPayload = (weeklyVault) => ({
+      id: weeklyVault.id || null,
+      weekStartDate: weeklyVault.weekStartDate || null,
+      raidProgressCount: Number(weeklyVault.raidProgressCount || 0),
+      mythicProgressCount: Number(weeklyVault.mythicProgressCount || 0),
+      worldProgressCount: Number(weeklyVault.worldProgressCount || 0),
+      note: weeklyVault.note || '',
+      attachmentIds: weeklyVault.attachments.map((attachment) => attachment.id)
+    })
+
     const saveWeeklyVaultDialog = async () => {
       if (!activeWeeklyVaultCharacter.value || !quickWeeklyVault.weekStartDate || weeklyVaultSubmitting.value) {
         return
@@ -2063,11 +2074,7 @@ export default {
       try {
         const character = activeWeeklyVaultCharacter.value
         const currentVault = createWeeklyVaultDraft(quickWeeklyVault)
-        character.weeklyVaults = [
-          currentVault,
-          ...character.weeklyVaults.filter((item) => item.id !== currentVault.id && item.weekStartDate !== currentVault.weekStartDate)
-        ]
-        const response = await updateWowCharacter(character.id, buildCharacterPayload(character))
+        await saveWowCharacterWeeklyVault(character.id, buildWeeklyVaultPayload(currentVault))
         showWeeklyVaultDialog.value = false
         activeWeeklyVaultCharacter.value = null
         resetQuickWeeklyVault()

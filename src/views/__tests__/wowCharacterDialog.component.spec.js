@@ -12,6 +12,7 @@ import {
   listWowCharacters,
   resetAllWowCharacterWeeklyProgress,
   resetWowCharacterWeeklyProgress,
+  saveWowCharacterWeeklyVault,
   updateWowCharacter
 } from '@/api/wowCharacter'
 import {confirmDialog} from '@/components/systemDialog'
@@ -36,6 +37,7 @@ vi.mock('@/api/wowCharacter', () => ({
   resetAllWowCharacterWeeklyProgress: vi.fn(),
   resetWowMythicSeason: vi.fn(),
   resetWowCharacterWeeklyProgress: vi.fn(),
+  saveWowCharacterWeeklyVault: vi.fn(),
   updateWowCharacter: vi.fn()
 }))
 
@@ -57,6 +59,7 @@ beforeEach(() => {
   confirmDialog.mockResolvedValue(true)
   resetAllWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse(0))
   resetWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse({}))
+  saveWowCharacterWeeklyVault.mockResolvedValue(buildApiResponse({}))
   updateWowCharacter.mockResolvedValue(buildApiResponse({}))
 })
 
@@ -168,6 +171,8 @@ describe('WowCharacterStats MacDialog integration', () => {
       realmName: '影之哀伤',
       faction: 'ALLIANCE',
       itemLevel: 700,
+      mythicBestLevel: 0,
+      mythicDungeonName: '旧赛季副本',
       mythicRuns: [],
       keybindings: [],
       macros: [],
@@ -180,7 +185,7 @@ describe('WowCharacterStats MacDialog integration', () => {
       }]
     }
     resetWowCharacterWeeklyProgress.mockResolvedValue(buildApiResponse(weeklyCharacter))
-    updateWowCharacter.mockResolvedValue(buildApiResponse(weeklyCharacter))
+    saveWowCharacterWeeklyVault.mockResolvedValue(buildApiResponse({}))
     const wrapper = mount(WowCharacterStats, {
       attachTo: document.body,
       global: {stubs: {transition: true}}
@@ -201,9 +206,16 @@ describe('WowCharacterStats MacDialog integration', () => {
     wrapper.vm.quickWeeklyVault.mythicProgressCount = 4
     await wrapper.vm.saveWeeklyVaultDialog()
 
-    expect(updateWowCharacter).toHaveBeenCalledWith(7, expect.objectContaining({
-      weeklyVaults: [expect.objectContaining({mythicProgressCount: 4})]
-    }))
+    expect(saveWowCharacterWeeklyVault).toHaveBeenCalledWith(7, {
+      id: 11,
+      weekStartDate: '2026-08-06',
+      raidProgressCount: 1,
+      mythicProgressCount: 4,
+      worldProgressCount: 6,
+      note: '',
+      attachmentIds: []
+    })
+    expect(updateWowCharacter).not.toHaveBeenCalled()
     expect(wrapper.vm.showWeeklyVaultDialog).toBe(false)
   })
 

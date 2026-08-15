@@ -13,6 +13,10 @@ export function updateWowCharacter(id, data) {
   return request.put(`/wow-characters/${id}`, data)
 }
 
+export function saveWowCharacterWeeklyVault(id, data) {
+  return request.put(`/wow-characters/${id}/weekly-vault`, data)
+}
+
 export function resetWowCharacterWeeklyProgress(id) {
   return request.post(`/wow-characters/${id}/weekly-reset`)
 }
