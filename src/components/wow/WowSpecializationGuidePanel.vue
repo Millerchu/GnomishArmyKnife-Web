@@ -82,7 +82,12 @@
                 <p>{{ activeGuide.mythicTalentSummary || '暂无大秘境天赋摘要' }}</p>
                 <div v-if="activeGuide.mythicTalentImportCode" class="guide-import-code">
                   <code>{{ activeGuide.mythicTalentImportCode }}</code>
-                  <button type="button" @click="copyTalentCode(activeGuide.mythicTalentImportCode)">复制导入代码</button>
+                  <button
+                    type="button"
+                    :class="copyButtonClass('mythic')"
+                    aria-live="polite"
+                    @click="copyTalentCode(activeGuide.mythicTalentImportCode, 'mythic')"
+                  >{{ copyButtonLabel('mythic') }}</button>
                 </div>
                 <span v-else class="guide-pending-chip">M+ 导入代码待维护</span>
               </section>
@@ -92,7 +97,12 @@
                 <p>{{ activeGuide.raidTalentSummary || '暂无团本天赋摘要' }}</p>
                 <div v-if="activeGuide.raidTalentImportCode" class="guide-import-code">
                   <code>{{ activeGuide.raidTalentImportCode }}</code>
-                  <button type="button" @click="copyTalentCode(activeGuide.raidTalentImportCode)">复制导入代码</button>
+                  <button
+                    type="button"
+                    :class="copyButtonClass('raid')"
+                    aria-live="polite"
+                    @click="copyTalentCode(activeGuide.raidTalentImportCode, 'raid')"
+                  >{{ copyButtonLabel('raid') }}</button>
                 </div>
                 <span v-else class="guide-pending-chip">团本导入代码待维护</span>
               </section>
@@ -212,7 +222,7 @@
 </template>
 
 <script>
-import {computed, onMounted, reactive, ref, watch} from 'vue'
+import {computed, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
 import MacDialog from '@/components/MacDialog.vue'
 import {listWowSpecializationGuides, updateWowSpecializationGuide} from '@/api/wowCharacter'
 
@@ -233,6 +243,36 @@ function errorMessage(error, fallback) {
   return error?.response?.data?.message || error?.message || fallback
 }
 
+// NAS 常通过 HTTP 访问，Clipboard API 会因非安全上下文不可用，因此保留兼容复制路径。
+async function writeClipboardText(value) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return
+    } catch {
+      // 权限被拒绝时继续使用兼容复制方案。
+    }
+  }
+
+  const copyInput = document.createElement('textarea')
+  copyInput.value = value
+  copyInput.setAttribute('readonly', '')
+  copyInput.style.position = 'fixed'
+  copyInput.style.left = '-9999px'
+  copyInput.style.opacity = '0'
+  document.body.appendChild(copyInput)
+  copyInput.focus()
+  copyInput.select()
+  copyInput.setSelectionRange(0, copyInput.value.length)
+
+  try {
+    const copied = typeof document.execCommand === 'function' && document.execCommand('copy')
+    if (!copied) throw new Error('浏览器拒绝访问剪贴板')
+  } finally {
+    document.body.removeChild(copyInput)
+  }
+}
+
 export default {
   name: 'WowSpecializationGuidePanel',
   components: {MacDialog},
@@ -249,6 +289,8 @@ export default {
     const activeClassCode = ref('')
     const activeGuideId = ref(null)
     const showEditDialog = ref(false)
+    const copyFeedback = reactive({key: '', state: ''})
+    let copyFeedbackTimer = null
     const editForm = reactive({
       mythicTalentBuildName: '', mythicTalentSummary: '', mythicTalentImportCode: '',
       raidTalentBuildName: '', raidTalentSummary: '', raidTalentImportCode: '',
@@ -361,9 +403,34 @@ export default {
       }
     }
 
-    const copyTalentCode = async (talentImportCode) => {
+    const showCopyFeedback = (key, state) => {
+      copyFeedback.key = key
+      copyFeedback.state = state
+      if (copyFeedbackTimer) window.clearTimeout(copyFeedbackTimer)
+      copyFeedbackTimer = window.setTimeout(() => {
+        copyFeedback.key = ''
+        copyFeedback.state = ''
+      }, 2200)
+    }
+
+    const copyButtonLabel = (key) => {
+      if (copyFeedback.key !== key) return '复制导入代码'
+      return copyFeedback.state === 'success' ? '✓ 已复制' : '复制失败，请手动复制'
+    }
+
+    const copyButtonClass = (key) => ({
+      'copy-success': copyFeedback.key === key && copyFeedback.state === 'success',
+      'copy-error': copyFeedback.key === key && copyFeedback.state === 'error'
+    })
+
+    const copyTalentCode = async (talentImportCode, key) => {
       if (!talentImportCode) return
-      await navigator.clipboard.writeText(talentImportCode)
+      try {
+        await writeClipboardText(talentImportCode)
+        showCopyFeedback(key, 'success')
+      } catch {
+        showCopyFeedback(key, 'error')
+      }
     }
 
     watch([keyword, roleFilter], ensureActiveGuide)
@@ -371,11 +438,15 @@ export default {
       if (guide && guide.id !== activeGuideId.value) activeGuideId.value = guide.id
     })
     onMounted(loadGuides)
+    onBeforeUnmount(() => {
+      if (copyFeedbackTimer) window.clearTimeout(copyFeedbackTimer)
+    })
 
     return {
       loading, submitting, guides, keyword, roleFilter, activeClassCode, activeGuideId, showEditDialog,
       editForm, availableClasses, activeClassGuides, activeGuide, activeClassColor, statSegments, roleOptions,
-      loadGuides, selectClass, formatRole, openEditDialog, closeEditDialog, saveGuide, copyTalentCode
+      loadGuides, selectClass, formatRole, openEditDialog, closeEditDialog, saveGuide,
+      copyTalentCode, copyButtonLabel, copyButtonClass
     }
   }
 }
@@ -419,7 +490,7 @@ export default {
 .guide-intel-card header { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }.guide-intel-card header > span { color: color-mix(in srgb, var(--class-color) 72%, #d8b96d); font: 700 17px Georgia,serif; }.guide-intel-card header b,.guide-intel-card header small { display:block }.guide-intel-card header b { color:#eee8d9;font-size:12px }.guide-intel-card header small { margin-top:1px;color:#536159;font-size:8px;letter-spacing:.13em }
 .guide-intel-card h4 { margin: 0 0 7px; color: #d9c58e; font-size: 14px; }.guide-intel-card p { margin:0; color:#9ca7a1; font-size:11px; line-height:1.65; white-space:pre-wrap; }
 .talent-variant-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px }.talent-variant { position:relative;padding:13px 14px 12px;border:1px solid rgba(217,184,102,.12);background:rgba(0,0,0,.16) }.mythic-variant { border-top-color:rgba(105,204,240,.45) }.raid-variant { border-top-color:rgba(245,140,186,.45) }.talent-context { display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;color:#909e97;font-size:10px;font-weight:800;letter-spacing:.08em }.talent-context i { color:#d4b867;font-style:normal;font-size:15px }
-.guide-import-code { display:flex; align-items:center; gap:8px; margin-top:10px; padding:7px 8px; background:rgba(0,0,0,.28) }.guide-import-code code { min-width:0; flex:1; overflow:hidden; color:#7f9188; text-overflow:ellipsis; white-space:nowrap; font-size:9px }.guide-import-code button { border:0;color:#dbc585;background:transparent;cursor:pointer;font-size:10px;white-space:nowrap }.guide-pending-chip { display:inline-block;margin-top:10px;padding:4px 7px;color:#6e7c75;background:rgba(255,255,255,.035);font-size:9px }
+.guide-import-code { display:flex; align-items:center; gap:8px; margin-top:10px; padding:7px 8px; background:rgba(0,0,0,.28) }.guide-import-code code { min-width:0; flex:1; overflow:hidden; color:#7f9188; text-overflow:ellipsis; white-space:nowrap; font-size:9px; user-select:all }.guide-import-code button { border:0;color:#dbc585;background:transparent;cursor:pointer;font-size:10px;white-space:nowrap;transition:color .16s ease,transform .16s ease }.guide-import-code button:hover { color:#fff0bd }.guide-import-code button.copy-success { color:#79d9ac;transform:translateY(-1px) }.guide-import-code button.copy-error { color:#f09a88 }.guide-pending-chip { display:inline-block;margin-top:10px;padding:4px 7px;color:#6e7c75;background:rgba(255,255,255,.035);font-size:9px }
 .stat-priority-flow { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin:18px 0 14px }.stat-priority-flow strong { padding:7px 10px; border:1px solid color-mix(in srgb,var(--class-color) 28%,rgba(217,184,102,.2)); color:#efe3c4; background:color-mix(in srgb,var(--class-color) 7%,rgba(0,0,0,.2)); font-size:12px }.stat-priority-flow i { color:#705f36;font-style:normal;font-size:20px }
 .guide-source-strip { display:flex; align-items:center; justify-content:space-between; gap:15px; margin:0 22px 20px; padding:11px 13px; border-top:1px solid rgba(217,184,102,.16); border-bottom:1px solid rgba(217,184,102,.16); background:rgba(0,0,0,.15) }.guide-source-strip div { display:flex; align-items:center; gap:10px }.guide-source-strip span,.guide-source-strip small { color:#65736c;font-size:9px }.guide-source-strip strong { color:#b9b4a7;font-size:11px }.guide-source-strip a { color:#d8b96d;font-size:11px;text-decoration:none }
 .guide-empty { display:grid;place-items:center;min-height:300px;color:#728078;font-size:12px }.guide-filter-empty { min-height:490px }

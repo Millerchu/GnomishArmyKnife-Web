@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import {flushPromises, mount} from '@vue/test-utils'
-import {beforeEach, describe, expect, it, vi} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import WowSpecializationGuidePanel from '@/components/wow/WowSpecializationGuidePanel.vue'
 import {listWowSpecializationGuides} from '@/api/wowCharacter'
 
@@ -20,8 +20,10 @@ const guides = [
     roleType: 'TANK',
     mythicTalentBuildName: '12.1 大秘境',
     mythicTalentSummary: '大秘境构筑。',
+    mythicTalentImportCode: 'MYTHIC_TALENT_IMPORT_CODE',
     raidTalentBuildName: '12.1 团本',
     raidTalentSummary: '团本构筑。',
+    raidTalentImportCode: 'RAID_TALENT_IMPORT_CODE',
     statPriority: '力量 ＞ 急速 ＞ 暴击',
     rotationNotes: '保持骨盾覆盖。',
     trinketRanking: 'S：饰品甲；A：饰品乙。',
@@ -47,6 +49,11 @@ const guides = [
 describe('WoW 职业专精指南面板', () => {
   beforeEach(() => {
     listWowSpecializationGuides.mockResolvedValue({data: {data: guides}})
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('加载当前赛季专精并展示四类指南信息', async () => {
@@ -76,5 +83,39 @@ describe('WoW 职业专精指南面板', () => {
 
     expect(wrapper.text()).toContain('戒律')
     expect(wrapper.find('.guide-dossier-head').text()).toContain('治疗')
+  })
+
+  it('复制天赋导入代码后给出成功反馈', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', {...navigator, clipboard: {writeText}})
+    const wrapper = mount(WowSpecializationGuidePanel, {global: {stubs: {MacDialog: true}}})
+    await flushPromises()
+
+    const copyButton = wrapper.find('.mythic-variant .guide-import-code button')
+    await copyButton.trigger('click')
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith(guides[0].mythicTalentImportCode)
+    expect(copyButton.text()).toBe('✓ 已复制')
+    wrapper.unmount()
+  })
+
+  it('Clipboard API 被拒绝时使用 HTTP 兼容复制方案', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('NotAllowedError'))
+    vi.stubGlobal('navigator', {...navigator, clipboard: {writeText}})
+    const execCommand = vi.fn().mockReturnValue(true)
+    Object.defineProperty(document, 'execCommand', {configurable: true, value: execCommand})
+    const wrapper = mount(WowSpecializationGuidePanel, {global: {stubs: {MacDialog: true}}})
+    await flushPromises()
+
+    const copyButton = wrapper.find('.mythic-variant .guide-import-code button')
+    await copyButton.trigger('click')
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledTimes(1)
+    expect(execCommand).toHaveBeenCalledWith('copy')
+    expect(copyButton.text()).toBe('✓ 已复制')
+    expect(document.body.querySelector('textarea[readonly]')).toBeNull()
+    wrapper.unmount()
   })
 })
