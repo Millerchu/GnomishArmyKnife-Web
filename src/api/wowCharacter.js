@@ -40,3 +40,11 @@ export function resetWowMythicSeason() {
 export function listWowCharacterMythicSeasonHistory(id) {
   return request.get(`/wow-characters/${id}/mythic-season-history`)
 }
+
+export function listWowSpecializationGuides() {
+  return request.get('/wow-specialization-guides')
+}
+
+export function updateWowSpecializationGuide(id, data) {
+  return request.put(`/wow-specialization-guides/${id}`, data)
+}

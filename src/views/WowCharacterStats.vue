@@ -20,7 +20,17 @@
       </div>
     </div>
 
-    <section class="season-briefing">
+    <section class="season-intelligence-hub">
+      <nav class="season-intelligence-tabs" aria-label="赛季资讯导航">
+        <button type="button" :class="{active: seasonTab === 'briefing'}" @click="seasonTab = 'briefing'">
+          <span>01</span><div><b>赛季情报</b><small>SEASON BRIEFING</small></div>
+        </button>
+        <button type="button" :class="{active: seasonTab === 'guides'}" @click="seasonTab = 'guides'">
+          <span>02</span><div><b>职业指南</b><small>CLASS INTELLIGENCE</small></div>
+        </button>
+      </nav>
+
+      <section v-if="seasonTab === 'briefing'" class="season-briefing">
       <div class="season-version-mark">
         <span>LIVE VERSION</span>
         <strong>{{ seasonInfo.versionName || '--' }}</strong>
@@ -80,6 +90,12 @@
           </article>
         </div>
       </div>
+      </section>
+      <WowSpecializationGuidePanel
+        v-else
+        :version-name="seasonInfo.versionName"
+        :season-name="seasonInfo.seasonName"
+      />
     </section>
 
     <section class="spotlight-panel">
@@ -1001,6 +1017,7 @@
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
+import WowSpecializationGuidePanel from '@/components/wow/WowSpecializationGuidePanel.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
@@ -1314,7 +1331,7 @@ function normalizeOverview(payload = {}, dungeonOptions = []) {
 
 export default {
   name: 'WowCharacterStats',
-  components: {MacDialog},
+  components: {MacDialog, WowSpecializationGuidePanel},
   setup() {
     const router = useRouter()
 
@@ -1322,6 +1339,7 @@ export default {
     const submitting = ref(false)
     const weeklyVaultResetting = ref(false)
     const mythicSeasonResetting = ref(false)
+    const seasonTab = ref('briefing')
     const vaultAttachmentUploading = ref(false)
     const total = ref(0)
     const pagedRecords = ref([])
@@ -2552,6 +2570,7 @@ export default {
       form,
       overview,
       seasonInfo,
+      seasonTab,
       showDialog,
       showWeeklyVaultDialog,
       showKeybindingDialog,
@@ -4375,13 +4394,69 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.season-intelligence-hub {
+  margin-bottom: 14px;
+}
+
+.season-intelligence-tabs {
+  display: flex;
+  gap: 1px;
+  padding: 0 14px;
+  border: 1px solid rgba(217, 184, 102, 0.42);
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(100deg, rgba(18, 12, 11, 0.98), rgba(18, 29, 30, 0.96));
+}
+
+.season-intelligence-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 190px;
+  padding: 11px 15px 9px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #707d76;
+  background: transparent;
+  cursor: pointer;
+}
+
+.season-intelligence-tabs button.active {
+  border-bottom-color: #d8b96d;
+  color: #fff3d2;
+  background: linear-gradient(0deg, rgba(217, 184, 102, 0.08), transparent 80%);
+}
+
+.season-intelligence-tabs button > span {
+  color: #a98c4e;
+  font-family: Georgia, serif;
+  font-size: 18px;
+}
+
+.season-intelligence-tabs button div,
+.season-intelligence-tabs button b,
+.season-intelligence-tabs button small {
+  display: block;
+  text-align: left;
+}
+
+.season-intelligence-tabs button b {
+  font-size: 12px;
+}
+
+.season-intelligence-tabs button small {
+  margin-top: 1px;
+  color: #536159;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+
 .season-briefing {
   display: grid;
   grid-template-columns: 160px minmax(270px, 0.7fr) minmax(400px, 1fr) minmax(480px, 1.2fr);
-  margin-bottom: 14px;
   overflow: hidden;
   border: 1px solid rgba(217, 184, 102, 0.42);
-  border-radius: 18px;
+  border-radius: 0 0 18px 18px;
   background:
     radial-gradient(circle at 42% 10%, rgba(174, 73, 32, 0.25), transparent 40%),
     linear-gradient(110deg, rgba(18, 12, 11, 0.96), rgba(24, 35, 37, 0.93));
@@ -4541,6 +4616,16 @@ button:disabled {
 }
 
 @media (max-width: 720px) {
+  .season-intelligence-tabs {
+    padding: 0 7px;
+  }
+
+  .season-intelligence-tabs button {
+    min-width: 0;
+    flex: 1;
+    padding: 10px 7px 8px;
+  }
+
   .season-briefing { grid-template-columns: 1fr; }
   .season-version-mark { border-right: 0; border-bottom: 1px solid rgba(217, 184, 102, 0.22); }
   .season-main-copy { border-bottom: 0; }
