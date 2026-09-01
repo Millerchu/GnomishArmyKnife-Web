@@ -592,18 +592,13 @@
               </button>
             </div>
 
-            <div v-if="weeklyVaultsExpanded" class="section-tools">
-              <button type="button" class="ghost-btn" @click="appendWeeklyVault">新增一周</button>
-            </div>
-
             <div v-if="weeklyVaultsExpanded && form.weeklyVaults.length" class="weekly-vault-list vault-detail-list">
-              <div v-for="(item, index) in form.weeklyVaults" :key="item.localKey" class="weekly-vault-card">
+              <div v-for="item in form.weeklyVaults" :key="item.localKey" class="weekly-vault-card">
                 <div class="weekly-vault-head">
                   <label class="form-field compact-field">
                     <span>周起始日</span>
-                    <input v-model="item.weekStartDate" class="input compact-input" type="date" />
+                    <input v-model="item.weekStartDate" class="input compact-input" type="date" readonly />
                   </label>
-                  <button type="button" class="mini-btn danger" @click="removeWeeklyVault(index)">删除</button>
                 </div>
 
                 <div class="weekly-vault-grid">
@@ -678,7 +673,7 @@
               </div>
             </div>
 
-            <div v-else-if="weeklyVaultsExpanded" class="empty-inline">当前还没有周低保记录</div>
+            <div v-else-if="weeklyVaultsExpanded" class="empty-inline">保存角色后即可维护本周低保</div>
           </section>
 
           <section v-if="showEndgameSections" class="dialog-block">
@@ -1287,7 +1282,7 @@ function normalizeCharacter(item = {}, dungeonOptions = []) {
     keybindings: Array.isArray(item.keybindings) ? item.keybindings : [],
     macros: Array.isArray(item.macros) ? item.macros : [],
     weeklyVaults: Array.isArray(item.weeklyVaults)
-      ? item.weeklyVaults.map((vault) => createWeeklyVaultDraft(vault))
+      ? item.weeklyVaults.slice(0, 1).map((vault) => createWeeklyVaultDraft(vault))
       : [],
     professionPrimary: item.professionPrimary || item.profession1 || '',
     professionSecondary: item.professionSecondary || item.profession2 || '',
@@ -1716,7 +1711,7 @@ export default {
       form.mythicDungeonName = normalizeSelectedValue(mythicDungeonOptions.value, record.mythicDungeonName, '')
       form.mythicRuns = normalizeMythicRunList(record.mythicRuns || [], mythicDungeonOptions.value)
       form.weeklyVaults = Array.isArray(record.weeklyVaults)
-        ? record.weeklyVaults.map((item) => createWeeklyVaultDraft(item))
+        ? record.weeklyVaults.slice(0, 1).map((item) => createWeeklyVaultDraft(item))
         : []
       form.keybindings = normalizeKeybindingList(record.keybindings || [])
       form.macros = normalizeMacroList(record.macros || [])
@@ -1726,19 +1721,8 @@ export default {
       normalizeFormSelections()
     }
 
-    const appendWeeklyVault = () => {
-      form.weeklyVaults.push(createWeeklyVaultDraft())
-    }
-
-    const removeWeeklyVault = (index) => {
-      form.weeklyVaults.splice(index, 1)
-    }
-
     const toggleWeeklyVaults = () => {
       weeklyVaultsExpanded.value = !weeklyVaultsExpanded.value
-      if (weeklyVaultsExpanded.value && !form.weeklyVaults.length) {
-        appendWeeklyVault()
-      }
     }
 
     const toggleMythicRuns = () => {
@@ -2032,7 +2016,7 @@ export default {
         bestTimedLevel: Number(item.bestTimedLevel || 0),
         score: Number(item.score || 0)
       })) : [],
-      weeklyVaults: isMaxLevelCharacter(character) ? character.weeklyVaults.map((item) => ({
+      weeklyVaults: isMaxLevelCharacter(character) ? character.weeklyVaults.slice(0, 1).map((item) => ({
         id: item.id || null,
         weekStartDate: item.weekStartDate || null,
         raidProgressCount: Number(item.raidProgressCount || 0),
@@ -2222,7 +2206,7 @@ export default {
       if (weeklyVaultResetting.value) {
         return
       }
-      if (!await confirmDialog('将清空所有满级角色的当前钥匙，并创建本周空白低保记录。以往低保周记录和附件会继续保留。', {
+      if (!await confirmDialog('将清空所有满级角色的当前钥匙，并创建本周空白低保记录。此前低保记录和附件将被删除。', {
         title: '重置所有满级角色低保？',
         confirmText: '确认重置'
       })) {
@@ -2243,7 +2227,7 @@ export default {
 
     const resetMythicSeason = async () => {
       if (mythicSeasonResetting.value) return
-      if (!await confirmDialog('将所有满级角色当前 M+ 总分和逐副本成绩归档到赛季历史，然后清零评分与当前钥匙。低保历史不会受影响。', {
+      if (!await confirmDialog('将所有满级角色当前 M+ 总分和逐副本成绩归档到赛季历史，然后清零评分与当前钥匙。本周低保不会受影响。', {
         title: '执行 M+ 赛季结算？',
         confirmText: '归档并重置'
       })) return
@@ -2645,8 +2629,6 @@ export default {
       formatFileSize,
       extractLimitValue,
       loadPageData,
-      appendWeeklyVault,
-      removeWeeklyVault,
       toggleWeeklyVaults,
       toggleMythicRuns,
       openKeybindingDialog,
