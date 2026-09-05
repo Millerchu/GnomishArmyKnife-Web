@@ -5,6 +5,10 @@ export function createWorkLog(data) {
   return request.post('/work-logs', data)
 }
 
+export function createWorkLogProject(data) {
+  return request.post('/work-logs/projects', data)
+}
+
 export function updateWorkLog(id, data) {
   return request.put(`/work-logs/${id}`, data)
 }

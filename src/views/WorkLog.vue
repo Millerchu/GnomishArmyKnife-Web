@@ -566,14 +566,72 @@
             <small v-if="isLeaveTypeSelected" class="field-hint">请假日志固定为居家</small>
           </label>
 
-          <label class="form-field">
-            <span>所属项目</span>
-            <select v-model="form.projectCode" :disabled="isLeaveTypeSelected || !projectSelectOptions.length">
-              <option value="">{{ projectSelectOptions.length ? '请选择项目' : '暂无项目字典项' }}</option>
-              <option v-for="item in projectSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-            </select>
+          <div class="form-field project-picker-field" @focusout="handleProjectPickerFocusOut">
+            <span><label for="work-log-project-input">所属项目</label></span>
+            <div class="project-combobox" :class="{open: showProjectDropdown}">
+              <input
+                id="work-log-project-input"
+                :value="projectSearchText"
+                type="text"
+                maxlength="64"
+                autocomplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                :aria-expanded="showProjectDropdown"
+                aria-controls="work-log-project-options"
+                :disabled="isLeaveTypeSelected || creatingProject"
+                placeholder="搜索或输入新项目"
+                @focus="openProjectDropdown"
+                @input="handleProjectSearchInput"
+                @keydown="handleProjectSearchKeydown"
+              />
+              <button
+                type="button"
+                class="project-combobox-toggle"
+                :disabled="isLeaveTypeSelected || creatingProject"
+                aria-label="展开项目选项"
+                @click="toggleProjectDropdown"
+              ><span aria-hidden="true">⌄</span></button>
+
+              <div
+                v-if="showProjectDropdown && !isLeaveTypeSelected"
+                id="work-log-project-options"
+                class="project-combobox-panel"
+                role="listbox"
+              >
+                <button
+                  v-for="item in filteredProjectOptions"
+                  :key="item.value"
+                  type="button"
+                  class="project-combobox-option"
+                  :class="{selected: form.projectCode === item.value}"
+                  role="option"
+                  :aria-selected="form.projectCode === item.value"
+                  @click="selectProjectOption(item)"
+                >
+                  <span>{{ item.label }}</span>
+                  <b v-if="form.projectCode === item.value" aria-hidden="true">✓</b>
+                </button>
+
+                <button
+                  v-if="canCreateProject"
+                  type="button"
+                  class="project-combobox-create"
+                  :disabled="creatingProject"
+                  @click="createAndSelectProject"
+                >
+                  <span class="project-create-icon" aria-hidden="true">＋</span>
+                  <span>新增“{{ normalizedProjectName }}”并选择</span>
+                </button>
+                <div v-else-if="!filteredProjectOptions.length" class="project-combobox-empty">
+                  {{ projectSearchText ? '没有匹配的项目' : '暂无项目字典项' }}
+                </div>
+              </div>
+            </div>
             <small v-if="isLeaveTypeSelected" class="field-hint">请假日志固定归属“请假”项目</small>
-          </label>
+            <small v-else-if="projectPickerNotice" class="field-hint project-picker-notice">{{ projectPickerNotice }}</small>
+            <small v-else class="field-hint">输入新项目名称可直接新增到数据字典</small>
+          </div>
         </div>
 
         <div class="form-field dialog-span-2">
@@ -794,6 +852,7 @@ import MacDialog from '@/components/MacDialog.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import {
   createWorkLog,
+  createWorkLogProject,
   deleteWorkLog,
   getWorkLogDetail,
   listUnfinishedWorkItems,
@@ -910,6 +969,13 @@ function unwrapData(res) {
     return payload.data
   }
   return payload
+}
+
+function extractErrorMessage(error, fallback) {
+  return error?.response?.data?.message
+    || error?.response?.data?.data?.message
+    || error?.message
+    || fallback
 }
 
 function toNumber(value, fallback = 0) {
@@ -1178,6 +1244,10 @@ export default {
     const showDialog = ref(false)
     const dialogMode = ref('create')
     const showTypeDropdown = ref(false)
+    const showProjectDropdown = ref(false)
+    const projectSearchText = ref('')
+    const projectPickerNotice = ref('')
+    const creatingProject = ref(false)
     const unfinishedLoading = ref(false)
     const unfinishedLoadError = ref('')
 
@@ -1249,6 +1319,7 @@ export default {
 
     const fallbackProjectOptions = computed(() => buildFallbackOptions(knownLogs.value.map((item) => item.projectCode)))
     const fallbackLocationOptions = computed(() => buildFallbackOptions(knownLogs.value.map((item) => item.location)))
+    const isLeaveTypeSelected = computed(() => form.typeCodes.includes(TYPE_LEAVE))
 
     const projectSelectOptions = computed(() => withRequiredOption(
       projectOptions.value.length ? projectOptions.value : fallbackProjectOptions.value,
@@ -1258,6 +1329,31 @@ export default {
       locationOptions.value.length ? locationOptions.value : fallbackLocationOptions.value,
       LEAVE_LOCATION_OPTION
     ))
+    const normalizedProjectName = computed(() => projectSearchText.value.trim())
+    const matchingProjectOption = computed(() => {
+      const keyword = normalizedProjectName.value.toLocaleLowerCase()
+      if (!keyword) {
+        return null
+      }
+      return projectSelectOptions.value.find((item) => {
+        return item.label.toLocaleLowerCase() === keyword || item.value.toLocaleLowerCase() === keyword
+      }) || null
+    })
+    const filteredProjectOptions = computed(() => {
+      const keyword = normalizedProjectName.value.toLocaleLowerCase()
+      if (!keyword) {
+        return projectSelectOptions.value
+      }
+      return projectSelectOptions.value.filter((item) => {
+        return item.label.toLocaleLowerCase().includes(keyword) || item.value.toLocaleLowerCase().includes(keyword)
+      })
+    })
+    const canCreateProject = computed(() => {
+      return Boolean(normalizedProjectName.value)
+        && normalizedProjectName.value.length <= 64
+        && !matchingProjectOption.value
+        && !isLeaveTypeSelected.value
+    })
     const formZentaoNo = computed(() => {
       return aggregateZentaoNumbers(form.workItems.map((workItem) => workItem.zentaoNo))
         || form.legacyZentaoNo
@@ -1410,7 +1506,6 @@ export default {
     })
 
     const selectedTypeOptions = computed(() => typeOptions.value.filter((item) => form.typeCodes.includes(item.value)))
-    const isLeaveTypeSelected = computed(() => form.typeCodes.includes(TYPE_LEAVE))
     const hasCityBusinessTripType = computed(() => form.typeCodes.includes(TYPE_CITY_BUSINESS_TRIP))
     const hasOutOfCityBusinessTripType = computed(() => {
       return form.typeCodes.includes(TYPE_OUT_OF_CITY_BUSINESS_TRIP) || form.typeCodes.includes(TYPE_LEGACY_BUSINESS_TRIP)
@@ -1485,6 +1580,11 @@ export default {
       return options.find((item) => item.isDefault)?.value || options[0]?.value || ''
     }
 
+    function syncProjectSearchText() {
+      const selectedOption = projectSelectOptions.value.find((item) => item.value === form.projectCode)
+      projectSearchText.value = selectedOption?.label || form.projectCode || ''
+    }
+
     function applyFormOptionDefaults() {
       form.typeCodes = form.typeCodes.filter((value) => typeOptions.value.some((item) => item.value === value))
       if (!form.typeCodes.length && typeOptions.value.length) {
@@ -1493,6 +1593,7 @@ export default {
       form.projectCode = normalizeSelectedValue(projectSelectOptions.value, form.projectCode, form.projectCode || '')
       form.location = normalizeSelectedValue(locationSelectOptions.value, form.location, form.location || '')
       applyLeaveFormDefaults()
+      syncProjectSearchText()
     }
 
     /** 请假不关联实际办公地点或项目，避免用户误填导致统计失真。 */
@@ -1502,6 +1603,8 @@ export default {
       }
       form.location = LEAVE_LOCATION_VALUE
       form.projectCode = LEAVE_PROJECT_VALUE
+      syncProjectSearchText()
+      showProjectDropdown.value = false
     }
 
     async function loadDictionaryOptions() {
@@ -1713,6 +1816,8 @@ export default {
       form.businessTripAllowanceScene = ALLOWANCE_SCENE_OUT_OF_CITY_DAILY
       form.businessTripReimbursed = false
       form.remark = ''
+      projectPickerNotice.value = ''
+      showProjectDropdown.value = false
       applyFormOptionDefaults()
     }
 
@@ -1951,6 +2056,7 @@ export default {
         dialogMode.value = 'edit'
         fillForm(detail)
         showTypeDropdown.value = false
+        showProjectDropdown.value = false
         showDialog.value = true
         await fetchFormDayLogs(form.logDate)
       } catch (error) {
@@ -1962,6 +2068,7 @@ export default {
     function closeDialog() {
       showDialog.value = false
       showTypeDropdown.value = false
+      showProjectDropdown.value = false
     }
 
     function toggleTypeDropdown() {
@@ -1974,6 +2081,83 @@ export default {
 
     function removeType(typeCode) {
       form.typeCodes = form.typeCodes.filter((value) => value !== typeCode)
+    }
+
+    function openProjectDropdown() {
+      if (!isLeaveTypeSelected.value && !creatingProject.value) {
+        showProjectDropdown.value = true
+      }
+    }
+
+    function toggleProjectDropdown() {
+      if (isLeaveTypeSelected.value || creatingProject.value) {
+        return
+      }
+      showProjectDropdown.value = !showProjectDropdown.value
+    }
+
+    function handleProjectSearchInput(event) {
+      projectSearchText.value = event.target.value
+      projectPickerNotice.value = ''
+      showProjectDropdown.value = true
+      const selectedOption = projectSelectOptions.value.find((item) => item.value === form.projectCode)
+      if (!selectedOption || selectedOption.label !== projectSearchText.value) {
+        form.projectCode = ''
+      }
+    }
+
+    function handleProjectSearchKeydown(event) {
+      if (event.key === 'Escape') {
+        showProjectDropdown.value = false
+        return
+      }
+      if (event.key !== 'Enter' || !showProjectDropdown.value) {
+        return
+      }
+      event.preventDefault()
+      if (matchingProjectOption.value) {
+        selectProjectOption(matchingProjectOption.value)
+      } else if (canCreateProject.value) {
+        createAndSelectProject()
+      }
+    }
+
+    function handleProjectPickerFocusOut(event) {
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        showProjectDropdown.value = false
+      }
+    }
+
+    function selectProjectOption(option) {
+      form.projectCode = option.value
+      projectSearchText.value = option.label
+      projectPickerNotice.value = ''
+      showProjectDropdown.value = false
+    }
+
+    async function createAndSelectProject() {
+      if (!canCreateProject.value || creatingProject.value) {
+        return
+      }
+      const projectName = normalizedProjectName.value
+      creatingProject.value = true
+      try {
+        const response = await createWorkLogProject({projectName})
+        const createdOption = normalizeDictionaryOptions([unwrapData(response)])[0]
+        if (!createdOption) {
+          throw new Error('新增项目接口未返回有效字典项')
+        }
+        const retainedOptions = projectSelectOptions.value.filter((item) => item.value !== createdOption.value)
+        projectOptions.value = [...retainedOptions, createdOption]
+          .sort((prev, next) => prev.sortNo - next.sortNo || prev.label.localeCompare(next.label))
+        selectProjectOption(createdOption)
+        projectPickerNotice.value = `已新增“${createdOption.label}”到项目数据字典`
+      } catch (error) {
+        console.error(error)
+        alert(extractErrorMessage(error, '新增项目失败，请稍后重试'))
+      } finally {
+        creatingProject.value = false
+      }
     }
 
     function addWorkItem() {
@@ -2004,6 +2188,7 @@ export default {
       }
       if (projectSelectOptions.value.some((option) => option.value === item.projectCode)) {
         form.projectCode = item.projectCode
+        syncProjectSearchText()
       }
     }
 
@@ -2185,6 +2370,7 @@ export default {
     watch(showDialog, (visible) => {
       if (!visible) {
         showTypeDropdown.value = false
+        showProjectDropdown.value = false
       }
     })
 
@@ -2239,6 +2425,13 @@ export default {
       unfinishedLoadError,
       unfinishedWorkItems,
       showTypeDropdown,
+      showProjectDropdown,
+      projectSearchText,
+      projectPickerNotice,
+      creatingProject,
+      filteredProjectOptions,
+      normalizedProjectName,
+      canCreateProject,
       selectedTypeOptions,
       selectedTypeText,
       isLeaveTypeSelected,
@@ -2289,6 +2482,13 @@ export default {
       toggleTypeDropdown,
       clearTypes,
       removeType,
+      openProjectDropdown,
+      toggleProjectDropdown,
+      handleProjectSearchInput,
+      handleProjectSearchKeydown,
+      handleProjectPickerFocusOut,
+      selectProjectOption,
+      createAndSelectProject,
       addWorkItem,
       removeWorkItem,
       applyUnfinishedWorkItem,
@@ -3274,6 +3474,152 @@ export default {
 .field-hint {
   color: rgba(255, 255, 255, 0.58);
   font-size: 11px;
+}
+
+.project-combobox {
+  position: relative;
+  width: 100%;
+}
+
+.project-combobox input {
+  padding-right: 42px;
+}
+
+.project-combobox.open input {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px var(--theme-focus-ring);
+}
+
+.project-combobox-toggle {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 38px;
+  border: 0;
+  border-left: 1px solid var(--theme-border);
+  border-radius: 0 11px 11px 0;
+  color: var(--theme-text-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 17px;
+  transition: color 0.16s ease;
+}
+
+.project-combobox-toggle span {
+  display: inline-block;
+  transition: transform 0.16s ease;
+}
+
+.project-combobox.open .project-combobox-toggle {
+  color: var(--theme-link);
+}
+
+.project-combobox.open .project-combobox-toggle span {
+  transform: rotate(180deg);
+}
+
+.project-combobox-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.project-combobox-panel {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 8;
+  display: grid;
+  width: max(100%, 260px);
+  max-height: min(320px, 42vh);
+  padding: 7px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--theme-border-strong);
+  border-radius: 14px;
+  background: var(--theme-popover-surface);
+  box-shadow: var(--theme-shadow-md);
+}
+
+.project-combobox-option,
+.project-combobox-create {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--theme-text-soft);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+
+.project-combobox-option:hover,
+.project-combobox-option:focus-visible {
+  color: var(--theme-text);
+  background: var(--theme-surface-hover);
+  outline: none;
+}
+
+.project-combobox-option.selected {
+  color: var(--theme-link);
+  background: var(--theme-accent-soft);
+}
+
+.project-combobox-option span,
+.project-combobox-create span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.project-combobox-option b {
+  flex: 0 0 auto;
+  color: var(--theme-accent);
+}
+
+.project-combobox-create {
+  justify-content: flex-start;
+  margin-top: 5px;
+  border-top: 1px solid var(--theme-divider);
+  border-radius: 0 0 9px 9px;
+  color: var(--theme-link);
+  font-weight: 700;
+}
+
+.project-combobox-create:hover,
+.project-combobox-create:focus-visible {
+  background: var(--theme-accent-soft);
+  outline: none;
+}
+
+.project-create-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: #fff;
+  background: var(--theme-accent);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.project-combobox-empty {
+  padding: 12px 10px;
+  color: var(--theme-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.project-picker-notice {
+  color: var(--theme-success);
 }
 
 .work-item-status-segment {

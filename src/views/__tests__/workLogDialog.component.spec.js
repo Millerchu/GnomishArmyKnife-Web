@@ -9,6 +9,7 @@ import {confirmDialog} from '@/components/systemDialog'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
   createWorkLog,
+  createWorkLogProject,
   deleteWorkLog,
   getWorkLogDetail,
   listUnfinishedWorkItems,
@@ -53,6 +54,7 @@ vi.mock('@/api/dataDictionary', () => ({
 
 vi.mock('@/api/workLog', () => ({
   createWorkLog: vi.fn(),
+  createWorkLogProject: vi.fn(),
   deleteWorkLog: vi.fn(),
   getWorkLogDetail: vi.fn(),
   listUnfinishedWorkItems: vi.fn(),
@@ -261,6 +263,13 @@ beforeEach(() => {
     businessTripAllowanceAmount: 0,
     ...payload
   })))
+  createWorkLogProject.mockImplementation(({projectName}) => Promise.resolve(buildApiResponse({
+    itemCode: 'custom_project',
+    itemLabel: projectName,
+    itemValue: projectName,
+    isDefault: false,
+    sort: 3
+  })))
   deleteWorkLog.mockResolvedValue(buildApiResponse(null))
   getWorkLogDetail.mockResolvedValue(buildApiResponse(editLogDetail))
   listUnfinishedWorkItems.mockResolvedValue(buildApiResponse([]))
@@ -451,18 +460,39 @@ describe('WorkLog MacDialog integration', () => {
     const wrapper = await mountWorkLogAndOpenCreateDialog()
     const panel = getDialogPanel()
     const form = panel.querySelector('form#work-log-dialog-form')
-    const [locationSelect, projectSelect] = form.querySelectorAll('select')
+    const locationSelect = form.querySelector('select')
+    const projectInput = form.querySelector('#work-log-project-input')
 
     wrapper.vm.form.typeCodes = ['LEAVE']
     await nextTick()
 
     expect(panel.querySelector('.multi-select-tag').textContent).toContain('请假')
     expect(locationSelect.value).toBe('居家')
-    expect(projectSelect.value).toBe('LEAVE')
+    expect(projectInput.value).toBe('请假')
     expect(locationSelect.disabled).toBe(true)
-    expect(projectSelect.disabled).toBe(true)
+    expect(projectInput.disabled).toBe(true)
     expect(form.textContent).toContain('请假日志固定为居家')
     expect(form.textContent).toContain('请假日志固定归属“请假”项目')
+  })
+
+  it('creates a missing project dictionary option and selects it immediately', async () => {
+    const wrapper = await mountWorkLogAndOpenCreateDialog()
+    const panel = getDialogPanel()
+    const projectInput = panel.querySelector('#work-log-project-input')
+
+    projectInput.value = '新建交付项目'
+    projectInput.dispatchEvent(new Event('input', {bubbles: true}))
+    await nextTick()
+
+    const createOption = panel.querySelector('.project-combobox-create')
+    expect(createOption.textContent).toContain('新增“新建交付项目”并选择')
+    createOption.click()
+    await flushPromises()
+
+    expect(createWorkLogProject).toHaveBeenCalledWith({projectName: '新建交付项目'})
+    expect(wrapper.vm.form.projectCode).toBe('新建交付项目')
+    expect(projectInput.value).toBe('新建交付项目')
+    expect(panel.textContent).toContain('已新增“新建交付项目”到项目数据字典')
   })
 
   it('submits a valid create form from the teleported footer button', async () => {
@@ -494,7 +524,8 @@ describe('WorkLog MacDialog integration', () => {
     const wrapper = await mountWorkLog()
     const panel = await openEditDialog(wrapper)
     const form = panel.querySelector('form#work-log-dialog-form')
-    const [locationSelect, projectSelect] = form.querySelectorAll('select')
+    const locationSelect = form.querySelector('select')
+    const projectInput = form.querySelector('#work-log-project-input')
     const submitButton = panel.querySelector('.mac-dialog-actions button[type="submit"]')
 
     expect(getWorkLogDetail).toHaveBeenCalledWith(editLogDetail.id)
@@ -503,7 +534,7 @@ describe('WorkLog MacDialog integration', () => {
     expect(form.querySelector('input[type="number"][step="0.1"]').value).toBe('0')
     expect(panel.querySelector('.multi-select-trigger').textContent).toContain('正常工作')
     expect(locationSelect.value).toBe(editLogDetail.location)
-    expect(projectSelect.value).toBe(editLogDetail.projectCode)
+    expect(projectInput.value).toBe('项目 Alpha')
     expect(form.querySelector('.work-item-input-row input').value).toBe(editLogDetail.workItem)
     expect(form.querySelector('.zentao-summary-value').textContent.trim()).toBe(editLogDetail.zentaoNo)
     expect(form.querySelector('textarea[rows="2"]').value).toBe(editLogDetail.remark)
