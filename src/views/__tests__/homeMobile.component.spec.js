@@ -79,6 +79,7 @@ async function mountHome() {
           props: ['modelValue'],
           template: '<div v-if="modelValue"><slot /><slot name="footer" /></div>'
         },
+        MessageHost: {template: '<button type="button" aria-label="消息" />'},
         QuickCreateDialog: {template: '<div />'},
         RequirementBoard: {template: '<div />'},
         ThemeToggle: {template: '<button type="button" aria-label="切换主题" />'},
@@ -124,6 +125,14 @@ afterEach(() => {
 })
 
 describe('Home mobile behavior', () => {
+  it('keeps message control separate and system menu last', async () => {
+    const wrapper = await mountHome()
+    const controlLabels = wrapper.find('.top-right-wrap').findAll('button')
+      .map((button) => button.attributes('aria-label'))
+
+    expect(controlLabels).toEqual(['切换主题', '消息', '系统菜单'])
+  })
+
   it('disables tool dragging through the same 720px breakpoint used by CSS', async () => {
     const wrapper = await mountHome()
 

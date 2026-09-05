@@ -28,9 +28,11 @@ export function readAuthState(storage = localStorage) {
 export function writeAuthState(storage = localStorage, {token = '', user = null} = {}) {
   storage.setItem(AUTH_TOKEN_STORAGE_KEY, token || '')
   storage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user || {}))
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('gak:auth-changed'))
 }
 
 export function clearAuthState(storage = localStorage) {
   storage.removeItem(AUTH_TOKEN_STORAGE_KEY)
   storage.removeItem(AUTH_USER_STORAGE_KEY)
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('gak:auth-changed'))
 }

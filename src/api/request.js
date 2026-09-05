@@ -1,7 +1,7 @@
 import axios from 'axios'
 import {clearAuthState} from '@/utils/authStorage'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
+export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
 const PUBLIC_REQUEST_PATHS = [
   '/auth/login',
   '/auth/register',
@@ -45,7 +45,7 @@ function isAuthExpiredMessage(message = '') {
   ].some((item) => normalized.includes(item.toLowerCase()))
 }
 
-function redirectToLogin() {
+export function redirectToLogin() {
   if (authRedirecting) {
     return
   }

@@ -3,6 +3,8 @@ import {readAuthState} from '@/utils/authStorage'
 import {resolveNavigationTarget} from '@/utils/routeAccess'
 
 const routes = [
+    {path: '/messages', component: () => import('../views/MessageCenter.vue')},
+    {path: '/system/messages', meta: {requiresAdmin: true}, component: () => import('../views/MessageManagement.vue')},
     {path: '/', redirect: '/login'}, // 打开直接进入登录页
     {path: '/login', component: () => import('../views/Login.vue')},
     {path: '/register', component: () => import('../views/Register.vue')},
@@ -32,7 +34,8 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-    const redirectPath = resolveNavigationTarget(to.path, readAuthState())
+    if (to.meta.requiresAdmin && readAuthState().user?.roleCode?.toUpperCase() !== 'ADMIN') return '/home'
+  const redirectPath = resolveNavigationTarget(to.path, readAuthState())
     return redirectPath && redirectPath !== to.path ? redirectPath : true
 })
 

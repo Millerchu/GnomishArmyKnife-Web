@@ -8,18 +8,21 @@
       <router-view/>
     </div>
     <SystemDialogHost/>
+    <MessageHost v-if="$route.path !== '/home'"/>
   </div>
 </template>
 
 <script>
 import {onMounted, ref} from 'vue'
 import SystemDialogHost from './components/SystemDialogHost.vue'
+import MessageHost from './components/MessageHost.vue'
 
 const FALLBACK_BACKGROUND = 'var(--theme-wallpaper-overlay), var(--theme-wallpaper-fallback)'
 
 export default {
   components: {
-    SystemDialogHost
+    SystemDialogHost,
+    MessageHost
   },
   setup() {
     const bgStyle = ref({

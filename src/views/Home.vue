@@ -31,6 +31,8 @@
 
           <ThemeToggle class="home-theme-toggle" />
 
+          <MessageHost inline />
+
           <div ref="systemMenuRef" class="system-menu-box">
             <button
               ref="systemMenuToggleRef"
@@ -338,6 +340,7 @@ import AppIconImage from '@/components/AppIconImage.vue'
 import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import AttachmentManager from '@/components/AttachmentManager.vue'
 import MacDialog from '@/components/MacDialog.vue'
+import MessageHost from '@/components/MessageHost.vue'
 import QuickCreateDialog from '@/components/QuickCreateDialog.vue'
 import RequirementBoard from '@/components/RequirementBoard.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
@@ -503,6 +506,7 @@ export default {
     AuthenticatedImage,
     AttachmentManager,
     MacDialog,
+    MessageHost,
     QuickCreateDialog,
     RequirementBoard,
     ThemeToggle
@@ -601,6 +605,7 @@ export default {
       {key: 'profile', name: '个人中心', shortName: '我'},
       {key: 'user', name: '用户管理', shortName: '用'},
       {key: 'app', name: '应用管理', shortName: '应'},
+      {key: 'messages', name: '消息管理', shortName: '信'},
       {key: 'permission', name: '权限管理', shortName: '权'},
       {key: 'migration', name: '数据迁移', shortName: '迁'},
       {key: 'dict', name: '数据字典', shortName: '字'},
@@ -798,6 +803,10 @@ export default {
       }
       if (menu.key === 'app') {
         router.push('/system/apps')
+        return
+      }
+      if (menu.key === 'messages') {
+        router.push('/system/messages')
         return
       }
       if (menu.key === 'permission') {
@@ -1068,6 +1077,7 @@ export default {
       }, 60 * 1000)
       syncMobileViewport()
       window.addEventListener('resize', syncMobileViewport)
+      window.addEventListener('gak:permissions-changed', loadCurrentUserAccessibleApps)
       document.addEventListener('click', handleDocumentClick)
       document.addEventListener('keydown', handleEscapeKey)
       loadCurrentUserAccessibleApps()
@@ -1085,6 +1095,7 @@ export default {
       }
       resetEasterEggProgress()
       window.removeEventListener('resize', syncMobileViewport)
+      window.removeEventListener('gak:permissions-changed', loadCurrentUserAccessibleApps)
       document.removeEventListener('click', handleDocumentClick)
       document.removeEventListener('keydown', handleEscapeKey)
     })
