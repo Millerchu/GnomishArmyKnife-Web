@@ -45,7 +45,7 @@
           <p class="headline-meta">
             {{ latestConsumptionRecord?.vehicleName || '暂无车辆' }}
             <span v-if="latestConsumptionRecord?.fuelDate"> · {{ latestConsumptionRecord.fuelDate }}</span>
-            <span v-if="latestConsumptionRecord?.distanceKm > 0"> · 里程差 {{ formatNumber(latestConsumptionRecord.distanceKm) }} km</span>
+            <span v-if="latestConsumptionRecord?.consumptionDistanceKm > 0"> · 周期里程 {{ formatNumber(latestConsumptionRecord.consumptionDistanceKm) }} km</span>
           </p>
         </div>
         <div class="headline-stats">
@@ -54,8 +54,8 @@
             <strong>{{ formatCurrency(latestConsumptionRecord?.discountedAmount || latestConsumptionRecord?.totalAmount) }}</strong>
           </div>
           <div class="headline-stat">
-            <span>加油量</span>
-            <strong>{{ latestConsumptionRecord ? `${formatNumber(latestConsumptionRecord.fuelVolume)} L` : '-' }}</strong>
+            <span>周期加油量</span>
+            <strong>{{ latestConsumptionRecord ? `${formatNumber(latestConsumptionRecord.consumptionFuelVolume)} L` : '-' }}</strong>
           </div>
           <div class="headline-stat">
             <span>车辆均值</span>
@@ -239,7 +239,7 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">加油记录</h2>
-            <p class="panel-tip">每条记录会自动结合同车上一次里程估算行驶距离和油耗，便于观察长期趋势。</p>
+            <p class="panel-tip">油耗按两次加满之间的累计加油量和里程计算；未加满时等待下次加满，漏记后重新建立基准。</p>
           </div>
         </div>
 
@@ -275,7 +275,7 @@
                 <td>{{ item.vehicleName }}</td>
                 <td>{{ formatNumber(item.fuelVolume) }}</td>
                 <td>{{ formatCurrency(item.discountedAmount) }}</td>
-                <td>{{ formatConsumption(item.fuelConsumption) }}</td>
+                <td>{{ formatRecordConsumption(item) }}</td>
                 <td>{{ item.stationName || '-' }}</td>
                 <td>
                   <div class="row-actions">
@@ -301,7 +301,7 @@
                   <p class="mobile-record-subtitle">{{ item.fuelDate }} · {{ item.stationName || '未填写油站' }}</p>
                 </div>
                 <span class="consumption-chip" :class="consumptionClassMap[getConsumptionLevel(item.fuelConsumption)]">
-                  {{ formatConsumption(item.fuelConsumption) }}
+                  {{ formatRecordConsumption(item) }}
                 </span>
               </div>
 
@@ -459,7 +459,7 @@
         <div v-if="detailRecord" class="detail-dialog">
         <div class="detail-dialog-head">
           <span class="consumption-chip" :class="consumptionClassMap[getConsumptionLevel(detailRecord.fuelConsumption)]">
-            {{ formatConsumption(detailRecord.fuelConsumption) }}
+            {{ formatRecordConsumption(detailRecord) }}
           </span>
         </div>
 
@@ -467,6 +467,7 @@
           <p><span>车辆名称</span><strong>{{ detailRecord.vehicleName || '-' }}</strong></p>
           <p><span>加油时间</span><strong>{{ formatDateTime(detailRecord.fuelTime || detailRecord.fuelDate) }}</strong></p>
           <p><span>当前里程</span><strong>{{ formatNumber(detailRecord.odometerKm) }} km</strong></p>
+          <p v-if="detailRecord.consumptionDistanceKm > 0"><span>油耗周期</span><strong>{{ formatNumber(detailRecord.consumptionFuelVolume) }} L / {{ formatNumber(detailRecord.consumptionDistanceKm) }} km</strong></p>
           <p><span>里程差</span><strong>{{ detailRecord.distanceKm ? `${formatNumber(detailRecord.distanceKm)} km` : '-' }}</strong></p>
           <p><span>加油量</span><strong>{{ formatNumber(detailRecord.fuelVolume) }} L</strong></p>
           <p><span>机显单价</span><strong>{{ formatUnitPrice(detailRecord.machineUnitPrice) }}</strong></p>
@@ -770,6 +771,8 @@ function normalizeRecord(item = {}) {
     createdAt: item.createdAt || item.createTime || '',
     updatedAt: item.updatedAt || item.updateTime || item.createdAt || item.createTime || '',
     distanceKm: Number(item.distanceKm ?? 0),
+    consumptionDistanceKm: Number(item.consumptionDistanceKm ?? 0),
+    consumptionFuelVolume: Number(item.consumptionFuelVolume ?? 0),
     fuelConsumption: item.fuelConsumption != null ? Number(item.fuelConsumption) : null,
     attachments: Array.isArray(item.attachments) ? item.attachments : []
   }
@@ -796,37 +799,6 @@ function formatDateTimeInput(value) {
   return normalized.length >= 16 ? normalized.slice(0, 16) : `${normalized}T00:00`
 }
 
-// 里程差和百公里油耗依赖同车上一条记录，这里集中补全派生指标。
-function calculateDerivedRecords(records = []) {
-  const ascending = [...records]
-    .map((item) => normalizeRecord(item))
-    .sort((prev, next) => (
-      `${prev.vehicleName}-${prev.fuelDate}-${prev.odometerKm}`.localeCompare(`${next.vehicleName}-${next.fuelDate}-${next.odometerKm}`)
-    ))
-
-  const previousMap = new Map()
-  const derived = ascending.map((item) => {
-    const previous = previousMap.get(item.vehicleName)
-    const distanceKm = previous && item.odometerKm > previous.odometerKm
-      ? item.odometerKm - previous.odometerKm
-      : 0
-    const fuelConsumption = distanceKm > 0
-      ? (item.fuelVolume / distanceKm) * 100
-      : null
-
-    previousMap.set(item.vehicleName, item)
-    return {
-      ...item,
-      distanceKm,
-      fuelConsumption
-    }
-  })
-
-  return derived.sort((prev, next) => (
-    `${next.fuelDate}-${next.odometerKm}`.localeCompare(`${prev.fuelDate}-${prev.odometerKm}`)
-  ))
-}
-
 // 概览卡片、车辆统计和图表公用同一套聚合结果，保证金额口径始终按优惠后实付计算。
 function buildVehicleStats(records = []) {
   const map = records.reduce((result, item) => {
@@ -835,13 +807,15 @@ function buildVehicleStats(records = []) {
       totalAmount: 0,
       totalDiscountAmount: 0,
       totalFuelVolume: 0,
-      totalDistance: 0,
+      consumptionDistance: 0,
+      consumptionVolume: 0,
       recordCount: 0
     }
     current.totalAmount += Number(item.discountedAmount || item.totalAmount || 0)
     current.totalDiscountAmount += Number(item.discountAmount || 0)
     current.totalFuelVolume += Number(item.fuelVolume || 0)
-    current.totalDistance += Number(item.distanceKm || 0)
+    current.consumptionDistance += Number(item.consumptionDistanceKm || 0)
+    current.consumptionVolume += Number(item.consumptionFuelVolume || 0)
     current.recordCount += 1
     result[item.vehicleName] = current
     return result
@@ -850,7 +824,7 @@ function buildVehicleStats(records = []) {
   return Object.values(map)
     .map((item) => ({
       ...item,
-      averageConsumption: item.totalDistance > 0 ? (item.totalFuelVolume / item.totalDistance) * 100 : 0
+      averageConsumption: item.consumptionDistance > 0 ? (item.consumptionVolume / item.consumptionDistance) * 100 : 0
     }))
     .sort((prev, next) => next.recordCount - prev.recordCount)
 }
@@ -1221,6 +1195,11 @@ export default {
     const formatUnitPrice = (value) => value ? `¥${Number(value).toFixed(3)}/L` : '-'
     const formatEnergyUnitPrice = (value) => `¥${Number(value || 0).toFixed(3)}${currentFormEnergyType.value === 'ELECTRIC' ? '/kWh' : '/L'}`
     const formatDateTime = (value) => value ? `${value}`.replace('T', ' ').slice(0, 16) : '-'
+    const formatRecordConsumption = (record) => {
+      if (record.fuelConsumption != null) return formatConsumption(record.fuelConsumption)
+      if (!record.lastRecordKnown) return '记录不连续'
+      return record.fillType === 'PARTIAL' ? '待下次加满计算' : '暂无完整周期'
+    }
     const formatConsumption = (value) => value ? `${Number(value).toFixed(2)} L/100km` : '-'
     const formatFuelTypeText = (value) => (
       value === 'ELECTRIC'
@@ -1777,6 +1756,7 @@ export default {
       formatEnergyUnitPrice,
       formatDateTime,
       formatConsumption,
+      formatRecordConsumption,
       formatFuelTypeText,
       formatFillTypeText,
       formatVehicleEnergyText: (value) => value === 'ELECTRIC' ? '新能源' : '燃油车',
