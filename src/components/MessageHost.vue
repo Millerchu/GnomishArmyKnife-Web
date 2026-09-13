@@ -91,7 +91,8 @@ onBeforeUnmount(() => {
 .message-bell:hover,.message-bell[aria-expanded="true"]{border-color:color-mix(in srgb,var(--theme-accent) 42%,var(--theme-border));color:var(--theme-accent);background:var(--theme-surface-hover)}
 .message-bell:active{transform:scale(.96)}
 .message-bell svg{width:18px;height:18px}.message-badge{position:absolute;right:-5px;top:-5px;background:#dc4141;color:white;border-radius:12px;padding:2px 5px;font-size:10px;min-width:17px;font-weight:700}
-.message-popover{width:min(390px,calc(100vw - 24px));margin-top:10px;border:1px solid var(--theme-border);border-radius:18px;background:var(--theme-popover-surface);box-shadow:0 20px 60px #0003;overflow:hidden;backdrop-filter:blur(28px)}
+/* 面板脱离文档流，避免展开时撑大首页工具栏。 */
+.message-popover{position:absolute;top:100%;right:0;box-sizing:border-box;width:min(390px,calc(100vw - 24px));margin-top:10px;border:1px solid var(--theme-border);border-radius:18px;background:var(--theme-popover-surface);box-shadow:0 20px 60px #0003;overflow:hidden;backdrop-filter:blur(28px)}
 .message-popover header{display:flex;align-items:center;justify-content:space-between;padding:18px;border-bottom:1px solid var(--theme-border)}
 .message-popover header strong{font-size:20px}.message-popover small{display:block;margin-top:5px;color:var(--theme-text-muted);font-size:12px}
 .message-popover header button,.message-popover footer button,.message-toast button{border:0;background:none;color:var(--theme-accent);font-size:12px;padding:8px}
@@ -100,7 +101,7 @@ onBeforeUnmount(() => {
 .message-preview:hover{background:var(--theme-surface-hover)}.message-preview strong{font-size:14px;display:block;overflow-wrap:anywhere}.message-dot{flex:0 0 7px;width:7px;height:7px;margin-top:6px;border-radius:50%}.message-dot.unread{background:var(--theme-accent)}.message-dot.unread.important{background:#e69b38}
 .message-popover footer button{width:100%;padding:14px}.message-empty{text-align:center;padding:32px 18px;line-height:1.8}.message-error{padding:0 18px;font-size:13px;color:#d96355}
 .message-toast{position:absolute;top:58px;right:0;width:min(350px,calc(100vw - 24px));padding:18px 35px 12px 18px;border:1px solid var(--theme-border);border-radius:16px;background:var(--theme-popover-surface);box-shadow:0 12px 40px #0003;backdrop-filter:blur(25px)}
-.message-popover~.message-toast{top:auto;margin-top:12px}.message-toast.important{border-left:3px solid #e69b38}.message-toast strong{display:block;margin:8px 0;font-size:14px;overflow-wrap:anywhere}.message-toast small{color:var(--theme-text-muted)}.message-toast .message-toast-close{position:absolute;right:8px;top:5px;font-size:20px;color:var(--theme-text-muted)}
+.message-toast.important{border-left:3px solid #e69b38}.message-toast strong{display:block;margin:8px 0;font-size:14px;overflow-wrap:anywhere}.message-toast small{color:var(--theme-text-muted)}.message-toast .message-toast-close{position:absolute;right:8px;top:5px;font-size:20px;color:var(--theme-text-muted)}
 .message-host button:disabled{opacity:.45;cursor:default}.message-host button:focus-visible{outline:2px solid var(--theme-accent);outline-offset:-2px}
-@media(max-width:720px){.message-host{right:12px;top:12px}.message-host.is-inline{right:auto;top:auto;flex-basis:var(--mobile-control-size)}.message-bell{width:44px;height:44px;border-radius:14px;background:color-mix(in srgb,var(--theme-control-surface) 76%,transparent)}.message-popover{margin-top:8px}}
+@media(max-width:720px){.message-host{right:12px;top:12px}.message-host.is-inline{right:auto;top:auto;flex-basis:var(--mobile-control-size)}.message-bell{width:44px;height:44px;border-radius:14px;background:color-mix(in srgb,var(--theme-control-surface) 76%,transparent)}.message-popover{margin-top:8px}.message-host.is-inline .message-popover,.message-host.is-inline .message-toast{right:calc(0px - var(--mobile-control-size,44px) - var(--mobile-space-sm,8px));width:min(390px,calc(100vw - 40px));box-sizing:border-box}}
 </style>
