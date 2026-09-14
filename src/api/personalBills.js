@@ -37,3 +37,9 @@ export function updateAnnualBudget(id, data) {
 export function deleteAnnualBudget(id) {
   return request.delete(`/personal-bills/budgets/${id}`)
 }
+
+// 个人授信额度为手工维护的当前快照。
+export const getPersonalCreditSummary = () => request.get('/personal-bills/credit-accounts')
+export const createPersonalCreditAccount = payload => request.post('/personal-bills/credit-accounts', payload)
+export const updatePersonalCreditAccount = (id, payload) => request.put(`/personal-bills/credit-accounts/${id}`, payload)
+export const deletePersonalCreditAccount = id => request.delete(`/personal-bills/credit-accounts/${id}`)
