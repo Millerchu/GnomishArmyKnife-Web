@@ -72,6 +72,24 @@ afterEach(() => {
 })
 
 describe('WowCharacterStats MacDialog integration', () => {
+  it('概览切换满级与全部角色并重新加载统计', async () => {
+    const wrapper = mount(WowCharacterStats, {global: {stubs: {transition: true}}})
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+    expect(getWowCharacterOverview).toHaveBeenLastCalledWith({maxLevelOnly: false})
+    const buttons = wrapper.findAll('.overview-level-switch button')
+    getWowCharacterOverview.mockResolvedValue(buildApiResponse({totalCharacters: 2}))
+    await buttons[0].trigger('click')
+    await flushPromises()
+    expect(getWowCharacterOverview).toHaveBeenLastCalledWith({maxLevelOnly: true})
+    expect(buttons[0].attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.overview-metric strong').text()).toBe('2')
+    await buttons[1].trigger('click')
+    await flushPromises()
+    expect(getWowCharacterOverview).toHaveBeenLastCalledWith({maxLevelOnly: false})
+    expect(buttons[1].attributes('aria-pressed')).toBe('true')
+  })
+
   it('Escape 依次关闭键位弹窗与主弹窗，并保留主表单状态', async () => {
     const wrapper = mount(WowCharacterStats, {
       attachTo: document.body,

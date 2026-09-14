@@ -399,6 +399,12 @@
             <h2 class="panel-title">角色概览</h2>
             <p class="panel-tip">账号规模与角色分布</p>
           </div>
+          <div class="overview-level-switch" role="group" aria-label="角色概览统计范围">
+            <button type="button" :aria-pressed="overviewFilter.maxLevelOnly" :disabled="overviewLoading"
+                    title="仅统计 90 级角色" @click="changeOverviewScope(true)">满级角色</button>
+            <button type="button" :aria-pressed="!overviewFilter.maxLevelOnly" :disabled="overviewLoading"
+                    @click="changeOverviewScope(false)">所有角色</button>
+          </div>
         </div>
 
         <div class="overview-metrics">
@@ -1419,6 +1425,8 @@ export default {
     })
     const quickWeeklyVault = reactive(createWeeklyVaultDraft())
 
+    const overviewFilter = reactive({maxLevelOnly: false})
+    const overviewLoading = ref(false)
     const overview = reactive({
       totalCharacters: 0,
       totalRealms: 0,
@@ -1607,13 +1615,22 @@ export default {
     }
 
     const loadOverview = async () => {
+      overviewLoading.value = true
       try {
-        const overviewRes = await getWowCharacterOverview()
+        const overviewRes = await getWowCharacterOverview({maxLevelOnly: overviewFilter.maxLevelOnly})
         applyOverview(unwrapData(overviewRes) || {})
       } catch (error) {
         resetOverview()
         alert(getErrorMessage(error, 'WoW角色概览加载失败'))
+      } finally {
+        overviewLoading.value = false
       }
+    }
+
+    const changeOverviewScope = async (maxLevelOnly) => {
+      if (overviewLoading.value || overviewFilter.maxLevelOnly === maxLevelOnly) return
+      overviewFilter.maxLevelOnly = maxLevelOnly
+      await loadOverview()
     }
 
     const loadSeasonInfo = async () => {
@@ -2560,6 +2577,9 @@ export default {
       query,
       form,
       overview,
+      overviewFilter,
+      overviewLoading,
+      changeOverviewScope,
       seasonInfo,
       seasonTab,
       showDialog,
@@ -3142,8 +3162,46 @@ export default {
 }
 
 .insight-panel-head {
+  flex-wrap: wrap;
   padding-bottom: 9px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.overview-level-switch {
+  display: flex;
+  margin-left: auto;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.overview-level-switch button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.overview-level-switch button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.14);
+  color: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.overview-level-switch button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.overview-level-switch button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .summary-grid {
