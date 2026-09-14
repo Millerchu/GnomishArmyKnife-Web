@@ -11,11 +11,11 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M9 21h6"/></svg>
       <span v-if="state.unreadCount" class="message-badge">{{ state.unreadCount > 99 ? '99+' : state.unreadCount }}</span>
     </button>
-    <section v-if="open" id="message-popover" class="message-popover" aria-label="最近消息">
+    <section v-if="open" id="message-popover" class="message-popover" aria-label="未读消息">
       <header><div><strong>消息</strong><small>{{ state.unreadCount }} 条未读</small></div><button :disabled="busy || !state.unreadCount" @click="readAll">全部已读</button></header>
       <p v-if="state.error || actionError" class="message-error" role="alert">{{ actionError || state.error }} <button @click="refreshMessages">重试</button></p>
       <p v-if="state.loading && !state.recent.length" class="message-empty">正在加载消息…</p>
-      <p v-else-if="!state.recent.length && !state.error" class="message-empty">暂时没有消息<br><small>新的通知会出现在这里</small></p>
+      <p v-else-if="!state.recent.length && !state.error" class="message-empty">暂无未读消息<br><small>新的通知会出现在这里</small></p>
       <ul class="message-preview-list">
         <li v-for="item in state.recent" :key="item.id"><button class="message-preview" @click="view(item.id)">
           <span class="message-dot" :class="{unread: !item.readAt, important: item.priority === 'IMPORTANT'}"></span>

@@ -50,6 +50,16 @@ describe('消息会话恢复与隔离', () => {
     await refreshMessages()
     expect(messageState.error).toBe('')
   })
+  it('只保留未读消息，并将字符串未读数转换为数字', async () => {
+    getMessageSummary.mockResolvedValue(summary('0', [
+      {id: 1, messageId: 1, title: '已读消息', readAt: '2026-09-14T10:00:00'},
+      {id: 2, messageId: 2, title: '未读消息', readAt: null}
+    ]))
+    startMessageSession('alice'); await flushPromises()
+    expect(messageState.unreadCount).toBe(0)
+    expect(messageState.recent.map(item => item.id)).toEqual([2])
+    expect(messageState.notice).toBe(null)
+  })
   it('周期补查发现权限变化会触发目录刷新', async () => {
     const listener = vi.fn(); window.addEventListener('gak:permissions-changed', listener)
     startMessageSession('alice'); await flushPromises()

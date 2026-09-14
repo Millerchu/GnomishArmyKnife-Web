@@ -66,12 +66,13 @@ export async function refreshMessages() {
     try {
       const summary = await getMessageSummary(current.summaryController.signal)
       if (session !== current) return
-      const recent = summary.recent || []
+      const unreadCount = Math.max(0, Number(summary.unreadCount) || 0)
+      const recent = (summary.recent || []).filter(item => !item.readAt)
       const arrivals = recent.filter(item => !current.known.has(String(item.messageId)) && !item.readAt)
       if (!current.initialized) {
-        if (summary.unreadCount) showNotice({kind: 'login', title: `你有 ${summary.unreadCount} 条未读消息`, source: '打开消息中心查看', count: summary.unreadCount})
+        if (unreadCount) showNotice({kind: 'login', title: `你有 ${unreadCount} 条未读消息`, source: '打开消息中心查看', count: unreadCount})
       } else {
-        const increase = Math.max(0, summary.unreadCount - messageState.unreadCount)
+        const increase = Math.max(0, unreadCount - messageState.unreadCount)
         if (arrivals.length || increase) showArrivals(arrivals, Math.max(arrivals.length, increase))
       }
       recent.forEach(item => current.known.add(String(item.messageId)))
@@ -82,7 +83,7 @@ export async function refreshMessages() {
       }
       current.permissionRevision = summary.permissionRevision
       current.initialized = true
-      Object.assign(messageState, {unreadCount: summary.unreadCount, recent, categoryCounts: summary.categoryCounts, error: ''})
+      Object.assign(messageState, {unreadCount, recent, categoryCounts: summary.categoryCounts, error: ''})
       messageState.revision++
     } catch (error) {
       if (session === current && !current.summaryController.signal.aborted) messageState.error = '消息暂时无法更新，请重试'
