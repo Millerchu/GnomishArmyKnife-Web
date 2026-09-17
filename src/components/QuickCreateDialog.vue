@@ -6,14 +6,14 @@
     width="920px"
     panel-class="quick-create-dialog"
     mobile-presentation="fullScreen"
-    :close-disabled="submitting"
+    :close-disabled="submitting || loadingDependencies"
+    :dirty="isDirty"
     @update:model-value="handleVisibleChange"
-    @cancel="requestClose"
   >
     <div class="quick-create-shell">
       <label class="type-picker">
         <span>新增类型</span>
-        <select :value="selectedTypeCode" :disabled="submitting" @change="handleTypeChange">
+        <select :value="selectedTypeCode" :disabled="submitting || loadingDependencies" @change="handleTypeChange">
           <option value="">请先选择新增类型</option>
           <optgroup v-for="group in groupedTypes" :key="group.name" :label="group.name">
             <option v-for="item in group.items" :key="item.typeCode" :value="item.typeCode">{{ item.label }}</option>
@@ -27,7 +27,7 @@
         <span>选择上方类型，表单会在这里展开。</span>
       </div>
 
-      <form v-else id="quick-create-form" class="quick-form" :class="{'personal-bill-quick-form': activeType.typeCode === 'PERSONAL_BILL'}" @submit.prevent="submit">
+      <form v-else :inert="loadingDependencies" id="quick-create-form" class="quick-form" :class="{'personal-bill-quick-form': activeType.typeCode === 'PERSONAL_BILL'}" @submit.prevent="submit">
         <header class="form-heading">
           <div class="form-mark" :style="activeApp?.iconStyle">
             <AuthenticatedImage
@@ -204,11 +204,14 @@ async function loadDependencies(type) {
         }
       }))
     })
-    await Promise.all(tasks)
-    initialSnapshot.value = JSON.stringify(form)
+    // 等待所有默认值落定；部分选项加载失败也不能把其余默认值误判成用户修改。
+    const results = await Promise.allSettled(tasks)
+    const failedResult = results.find((result) => result.status === 'rejected')
+    if (failedResult) throw failedResult.reason
   } catch (error) {
     loadError.value = error?.response?.data?.message || '表单选项加载失败，请稍后重试。'
   } finally {
+    initialSnapshot.value = JSON.stringify(form)
     loadingDependencies.value = false
   }
 }
@@ -228,18 +231,13 @@ async function handleTypeChange(event) {
   await loadDependencies(activeType.value)
 }
 
-async function requestClose() {
-  if (submitting.value) return
-  if (isDirty.value && !await confirmDialog('当前填写内容尚未保存，关闭后本次填写将无法恢复。', {
-    title: '放弃未保存的内容？',
-    confirmText: '放弃并关闭',
-    cancelText: '继续填写'
-  })) return
-  emit('update:modelValue', false)
-}
-
 function handleVisibleChange(value) {
-  if (!value) requestClose()
+  // 关闭确认统一由 MacDialog 处理，放弃后清空草稿，避免再次打开仍提示旧修改。
+  if (!value) {
+    selectedTypeCode.value = ''
+    resetForm(null)
+  }
+  emit('update:modelValue', value)
 }
 
 function nullable(value) { return value === '' || value === undefined ? null : value }

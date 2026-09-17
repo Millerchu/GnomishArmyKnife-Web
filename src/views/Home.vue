@@ -181,6 +181,7 @@
 
     <MacDialog
       v-model="logoutPending"
+      :confirm-on-dirty="false"
       title="确认退出当前账号？"
       subtitle="退出后会返回登录页，本地登录态会被清理。"
       width="440px"
@@ -197,6 +198,8 @@
 
     <MacDialog
       v-model="showUserDialog"
+      :form-state="{profileForm, passwordForm, avatarIds: profileAvatarAttachments.map(item => item.id)}"
+      :form-ready="!dialogLoading"
       title="个人中心"
       width="720px"
       panel-class="home-profile-dialog"
@@ -223,6 +226,7 @@
 
         <form
           v-if="activeDialogTab === 'profile'"
+          :inert="dialogLoading"
           id="home-profile-dialog-form"
           class="dialog-form dialog-density-grid dialog-grid-cols-2"
           @submit.prevent="submitProfile"

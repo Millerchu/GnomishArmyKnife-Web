@@ -204,6 +204,7 @@
 
     <MacDialog
       v-model="showEditDialog"
+      :form-state="editForm"
       :title="editMode === 'create' ? '新增用户' : '编辑用户'"
       width="820px"
       :close-disabled="submitting"
@@ -301,6 +302,7 @@
 
     <MacDialog
       v-model="showResetDialog"
+      :form-state="resetForm"
       title="重置密码"
       width="440px"
       :close-disabled="submitting"

@@ -180,6 +180,7 @@
 
     <MacDialog
       v-model="showEditDialog"
+      :form-state="{...form, attachments: form.attachments.map(item => item.id)}"
       :title="editMode === 'create' ? (isAdmin ? '新增公共经验' : '投稿经验') : '编辑经验'"
       :subtitle="isAdmin ? '管理员新增后会直接发布。' : '普通用户提交后会进入待审核队列。'"
       width="1040px"
@@ -245,6 +246,7 @@
 
     <MacDialog
       v-model="showDetailDialog"
+      :dirty="Boolean(isAdmin && activeDetail?.status === 'PENDING' && reviewForm.reviewRemark !== (activeDetail.reviewRemark || ''))"
       title="经验详情"
       subtitle="公共库、投稿状态和审核备注都在这里完整展示。"
       width="1040px"

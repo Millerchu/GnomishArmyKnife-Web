@@ -85,6 +85,29 @@ afterEach(() => {
 })
 
 describe('KnowledgeBase MacDialog review flow', () => {
+  it('异步载入待审核详情后未修改可直接关闭', async () => {
+    const wrapper = await openPendingDetail()
+    document.querySelector('.knowledge-entry-detail-dialog .mac-window-dot.close').click()
+    await nextTick()
+    expect(wrapper.vm.showDetailDialog).toBe(false)
+    expect(document.querySelector('.mac-dialog-confirm-card')).toBeNull()
+  })
+
+  it('审核备注修改后提醒，恢复原文后不提醒', async () => {
+    const wrapper = await openPendingDetail()
+    wrapper.vm.reviewForm.reviewRemark = '请补充说明'
+    await nextTick()
+    document.querySelector('.knowledge-entry-detail-dialog .mac-window-dot.close').click()
+    await nextTick()
+    expect(document.querySelector('.mac-dialog-confirm-card')).not.toBeNull()
+    document.querySelector('.mac-dialog-confirm-keep').click()
+    wrapper.vm.reviewForm.reviewRemark = ''
+    await nextTick()
+    document.querySelector('.knowledge-entry-detail-dialog .mac-window-dot.close').click()
+    await nextTick()
+    expect(wrapper.vm.showDetailDialog).toBe(false)
+  })
+
   it('审核成功后关闭详情弹窗并清理当前详情', async () => {
     publishKnowledgeEntry.mockResolvedValue(buildApiResponse({}))
     const wrapper = await openPendingDetail()

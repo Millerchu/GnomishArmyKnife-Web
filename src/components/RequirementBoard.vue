@@ -163,12 +163,13 @@
 
     <MacDialog
       v-model="showFormDialog"
+      :form-state="{...requirementForm, attachmentIds: formAttachments.map(item => item.id)}"
       :title="formMode === 'create' ? '发布反馈' : '编辑反馈'"
       subtitle="选择类型和所属应用，让这条反馈更容易被找到。"
       width="640px"
       panel-class="requirement-form-dialog"
       mobile-presentation="sheet"
-      :close-disabled="formSubmitting"
+      :close-disabled="formSubmitting || formUploading"
       @cancel="closeFormDialog"
     >
       <form id="requirement-form" class="notice-form" @submit.prevent="submitRequirementForm">
@@ -205,9 +206,10 @@
           <span>详细描述 <em>可选</em></span>
           <textarea v-model.trim="requirementForm.description" maxlength="2000" rows="5" placeholder="补充使用场景、当前问题或期待结果"></textarea>
         </label>
+        <AttachmentManager v-model="formAttachments" title="图片附件" hint="最多 9 张，每张不超过 10 MB；支持 JPG、PNG、WebP、GIF。" @uploading="formUploading = $event" />
       </form>
       <template #footer>
-        <button type="submit" class="notice-primary-button" form="requirement-form" :disabled="formSubmitting">
+        <button type="submit" class="notice-primary-button" form="requirement-form" :disabled="formSubmitting || formUploading">
           {{ formSubmitting ? '保存中...' : (formMode === 'create' ? '发布' : '保存修改') }}
         </button>
       </template>
@@ -215,11 +217,12 @@
 
     <MacDialog
       v-model="showDetailDialog"
+      :dirty="detailDirty"
       :title="detailRequirement?.title || '反馈详情'"
       width="800px"
       panel-class="requirement-detail-dialog"
       mobile-presentation="fullScreen"
-      :close-disabled="detailSubmitting"
+      :close-disabled="detailSubmitting || formUploading"
       @cancel="closeDetailDialog"
     >
       <div v-if="detailLoading" class="notice-empty">正在读取反馈详情...</div>
@@ -273,8 +276,13 @@
             <span>详细描述 <em>可选</em></span>
             <textarea v-model.trim="requirementForm.description" maxlength="2000" rows="5"></textarea>
           </label>
+          <AttachmentManager v-model="formAttachments" title="图片附件" hint="最多 9 张，每张不超过 10 MB；支持 JPG、PNG、WebP、GIF。" @uploading="formUploading = $event" />
         </form>
         <p v-else class="notice-detail-description">{{ detailRequirement.description || '提交者暂未补充详细描述。' }}</p>
+        <section v-if="!detailEditing && detailRequirement.attachments?.length" class="notice-detail-images">
+          <h3>图片附件</h3>
+          <AttachmentGallery :attachments="detailRequirement.attachments" />
+        </section>
 
         <section v-if="!detailEditing" class="notice-progress" aria-labelledby="requirement-progress-title">
           <div>
@@ -314,10 +322,10 @@
       </div>
       <template #footer>
         <template v-if="detailRequirement && !detailLoading">
-          <button v-if="detailEditing" type="button" class="notice-plain-button" :disabled="detailSubmitting" @click="cancelContentEdit">取消</button>
+          <button v-if="detailEditing" type="button" class="notice-plain-button" :disabled="detailSubmitting || formUploading" @click="cancelContentEdit">取消</button>
           <button v-else-if="canEditDetail" type="button" class="notice-plain-button" :disabled="detailSubmitting" @click="startContentEdit">编辑</button>
           <button v-if="canDeleteDetail && !detailEditing" type="button" class="notice-danger-button" :disabled="detailSubmitting" @click="removeRequirement">删除</button>
-          <button v-if="detailEditing" type="submit" class="notice-primary-button" form="requirement-edit-form" :disabled="detailSubmitting">
+          <button v-if="detailEditing" type="submit" class="notice-primary-button" form="requirement-edit-form" :disabled="detailSubmitting || formUploading">
             {{ detailSubmitting ? '保存中...' : '保存修改' }}
           </button>
           <button
@@ -338,6 +346,8 @@
 <script>
 import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import MacDialog from '@/components/MacDialog.vue'
+import AttachmentManager from '@/components/AttachmentManager.vue'
+import AttachmentGallery from '@/components/AttachmentGallery.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import {
   createRequirementItem,
@@ -390,7 +400,7 @@ function buildProgressForm(status = 'PENDING_REVIEW') {
 
 export default {
   name: 'RequirementBoard',
-  components: {MacDialog},
+  components: {MacDialog, AttachmentManager, AttachmentGallery},
   props: {
     currentUser: {
       type: Object,
@@ -415,7 +425,25 @@ export default {
     const detailRequirement = ref(null)
     const detailEditing = ref(false)
     const requirementForm = reactive(buildRequirementForm())
+    const formAttachments = ref([])
+    const formUploading = ref(false)
     const progressForm = reactive(buildProgressForm())
+    const contentBaseline = ref('')
+    // 只比较待提交字段与附件顺序，加载和查看/编辑模式切换不属于修改。
+    const contentSnapshot = () => JSON.stringify({
+      appCode: requirementForm.appCode,
+      type: requirementForm.type,
+      priority: requirementForm.priority,
+      title: requirementForm.title,
+      description: requirementForm.description,
+      attachmentIds: formAttachments.value.map((attachment) => attachment.id)
+    })
+    const contentDirty = computed(() => detailEditing.value && contentSnapshot() !== contentBaseline.value)
+    const detailDirty = computed(() => Boolean(detailRequirement.value) && !detailLoading.value && (
+      contentDirty.value
+      || progressForm.status !== detailRequirement.value.status
+      || progressForm.remark !== ''
+    ))
     const query = reactive({pageNo: 1, pageSize: 50, keyword: '', status: '', appCode: '', priority: '', type: ''})
     let panelHideTimer = null
 
@@ -520,19 +548,22 @@ export default {
     const openCreateDialog = () => {
       formMode.value = 'create'
       resetRequirementForm()
+      formAttachments.value = []
       closePanel()
       showFormDialog.value = true
     }
 
     const closeFormDialog = (force = false) => {
-      if (formSubmitting.value && !force) {
+      if ((formSubmitting.value || formUploading.value) && !force) {
         return
       }
       showFormDialog.value = false
       resetRequirementForm()
+      formAttachments.value = []
     }
 
     const submitRequirementForm = async () => {
+      if (formUploading.value) return
       formSubmitting.value = true
       try {
         await createRequirementItem({
@@ -540,7 +571,8 @@ export default {
           type: requirementForm.type,
           priority: requirementForm.priority,
           title: requirementForm.title,
-          description: requirementForm.description || null
+          description: requirementForm.description || null,
+          attachmentIds: formAttachments.value.map((attachment) => attachment.id)
         })
         const typeName = formatType(requirementForm.type)
         emit('notice', 'success', `${typeName}已提交`, `${typeName}已共享给所有登录用户。`)
@@ -571,13 +603,14 @@ export default {
     }
 
     const closeDetailDialog = (force = false) => {
-      if (detailSubmitting.value && !force) {
+      if ((detailSubmitting.value || formUploading.value) && !force) {
         return
       }
       showDetailDialog.value = false
       detailEditing.value = false
       detailRequirement.value = null
       resetRequirementForm()
+      formAttachments.value = []
       resetProgressForm()
     }
 
@@ -594,15 +627,25 @@ export default {
         description: detailRequirement.value.description || '',
         version: detailRequirement.value.version
       })
+      formAttachments.value = [...(detailRequirement.value.attachments || [])]
+      contentBaseline.value = contentSnapshot()
       detailEditing.value = true
     }
 
-    const cancelContentEdit = () => {
+    const cancelContentEdit = async () => {
+      if (formUploading.value || detailSubmitting.value) return
+      if (contentDirty.value && !await confirmDialog('当前编辑内容尚未保存，确认放弃本次修改吗？', {
+        title: '放弃未保存的更改？',
+        confirmText: '放弃修改',
+        cancelText: '继续编辑'
+      })) return
       detailEditing.value = false
       resetRequirementForm()
+      formAttachments.value = []
     }
 
     const submitContentUpdate = async () => {
+      if (formUploading.value) return
       detailSubmitting.value = true
       try {
         detailRequirement.value = unwrapData(await updateRequirementItem(requirementForm.id, {
@@ -611,9 +654,10 @@ export default {
           priority: requirementForm.priority,
           title: requirementForm.title,
           description: requirementForm.description || null,
-          version: requirementForm.version
+          version: requirementForm.version,
+          attachmentIds: formAttachments.value.map((attachment) => attachment.id)
         }))
-        resetProgressForm(detailRequirement.value.status)
+        // 内容保存不清空进度草稿，避免切换到编辑模式前的填写被静默丢弃。
         detailEditing.value = false
         await loadBoard()
         const typeName = formatType(detailRequirement.value.type)
@@ -719,7 +763,10 @@ export default {
       detailSubmitting,
       detailRequirement,
       detailEditing,
+      detailDirty,
       requirementForm,
+      formAttachments,
+      formUploading,
       progressForm,
       canEditDetail,
       canDeleteDetail,
@@ -1358,6 +1405,15 @@ export default {
   white-space: pre-wrap;
   color: var(--theme-text-soft);
   line-height: 1.7;
+}
+
+.notice-detail-images {
+  display: grid;
+  gap: 10px;
+}
+
+.notice-detail-images h3 {
+  font-size: 14px;
 }
 
 .notice-progress {

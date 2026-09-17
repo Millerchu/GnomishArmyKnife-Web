@@ -204,6 +204,7 @@
 
     <MacDialog
       v-model="showEditDialog"
+      :form-state="form"
       :title="editMode === 'create' ? '新增账号备忘录' : '编辑账号备忘录'"
       width="960px"
       panel-class="password-memo-edit-dialog"
@@ -297,6 +298,7 @@
 
     <MacDialog
       v-model="showHistoryDialog"
+      :form-state="historyForm"
       :title="historyMode === 'create' ? '手动添加历史密码' : '编辑历史密码'"
       :subtitle="historyMode === 'create' ? '补录一段过去使用过的密码及其使用周期。' : '密码留空时仅调整使用周期。'"
       width="620px"
@@ -339,6 +341,7 @@
 
     <MacDialog
       v-model="showUpdatePasswordDialog"
+      :form-state="passwordUpdateForm"
       title="更新账号密码"
       subtitle="更新后，当前密码会自动归档到历史密码中。"
       width="560px"
@@ -426,6 +429,7 @@
 
     <MacDialog
       v-model="showDetailDialog"
+      :confirm-on-dirty="false"
       title="账号详情"
       subtitle="关闭详情后再次打开，需要重新输入当前用户密码才能查看完整密码。"
       width="900px"

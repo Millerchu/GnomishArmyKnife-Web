@@ -1,5 +1,5 @@
 <template>
-  <MacDialog :model-value="Boolean(message)" :title="message?.title || '消息详情'" width="640px" @update:model-value="value => {if (!value) emit('close')}">
+  <MacDialog :confirm-on-dirty="false" :model-value="Boolean(message)" :title="message?.title || '消息详情'" width="640px" @update:model-value="value => {if (!value) emit('close')}">
     <template v-if="message"><div class="message-detail-meta"><span>{{ categoryLabels[message.category] }}</span><span v-if="message.priority === 'IMPORTANT'">重要</span><span>{{ sourceLabel(message.source) }}</span><span>{{ formatMessageTime(message.receivedAt || message.createdAt) }}</span></div>
       <p class="message-body">{{ message.body }}</p>
     </template>

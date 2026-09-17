@@ -144,6 +144,7 @@
 
     <MacDialog
       v-model="showEditDialog"
+      :form-state="editForm"
       :title="`${activeGuide?.className || ''} ${activeGuide?.specName || ''} · 指南维护`"
       subtitle="保存的是站内摘要；原始资料链接会继续保留用于版本核对。"
       width="900px"

@@ -189,6 +189,7 @@
 
     <MacDialog
       v-model="showRecordDialog"
+      :form-state="recordForm"
       :title="recordDialogMode === 'create' ? '新增健康指标记录' : '编辑健康指标记录'"
       width="960px"
       panel-class="health-record-dialog"
@@ -291,6 +292,7 @@
 
     <MacDialog
       v-model="showVisitDialog"
+      :form-state="{...visitForm, attachments: visitForm.attachments.map(item => item.id)}"
       :title="visitDialogMode === 'create' ? '新增医院就诊' : '编辑医院就诊'"
       width="960px"
       panel-class="health-visit-dialog"
@@ -369,6 +371,7 @@
 
     <MacDialog
       v-model="showReportDialog"
+      :form-state="{...reportForm, attachments: reportForm.attachments.map(item => item.id)}"
       :title="reportDialogMode === 'create' ? '新增报告单' : '编辑报告单'"
       width="760px"
       panel-class="health-report-dialog"

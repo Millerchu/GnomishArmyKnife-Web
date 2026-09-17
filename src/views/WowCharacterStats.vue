@@ -496,6 +496,7 @@
 
     <MacDialog
       v-model="showDialog"
+      :form-state="form"
       :title="dialogMode === 'create' ? '新增角色信息' : '编辑角色信息'"
       width="980px"
       panel-class="wow-character-dialog"
@@ -791,6 +792,7 @@
 
     <MacDialog
       v-model="showWeeklyVaultDialog"
+      :form-state="quickWeeklyVault"
       :title="`${activeWeeklyVaultCharacter?.characterName || '角色'} · 本周宏伟宝库`"
       subtitle="国服每周四早上 7 点自动重置；这里仅维护本周奖励进度。"
       width="920px"
@@ -892,6 +894,7 @@
 
     <MacDialog
       v-model="showMythicHistoryDialog"
+      :confirm-on-dirty="false"
       :title="`${activeHistoryCharacter?.characterName || '角色'} · M+ 赛季历史`"
       subtitle="赛季结算时保存总分与逐副本成绩快照。"
       width="760px"
@@ -919,6 +922,7 @@
 
     <MacDialog
       v-model="showMacroDialog"
+      :form-state="activeMacro"
       :title="activeMacro?.macroName || '新增角色专用宏'"
       subtitle="宏名称在当前角色内唯一，宏内容支持多行命令。"
       width="720px"
@@ -949,6 +953,7 @@
 
     <MacDialog
       v-model="showKeybindingDialog"
+      :form-state="activeKeybinding"
       :title="activeKeybinding?.bindingName || '新增键位方案'"
       subtitle="设置一个容易识别的名称，键位字符串只在这里显示。"
       width="720px"

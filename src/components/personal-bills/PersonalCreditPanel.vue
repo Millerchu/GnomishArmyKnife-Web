@@ -13,7 +13,7 @@
         <div class="actions"><button @click="openAccount(account)">编辑</button><button :disabled="saving" @click="removeAccount(account)">删除</button></div>
       </article>
     </template>
-    <MacDialog v-model="showDialog" :title="editingId ? '编辑授信账户' : '新增授信账户'" width="640px" :close-disabled="saving">
+    <MacDialog v-model="showDialog" :form-state="form" :title="editingId ? '编辑授信账户' : '新增授信账户'" width="640px" :close-disabled="saving">
       <form id="credit-account-form" class="credit-form" @submit.prevent="saveAccount">
         <label>账户名称<input v-model.trim="form.accountName" maxlength="64" placeholder="例如：招行共享额度账户" required /></label>
         <label>发卡机构<input v-model.trim="form.institution" maxlength="64" placeholder="例如：招商银行" required /></label>

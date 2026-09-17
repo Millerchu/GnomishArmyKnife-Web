@@ -71,7 +71,7 @@ export default {
     title: {type: String, default: '附件与图片'},
     hint: {type: String, default: ''}
   },
-  emits: ['update:modelValue'],
+  emits: ['update:modelValue', 'uploading'],
   setup(props, {emit}) {
     const uploading = ref(false)
     const progress = ref(0)
@@ -84,6 +84,7 @@ export default {
     const uploadFiles = async (files) => {
       if (!files.length) return
       uploading.value = true
+      emit('uploading', true)
       errorMessage.value = ''
       const fileProgress = new Map(files.map((file) => [file, 0]))
       const results = await Promise.allSettled(files.map((file) => uploadAttachment(file, props.usageType, (progressEvent) => {
@@ -103,6 +104,7 @@ export default {
       failedFiles.value = failed
       errorMessage.value = failed.length ? '部分文件上传失败，可保留成功项并重试失败项' : ''
       uploading.value = false
+      emit('uploading', false)
       progress.value = 0
     }
 

@@ -117,7 +117,7 @@
 
     <button class="quick-entry" type="button" @click="openCreateBillDialog"><span>＋</span><b>记一笔</b><small>快速记录收支</small></button>
 
-    <MacDialog v-model="showBillDialog" :title="billDialogMode === 'create' ? '快速记一笔' : '编辑账单'" width="860px" :close-disabled="submitting" panel-class="personal-bill-dialog" @cancel="closeBillDialog">
+    <MacDialog v-model="showBillDialog" :form-state="{...billForm, amount: amountExpression}" :form-baseline-key="billBaselineKey" :title="billDialogMode === 'create' ? '快速记一笔' : '编辑账单'" width="860px" :close-disabled="submitting" panel-class="personal-bill-dialog" @cancel="closeBillDialog">
       <form id="personal-bill-dialog-form" class="entry-form" @submit.prevent="submitBillDialog(false)">
         <div class="type-tabs"><button type="button" :class="{ active: billForm.billType === 'EXPENSE' }" @click="billForm.billType = 'EXPENSE'">支出</button><button type="button" :class="{ active: billForm.billType === 'INCOME' }" @click="billForm.billType = 'INCOME'">收入</button></div>
         <div class="amount-display"><span>¥</span><input ref="amountInput" v-model="amountExpression" class="amount-input" type="text" inputmode="decimal" aria-label="金额，支持加减计算" placeholder="0" autocomplete="off" maxlength="100" :disabled="submitting" @keydown.enter.prevent="submitBillDialog(false)" /><small v-if="calculatedAmount !== amountExpression">= {{ calculatedAmount }}</small></div>
@@ -141,7 +141,7 @@
       </template>
     </MacDialog>
 
-    <MacDialog v-model="showBudgetDialog" :title="budgetDialogMode === 'create' ? '新增年度预算' : '编辑年度预算'" width="860px" :close-disabled="budgetSubmitting" panel-class="personal-budget-dialog" @cancel="showBudgetDialog = false">
+    <MacDialog v-model="showBudgetDialog" :form-state="budgetForm" :title="budgetDialogMode === 'create' ? '新增年度预算' : '编辑年度预算'" width="860px" :close-disabled="budgetSubmitting" panel-class="personal-budget-dialog" @cancel="showBudgetDialog = false">
       <form id="personal-budget-dialog-form" class="budget-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitBudgetDialog">
         <label><span>预算年份</span><input v-model.number="budgetForm.year" type="number" min="2020" max="2099" required /></label>
         <label><span>分类</span><select v-model="budgetForm.categoryName" required><option v-for="item in budgetCategoryOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
@@ -251,6 +251,7 @@ function handleSearch() { query.pageNo = 1; loadBills() }
 function resetQuery() { query.billType = ''; query.categoryName = ''; query.keyword = ''; query.pageNo = 1; loadBills() }
 function changePage(offset) { query.pageNo += offset; loadBills() }
 function shiftMonth(offset) { const [year, month] = query.month.split('-').map(Number); const next = new Date(year, month - 1 + offset, 1); query.month = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`; handleSearch() }
+const billBaselineKey = ref(0)
 function resetBillForm() { Object.assign(billForm, { billType: 'EXPENSE', categoryName: billCategoryOptions.value[0]?.value || '', amount: 0, accountName: '', paymentMethod: '', merchantName: '', billDate: today(), note: '' }); amountExpression.value = '' }
 function openCreateBillDialog() { billDialogMode.value = 'create'; editingBill.value = null; resetBillForm(); showBillDialog.value = true; nextTick(() => amountInput.value?.focus()) }
 function openEditBillDialog(item) { billDialogMode.value = 'edit'; editingBill.value = item; Object.assign(billForm, item); amountExpression.value = String(item.amount); showBillDialog.value = true; nextTick(() => amountInput.value?.focus()) }
@@ -279,7 +280,7 @@ async function submitBillDialog(keepOpen) {
     const payload = { ...billForm }
     if (billDialogMode.value === 'create') await createPersonalBill(payload); else await updatePersonalBill(editingBill.value.id, payload)
     await loadBills()
-    if (keepOpen && billDialogMode.value === 'create') { resetBillForm(); nextTick(() => amountInput.value?.focus()) } else showBillDialog.value = false
+    if (keepOpen && billDialogMode.value === 'create') { resetBillForm(); billBaselineKey.value += 1; nextTick(() => amountInput.value?.focus()) } else showBillDialog.value = false
   } catch (error) { window.alert(error?.response?.data?.message || '保存账单失败') } finally { submitting.value = false }
 }
 async function removeBill(item) { if (!item || !await confirmDialog('这笔账单将被永久删除。', { title: '删除账单？', confirmText: '删除账单' })) return; await deletePersonalBill(item.id); showBillDialog.value = false; await loadBills() }

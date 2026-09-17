@@ -198,6 +198,20 @@ export default {
       type: Boolean,
       default: null
     },
+    // 业务表单快照覆盖 DOM 兜底，包含附件、子表和自定义控件的真实待提交值。
+    formState: {
+      type: [Object, Array, String],
+      default: undefined
+    },
+    formReady: {
+      type: Boolean,
+      default: true
+    },
+    // 仅在载入另一份表单或保存成功后切换，提交失败不得重置未保存状态。
+    formBaselineKey: {
+      type: [String, Number],
+      default: 0
+    },
     closeDisabled: {
       type: Boolean,
       default: false
@@ -283,6 +297,14 @@ export default {
     }
   },
   watch: {
+    formReady(isReady) {
+      if (isReady && this.modelValue && this.initialEditableState === null) {
+        this.captureInitialEditableState()
+      }
+    },
+    formBaselineKey() {
+      if (this.modelValue) this.captureInitialEditableState()
+    },
     modelValue(isOpen) {
       this.resetViewState()
       if (isOpen) {
@@ -387,12 +409,15 @@ export default {
     captureInitialEditableState() {
       this.initialEditableState = null
       this.$nextTick(() => {
-        if (this.modelValue) {
+        if (this.modelValue && this.formReady) {
           this.initialEditableState = this.serializeEditableState()
         }
       })
     },
     serializeEditableState() {
+      if (this.formState !== undefined) {
+        return JSON.stringify(this.formState)
+      }
       const editableElements = this.$refs.dialogPanel?.querySelectorAll([
         'input:not([type="button"]):not([type="submit"]):not([type="reset"])',
         'select',
@@ -415,7 +440,7 @@ export default {
           value = element.textContent
         }
 
-        return [tagName, inputType, Boolean(element.disabled), value]
+        return [tagName, inputType, value]
       })
       return JSON.stringify(editableState)
     },

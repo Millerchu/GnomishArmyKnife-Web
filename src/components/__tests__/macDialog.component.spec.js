@@ -212,6 +212,78 @@ describe('MacDialog real component behavior', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
+  it('compares business values instead of asynchronously rendered controls', async () => {
+    const wrapper = mountDialog({formState: {status: 'PLANNED', remark: ''}}, {slots: {default: SlotProbe}})
+    await nextTick()
+    const panel = document.body.querySelector('.mac-dialog-panel')
+    panel.appendChild(document.createElement('select'))
+    panel.querySelector('input').disabled = true
+    await clickElement(panel.querySelector('.mac-window-dot.close'))
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    expect(document.body.querySelector('.mac-dialog-confirm-card')).toBeNull()
+  })
+
+  it('captures the baseline only after asynchronous initialization completes', async () => {
+    const wrapper = mountDialog({formState: {}, formReady: false})
+    await nextTick()
+    await wrapper.setProps({formState: {status: 'PLANNED'}, formReady: true})
+    await nextTick()
+    await clickElement(document.body.querySelector('.mac-window-dot.close'))
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('protects attachment additions, removals, ordering and custom control values', async () => {
+    const initialForm = {attachmentIds: ['a', 'b'], category: 'work'}
+    const wrapper = mountDialog({formState: initialForm})
+    await nextTick()
+    for (const formState of [
+      {...initialForm, attachmentIds: ['a', 'b', 'c']},
+      {...initialForm, attachmentIds: ['a']},
+      {...initialForm, attachmentIds: ['b', 'a']},
+      {...initialForm, category: 'personal'}
+    ]) {
+      await wrapper.setProps({formState})
+      await clickElement(document.body.querySelector('.mac-window-dot.close'))
+      expect(document.body.querySelector('.mac-dialog-confirm-card')).not.toBeNull()
+      await clickElement(document.body.querySelector('.mac-dialog-confirm-keep'))
+    }
+    await wrapper.setProps({formState: {...initialForm}})
+    await clickElement(document.body.querySelector('.mac-window-dot.close'))
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('does not discard dirty state when a save fails and loading ends', async () => {
+    const wrapper = mountDialog({formState: {title: 'original'}})
+    await nextTick()
+    await wrapper.setProps({formState: {title: 'edited'}, formReady: false, closeDisabled: true})
+    await wrapper.setProps({formReady: true, closeDisabled: false})
+    await nextTick()
+    await clickElement(document.body.querySelector('.mac-window-dot.close'))
+    expect(document.body.querySelector('.mac-dialog-confirm-card')).not.toBeNull()
+    expect(wrapper.emitted('close')).toBeUndefined()
+  })
+
+  it('uses a new baseline after successful save and detects subsequent edits', async () => {
+    const wrapper = mountDialog({formState: {title: 'original'}})
+    await nextTick()
+    await wrapper.setProps({formState: {title: 'saved'}, formBaselineKey: 1})
+    await nextTick()
+    expect(wrapper.vm.shouldConfirmClose()).toBe(false)
+    await wrapper.setProps({formState: {title: 'another edit'}})
+    await clickElement(document.body.querySelector('.mac-window-dot.close'))
+    expect(document.body.querySelector('.mac-dialog-confirm-card')).not.toBeNull()
+  })
+
+  it('honors explicit dirty state for dialogs with multiple save boundaries', async () => {
+    const wrapper = mountDialog({dirty: false}, {slots: {default: SlotProbe}})
+    await nextTick()
+    document.body.querySelector('.slot-input').value = 'loaded automatically'
+    expect(wrapper.vm.shouldConfirmClose()).toBe(false)
+    await wrapper.setProps({dirty: true})
+    await clickElement(document.body.querySelector('.mac-window-dot.close'))
+    expect(document.body.querySelector('.mac-dialog-confirm-card')).not.toBeNull()
+  })
+
   it('blocks every close and minimize entry while allowing maximize', async () => {
     const wrapper = mountDialog({closeDisabled: true})
     const panel = document.body.querySelector('.mac-dialog-panel')

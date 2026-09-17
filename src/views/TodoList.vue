@@ -259,6 +259,7 @@
 
     <MacDialog
       v-model="showDialog"
+      :form-state="{form, stepDraft}"
       :title="dialogMode === 'create' ? '新增待办任务' : '编辑待办任务'"
       width="960px"
       :close-disabled="submitting"

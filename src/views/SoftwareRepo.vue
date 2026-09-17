@@ -254,6 +254,7 @@
 
     <MacDialog
       v-model="showSoftwareDialog"
+      :form-state="softwareForm"
       :title="softwareDialogMode === 'create' ? '新增软件' : '编辑软件'"
       width="960px"
       :close-disabled="submitting"
@@ -309,6 +310,7 @@
 
     <MacDialog
       v-model="showVersionDialog"
+      :form-state="versionForm"
       :title="versionDialogMode === 'create' ? '新增版本' : '编辑版本'"
       width="960px"
       :close-disabled="submitting"

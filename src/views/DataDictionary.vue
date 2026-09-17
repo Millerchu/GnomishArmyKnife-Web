@@ -277,6 +277,7 @@
 
     <MacDialog
       v-model="showDictionaryDialog"
+      :form-state="dictionaryForm"
       :title="dictionaryDialogMode === 'create' ? '新增数据字典' : '编辑数据字典'"
       width="820px"
       :close-disabled="submitting"
@@ -348,6 +349,7 @@
 
     <MacDialog
       v-model="showItemDialog"
+      :form-state="itemForm"
       :title="itemDialogMode === 'create' ? '新增字典项' : '编辑字典项'"
       width="820px"
       :close-disabled="submitting"

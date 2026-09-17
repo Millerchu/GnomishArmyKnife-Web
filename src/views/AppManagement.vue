@@ -199,6 +199,7 @@
 
     <MacDialog
       v-model="showEditorDialog"
+      :form-state="form"
       :title="form.id ? '编辑应用' : '新增应用'"
       subtitle="应用编码建议稳定不变，权限管理将直接按应用编码授权。"
       width="1040px"

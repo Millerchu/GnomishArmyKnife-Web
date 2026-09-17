@@ -453,6 +453,7 @@
 
     <MacDialog
       v-model="showDayDetail"
+      :confirm-on-dirty="false"
       :title="`${detailDate} 日志详情`"
       subtitle="选择一条项目日志后进入修改"
       width="860px"
@@ -529,14 +530,16 @@
 
     <MacDialog
       v-model="showDialog"
+      :form-state="form"
+      :form-ready="!formInitializing"
       :title="dialogMode === 'create' ? '新增工作日志' : '修改工作日志'"
       width="1080px"
-      :close-disabled="submitting"
+      :close-disabled="submitting || formInitializing"
       panel-class="work-log-dialog"
       mobile-presentation="fullScreen"
       @cancel="closeDialog"
     >
-      <form id="work-log-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitDialog">
+      <form :inert="formInitializing" id="work-log-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitDialog">
         <div class="form-inline-grid dialog-grid-group">
           <label class="form-field">
             <span>日期</span>
@@ -835,7 +838,7 @@
           type="submit"
           class="action-btn"
           form="work-log-dialog-form"
-          :disabled="submitting"
+          :disabled="submitting || formInitializing"
         >
           {{ submitting ? '提交中...' : (dialogMode === 'create' ? '保存' : '更新') }}
         </button>
@@ -2025,16 +2028,23 @@ export default {
       }
     }
 
+    const formInitializing = ref(false)
+
     async function openCreateDialog() {
       dialogMode.value = 'create'
       resetForm()
       showTypeDropdown.value = false
+      formInitializing.value = true
       showDialog.value = true
-      await Promise.all([
-        fetchFormDayLogs(form.logDate),
-        fetchUnfinishedWorkItems()
-      ])
-      form.personDay = formPersonDayMax.value
+      try {
+        await Promise.all([
+          fetchFormDayLogs(form.logDate),
+          fetchUnfinishedWorkItems()
+        ])
+        form.personDay = formPersonDayMax.value
+      } finally {
+        formInitializing.value = false
+      }
     }
 
     async function openCreateDialogFromDayDetail() {
@@ -2198,6 +2208,7 @@ export default {
     }
 
     async function submitDialog() {
+      if (formInitializing.value) return
       applyLeaveFormDefaults()
       if (!form.typeCodes.length) {
         alert('请至少选择一个日志类型')
@@ -2384,6 +2395,7 @@ export default {
     })
 
     return {
+      formInitializing,
       loading,
       submitting,
       dictLoading,

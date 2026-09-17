@@ -448,6 +448,7 @@
 
     <MacDialog
       v-model="showDetailDialog"
+      :confirm-on-dirty="false"
       title="加油记录详情"
       :subtitle="detailRecord ? `${detailRecord.vehicleName} · ${detailRecord.fuelDate}` : ''"
       width="960px"
@@ -493,6 +494,7 @@
 
     <MacDialog
       v-model="showDialog"
+      :form-state="{...form, attachments: form.attachments.map(item => item.id)}"
       :title="dialogMode === 'create' ? energyFieldLabels.createTitle : energyFieldLabels.editTitle"
       width="1040px"
       panel-class="fuel-record-dialog"
@@ -623,6 +625,8 @@
 
     <MacDialog
       v-model="showVehicleDialog"
+      :form-state="vehicleForm"
+      :form-baseline-key="vehicleBaselineKey"
       title="车辆管理"
       subtitle="维护车辆后，加油或充电记录可直接选择。"
       width="720px"
@@ -1478,7 +1482,10 @@ export default {
       }
     }
 
+    const vehicleBaselineKey = ref(0)
+
     const resetVehicleForm = () => {
+      vehicleBaselineKey.value += 1
       vehicleDialogMode.value = 'create'
       editingVehicleId.value = ''
       vehicleForm.vehicleName = ''
@@ -1512,6 +1519,7 @@ export default {
       vehicleForm.energyType = vehicle.energyType
       vehicleForm.defaultFuelType = vehicle.defaultFuelType
       vehicleForm.defaultVehicle = vehicle.defaultVehicle
+      vehicleBaselineKey.value += 1
     }
 
     const buildVehiclePayload = () => ({
@@ -1690,6 +1698,7 @@ export default {
     })
 
     return {
+      vehicleBaselineKey,
       loading,
       submitting,
       total,

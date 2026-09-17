@@ -4,6 +4,7 @@ import {flushPromises, mount} from '@vue/test-utils'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import RequirementBoard from '../RequirementBoard.vue'
+import {getAttachmentBlob, uploadAttachment} from '@/api/attachment'
 import {
   createRequirementItem,
   getRequirementItemDetail,
@@ -21,6 +22,12 @@ vi.mock('@/api/requirementBoard', () => ({
   updateRequirementItem: vi.fn(),
   updateRequirementItemProgress: vi.fn(),
   deleteRequirementItem: vi.fn()
+}))
+
+vi.mock('@/api/attachment', () => ({
+  uploadAttachment: vi.fn(),
+  deleteAttachment: vi.fn(),
+  getAttachmentBlob: vi.fn()
 }))
 
 function buildResponse(payload) {
@@ -79,6 +86,7 @@ beforeEach(() => {
     {appCode: 'APP_TODO_LIST', appName: '待办清单'},
     {appCode: 'APP_FUEL_STATS', appName: '油耗统计'}
   ]))
+  getAttachmentBlob.mockResolvedValue({data: new Blob(['image'], {type: 'image/png'})})
 })
 
 afterEach(() => {
@@ -140,10 +148,33 @@ describe('RequirementBoard', () => {
       type: 'BUG',
       priority: 'HIGH',
       title: '支持批量归档',
-      description: '降低长期需求的管理成本'
+      description: '降低长期需求的管理成本',
+      attachmentIds: []
     })
     expect(wrapper.emitted('notice')?.[0]).toEqual(['success', 'Bug已提交', 'Bug已共享给所有登录用户。'])
     expect(listRequirementItems).toHaveBeenCalledTimes(2)
+  })
+
+  it('binds uploaded images to the new feedback', async () => {
+    uploadAttachment.mockResolvedValue(buildResponse({
+      id: 501, image: true, contentType: 'image/png', originalFileName: '问题截图.png', thumbnailAvailable: false
+    }))
+    createRequirementItem.mockResolvedValue(buildResponse({id: '102'}))
+    const wrapper = await mountBoard()
+
+    await wrapper.get('.board-trigger').trigger('click')
+    await wrapper.get('.notice-primary-button').trigger('click')
+    await wrapper.findAll('#requirement-form select')[1].setValue('APP_TODO_LIST')
+    await wrapper.get('#requirement-form input').setValue('上传问题截图')
+    const fileInput = wrapper.get('#requirement-form input[type="file"]')
+    Object.defineProperty(fileInput.element, 'files', {value: [new File(['image'], '问题截图.png', {type: 'image/png'})]})
+    await fileInput.trigger('change')
+    await flushPromises()
+    await wrapper.get('#requirement-form').trigger('submit')
+    await flushPromises()
+
+    expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File), 'IMAGE', expect.any(Function))
+    expect(createRequirementItem).toHaveBeenCalledWith(expect.objectContaining({attachmentIds: [501]}))
   })
 
   it('filters the user board by feedback type', async () => {
@@ -185,7 +216,8 @@ describe('RequirementBoard', () => {
       priority: 'HIGH',
       title: '支持导出需求',
       description: '按状态导出看板',
-      version: 1
+      version: 1,
+      attachmentIds: []
     })
     expect(wrapper.emitted('notice')?.[0]).toEqual(['success', 'Bug已更新', 'Bug内容、类型和所属应用已保存。'])
   })
