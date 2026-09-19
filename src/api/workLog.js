@@ -33,3 +33,8 @@ export function listUnfinishedWorkItems(params) {
 export function getWeeklyBrief(params) {
   return request.get('/work-logs/weekly-brief', { params })
 }
+
+// 直接完成原日志条目，不新增日志或工时。
+export function completeWorkLogItem(id) {
+  return request.put(`/work-logs/unfinished-items/${id}/complete`)
+}

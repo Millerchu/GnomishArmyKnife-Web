@@ -8,6 +8,7 @@ import WorkLog from '../WorkLog.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {
+  completeWorkLogItem,
   createWorkLog,
   createWorkLogProject,
   deleteWorkLog,
@@ -53,6 +54,7 @@ vi.mock('@/api/dataDictionary', () => ({
 }))
 
 vi.mock('@/api/workLog', () => ({
+  completeWorkLogItem: vi.fn(),
   createWorkLog: vi.fn(),
   createWorkLogProject: vi.fn(),
   deleteWorkLog: vi.fn(),
@@ -685,6 +687,28 @@ describe('WorkLog MacDialog integration', () => {
         {content: '第二项工作', status: 'UNFINISHED', zentaoNo: '6420'}
       ]
     }))
+  })
+
+  it('completes a candidate without submitting or filling the new log', async () => {
+    listUnfinishedWorkItems.mockResolvedValueOnce(buildApiResponse([{
+      id: 701,
+      logDate: '2026-07-09',
+      projectCode: 'PROJECT_ALPHA',
+      workItem: '待完成内容',
+      status: 'UNFINISHED'
+    }]))
+    completeWorkLogItem.mockResolvedValueOnce(buildApiResponse(null))
+    await mountWorkLogAndOpenCreateDialog()
+    await flushPromises()
+    const panel = getDialogPanel()
+
+    panel.querySelector('.unfinished-complete').click()
+    await flushPromises()
+
+    expect(completeWorkLogItem).toHaveBeenCalledWith(701)
+    expect(panel.querySelector('.unfinished-option')).toBeNull()
+    expect(panel.querySelector('.work-item-content-input').value).toBe('')
+    expect(createWorkLog).not.toHaveBeenCalled()
   })
 
   it('quickly fills a new log from an unfinished work item', async () => {

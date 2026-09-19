@@ -732,7 +732,7 @@
             <div class="unfinished-reuse-head">
               <div>
                 <strong>继续未完成内容</strong>
-                <small>选择后会追加到工作内容，并保留为未完成状态。</small>
+                <small>选择可带入新日志；点击完成会立即更新原日志。</small>
               </div>
               <button
                 v-if="unfinishedLoadError"
@@ -748,10 +748,10 @@
             <p v-if="unfinishedLoading" class="unfinished-feedback">正在查找未完成内容…</p>
             <p v-else-if="unfinishedLoadError" class="unfinished-feedback is-error">{{ unfinishedLoadError }}</p>
             <div v-else-if="unfinishedWorkItems.length" class="unfinished-option-list">
+              <div v-for="item in unfinishedWorkItems" :key="item.id" class="unfinished-option-row">
               <button
-                v-for="item in unfinishedWorkItems"
-                :key="item.id"
                 type="button"
+                :disabled="completingWorkItemId !== null"
                 class="unfinished-option"
                 @click="applyUnfinishedWorkItem(item)"
               >
@@ -761,6 +761,14 @@
                 <strong>{{ item.workItem }}</strong>
                 <em>带入</em>
               </button>
+              <button
+                type="button"
+                class="unfinished-complete"
+                :disabled="completingWorkItemId !== null"
+                :aria-label="`完成：${item.workItem}`"
+                @click="completeUnfinishedWorkItem(item)"
+              >{{ completingWorkItemId === item.id ? '完成中…' : '完成' }}</button>
+              </div>
             </div>
             <p v-else class="unfinished-feedback">暂无可继续的未完成内容</p>
           </section>
@@ -859,6 +867,7 @@ import {
   deleteWorkLog,
   getWorkLogDetail,
   listUnfinishedWorkItems,
+  completeWorkLogItem,
   listWorkLogs,
   updateWorkLog
 } from '@/api/workLog'
@@ -1251,6 +1260,7 @@ export default {
     const projectSearchText = ref('')
     const projectPickerNotice = ref('')
     const creatingProject = ref(false)
+    const completingWorkItemId = ref(null)
     const unfinishedLoading = ref(false)
     const unfinishedLoadError = ref('')
 
@@ -2181,6 +2191,23 @@ export default {
       form.workItems.splice(index, 1)
     }
 
+    async function completeUnfinishedWorkItem(item) {
+      if (completingWorkItemId.value !== null) return
+      completingWorkItemId.value = item.id
+      try {
+        await completeWorkLogItem(item.id)
+        unfinishedWorkItems.value = unfinishedWorkItems.value.filter((candidate) => candidate.id !== item.id)
+        await fetchUnfinishedWorkItems()
+        await fetchWeeklyLogs()
+        await fetchMonthlyLogs()
+        if (showYearList.value) await fetchYearLogs()
+      } catch (error) {
+        alert(extractErrorMessage(error, '完成工作内容失败，请稍后重试'))
+      } finally {
+        completingWorkItemId.value = null
+      }
+    }
+
     function applyUnfinishedWorkItem(item) {
       const content = `${item?.workItem || item?.content || ''}`.trim()
       if (!content) {
@@ -2433,6 +2460,8 @@ export default {
       form,
       formZentaoNo,
       workStatusOptions: WORK_STATUS_OPTIONS,
+      completingWorkItemId,
+      completeUnfinishedWorkItem,
       unfinishedLoading,
       unfinishedLoadError,
       unfinishedWorkItems,
@@ -3781,6 +3810,32 @@ export default {
   gap: 7px;
   max-height: 164px;
   overflow-y: auto;
+}
+
+.unfinished-option-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.unfinished-option-row .unfinished-option {
+  flex: 1;
+}
+
+.unfinished-complete {
+  flex-shrink: 0;
+  border: 1px solid var(--theme-divider);
+  border-radius: 10px;
+  padding: 0 10px;
+  color: var(--theme-text);
+  background: var(--theme-control-surface);
+  cursor: pointer;
+}
+
+.unfinished-complete:disabled,
+.unfinished-option:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .unfinished-option {
