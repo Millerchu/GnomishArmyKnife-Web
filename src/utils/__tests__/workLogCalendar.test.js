@@ -8,6 +8,8 @@ import {
   calculateLogStats,
   getWorkLogTypeTone,
   getMonthRange,
+  getPreviousLogDate,
+  selectPreviousLogDefaults,
   mergeLogsByIdentity,
   parseWorkItemEntries,
   serializeWorkItemEntries,
@@ -141,21 +143,21 @@ test('buildWeeklyReportGroups groups projects chronologically and removes duplic
       projectText: 'A 项目',
       personDayTotal: 1,
       zentaoNos: ['ZEN-1', 'ZEN-2', 'ZEN-4'],
-      items: ['需求梳理', '接口开发', '单元测试']
+      items: ['需求梳理', '接口开发', '单元测试'].map((content) => ({content, status: 'COMPLETED'}))
     },
     {
       projectCode: 'B',
       projectText: 'B 项目',
       personDayTotal: 0.5,
       zentaoNos: ['ZEN-3'],
-      items: ['联调接口', '回归测试']
+      items: ['联调接口', '回归测试'].map((content) => ({content, status: 'COMPLETED'}))
     },
     {
       projectCode: 'NO_PROJECT',
       projectText: '未关联项目',
       personDayTotal: 0.5,
       zentaoNos: [],
-      items: ['历史日志整理']
+      items: ['历史日志整理'].map((content) => ({content, status: 'COMPLETED'}))
     }
   ])
 })
@@ -189,7 +191,7 @@ test('buildWeeklyReportGroups excludes zero person-day logs', () => {
       projectText: 'A 项目',
       personDayTotal: 0.5,
       zentaoNos: [],
-      items: ['有效工作内容']
+      items: ['有效工作内容'].map((content) => ({content, status: 'COMPLETED'}))
     }
   ])
 })
@@ -267,4 +269,30 @@ test('getWorkLogTypeTone returns stable tones including legacy and unknown types
   assert.equal(getWorkLogTypeTone('OVERTIME'), 'overtime')
   assert.equal(getWorkLogTypeTone('BUSINESS_TRIP'), 'business-trip')
   assert.equal(getWorkLogTypeTone('UNKNOWN'), 'other')
+})
+
+
+test('weekly report keeps latest structured status with stable deduplication', () => {
+  const logs = [
+    {id: 4, logDate: '2026-10-02', updatedAt: '2026-10-02T12:00:00', projectCode: 'A', personDay: 1, workItems: [{content: '任务', status: 'UNFINISHED', sortNo: 1}]},
+    {id: 1, logDate: '2026-10-01', projectCode: 'A', personDay: 1, workItems: [{content: '任务', status: 'UNFINISHED'}]},
+    {id: 3, logDate: '2026-10-02', updatedAt: '2026-10-02T12:00:00', projectCode: 'A', personDay: 1, workItems: [{content: '任务', status: 'COMPLETED'}]}
+  ]
+  assert.deepEqual(buildWeeklyReportGroups(logs)[0].items, [{content: '任务', status: 'UNFINISHED'}])
+  logs[0].workItems[0].status = 'COMPLETED'
+  assert.equal(buildWeeklyReportGroups(logs)[0].items[0].status, 'COMPLETED')
+  assert.equal(buildWeeklyReportGroups([{projectCode: 'A', personDay: 1, workItem: '旧任务', status: 'UNFINISHED'}])[0].items[0].status, 'UNFINISHED')
+})
+
+test('previous defaults use natural calendar date and latest update then numeric ID', () => {
+  assert.equal(getPreviousLogDate('2026-01-01'), '2025-12-31')
+  assert.equal(getPreviousLogDate('2024-03-01'), '2024-02-29')
+  const logs = [
+    {id: 9, updatedAt: '2026-09-30T12:00:00', projectCode: 'A', typeCodes: ['NORMAL'], location: 'OFFICE'},
+    {id: 10, updatedAt: '2026-09-30T12:00:00', projectCode: 'B', typeCodes: ['LEAVE'], location: '居家', workItem: '不要复制'},
+    {id: 11, updatedAt: '2026-09-30T11:00:00', projectCode: 'C'}
+  ]
+  assert.deepEqual(selectPreviousLogDefaults(logs), {projectCode: 'B', typeCodes: ['LEAVE'], location: '居家'})
+  assert.equal(selectPreviousLogDefaults([]), null)
+  assert.equal(logs[0].id, 9)
 })

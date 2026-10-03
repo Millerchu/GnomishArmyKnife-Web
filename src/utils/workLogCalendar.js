@@ -78,6 +78,27 @@ function isWeekendDate(logDate) {
   return day === 0 || day === 6
 }
 
+export function getPreviousLogDate(logDate) {
+  const date = parseDate(logDate)
+  date.setDate(date.getDate() - 1)
+  return formatDate(date)
+}
+
+function compareLogOrder(previous, next) {
+  return String(previous?.logDate || '').localeCompare(String(next?.logDate || ''))
+    || String(previous?.updatedAt || '').localeCompare(String(next?.updatedAt || ''))
+    || String(previous?.id || '0').localeCompare(String(next?.id || '0'), 'en', {numeric: true})
+}
+
+export function selectPreviousLogDefaults(logs = []) {
+  const latest = [...logs].sort(compareLogOrder).at(-1)
+  return latest ? {
+    projectCode: latest.projectCode,
+    location: latest.location,
+    typeCodes: [...(latest.typeCodes || [])]
+  } : null
+}
+
 function pushUniqueValue(target, value) {
   if (value && value !== '-' && !target.includes(value)) {
     target.push(value)
@@ -173,9 +194,7 @@ export function calculateLogStats(logs = [], formatters = {}) {
 
 export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) => value || '未关联项目') {
   const projectMap = new Map()
-  const sortedLogs = logs.filter((item) => toNumber(item?.personDay, 0) !== 0).sort((previous, next) => {
-    return String(previous?.logDate || '').localeCompare(String(next?.logDate || ''))
-  })
+  const sortedLogs = logs.filter((item) => toNumber(item?.personDay, 0) !== 0).sort(compareLogOrder)
 
   sortedLogs.forEach((item) => {
     const projectCode = item?.projectCode || 'NO_PROJECT'
@@ -185,9 +204,8 @@ export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) =
         projectText: projectCode === 'NO_PROJECT' ? '未关联项目' : formatProjectText(projectCode),
         personDayTotal: 0,
         zentaoNos: [],
-        items: [],
         zentaoSet: new Set(),
-        itemSet: new Set()
+        itemMap: new Map()
       })
     }
 
@@ -200,18 +218,23 @@ export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) =
       project.zentaoSet.add(zentaoNo)
       project.zentaoNos.push(zentaoNo)
     })
-    parseWorkItemEntries(item?.workItem).forEach((workItem) => {
-      if (project.itemSet.has(workItem)) {
-        return
-      }
-      project.itemSet.add(workItem)
-      project.items.push(workItem)
+    const entries = item?.workItems?.length
+      ? [...item.workItems].sort((previous, next) => toNumber(previous.sortNo) - toNumber(next.sortNo))
+      : parseWorkItemEntries(item?.workItem).map((content) => ({content, status: item?.status || item?.workStatus}))
+    entries.forEach((workItem) => {
+      const content = String(workItem.content || '').trim()
+      if (!content) return
+      // 保持首次出现的位置，但使用本周最后一次记录的状态。
+      project.itemMap.set(content, {
+        content,
+        status: String(workItem.status || '').toUpperCase() === 'UNFINISHED' ? 'UNFINISHED' : 'COMPLETED'
+      })
     })
   })
 
   return Array.from(projectMap.values())
-    .filter((project) => project.items.length > 0)
-    .map(({itemSet, zentaoSet, ...project}) => project)
+    .filter((project) => project.itemMap.size > 0)
+    .map(({itemMap, zentaoSet, ...project}) => ({...project, items: Array.from(itemMap.values())}))
 }
 
 export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {

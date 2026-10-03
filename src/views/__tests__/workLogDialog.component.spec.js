@@ -477,6 +477,163 @@ describe('WorkLog MacDialog integration', () => {
     expect(form.textContent).toContain('请假日志固定归属“请假”项目')
   })
 
+  it('submits leave without work content but still rejects an empty ordinary log', async () => {
+    vi.stubGlobal('alert', vi.fn())
+    const wrapper = await mountWorkLogAndOpenCreateDialog()
+    await flushPromises()
+    await wrapper.vm.submitDialog()
+    expect(createWorkLog).not.toHaveBeenCalled()
+    wrapper.vm.form.typeCodes = ['LEAVE']
+    await nextTick()
+    expect(getDialogPanel().textContent).toContain('工作内容（选填）')
+    await wrapper.vm.submitDialog()
+    expect(createWorkLog).toHaveBeenCalledWith(expect.objectContaining({
+      typeCodes: ['LEAVE'], workItems: [], workItem: '', projectCode: 'LEAVE', location: '居家'
+    }))
+  })
+
+  it('prefills only affiliation fields from the latest previous-day log and establishes a clean form baseline', async () => {
+    listWorkLogs.mockImplementation(({startDate, endDate}) => Promise.resolve(buildApiResponse(
+      startDate === endDate ? [
+        {...editLogDetail, id: 9, updatedAt: '2026-10-02T10:00:00'},
+        {...editLogDetail, id: 10, updatedAt: '2026-10-02T12:00:00', location: '居家', typeCodes: ['LEAVE']}
+      ] : []
+    )))
+    const wrapper = await mountWorkLog()
+    wrapper.vm.selectDay('2026-01-01')
+    await wrapper.vm.openCreateDialog()
+    await flushPromises()
+    expect(listWorkLogs).toHaveBeenCalledWith({startDate: '2025-12-31', endDate: '2025-12-31'})
+    expect(wrapper.vm.form.typeCodes).toEqual(['LEAVE'])
+    expect(wrapper.vm.form.projectCode).toBe('LEAVE')
+    expect(wrapper.vm.form.location).toBe('居家')
+    expect(wrapper.vm.form.workItems[0].content).toBe('')
+    expect(wrapper.vm.form.remark).toBe('')
+    expect(wrapper.vm.form.businessTripReimbursed).toBe(false)
+    dispatchEscape()
+    await flushPromises()
+    expect(confirmDialog).not.toHaveBeenCalled()
+  })
+
+  it('falls back to defaults when the previous-day lookup fails', async () => {
+    const wrapper = await mountWorkLog()
+    listWorkLogs.mockImplementation(({startDate, endDate}) => startDate === '2025-12-31' && endDate === startDate
+      ? Promise.reject(new Error('lookup failed')) : Promise.resolve(buildApiResponse([])))
+    wrapper.vm.selectDay('2026-01-01')
+    await wrapper.vm.openCreateDialog()
+    await flushPromises()
+    expect(wrapper.vm.formInitializing).toBe(false)
+    expect(wrapper.vm.form.projectCode).toBe('PROJECT_ALPHA')
+    expect(getDialogPanel().textContent).toContain('前一天日志加载失败')
+  })
+
+  it('keeps initialization locked until defaults arrive and preserves user fields after date changes', async () => {
+    const wrapper = await mountWorkLog()
+    const pending = createDeferred()
+    listWorkLogs.mockImplementation(({startDate}) => startDate === '2025-12-31'
+      ? pending.promise : Promise.resolve(buildApiResponse([])))
+    wrapper.vm.selectDay('2026-01-01')
+    const opening = wrapper.vm.openCreateDialog()
+    await nextTick()
+    expect(wrapper.vm.formInitializing).toBe(true)
+    expectDialogSubmissionLock(getDialogPanel(), true)
+    pending.resolve(buildApiResponse([{...editLogDetail, location: '居家'}]))
+    await opening
+    await flushPromises()
+    expectDialogSubmissionLock(getDialogPanel(), false)
+    expect(wrapper.vm.form.location).toBe('居家')
+    wrapper.vm.form.location = 'OFFICE'
+    wrapper.vm.form.logDate = '2026-01-02'
+    await nextTick()
+    expect(wrapper.vm.form.location).toBe('OFFICE')
+    expect(listWorkLogs).not.toHaveBeenCalledWith({startDate: '2026-01-01', endDate: '2026-01-01'})
+  })
+
+  it('keeps current defaults when yesterday affiliation options have been disabled', async () => {
+    const wrapper = await mountWorkLog()
+    listWorkLogs.mockImplementation(({startDate}) => Promise.resolve(buildApiResponse(startDate === '2025-12-31'
+      ? [{...editLogDetail, projectCode: 'DISABLED_PROJECT', location: 'DISABLED_LOCATION', typeCodes: ['DISABLED_TYPE']}] : [])))
+    wrapper.vm.selectDay('2026-01-01')
+    await wrapper.vm.openCreateDialog()
+    await flushPromises()
+    expect(wrapper.vm.form.projectCode).toBe('PROJECT_ALPHA')
+    expect(wrapper.vm.form.location).toBe('OFFICE')
+    expect(wrapper.vm.form.typeCodes).toEqual(['NORMAL'])
+  })
+
+  it('allows editing a leave log without content and never queries yesterday defaults', async () => {
+    const wrapper = await mountWorkLog()
+    getWorkLogDetail.mockResolvedValue(buildApiResponse({...editLogDetail, typeCodes: ['LEAVE'], workItem: '', workItems: []}))
+    listWorkLogs.mockClear()
+    await openEditDialog(wrapper)
+    await wrapper.vm.submitDialog()
+    expect(updateWorkLog).toHaveBeenCalledWith(88, expect.objectContaining({workItems: [], workItem: '', typeCodes: ['LEAVE']}))
+    expect(listWorkLogs.mock.calls.every(([params]) => params.startDate !== '2026-07-09' || params.endDate !== '2026-07-09')).toBe(true)
+  })
+
+  it('does not let an obsolete previous-day response overwrite a reopened form', async () => {
+    const wrapper = await mountWorkLog()
+    const pending = createDeferred()
+    const pendingDay = createDeferred()
+    const pendingUnfinished = createDeferred()
+    listUnfinishedWorkItems.mockImplementationOnce(() => pendingUnfinished.promise)
+    listWorkLogs.mockImplementation(({startDate, endDate, userId}) => {
+      if (startDate === '2025-12-31' && endDate === startDate) return pending.promise
+      if (userId && startDate === '2026-01-01' && endDate === startDate) return pendingDay.promise
+      return Promise.resolve(buildApiResponse([]))
+    })
+    wrapper.vm.selectDay('2026-01-01')
+    const initialOpen = wrapper.vm.openCreateDialog()
+    await nextTick()
+    wrapper.vm.showDialog = false
+    await nextTick()
+    wrapper.vm.selectDay('2026-01-02')
+    await wrapper.vm.openCreateDialog()
+    pending.resolve(buildApiResponse([{...editLogDetail, typeCodes: ['LEAVE']}]))
+    pendingDay.resolve(buildApiResponse([{...editLogDetail, logDate: '2026-01-01', personDay: 0.6}]))
+    pendingUnfinished.resolve(buildApiResponse([{id: 77, workItem: '旧弹窗候选'}]))
+    await initialOpen
+    await flushPromises()
+    expect(wrapper.vm.form.logDate).toBe('2026-01-02')
+    expect(wrapper.vm.form.typeCodes).toEqual(['NORMAL'])
+    expect(wrapper.vm.form.projectCode).toBe('PROJECT_ALPHA')
+    expect(wrapper.vm.formPersonDayMax).toBe(1)
+    expect(wrapper.vm.unfinishedWorkItems).toEqual([])
+  })
+
+  it('marks empty weekends in both calendar views and shows accessible weekly completion icons', async () => {
+    listWorkLogs.mockResolvedValue(buildApiResponse([{...editLogDetail, personDay: 1}]))
+    const wrapper = await mountWorkLog()
+    expect(wrapper.findAll('.day-card.weekend')).toHaveLength(2)
+    expect(wrapper.findAll('.day-card.weekend .weekend-marker')).toHaveLength(2)
+    const status = wrapper.find('.weekly-work-status')
+    expect(status.attributes('aria-label')).toBe('未完成')
+    expect(status.text()).toBe('○')
+    await wrapper.vm.switchCalendarView('month')
+    await flushPromises()
+    expect(wrapper.findAll('.month-day-card.weekend').length).toBeGreaterThanOrEqual(8)
+    expect(wrapper.findAll('.month-day-card.weekend .weekend-marker').length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('refreshes the weekly completion icon after manually completing an unfinished item', async () => {
+    let completed = false
+    listWorkLogs.mockImplementation(() => Promise.resolve(buildApiResponse([{
+      ...editLogDetail, personDay: 1,
+      workItems: [{id: 701, content: '待完成事项', status: completed ? 'COMPLETED' : 'UNFINISHED'}]
+    }])))
+    completeWorkLogItem.mockImplementation(() => {
+      completed = true
+      return Promise.resolve(buildApiResponse(null))
+    })
+    const wrapper = await mountWorkLog()
+    expect(wrapper.find('.weekly-work-status').attributes('aria-label')).toBe('未完成')
+    await wrapper.vm.completeUnfinishedWorkItem({id: 701})
+    await flushPromises()
+    expect(wrapper.find('.weekly-work-status').attributes('aria-label')).toBe('已完成')
+    expect(wrapper.find('.weekly-work-status').text()).toBe('✓')
+    expect(createWorkLog).not.toHaveBeenCalled()
+  })
+
   it('creates a missing project dictionary option and selects it immediately', async () => {
     const wrapper = await mountWorkLogAndOpenCreateDialog()
     const panel = getDialogPanel()
@@ -754,7 +911,7 @@ describe('WorkLog MacDialog integration', () => {
   it('shows remaining daily person-day and blocks values above it', async () => {
     const alertSpy = vi.fn()
     vi.stubGlobal('alert', alertSpy)
-    listWorkLogs.mockResolvedValue(buildApiResponse([{
+    listWorkLogs.mockImplementation(({startDate}) => Promise.resolve(buildApiResponse(startDate === '2026-07-10' ? [{
       id: 901,
       userId: '1001',
       logDate: '2026-07-10',
@@ -764,8 +921,11 @@ describe('WorkLog MacDialog integration', () => {
       workItem: '已有工作',
       personDay: 0.6,
       overtimeHours: 0
-    }]))
-    const wrapper = await mountWorkLogAndOpenCreateDialog()
+    }] : [])))
+    const wrapper = await mountWorkLog()
+    wrapper.vm.selectDay('2026-07-10')
+    await wrapper.vm.openCreateDialog()
+    await flushPromises()
     const panel = getDialogPanel()
     const personDayInput = panel.querySelector('input[type="number"][step="0.1"]')
 
@@ -931,9 +1091,9 @@ describe('WorkLog MacDialog integration', () => {
     expect(report.find('.weekly-report-person-day').text()).toBe('共 1 人天')
     expect(report.find('.weekly-report-zentao').text()).toBe('禅道：ZEN-101、ZEN-102、ZEN-103')
     expect(report.findAll('.weekly-report-project li').map((item) => item.text())).toEqual([
-      '需求梳理;',
-      '接口开发;',
-      '单元测试;'
+      '✓需求梳理;',
+      '✓接口开发;',
+      '✓单元测试;'
     ])
     expect(listWorkLogs).toHaveBeenCalledWith(expect.objectContaining({
       userId: '1001',

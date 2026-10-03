@@ -123,7 +123,12 @@
             <span>{{ group.zentaoNos.length ? group.zentaoNos.join('、') : '暂无' }}</span>
           </p>
           <ol>
-            <li v-for="workItem in group.items" :key="workItem"><span>{{ workItem }}</span><b>;</b></li>
+            <li v-for="workItem in group.items" :key="workItem.content">
+              <span class="weekly-work-status" :class="getWorkStatusClass(workItem.status)"
+                    :title="formatWorkStatus(workItem.status)" role="img"
+                    :aria-label="formatWorkStatus(workItem.status)">{{ workItem.status === 'UNFINISHED' ? '○' : '✓' }}</span>
+              <span>{{ workItem.content }}</span><b>;</b>
+            </li>
           </ol>
         </article>
       </div>
@@ -185,7 +190,8 @@
         :class="{
           active: selectedDate === day.date,
           empty: !daySummaryMap[day.date]?.count,
-          today: isToday(day.date)
+          today: isToday(day.date),
+          weekend: isWeekendDate(day.date)
         }"
         role="button"
         tabindex="0"
@@ -197,7 +203,7 @@
       >
         <div class="day-head">
           <div class="day-head-main">
-            <strong>{{ day.weekLabel }}</strong>
+            <strong>{{ day.weekLabel }}<small v-if="isWeekendDate(day.date)" class="weekend-marker">周末</small></strong>
             <span>{{ day.date }}</span>
           </div>
           <div v-if="daySummaryMap[day.date]?.count" class="day-type-summary">
@@ -277,7 +283,8 @@
           :class="{
             active: selectedDate === day.date,
             muted: !day.inCurrentMonth,
-            today: isToday(day.date)
+            today: isToday(day.date),
+            weekend: isWeekendDate(day.date)
           }"
           role="button"
           :tabindex="day.inCurrentMonth ? 0 : -1"
@@ -290,7 +297,7 @@
         >
           <div class="day-head month-day-head">
             <div class="day-head-main">
-              <strong>{{ day.dayNumber }}</strong>
+              <strong>{{ day.dayNumber }}<small v-if="isWeekendDate(day.date)" class="weekend-marker">周末</small></strong>
               <span>{{ day.date }}</span>
             </div>
             <div v-if="monthSummaryMap[day.date]?.count" class="day-type-summary">
@@ -727,7 +734,8 @@
         </div>
 
         <div class="form-field dialog-span-all">
-          <span>工作内容</span>
+          <span>工作内容{{ isLeaveTypeSelected ? '（选填）' : '' }}</span>
+          <small v-if="previousLogNotice" class="field-hint">{{ previousLogNotice }}</small>
           <section v-if="dialogMode === 'create'" class="unfinished-reuse-panel">
             <div class="unfinished-reuse-head">
               <div>
@@ -879,6 +887,8 @@ import {
   formatDate,
   getWorkLogTypeTone,
   getMonthRange,
+  getPreviousLogDate,
+  selectPreviousLogDefaults,
   mergeLogsByIdentity,
   parseDate,
   parseWorkItemEntries,
@@ -1162,6 +1172,7 @@ function normalizeLog(item) {
   return {
     id: item?.id,
     userId: item?.userId,
+    updatedAt: item?.updatedAt || '',
     logDate,
     typeCodes: normalizeTypeCodes(item?.typeCodes),
     location: item?.location || '',
@@ -1747,13 +1758,13 @@ export default {
       }
     }
 
-    async function fetchFormDayLogs(date) {
+    async function fetchFormDayLogs(date, initializationId) {
       if (!currentUserId || !date) {
         formDayLogs.value = []
         return
       }
       try {
-        formDayLogs.value = await requestLogsWithCompatibleUserIds((userId) => listWorkLogs({
+        const dayLogs = await requestLogsWithCompatibleUserIds((userId) => listWorkLogs({
           userId,
           startDate: date,
           endDate: date
@@ -1761,7 +1772,10 @@ export default {
           const data = unwrapData(res)
           return (Array.isArray(data) ? data : []).map(normalizeLog)
         }))
+        if (initializationId != null && !isCurrentCreateInitialization(initializationId)) return
+        formDayLogs.value = dayLogs
       } catch (error) {
+        if (initializationId != null && !isCurrentCreateInitialization(initializationId)) return
         console.error(error)
         formDayLogs.value = []
         alert('加载当日人天使用情况失败')
@@ -1790,11 +1804,12 @@ export default {
       }
     }
 
-    async function fetchUnfinishedWorkItems() {
+    async function fetchUnfinishedWorkItems(initializationId) {
       unfinishedLoading.value = true
       unfinishedLoadError.value = ''
       try {
         const res = await listUnfinishedWorkItems({limit: 20})
+        if (initializationId != null && !isCurrentCreateInitialization(initializationId)) return
         const payload = unwrapData(res)
         unfinishedWorkItems.value = (Array.isArray(payload) ? payload : [])
           .map((item) => ({
@@ -1807,11 +1822,14 @@ export default {
           }))
           .filter((item) => item.id != null && parseWorkItemEntries(item.workItem).length)
       } catch (error) {
+        if (initializationId != null && !isCurrentCreateInitialization(initializationId)) return
         console.error(error)
         unfinishedWorkItems.value = []
         unfinishedLoadError.value = '未完成内容加载失败，不影响手动填写'
       } finally {
-        unfinishedLoading.value = false
+        if (initializationId == null || isCurrentCreateInitialization(initializationId)) {
+          unfinishedLoading.value = false
+        }
       }
     }
 
@@ -2039,21 +2057,50 @@ export default {
     }
 
     const formInitializing = ref(false)
+    const previousLogNotice = ref('')
+    let createInitializationId = 0
+
+    function isCurrentCreateInitialization(initializationId) {
+      return initializationId === createInitializationId && showDialog.value
+    }
+
+    async function loadPreviousLogDefaults(logDate, initializationId) {
+      try {
+        const previousDate = getPreviousLogDate(logDate)
+        const response = await listWorkLogs({startDate: previousDate, endDate: previousDate})
+        if (!isCurrentCreateInitialization(initializationId)) return
+        const payload = unwrapData(response)
+        const defaults = selectPreviousLogDefaults((Array.isArray(payload) ? payload : []).map(normalizeLog))
+        if (!defaults) return
+        form.typeCodes = defaults.typeCodes
+        form.location = normalizeSelectedValue(locationSelectOptions.value, defaults.location, form.location)
+        form.projectCode = normalizeSelectedValue(projectSelectOptions.value, defaults.projectCode, form.projectCode)
+        applyFormOptionDefaults()
+      } catch (error) {
+        if (isCurrentCreateInitialization(initializationId)) {
+          previousLogNotice.value = '前一天日志加载失败，已使用默认值，可手动填写'
+        }
+      }
+    }
 
     async function openCreateDialog() {
+      const initializationId = ++createInitializationId
       dialogMode.value = 'create'
+      previousLogNotice.value = ''
       resetForm()
       showTypeDropdown.value = false
       formInitializing.value = true
       showDialog.value = true
       try {
         await Promise.all([
-          fetchFormDayLogs(form.logDate),
-          fetchUnfinishedWorkItems()
+          fetchFormDayLogs(form.logDate, initializationId),
+          fetchUnfinishedWorkItems(initializationId),
+          loadPreviousLogDefaults(form.logDate, initializationId)
         ])
+        if (!isCurrentCreateInitialization(initializationId)) return
         form.personDay = formPersonDayMax.value
       } finally {
-        formInitializing.value = false
+        if (initializationId === createInitializationId) formInitializing.value = false
       }
     }
 
@@ -2257,7 +2304,7 @@ export default {
         }))
         .filter((workItem) => workItem.content)
       const workItem = serializeWorkItemEntries(normalizedWorkItems.map((item) => item.content))
-      if (!workItem) {
+      if (!workItem && !isLeaveTypeSelected.value) {
         alert('请填写工作内容')
         return
       }
@@ -2407,6 +2454,9 @@ export default {
 
     watch(showDialog, (visible) => {
       if (!visible) {
+        createInitializationId += 1
+        formInitializing.value = false
+        previousLogNotice.value = ''
         showTypeDropdown.value = false
         showProjectDropdown.value = false
       }
@@ -2423,6 +2473,7 @@ export default {
 
     return {
       formInitializing,
+      previousLogNotice,
       loading,
       submitting,
       dictLoading,
@@ -2498,6 +2549,7 @@ export default {
       getWorkStatusClass,
       parseWorkItemEntries,
       isToday,
+      isWeekendDate,
       buildCalendarDayAriaLabel,
       buildMonthDayAriaLabel,
       selectDay,
@@ -5909,5 +5961,30 @@ export default {
   .calendar-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+.weekly-work-status {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  width: 1.2em;
+  margin-right: 6px;
+  font-weight: 700;
+}
+.weekly-work-status.is-completed { color: var(--theme-success); }
+.weekly-work-status.is-unfinished { color: var(--theme-warning); }
+.weekend-marker {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--theme-warning);
+  background: color-mix(in srgb, var(--theme-warning) 12%, transparent);
+}
+.day-card.weekend,
+.month-day-card.weekend {
+  border-top: 3px solid color-mix(in srgb, var(--theme-warning) 55%, transparent);
 }
 </style>
