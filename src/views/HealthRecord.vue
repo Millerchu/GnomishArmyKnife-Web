@@ -133,6 +133,7 @@
               </div>
               <span class="visit-count-chip">{{ item.reportCount || 0 }} 份报告</span>
             </div>
+            <p class="visit-amount">实际自付：{{ item.amount == null ? '未记录金额' : '¥' + formatNumber(item.amount, 2) }}</p>
             <div class="visit-body">
               <p><span>主诉</span><strong>{{ item.chiefComplaint || '-' }}</strong></p>
               <p><span>诊断</span><strong>{{ item.diagnosisSummary || '-' }}</strong></p>
@@ -330,6 +331,12 @@
           </div>
 
           <label class="form-field dialog-span-all">
+            <span>实际自付金额（元）</span>
+            <input v-model="visitForm.amount" class="input" type="number" inputmode="decimal" min="0" max="9999999999.99" step="0.01" placeholder="可不填" />
+            <small>大于 0 时自动同步至个人账单；清空或填 0 会移除对应支出。</small>
+          </label>
+
+          <label class="form-field dialog-span-all">
             <span>主诉</span>
             <textarea v-model.trim="visitForm.chiefComplaint" class="input textarea" rows="2" maxlength="240" />
           </label>
@@ -431,8 +438,8 @@
 </template>
 
 <script>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import AttachmentManager from '@/components/AttachmentManager.vue'
@@ -441,6 +448,7 @@ import {
   createHealthRecord,
   createHealthReport,
   createHealthVisit,
+  getHealthVisit,
   deleteHealthRecord,
   deleteHealthReport,
   deleteHealthVisit,
@@ -520,6 +528,7 @@ export default {
   components: {MacDialog, AttachmentManager, AttachmentGallery},
   setup() {
     const router = useRouter()
+    const route = useRoute()
 
     const loading = ref(false)
     const submitting = ref(false)
@@ -571,6 +580,7 @@ export default {
 
     const visitForm = reactive({
       visitDate: '',
+      amount: '',
       hospitalName: '',
       departmentName: '',
       doctorName: '',
@@ -699,6 +709,7 @@ export default {
     const resetVisitForm = () => {
       Object.assign(visitForm, {
         visitDate: '',
+        amount: '',
         hospitalName: '',
         departmentName: '',
         doctorName: '',
@@ -842,6 +853,7 @@ export default {
       editingVisitId.value = item.id
       Object.assign(visitForm, {
         visitDate: item.visitDate || '',
+        amount: item.amount ?? '',
         hospitalName: item.hospitalName || '',
         departmentName: item.departmentName || '',
         doctorName: item.doctorName || '',
@@ -874,7 +886,14 @@ export default {
       if (submitting.value) {
         return
       }
+      const amount = visitForm.amount === '' || visitForm.amount == null ? null : Number(visitForm.amount)
+      if (amount !== null && (!Number.isFinite(amount) || amount < 0 || amount > 9999999999.99
+        || !/^\d+(?:\.\d{1,2})?$/.test(String(visitForm.amount)))) {
+        alert('实际自付金额须在 0 至 9999999999.99 元之间，最多两位小数')
+        return
+      }
       const payload = {
+        amount,
         visitDate: visitForm.visitDate,
         hospitalName: visitForm.hospitalName,
         departmentName: visitForm.departmentName || null,
@@ -907,7 +926,7 @@ export default {
     }
 
     const removeVisit = async (item) => {
-      if (!await confirmDialog(`${item.visitDate} 的医院就诊记录将被永久删除。`, {
+      if (!await confirmDialog(`${item.visitDate} 的医院就诊记录将被永久删除，对应的个人账单支出也会同步删除。`, {
         title: '删除就诊记录？',
         confirmText: '删除记录'
       })) {
@@ -1099,12 +1118,26 @@ export default {
       router.push('/home')
     }
 
+    // 从账单直接查询单次就诊，避免历史记录不在当前分页。
+    watch(() => route.query.recordId, async (recordId, previousId, onCleanup) => {
+      if (!recordId) return
+      let active = true
+      onCleanup(() => { active = false })
+      try {
+        const response = await getHealthVisit(recordId)
+        if (active) openEditVisitDialog(unwrapData(response))
+      } catch (error) {
+        if (active) alert(error?.response?.data?.message || '打开就诊记录失败')
+      }
+    }, {immediate: true})
+
     onMounted(() => {
       loadPage()
     })
 
     return {
       loading,
+      formatNumber,
       submitting,
       summary,
       records,

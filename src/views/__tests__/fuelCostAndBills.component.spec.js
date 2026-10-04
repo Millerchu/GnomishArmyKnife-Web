@@ -56,6 +56,19 @@ beforeEach(() => {
 })
 
 describe('周期费用和来源账单', () => {
+  it('显示就诊来源并跳转到健康记录，保留完整来源 ID', async () => {
+    mocks.bills.listPersonalBills.mockResolvedValue(response({list: [{
+      id: '300', sourceType: 'HEALTH_VISIT', sourceId: record.id, sourceEntry: 'PAYMENT',
+      billType: 'EXPENSE', categoryName: '医疗', amount: 128.5, billDate: '2026-10-04'
+    }], total: 1}))
+    const wrapper = mount(PersonalBills, options)
+    await flushPromises()
+    expect(wrapper.find('.bill-row').text()).toContain('就诊支出')
+    await wrapper.find('.bill-row').trigger('click')
+    expect(mocks.push).toHaveBeenCalledWith({path: '/health', query: {recordId: record.id}})
+    expect(wrapper.find('#personal-bill-dialog-form').exists()).toBe(false)
+    wrapper.unmount()
+  })
   it('显示每公里费用并独立渲染单位，实付为零不会回退到机显金额', async () => {
     const wrapper = mount(FuelStats, options)
     await flushPromises()

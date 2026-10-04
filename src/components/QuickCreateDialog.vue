@@ -279,6 +279,7 @@ function buildPayload(type) {
   }
   if (type.api === 'healthRecord') Object.keys(payload).filter((key) => !['measureDate', 'note'].includes(key)).forEach((key) => { payload[key] = numeric(payload[key]) })
   if (type.api === 'healthVisit' || type.api === 'healthReport') Object.keys(payload).forEach((key) => { if (key !== 'visitId') payload[key] = nullable(payload[key]) })
+  if (type.api === 'healthVisit') payload.amount = numeric(payload.amount)
   if (type.api === 'healthReport') payload.visitId = numeric(payload.visitId)
   return payload
 }

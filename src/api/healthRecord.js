@@ -45,6 +45,10 @@ export function listHealthVisits(params) {
   return request.get('/health-records/visits', {params})
 }
 
+export function getHealthVisit(id) {
+  return request.get(`/health-records/visits/${id}`)
+}
+
 export function createHealthVisit(data) {
   return request.post('/health-records/visits', data)
 }

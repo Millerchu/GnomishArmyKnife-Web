@@ -9,6 +9,8 @@ import {
   createHealthRecord,
   createHealthReport,
   createHealthVisit,
+  getHealthVisit,
+  updateHealthVisit,
   getHealthSummary,
   getHealthTrends,
   listHealthRecords,
@@ -17,15 +19,18 @@ import {
 } from '@/api/healthRecord'
 
 const mountedWrappers = []
+const route = vi.hoisted(() => ({query: {}}))
 
 vi.mock('vue-router', () => ({
-  useRouter: () => ({push: vi.fn()})
+  useRouter: () => ({push: vi.fn()}),
+  useRoute: () => route
 }))
 
 vi.mock('@/api/healthRecord', () => ({
   createHealthRecord: vi.fn(),
   createHealthReport: vi.fn(),
   createHealthVisit: vi.fn(),
+  getHealthVisit: vi.fn(),
   deleteHealthRecord: vi.fn(),
   deleteHealthReport: vi.fn(),
   deleteHealthVisit: vi.fn(),
@@ -63,6 +68,7 @@ function mountPage() {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  route.query = {}
   vi.stubGlobal('alert', vi.fn())
   getHealthSummary.mockResolvedValue(buildApiResponse({}))
   getHealthTrends.mockResolvedValue(buildApiResponse({points: []}))
@@ -71,6 +77,7 @@ beforeEach(() => {
   listHealthVisits.mockResolvedValue(buildApiResponse({list: []}))
   createHealthRecord.mockResolvedValue(buildApiResponse({id: 1}))
   createHealthVisit.mockResolvedValue(buildApiResponse({id: 2}))
+  updateHealthVisit.mockResolvedValue(buildApiResponse({id: 2}))
   createHealthReport.mockResolvedValue(buildApiResponse({id: 3}))
 })
 
@@ -111,6 +118,61 @@ const successfulSubmitCases = [
     resetFields: {examDate: '', reportTitle: ''}
   }
 ]
+
+describe('就诊金额记录', () => {
+  it('提交自付金额并在成功后清空表单', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    wrapper.vm.openCreateVisitDialog()
+    Object.assign(wrapper.vm.visitForm, {visitDate: '2026-10-04', hospitalName: '测试医院', chiefComplaint: '复查', amount: '128.50'})
+    await wrapper.vm.submitVisitDialog()
+    expect(createHealthVisit).toHaveBeenCalledWith(expect.objectContaining({amount: 128.5}))
+    expect(wrapper.vm.visitForm.amount).toBe('')
+  })
+
+  it('回填历史金额并把清空提交为 null', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    wrapper.vm.openEditVisitDialog({id: '900000000000000111', visitDate: '2026-10-04', hospitalName: '测试医院', amount: 128.5})
+    expect(wrapper.vm.visitForm.amount).toBe(128.5)
+    wrapper.vm.visitForm.amount = ''
+    await wrapper.vm.submitVisitDialog()
+    expect(updateHealthVisit).toHaveBeenCalledWith('900000000000000111', expect.objectContaining({amount: null}))
+  })
+
+  it.each(['-1', '1.001', '10000000000', 'NaN'])('拒绝非法金额 %s', async (amount) => {
+    const wrapper = mountPage()
+    await flushPromises()
+    wrapper.vm.visitForm.amount = amount
+    await wrapper.vm.submitVisitDialog()
+    expect(createHealthVisit).not.toHaveBeenCalled()
+    expect(updateHealthVisit).not.toHaveBeenCalled()
+    expect(alert).toHaveBeenCalledWith(expect.stringContaining('最多两位小数'))
+  })
+
+  it('列表区分未填金额与零金额', async () => {
+    listHealthVisits.mockResolvedValue(buildApiResponse({list: [
+      {id: '1', hospitalName: '甲医院', amount: null},
+      {id: '2', hospitalName: '乙医院', amount: 0},
+      {id: '3', hospitalName: '丙医院', amount: 128.5}
+    ]}))
+    const wrapper = mountPage()
+    await flushPromises()
+    const rows = wrapper.findAll('.visit-amount')
+    expect(rows.map(row => row.text())).toEqual(['实际自付：未记录金额', '实际自付：¥0.00', '实际自付：¥128.50'])
+  })
+
+  it('从来源账单打开分页之外的就诊，保留长 ID', async () => {
+    route.query = {recordId: '900000000000000111'}
+    getHealthVisit.mockResolvedValue(buildApiResponse({id: route.query.recordId, hospitalName: '历史医院', amount: 128.5}))
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(getHealthVisit).toHaveBeenCalledWith('900000000000000111')
+    expect(wrapper.vm.showVisitDialog).toBe(true)
+    expect(wrapper.vm.visitForm.hospitalName).toBe('历史医院')
+    expect(wrapper.vm.visitForm.amount).toBe(128.5)
+  })
+})
 
 describe('HealthRecord MacDialog integration', () => {
   it.each(successfulSubmitCases)('$name 保存成功后关闭弹窗并重置表单', async ({

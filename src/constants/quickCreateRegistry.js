@@ -101,8 +101,8 @@ export const QUICK_CREATE_TYPES = [
   },
   {
     typeCode: 'HEALTH_VISIT', featureCode: 'APP_HEALTH_RECORD', appName: '健康', label: '新增医院就诊', api: 'healthVisit',
-    defaults: () => ({visitDate: today(), hospitalName: '', departmentName: '', doctorName: '', visitType: '', chiefComplaint: '', diagnosisSummary: '', treatmentPlan: '', doctorAdvice: '', caseRecordFileName: '', caseRecordUrl: '', note: ''}),
-    fields: [{key: 'visitDate', label: '就诊日期', type: 'date', required: true}, text('hospitalName', '医院名称', true), text('departmentName', '科室'), text('doctorName', '医生'),
+    defaults: () => ({visitDate: today(), amount: '', hospitalName: '', departmentName: '', doctorName: '', visitType: '', chiefComplaint: '', diagnosisSummary: '', treatmentPlan: '', doctorAdvice: '', caseRecordFileName: '', caseRecordUrl: '', note: ''}),
+    fields: [number('amount', '实际自付金额（元）', false, {min: 0, max: 9999999999.99, step: '0.01', placeholder: '大于 0 自动同步个人账单'}), {key: 'visitDate', label: '就诊日期', type: 'date', required: true}, text('hospitalName', '医院名称', true), text('departmentName', '科室'), text('doctorName', '医生'),
       select('visitType', '就诊类型', [['OUTPATIENT', '门诊'], ['EMERGENCY', '急诊'], ['INPATIENT', '住院'], ['FOLLOW_UP', '复诊']]),
       area('chiefComplaint', '主诉'), area('diagnosisSummary', '诊断摘要'), area('treatmentPlan', '治疗方案'), area('doctorAdvice', '医嘱'),
       text('caseRecordFileName', '病历文件名'), text('caseRecordUrl', '病历文件地址'), area('note', '备注')]

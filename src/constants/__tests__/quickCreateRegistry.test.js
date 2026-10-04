@@ -2,6 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {QUICK_CREATE_TYPES, resolveQuickCreateTypes} from '../quickCreateRegistry.js'
 
+test('医院就诊快捷新增支持可选自付金额', () => {
+  const visit = QUICK_CREATE_TYPES.find(item => item.typeCode === 'HEALTH_VISIT')
+  const amount = visit.fields.find(field => field.key === 'amount')
+  assert.equal(visit.defaults().amount, '')
+  assert.equal(amount.required, false)
+  assert.equal(amount.min, 0)
+  assert.equal(amount.step, '0.01')
+})
+
 test('quick create registry exposes all thirteen business create types', () => {
   assert.equal(QUICK_CREATE_TYPES.length, 13)
   assert.equal(new Set(QUICK_CREATE_TYPES.map((item) => item.typeCode)).size, 13)
