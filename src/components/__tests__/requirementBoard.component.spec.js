@@ -61,8 +61,9 @@ function buildBoardPayload() {
   }
 }
 
-async function mountBoard() {
+async function mountBoard(attachToBody = false) {
   const wrapper = mount(RequirementBoard, {
+    ...(attachToBody ? {attachTo: document.body} : {}),
     props: {currentUser: {id: '1', roleCode: 'USER'}},
     global: {
       stubs: {
@@ -94,6 +95,166 @@ afterEach(() => {
 })
 
 describe('RequirementBoard', () => {
+  it('plans feedback directly from the card without opening details', async () => {
+    const updated = {...buildBoardPayload().list[0], status: 'PLANNED', version: 2}
+    updateRequirementItemProgress.mockResolvedValue(buildResponse(updated))
+    const wrapper = await mountBoard()
+    await wrapper.get('.board-trigger').trigger('click')
+    const payload = buildBoardPayload()
+    payload.list[0] = updated
+    payload.statusCounts = [{status: 'PLANNED', count: 2}]
+    listRequirementItems.mockResolvedValue(buildResponse(payload))
+
+    await wrapper.get('[data-quick-status="PLANNED"]').trigger('click')
+    await flushPromises()
+
+    expect(updateRequirementItemProgress).toHaveBeenCalledWith('100', {status: 'PLANNED', remark: null, version: 1})
+    expect(getRequirementItemDetail).not.toHaveBeenCalled()
+    expect(wrapper.find('.board-popover').exists()).toBe(true)
+    expect(wrapper.findAll('.notice-card')[0].text()).toContain('已规划')
+    expect(listRequirementItems).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['PENDING_REVIEW', 'IN_PROGRESS', '开始处理'],
+    ['PLANNED', 'IN_PROGRESS', '开始处理'],
+    ['PLANNED', 'COMPLETED', '完成'],
+    ['IN_PROGRESS', 'COMPLETED', '完成'],
+    ['COMPLETED', 'PENDING_REVIEW', '重新评估'],
+    ['DECLINED', 'PENDING_REVIEW', '重新评估']
+  ])('offers a direct action from %s to %s', async (status, target, label) => {
+    const payload = buildBoardPayload()
+    payload.list = [{...payload.list[0], status}]
+    listRequirementItems.mockResolvedValue(buildResponse(payload))
+    updateRequirementItemProgress.mockResolvedValue(buildResponse({...payload.list[0], status: target, version: 2}))
+    const wrapper = await mountBoard()
+    await wrapper.get('.board-trigger').trigger('click')
+    const action = wrapper.get(`[data-quick-status="${target}"]`)
+    expect(action.text()).toBe(label)
+    await action.trigger('click')
+    await flushPromises()
+    expect(updateRequirementItemProgress).toHaveBeenCalledWith('100', {status: target, remark: null, version: 1})
+    wrapper.unmount()
+  })
+
+  it('offers other statuses without nested buttons or opening details', async () => {
+    updateRequirementItemProgress.mockResolvedValue(buildResponse({...buildBoardPayload().list[0], status: 'DECLINED', version: 2}))
+    const wrapper = await mountBoard()
+    await wrapper.get('.board-trigger').trigger('click')
+    const card = wrapper.findAll('.notice-card')[0]
+    expect(card.find('button button').exists()).toBe(false)
+    await card.get('[data-other-status="DECLINED"]').trigger('click')
+    await flushPromises()
+    expect(updateRequirementItemProgress).toHaveBeenCalledWith('100', {status: 'DECLINED', remark: null, version: 1})
+    expect(getRequirementItemDetail).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('prevents repeated submissions and keeps the board open while saving', async () => {
+    let finishUpdate
+    updateRequirementItemProgress.mockImplementation(() => new Promise(resolve => { finishUpdate = resolve }))
+    const wrapper = await mountBoard()
+    await wrapper.get('.board-trigger').trigger('click')
+    vi.useFakeTimers()
+    try {
+      const action = wrapper.get('[data-quick-status="PLANNED"]')
+      await action.trigger('click')
+      expect(action.attributes('disabled')).toBeDefined()
+      await action.trigger('click')
+      await wrapper.get('.notice-board').trigger('mouseleave')
+      vi.advanceTimersByTime(3000)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.board-popover').exists()).toBe(true)
+      expect(updateRequirementItemProgress).toHaveBeenCalledTimes(1)
+      finishUpdate(buildResponse({...buildBoardPayload().list[0], status: 'PLANNED', version: 2}))
+      await flushPromises()
+    } finally {
+      vi.useRealTimers()
+      wrapper.unmount()
+    }
+  })
+
+  it('retains the current status on a version conflict and permits retry', async () => {
+    updateRequirementItemProgress.mockRejectedValue({response: {data: {message: '反馈已被其他用户更新，请刷新后重试'}}})
+    const wrapper = await mountBoard()
+    await wrapper.get('.board-trigger').trigger('click')
+    await wrapper.get('[data-quick-status="PLANNED"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.notice-card')[0].get('.notice-status').text()).toContain('待评估')
+    expect(wrapper.emitted('notice')?.[0]).toEqual(['error', '更新失败', '反馈已被其他用户更新，请刷新后重试'])
+    expect(wrapper.get('[data-quick-status="PLANNED"]').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('refreshes the active status filter after updating progress', async () => {
+    const wrapper = await mountBoard()
+    await wrapper.get('.board-trigger').trigger('click')
+    await wrapper.findAll('.notice-status-filter button')[1].trigger('click')
+    await flushPromises()
+    updateRequirementItemProgress.mockResolvedValue(buildResponse({...buildBoardPayload().list[0], status: 'PLANNED', version: 2}))
+    listRequirementItems.mockResolvedValue(buildResponse({total: 0, list: [], statusCounts: [{status: 'PLANNED', count: 2}]}))
+    await wrapper.get('[data-quick-status="PLANNED"]').trigger('click')
+    await flushPromises()
+    expect(listRequirementItems).toHaveBeenLastCalledWith(expect.objectContaining({status: 'PENDING_REVIEW'}))
+    expect(wrapper.findAll('.requirement-card')).toHaveLength(0)
+    expect(wrapper.text()).toContain('2 条')
+    wrapper.unmount()
+  })
+
+  it('keeps the saved result if refreshing the board fails', async () => {
+    const wrapper = await mountBoard()
+    await wrapper.get('.board-trigger').trigger('click')
+    updateRequirementItemProgress.mockResolvedValue(buildResponse({...buildBoardPayload().list[0], status: 'PLANNED', version: 2}))
+    listRequirementItems.mockRejectedValue(new Error('offline'))
+    await wrapper.get('[data-quick-status="PLANNED"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('.notice-card')[0].get('.notice-status').text()).toContain('已规划')
+    expect(wrapper.get('.notice-inline-error').text()).toContain('重试')
+    expect(wrapper.emitted('notice')?.[0]?.[0]).toBe('success')
+    wrapper.unmount()
+  })
+
+  it('uses the returned version for the next action when list refresh fails', async () => {
+    const wrapper = await mountBoard()
+    await wrapper.get('.board-trigger').trigger('click')
+    updateRequirementItemProgress.mockResolvedValue(buildResponse({...buildBoardPayload().list[0], status: 'PLANNED', version: 2}))
+    listRequirementItems.mockRejectedValue(new Error('offline'))
+    await wrapper.get('[data-quick-status="PLANNED"]').trigger('click')
+    await flushPromises()
+    updateRequirementItemProgress.mockResolvedValue(buildResponse({...buildBoardPayload().list[0], status: 'IN_PROGRESS', version: 3}))
+    await wrapper.findAll('.notice-card')[0].get('[data-quick-status="IN_PROGRESS"]').trigger('click')
+    await flushPromises()
+    expect(updateRequirementItemProgress).toHaveBeenLastCalledWith('100', {status: 'IN_PROGRESS', remark: null, version: 2})
+    expect(wrapper.findAll('.notice-card')[0].get('.notice-status').text()).toContain('进行中')
+    wrapper.unmount()
+  })
+
+  it('pauses automatic hiding for an open status menu and supports Escape', async () => {
+    const wrapper = await mountBoard(true)
+    await wrapper.get('.board-trigger').trigger('click')
+    vi.useFakeTimers()
+    try {
+      const menu = wrapper.findAll('.notice-other-status')[0]
+      menu.element.open = true
+      await menu.trigger('toggle')
+      await wrapper.get('.notice-board').trigger('mouseleave')
+      vi.advanceTimersByTime(3000)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.board-popover').exists()).toBe(true)
+      await menu.trigger('keydown', {key: 'Escape'})
+      await menu.trigger('toggle')
+      expect(menu.element.open).toBe(false)
+      await wrapper.get('.notice-board').trigger('mouseleave')
+      vi.advanceTimersByTime(2200)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.board-popover').exists()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+      wrapper.unmount()
+    }
+  })
+
   it('loads shared cards and renders status totals', async () => {
     const wrapper = await mountBoard()
 

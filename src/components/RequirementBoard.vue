@@ -113,13 +113,13 @@
 
     <div v-if="boardLoading && !requirements.length" class="notice-empty">正在读取反馈...</div>
     <div v-else-if="requirements.length" class="notice-grid" aria-live="polite">
-      <button
+      <article
         v-for="item in requirements"
         :key="item.id"
-        type="button"
-        class="notice-card requirement-card"
-        @click="openDetailDialog(item)"
+        class="notice-card"
+        :aria-busy="quickSubmittingId === item.id"
       >
+        <button type="button" class="requirement-card" :disabled="quickSubmittingId !== null" @click="openDetailDialog(item)">
         <span class="notice-card-topline">
           <span class="notice-app">
             <span class="notice-app-mark" aria-hidden="true">{{ appMark(item.appName) }}</span>
@@ -144,7 +144,38 @@
           <span>{{ item.creatorName || '未知用户' }}</span>
           <time :datetime="item.updatedAt">{{ formatDateTime(item.updatedAt) }}</time>
         </span>
-      </button>
+        </button>
+        <div class="notice-card-actions" :aria-label="`${item.title}的状态操作`">
+          <button
+            v-for="action in quickActions(item.status)"
+            :key="action.value"
+            type="button"
+            class="notice-quick-button"
+            :class="{'notice-quick-primary': action.value !== 'PENDING_REVIEW'}"
+            :data-quick-status="action.value"
+            :disabled="quickSubmittingId !== null || boardLoading"
+            @click="submitQuickProgress(item, action.value)"
+          >{{ action.label }}</button>
+          <details class="notice-other-status" @toggle="handleStatusMenuToggle" @keydown.esc.prevent.stop="$event.currentTarget.open = false">
+            <summary :aria-label="`${item.title}的其他状态`">其他状态</summary>
+            <div class="notice-other-status-options">
+              <button
+                v-for="option in boardStatusOptions"
+                :key="option.value"
+                type="button"
+                :data-other-status="option.value"
+                :disabled="option.value === item.status || quickSubmittingId !== null || boardLoading"
+                @click="submitQuickProgress(item, option.value, $event)"
+              >
+                <span class="notice-status-dot" :class="statusClass(option.value)" aria-hidden="true"></span>
+                {{ option.label }}<span v-if="option.value === item.status" class="notice-current-status">当前</span>
+              </button>
+            </div>
+          </details>
+          <button type="button" class="notice-remark-button" :disabled="quickSubmittingId !== null" @click="openDetailDialog(item)">填写说明</button>
+          <span v-if="quickSubmittingId === item.id" class="notice-quick-saving" role="status">保存中…</span>
+        </div>
+      </article>
     </div>
     <div v-else class="notice-empty">
       <strong>这里还没有反馈</strong>
@@ -368,6 +399,13 @@ const STATUS_OPTIONS = [
   {value: 'DECLINED', label: '不采纳'}
 ]
 const BOARD_STATUS_OPTIONS = STATUS_OPTIONS.filter((item) => item.value)
+const QUICK_STATUS_ACTIONS = {
+  PENDING_REVIEW: [{value: 'PLANNED', label: '纳入规划'}, {value: 'IN_PROGRESS', label: '开始处理'}],
+  PLANNED: [{value: 'IN_PROGRESS', label: '开始处理'}, {value: 'COMPLETED', label: '完成'}],
+  IN_PROGRESS: [{value: 'COMPLETED', label: '完成'}],
+  COMPLETED: [{value: 'PENDING_REVIEW', label: '重新评估'}],
+  DECLINED: [{value: 'PENDING_REVIEW', label: '重新评估'}]
+}
 const PRIORITY_OPTIONS = [
   {value: 'HIGH', label: '高'},
   {value: 'MEDIUM', label: '中'},
@@ -416,6 +454,9 @@ export default {
     const boardTotal = ref(0)
     const boardLoading = ref(false)
     const boardError = ref('')
+    const quickSubmittingId = ref(null)
+    // 原生 details 菜单可能延伸出浮层，展开时暂停自动隐藏。
+    const openStatusMenus = new Set()
     const showFormDialog = ref(false)
     const formMode = ref('create')
     const formSubmitting = ref(false)
@@ -467,7 +508,7 @@ export default {
       }
     }
 
-    const loadBoard = async () => {
+    const loadBoard = async (options = {}) => {
       boardLoading.value = true
       boardError.value = ''
       try {
@@ -477,9 +518,11 @@ export default {
         boardTotal.value = Number(payload.total || 0)
       } catch (error) {
         boardError.value = extractErrorMessage(error, '用户看板暂时无法加载，请稍后重试。')
-        requirements.value = []
-        statusCounts.value = []
-        boardTotal.value = 0
+        if (!options.preserveExisting) {
+          requirements.value = []
+          statusCounts.value = []
+          boardTotal.value = 0
+        }
       } finally {
         boardLoading.value = false
       }
@@ -526,12 +569,16 @@ export default {
 
     const closePanel = () => {
       cancelPanelHide()
+      openStatusMenus.clear()
       panelOpen.value = false
     }
 
     const schedulePanelHide = () => {
       cancelPanelHide()
-      if (!panelOpen.value || showFormDialog.value || showDetailDialog.value) {
+      for (const menu of openStatusMenus) {
+        if (!menu.isConnected) openStatusMenus.delete(menu)
+      }
+      if (!panelOpen.value || showFormDialog.value || showDetailDialog.value || quickSubmittingId.value !== null || openStatusMenus.size) {
         return
       }
       panelHideTimer = window.setTimeout(() => {
@@ -542,7 +589,60 @@ export default {
 
     const togglePanel = () => {
       cancelPanelHide()
+      openStatusMenus.clear()
       panelOpen.value = !panelOpen.value
+    }
+
+    const handleStatusMenuToggle = (event) => {
+      const menu = event.target
+      // 忽略列表刷新或面板关闭后，已卸载菜单迟到的 toggle 事件。
+      if (!menu.isConnected) return
+      for (const previousMenu of openStatusMenus) {
+        if (!previousMenu.isConnected) openStatusMenus.delete(previousMenu)
+      }
+      if (menu.open) {
+        openStatusMenus.add(menu)
+        cancelPanelHide()
+      } else {
+        openStatusMenus.delete(menu)
+      }
+    }
+
+    const quickActions = (status) => QUICK_STATUS_ACTIONS[status] || []
+
+    const submitQuickProgress = async (item, status, event) => {
+      if (quickSubmittingId.value !== null || boardLoading.value || status === item.status) return
+      cancelPanelHide()
+      quickSubmittingId.value = item.id
+      const menu = event?.currentTarget?.closest('details')
+      if (menu) {
+        menu.open = false
+        openStatusMenus.delete(menu)
+      }
+      try {
+        const updated = unwrapData(await updateRequirementItemProgress(item.id, {
+          status, remark: null, version: item.version
+        }))
+        // 先应用服务端确认的数据，后续列表刷新失败也不丢失已保存的结果。
+        for (const count of statusCounts.value) {
+          if (count.status === item.status) count.count = Math.max(0, Number(count.count || 0) - 1)
+        }
+        const targetCount = statusCounts.value.find(count => count.status === updated.status)
+        if (targetCount) targetCount.count = Number(targetCount.count || 0) + 1
+        else statusCounts.value.push({status: updated.status, count: 1})
+        requirements.value = requirements.value.map(current => current.id === item.id ? {...current, ...updated} : current)
+        if (query.status && updated.status !== query.status) {
+          requirements.value = requirements.value.filter(current => current.id !== item.id)
+          boardTotal.value = Math.max(0, boardTotal.value - 1)
+          query.pageNo = Math.min(query.pageNo, totalPages.value)
+        }
+        await loadBoard({preserveExisting: true})
+        emit('notice', 'success', '进度已同步', `${formatType(item.type)}已更新为“${formatStatus(updated.status)}”。`)
+      } catch (error) {
+        emit('notice', 'error', '更新失败', extractErrorMessage(error, '反馈可能已被其他用户更新，请刷新后重试。'))
+      } finally {
+        quickSubmittingId.value = null
+      }
     }
 
     const openCreateDialog = () => {
@@ -749,6 +849,10 @@ export default {
       allStatusCount,
       boardLoading,
       boardError,
+      quickSubmittingId,
+      quickActions,
+      submitQuickProgress,
+      handleStatusMenuToggle,
       statusOptions: STATUS_OPTIONS,
       boardStatusOptions: BOARD_STATUS_OPTIONS,
       priorityOptions: PRIORITY_OPTIONS,
@@ -1203,6 +1307,144 @@ export default {
   background: var(--theme-surface-hover);
 }
 
+.requirement-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notice-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 9px;
+  border-top: 1px solid var(--theme-border);
+}
+
+.notice-quick-button,
+.notice-remark-button,
+.notice-other-status summary {
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--theme-text-muted);
+  background: var(--theme-control-surface);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notice-quick-primary {
+  color: var(--theme-accent);
+  border-color: color-mix(in srgb, var(--theme-accent) 28%, var(--theme-border));
+  background: color-mix(in srgb, var(--theme-accent) 8%, var(--theme-control-surface));
+  font-weight: 650;
+}
+
+.notice-remark-button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.notice-quick-button:hover,
+.notice-remark-button:hover,
+.notice-other-status summary:hover {
+  background: var(--theme-surface-hover);
+}
+
+.requirement-card:focus-visible,
+.notice-card-actions button:focus-visible,
+.notice-other-status summary:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 3px;
+}
+
+.notice-card-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.notice-other-status {
+  position: relative;
+}
+
+.notice-other-status summary {
+  list-style: none;
+}
+
+.notice-other-status summary::-webkit-details-marker {
+  display: none;
+}
+
+.notice-other-status summary::after {
+  content: '⌄';
+  margin-left: 5px;
+}
+
+.notice-other-status-options {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  z-index: 2;
+  width: 154px;
+  padding: 5px;
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+  background: var(--theme-option-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 15%);
+}
+
+.notice-other-status-options button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--theme-text);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notice-other-status-options button:hover:not(:disabled) {
+  background: var(--theme-surface-hover);
+}
+
+.notice-current-status,
+.notice-quick-saving {
+  color: var(--theme-text-muted);
+  font-size: 11px;
+}
+
+.notice-current-status {
+  margin-left: auto;
+}
+
+@media (pointer: coarse) {
+  .notice-card-actions button,
+  .notice-other-status summary {
+    min-height: 44px;
+  }
+}
+
 .notice-card-topline {
   justify-content: space-between;
   gap: 10px;
@@ -1286,7 +1528,7 @@ export default {
   font-weight: 800;
 }
 
-.notice-card > strong {
+.requirement-card > strong {
   overflow: hidden;
   font-size: 14px;
   font-weight: 760;
