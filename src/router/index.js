@@ -3,6 +3,7 @@ import {readAuthState} from '@/utils/authStorage'
 import {resolveNavigationTarget} from '@/utils/routeAccess'
 
 const routes = [
+    {path: '/travel-record', component: () => import('../views/TravelRecords.vue')},
     {path: '/messages', component: () => import('../views/MessageCenter.vue')},
     {path: '/system/messages', meta: {requiresAdmin: true}, component: () => import('../views/MessageManagement.vue')},
     {path: '/', redirect: '/login'}, // 打开直接进入登录页
