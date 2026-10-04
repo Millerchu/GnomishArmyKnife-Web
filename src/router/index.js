@@ -3,6 +3,7 @@ import {readAuthState} from '@/utils/authStorage'
 import {resolveNavigationTarget} from '@/utils/routeAccess'
 
 const routes = [
+    {path: '/growth-record', component: () => import('../views/GrowthRecords.vue')},
     {path: '/travel-record', component: () => import('../views/TravelRecords.vue')},
     {path: '/messages', component: () => import('../views/MessageCenter.vue')},
     {path: '/system/messages', meta: {requiresAdmin: true}, component: () => import('../views/MessageManagement.vue')},

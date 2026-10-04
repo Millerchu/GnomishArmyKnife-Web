@@ -2,6 +2,7 @@ const APP_ICON_CHROMA_KEY = '#ff00ff'
 const APP_ICON_PUBLIC_BASE_PATH = '/app-icons'
 
 const APP_ICON_ASSET_MAP = {
+  APP_GROWTH_RECORD: 'app-growth-record.svg',
   APP_CALCULATOR: 'app-calculator.png',
   APP_WORK_LOG: 'app-work-log.png',
   APP_PASSWORD_MEMO: 'app-password-memo.png',
@@ -35,7 +36,7 @@ const LEGACY_TEXT_ICON_MAP = {
 const GENERIC_APP_ICON_FILE_NAME = 'app-generic.png'
 
 function buildPublicAssetIcon(fileName) {
-  const iconChromaKey = /\.webp$/i.test(fileName) ? '' : APP_ICON_CHROMA_KEY
+  const iconChromaKey = /\.(webp|svg)$/i.test(fileName) ? '' : APP_ICON_CHROMA_KEY
   return {
     iconType: 'URL',
     iconUrl: `${APP_ICON_PUBLIC_BASE_PATH}/${fileName}`,
@@ -64,7 +65,7 @@ export function isLegacyTextIconSeed(featureCode = '', iconText = '') {
 
 export function inferIconChromaKey(iconUrl = '') {
   const normalizedIconUrl = `${iconUrl || ''}`
-  return normalizedIconUrl.startsWith(APP_ICON_PUBLIC_BASE_PATH) && !/\.webp(?:[?#]|$)/i.test(normalizedIconUrl)
+  return normalizedIconUrl.startsWith(APP_ICON_PUBLIC_BASE_PATH) && !/\.(webp|svg)(?:[?#]|$)/i.test(normalizedIconUrl)
     ? APP_ICON_CHROMA_KEY
     : ''
 }

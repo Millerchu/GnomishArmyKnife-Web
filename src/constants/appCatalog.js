@@ -29,6 +29,11 @@ export const APP_DATA_SOURCE_OPTIONS = [
 
 export const USER_APP_DEFINITIONS = [
   {
+    key: 'growth-record', name: '芽记', featureCode: 'APP_GROWTH_RECORD', route: '/growth-record',
+    category: '个人生活', dataSourceMode: 'REAL', securityLevel: 'CONFIDENTIAL', encryptionMode: 'NONE',
+    description: '管理宝宝档案、生长测量、接种记录和成长里程碑。'
+  },
+  {
     key: 'travel-record', name: '行笺', featureCode: 'APP_TRAVEL_RECORD', route: '/travel-record',
     category: '个人生活', dataSourceMode: 'REAL', securityLevel: 'CONFIDENTIAL', encryptionMode: 'NONE',
     description: '长期保存交通票据、整理出行分组，并将费用同步到个人账单。'
