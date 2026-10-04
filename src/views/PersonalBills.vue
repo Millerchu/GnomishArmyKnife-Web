@@ -56,7 +56,7 @@
             <header><div><strong>{{ formatDay(group.date) }}</strong><span>{{ formatWeekday(group.date) }}</span></div><p>支 {{ formatCurrency(group.expense) }} · 收 {{ formatCurrency(group.income) }}</p></header>
             <button v-for="item in group.items" :key="item.id" class="bill-row" type="button" @click="openEditBillDialog(item)">
               <span class="category-icon" :style="categoryStyle(item.categoryName)">{{ categoryIcon(item.categoryName) }}</span>
-              <span class="bill-copy"><b>{{ item.categoryName }}<small v-if="item.sourceType === 'TRAVEL_RECORD'"> · 行程{{ item.sourceEntry === 'REFUND' ? '退款' : '支出' }} ↗</small><small v-else-if="item.amount < 0"> · 退款冲减</small></b><small>{{ item.merchantName || item.note || item.accountName || '未填写说明' }}</small></span>
+              <span class="bill-copy"><b>{{ item.categoryName }}<small v-if="item.sourceType === 'TRAVEL_RECORD'"> · 行程{{ item.sourceEntry === 'REFUND' ? '退款' : '支出' }} ↗</small><small v-else-if="item.sourceType === 'FUEL_RECORD'"> · 油耗支出 ↗</small><small v-else-if="item.amount < 0"> · 退款冲减</small></b><small>{{ item.merchantName || item.note || item.accountName || '未填写说明' }}</small></span>
               <span class="bill-meta"><b :class="item.billType === 'EXPENSE' ? 'expense' : 'income'">{{ formatBillAmount(item) }}</b><small>{{ item.paymentMethod || item.accountName || '未选账户' }}</small></span>
             </button>
           </section>
@@ -262,7 +262,14 @@ function shiftMonth(offset) { const [year, month] = query.month.split('-').map(N
 const billBaselineKey = ref(0)
 function resetBillForm() { Object.assign(billForm, { refund: false, currency: query.currency, billType: 'EXPENSE', categoryName: billCategoryOptions.value[0]?.value || '', amount: 0, accountName: '', paymentMethod: '', merchantName: '', billDate: today(), note: '' }); amountExpression.value = '' }
 function openCreateBillDialog() { billDialogMode.value = 'create'; editingBill.value = null; resetBillForm(); showBillDialog.value = true; nextTick(() => amountInput.value?.focus()) }
-function openEditBillDialog(item) { if (item.sourceType === 'TRAVEL_RECORD' && item.sourceId) { router.push({ path: '/travel-record', query: { recordId: String(item.sourceId) } }); return } billDialogMode.value = 'edit'; editingBill.value = item; Object.assign(billForm, item, { refund: item.billType === 'EXPENSE' && item.amount < 0 }); amountExpression.value = String(Math.abs(item.amount)); showBillDialog.value = true; nextTick(() => amountInput.value?.focus()) }
+function openEditBillDialog(item) {
+  const sourceRoutes = { TRAVEL_RECORD: '/travel-record', FUEL_RECORD: '/fuel-stats' }
+  if (sourceRoutes[item.sourceType] && item.sourceId) {
+    router.push({ path: sourceRoutes[item.sourceType], query: { recordId: String(item.sourceId) } })
+    return
+  }
+  billDialogMode.value = 'edit'; editingBill.value = item; Object.assign(billForm, item, { refund: item.billType === 'EXPENSE' && item.amount < 0 }); amountExpression.value = String(Math.abs(item.amount)); showBillDialog.value = true; nextTick(() => amountInput.value?.focus())
+}
 function closeBillDialog() { if (!submitting.value) showBillDialog.value = false }
 function handleKeypad(key) {
   if (submitting.value) return

@@ -8,10 +8,10 @@ const pageContracts = [
   {
     name: '油耗统计',
     loadSource: () => import('../FuelStats.vue?raw'),
-    dialogCount: 2,
-    formIds: ['fuel-record-dialog-form'],
-    panelClasses: ['fuel-record-dialog', 'fuel-record-detail-dialog'],
-    closeDisabledBindings: ['submitting', 'false']
+    dialogCount: 3,
+    formIds: ['fuel-record-dialog-form', 'fuel-vehicle-form'],
+    panelClasses: ['fuel-record-dialog', 'fuel-record-detail-dialog', 'fuel-vehicle-dialog'],
+    closeDisabledBindings: ['submitting', 'false', 'vehicleSubmitting']
   },
   {
     name: '经验库',

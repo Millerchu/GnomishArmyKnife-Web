@@ -5,6 +5,10 @@ export function listFuelRecords(params) {
   return request.get('/fuel-records', {params})
 }
 
+export function getFuelRecord(id) {
+  return request.get(`/fuel-records/${id}`)
+}
+
 export function createFuelRecord(data) {
   return request.post('/fuel-records', data)
 }

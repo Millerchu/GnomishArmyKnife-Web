@@ -22,7 +22,7 @@ vi.mock('@/api/requirementBoard', () => ({
   deleteRequirementItem: vi.fn()
 }))
 vi.mock('@/api/dataDictionary', () => ({listDataDictionaryOptionsByUsage: vi.fn()}))
-vi.mock('vue-router', () => ({useRouter: () => ({push: vi.fn()})}))
+vi.mock('vue-router', () => ({useRouter: () => ({push: vi.fn()}), useRoute: () => ({query: {}})}))
 vi.mock('@/api/fuelStats', () => ({
   createFuelVehicle: vi.fn(), updateFuelVehicle: vi.fn(), deleteFuelVehicle: vi.fn(),
   createFuelRecord: vi.fn(), updateFuelRecord: vi.fn(), deleteFuelRecord: vi.fn(),
@@ -30,6 +30,7 @@ vi.mock('@/api/fuelStats', () => ({
   listFuelRecords: vi.fn(async () => ({data: {list: [], total: 0}})),
   getFuelReports: vi.fn(async () => ({data: {}})),
   getFuelSummary: vi.fn(async () => ({data: {}})),
+  getFuelRecord: vi.fn(),
   getLatestFuelPrices: vi.fn(async () => ({data: {}}))
 }))
 

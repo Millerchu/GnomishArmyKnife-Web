@@ -6,6 +6,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+/logs/
+
+# Local service lifecycle state
+/scripts/*.pid
 
 node_modules
 dist

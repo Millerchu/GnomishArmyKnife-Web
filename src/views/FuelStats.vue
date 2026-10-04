@@ -17,8 +17,8 @@
         <p class="page-subtitle">记录每次加油数据，持续观察平均油耗、月度花费和车辆用车成本，字段设计参考成熟加油类 App。</p>
       </div>
       <div class="hero-tags">
-        <span class="hero-tag">平均油耗 {{ formatConsumption(summary.averageConsumption) }}</span>
-        <span class="hero-tag">本月实付 {{ formatCurrency(summary.currentMonthAmount) }}</span>
+        <span class="hero-tag">平均油耗 <FuelMetric :value="summary.averageConsumption || null" unit="L/100km" /></span>
+        <span class="hero-tag">本月实付 <FuelMetric :value="summary.currentMonthAmount" prefix="¥" /></span>
         <span class="hero-tag">已接真实接口</span>
       </div>
     </div>
@@ -41,25 +41,29 @@
               </button>
             </div>
           </div>
-          <strong class="headline-value">{{ formatConsumption(latestConsumptionRecord?.fuelConsumption) }}</strong>
+          <strong class="headline-value"><FuelMetric :value="latestConsumptionRecord?.fuelConsumption" :unit="latestConsumptionRecord?.fuelType === 'ELECTRIC' ? 'kWh/100km' : 'L/100km'" /></strong>
           <p class="headline-meta">
             {{ latestConsumptionRecord?.vehicleName || '暂无车辆' }}
             <span v-if="latestConsumptionRecord?.fuelDate"> · {{ latestConsumptionRecord.fuelDate }}</span>
-            <span v-if="latestConsumptionRecord?.consumptionDistanceKm > 0"> · 周期里程 {{ formatNumber(latestConsumptionRecord.consumptionDistanceKm) }} km</span>
+            <span v-if="latestConsumptionRecord?.consumptionDistanceKm > 0"> · 周期里程 <FuelMetric :value="latestConsumptionRecord.consumptionDistanceKm" :precision="1" unit="km" /></span>
           </p>
         </div>
         <div class="headline-stats">
           <div class="headline-stat">
             <span>最新实付</span>
-            <strong>{{ formatCurrency(latestConsumptionRecord?.discountedAmount || latestConsumptionRecord?.totalAmount) }}</strong>
+            <strong><FuelMetric :value="latestConsumptionRecord?.discountedAmount" prefix="¥" /></strong>
           </div>
           <div class="headline-stat">
             <span>周期加油量</span>
-            <strong>{{ latestConsumptionRecord ? `${formatNumber(latestConsumptionRecord.consumptionFuelVolume)} L` : '-' }}</strong>
+            <strong><FuelMetric :value="latestConsumptionRecord?.consumptionFuelVolume || null" :unit="latestConsumptionRecord?.fuelType === 'ELECTRIC' ? 'kWh' : 'L'" /></strong>
           </div>
           <div class="headline-stat">
             <span>车辆均值</span>
-            <strong>{{ formatConsumption(activeVehicleAverageConsumption) }}</strong>
+            <strong><FuelMetric :value="activeVehicleAverageConsumption || null" unit="L/100km" /></strong>
+          </div>
+          <div class="headline-stat">
+            <span>每公里油费</span>
+            <strong><FuelMetric :value="latestConsumptionRecord?.costPerKm" :precision="3" unit="元/km" /></strong>
           </div>
         </div>
       </article>
@@ -110,7 +114,7 @@
           <div class="price-grid" :class="{ loading: fuelPriceLoading }" :aria-busy="fuelPriceLoading">
             <article v-for="item in fuelPriceCards" :key="item.code" class="price-card">
               <span>{{ item.label }}</span>
-              <strong>{{ item.priceText }}</strong>
+              <strong><FuelMetric :value="item.price" prefix="¥" unit="/L" /></strong>
             </article>
           </div>
 
@@ -132,11 +136,11 @@
             <div class="trend-summary" aria-label="年度用油汇总">
               <div>
                 <span>累计油量</span>
-                <strong>{{ formatNumber(yearFuelVolume) }} L</strong>
+                <strong><FuelMetric :value="yearFuelVolume" unit="L" /></strong>
               </div>
               <div>
                 <span>年度实付</span>
-                <strong>{{ formatCurrency(yearPaidAmount) }}</strong>
+                <strong><FuelMetric :value="yearPaidAmount" prefix="¥" /></strong>
               </div>
               <div>
                 <span>活跃月份</span>
@@ -154,7 +158,7 @@
                 </div>
                 <div class="chart-peak">
                   <span>峰值 · {{ monthlyPeakVolume.label }}</span>
-                  <strong>{{ formatNumber(monthlyPeakVolume.value) }} L</strong>
+                  <strong><FuelMetric :value="monthlyPeakVolume.value" unit="L" /></strong>
                 </div>
               </header>
 
@@ -190,7 +194,7 @@
                 </div>
                 <div class="chart-peak">
                   <span>月均实付</span>
-                  <strong>{{ formatCurrency(averageMonthlyPaidAmount) }}</strong>
+                  <strong><FuelMetric :value="averageMonthlyPaidAmount" prefix="¥" /></strong>
                 </div>
               </header>
 
@@ -239,7 +243,7 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">加油记录</h2>
-            <p class="panel-tip">油耗按两次加满之间的累计加油量和里程计算；未加满时等待下次加满，漏记后重新建立基准。</p>
+            <p class="panel-tip">油耗与每公里油费按两次加满之间的累计油量、实付金额和里程计算；未加满时等待下次加满，漏记后重新建立基准。新增记录自动同步到个人账单。</p>
           </div>
         </div>
 
@@ -265,6 +269,7 @@
                 <th>加油量(L)</th>
                 <th>优惠后</th>
                 <th>估算油耗</th>
+                <th>每公里油费</th>
                 <th>油站</th>
                 <th>操作</th>
               </tr>
@@ -274,8 +279,9 @@
                 <td>{{ item.fuelDate }}</td>
                 <td>{{ item.vehicleName }}</td>
                 <td>{{ formatNumber(item.fuelVolume) }}</td>
-                <td>{{ formatCurrency(item.discountedAmount) }}</td>
-                <td>{{ formatRecordConsumption(item) }}</td>
+                <td><FuelMetric :value="item.discountedAmount" prefix="¥" /></td>
+                <td><FuelMetric :value="item.fuelConsumption" :unit="item.fuelType === 'ELECTRIC' ? 'kWh/100km' : 'L/100km'" :empty-text="formatRecordConsumption(item)" /></td>
+                <td><FuelMetric :value="item.costPerKm" :precision="3" unit="元/km" /></td>
                 <td>{{ item.stationName || '-' }}</td>
                 <td>
                   <div class="row-actions">
@@ -301,13 +307,14 @@
                   <p class="mobile-record-subtitle">{{ item.fuelDate }} · {{ item.stationName || '未填写油站' }}</p>
                 </div>
                 <span class="consumption-chip" :class="consumptionClassMap[getConsumptionLevel(item.fuelConsumption)]">
-                  {{ formatRecordConsumption(item) }}
+                  <FuelMetric :value="item.fuelConsumption" :unit="item.fuelType === 'ELECTRIC' ? 'kWh/100km' : 'L/100km'" :empty-text="formatRecordConsumption(item)" />
                 </span>
               </div>
 
               <div class="mobile-record-grid">
-                <p><span>加油量</span><strong>{{ formatNumber(item.fuelVolume) }} L</strong></p>
-                <p><span>优惠后</span><strong>{{ formatCurrency(item.discountedAmount) }}</strong></p>
+                <p><span>加油量</span><strong><FuelMetric :value="item.fuelVolume" :unit="item.fuelType === 'ELECTRIC' ? 'kWh' : 'L'" /></strong></p>
+                <p><span>优惠后</span><strong><FuelMetric :value="item.discountedAmount" prefix="¥" /></strong></p>
+                <p><span>每公里油费</span><strong><FuelMetric :value="item.costPerKm" :precision="3" unit="元/km" /></strong></p>
                 <p><span>油站</span><strong>{{ item.stationName || '-' }}</strong></p>
                 <p class="wide"><span>备注</span><strong>{{ item.note || '-' }}</strong></p>
               </div>
@@ -352,23 +359,23 @@
         <div class="summary-grid">
           <article class="summary-card">
             <span>总实付</span>
-            <strong>{{ formatCurrency(summary.totalAmount) }}</strong>
+            <strong><FuelMetric :value="summary.totalAmount" prefix="¥" /></strong>
           </article>
           <article class="summary-card">
             <span>累计优惠</span>
-            <strong>{{ formatCurrency(summary.totalDiscountAmount) }}</strong>
+            <strong><FuelMetric :value="summary.totalDiscountAmount" prefix="¥" /></strong>
           </article>
           <article class="summary-card">
             <span>总加油量</span>
-            <strong>{{ formatNumber(summary.totalFuelVolume) }} L</strong>
+            <strong><FuelMetric :value="summary.totalFuelVolume" unit="L" /></strong>
           </article>
           <article class="summary-card">
             <span>平均单价</span>
-            <strong>{{ formatUnitPrice(summary.averageUnitPrice) }}</strong>
+            <strong><FuelMetric :value="summary.averageUnitPrice" :precision="3" unit="元/L" /></strong>
           </article>
           <article class="summary-card">
             <span>平均油耗</span>
-            <strong>{{ formatConsumption(summary.averageConsumption) }}</strong>
+            <strong><FuelMetric :value="summary.averageConsumption || null" unit="L/100km" /></strong>
           </article>
         </div>
 
@@ -381,7 +388,7 @@
             <div v-for="item in vehicleStats" :key="item.vehicleName" class="stats-row">
               <div>
                 <strong>{{ item.vehicleName }}</strong>
-                <span>{{ formatConsumption(item.averageConsumption) }} · {{ formatCurrency(item.totalAmount) }} · 优惠 {{ formatCurrency(item.totalDiscountAmount) }}</span>
+                <span><FuelMetric :value="Number(item.averageConsumption) || null" unit="L/100km" /> · <FuelMetric :value="Number(item.totalAmount)" prefix="¥" /> · 优惠 <FuelMetric :value="Number(item.totalDiscountAmount)" prefix="¥" /></span>
               </div>
               <b>{{ item.recordCount }} 条</b>
             </div>
@@ -397,7 +404,7 @@
           <div v-if="recentRecords.length" class="recent-list">
             <article v-for="item in recentRecords" :key="item.id" class="recent-item" @click="openEditDialog(item)">
               <strong>{{ item.vehicleName }} · {{ item.fuelDate }}</strong>
-              <span>{{ formatCurrency(item.discountedAmount || item.totalAmount) }} / {{ formatNumber(item.fuelVolume) }}L</span>
+              <span><FuelMetric :value="item.discountedAmount" prefix="¥" /> / <FuelMetric :value="item.fuelVolume" :unit="item.fuelType === 'ELECTRIC' ? 'kWh' : 'L'" /></span>
             </article>
           </div>
           <div v-else class="subtle-empty">暂无最近记录</div>
@@ -422,8 +429,8 @@
                 <div class="bar-fill yearly" :style="{width: `${getBarWidth(item.totalAmount, maxYearlyCost)}%`}"></div>
               </div>
               <div class="bar-meta">
-                <strong>{{ formatCurrency(item.totalAmount) }}</strong>
-                <span>{{ formatNumber(item.totalFuelVolume) }} L</span>
+                <strong><FuelMetric :value="Number(item.totalAmount)" prefix="¥" /></strong>
+                <span><FuelMetric :value="Number(item.totalFuelVolume)" unit="L" /></span>
               </div>
             </div>
           </div>
@@ -460,22 +467,24 @@
         <div v-if="detailRecord" class="detail-dialog">
         <div class="detail-dialog-head">
           <span class="consumption-chip" :class="consumptionClassMap[getConsumptionLevel(detailRecord.fuelConsumption)]">
-            {{ formatRecordConsumption(detailRecord) }}
+            <FuelMetric :value="detailRecord.fuelConsumption" :unit="detailRecord.fuelType === 'ELECTRIC' ? 'kWh/100km' : 'L/100km'" :empty-text="formatRecordConsumption(detailRecord)" />
           </span>
         </div>
 
           <div class="detail-grid">
           <p><span>车辆名称</span><strong>{{ detailRecord.vehicleName || '-' }}</strong></p>
           <p><span>加油时间</span><strong>{{ formatDateTime(detailRecord.fuelTime || detailRecord.fuelDate) }}</strong></p>
-          <p><span>当前里程</span><strong>{{ formatNumber(detailRecord.odometerKm) }} km</strong></p>
-          <p v-if="detailRecord.consumptionDistanceKm > 0"><span>油耗周期</span><strong>{{ formatNumber(detailRecord.consumptionFuelVolume) }} L / {{ formatNumber(detailRecord.consumptionDistanceKm) }} km</strong></p>
-          <p><span>里程差</span><strong>{{ detailRecord.distanceKm ? `${formatNumber(detailRecord.distanceKm)} km` : '-' }}</strong></p>
-          <p><span>加油量</span><strong>{{ formatNumber(detailRecord.fuelVolume) }} L</strong></p>
-          <p><span>机显单价</span><strong>{{ formatUnitPrice(detailRecord.machineUnitPrice) }}</strong></p>
-          <p><span>机显金额</span><strong>{{ formatCurrency(detailRecord.totalAmount) }}</strong></p>
-          <p><span>实付单价</span><strong>{{ formatUnitPrice(detailRecord.unitPrice) }}</strong></p>
-          <p><span>优惠后金额</span><strong>{{ formatCurrency(detailRecord.discountedAmount) }}</strong></p>
-          <p><span>优惠金额</span><strong>{{ formatCurrency(detailRecord.discountAmount) }}</strong></p>
+          <p><span>当前里程</span><strong><FuelMetric :value="detailRecord.odometerKm" :precision="1" unit="km" /></strong></p>
+          <p v-if="detailRecord.consumptionDistanceKm > 0"><span>油耗周期</span><strong><FuelMetric :value="detailRecord.consumptionFuelVolume" :unit="detailRecord.fuelType === 'ELECTRIC' ? 'kWh' : 'L'" /> / <FuelMetric :value="detailRecord.consumptionDistanceKm" :precision="1" unit="km" /></strong></p>
+          <p><span>每公里油费</span><strong><FuelMetric :value="detailRecord.costPerKm" :precision="3" unit="元/km" /></strong></p>
+          <p><span>周期实付油费</span><strong><FuelMetric :value="detailRecord.consumptionAmount" prefix="¥" /></strong></p>
+          <p><span>里程差</span><strong><FuelMetric :value="detailRecord.distanceKm || null" :precision="1" unit="km" /></strong></p>
+          <p><span>加油量</span><strong><FuelMetric :value="detailRecord.fuelVolume" :unit="detailRecord.fuelType === 'ELECTRIC' ? 'kWh' : 'L'" /></strong></p>
+          <p><span>机显单价</span><strong><FuelMetric :value="detailRecord.machineUnitPrice" :precision="3" :unit="detailRecord.fuelType === 'ELECTRIC' ? '元/kWh' : '元/L'" /></strong></p>
+          <p><span>机显金额</span><strong><FuelMetric :value="detailRecord.totalAmount" prefix="¥" /></strong></p>
+          <p><span>实付单价</span><strong><FuelMetric :value="detailRecord.unitPrice" :precision="3" :unit="detailRecord.fuelType === 'ELECTRIC' ? '元/kWh' : '元/L'" /></strong></p>
+          <p><span>优惠后金额</span><strong><FuelMetric :value="detailRecord.discountedAmount" prefix="¥" /></strong></p>
+          <p><span>优惠金额</span><strong><FuelMetric :value="detailRecord.discountAmount" prefix="¥" /></strong></p>
           <p><span>燃油标号</span><strong>{{ formatFuelTypeText(detailRecord.fuelType) }}</strong></p>
           <p><span>加油方式</span><strong>{{ formatFillTypeText(detailRecord.fillType) }}</strong></p>
           <p><span>油量警告灯</span><strong>{{ detailRecord.fuelWarningLight ? '已亮' : '未亮' }}</strong></p>
@@ -547,12 +556,12 @@
             <div class="calculation-row secondary">
               <div class="form-field calculation-result">
                 <span>{{ energyFieldLabels.actualUnitPrice }}</span>
-                <strong>{{ formatEnergyUnitPrice(calculatedActualUnitPrice) }}</strong>
+                <strong><FuelMetric :value="calculatedActualUnitPrice" :precision="3" :unit="currentFormEnergyType === 'ELECTRIC' ? '元/kWh' : '元/L'" /></strong>
               </div>
               <span class="calculation-operator" aria-hidden="true">－</span>
               <div class="form-field calculation-result">
                 <span>优惠金额</span>
-                <strong>{{ formatCurrency(calculatedDiscountAmount) }}</strong>
+                <strong><FuelMetric :value="calculatedDiscountAmount" prefix="¥" /></strong>
               </div>
               <span class="calculation-operator" aria-hidden="true">＝</span>
               <label class="form-field">
@@ -689,8 +698,9 @@
 </template>
 
 <script>
-import {computed, onMounted, reactive, ref} from 'vue'
-import {useRouter} from 'vue-router'
+import {computed, onMounted, reactive, ref, watch} from 'vue'
+import {useRouter, useRoute} from 'vue-router'
+import FuelMetric from '@/components/FuelMetric.vue'
 import MacDialog from '@/components/MacDialog.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import AttachmentManager from '@/components/AttachmentManager.vue'
@@ -703,6 +713,7 @@ import {
   getFuelReports,
   getLatestFuelPrices,
   getFuelSummary,
+  getFuelRecord,
   listFuelVehicles,
   listFuelRecords,
   updateFuelRecord,
@@ -778,6 +789,8 @@ function normalizeRecord(item = {}) {
     consumptionDistanceKm: Number(item.consumptionDistanceKm ?? 0),
     consumptionFuelVolume: Number(item.consumptionFuelVolume ?? 0),
     fuelConsumption: item.fuelConsumption != null ? Number(item.fuelConsumption) : null,
+    consumptionAmount: item.consumptionAmount != null ? Number(item.consumptionAmount) : null,
+    costPerKm: item.costPerKm != null ? Number(item.costPerKm) : null,
     attachments: Array.isArray(item.attachments) ? item.attachments : []
   }
 }
@@ -878,9 +891,10 @@ function buildYearlyCostReport(records = []) {
 
 export default {
   name: 'FuelStats',
-  components: {MacDialog, AttachmentManager, AttachmentGallery},
+  components: {MacDialog, AttachmentManager, AttachmentGallery, FuelMetric},
   setup() {
     const router = useRouter()
+    const route = useRoute()
 
     // 页面状态分成记录列表、洞察面板、图表报表和弹窗表单四块。
     const loading = ref(false)
@@ -974,11 +988,11 @@ export default {
         : FUEL_PRICE_REGIONS
     ))
     const fuelPriceCards = computed(() => ([
-      {code: '92', label: '92 号汽油', priceText: latestFuelPrices.prices['92'] ? `¥${Number(latestFuelPrices.prices['92']).toFixed(2)}/L` : '-'},
-      {code: '95', label: '95 号汽油', priceText: latestFuelPrices.prices['95'] ? `¥${Number(latestFuelPrices.prices['95']).toFixed(2)}/L` : '-'},
-      {code: '98', label: '98 号汽油', priceText: latestFuelPrices.prices['98'] ? `¥${Number(latestFuelPrices.prices['98']).toFixed(2)}/L` : '-'},
-      {code: 'DIESEL', label: '柴油', priceText: latestFuelPrices.prices.DIESEL ? `¥${Number(latestFuelPrices.prices.DIESEL).toFixed(2)}/L` : '-'}
-    ]))
+      {code: '92', label: '92 号汽油'},
+      {code: '95', label: '95 号汽油'},
+      {code: '98', label: '98 号汽油'},
+      {code: 'DIESEL', label: '柴油'}
+    ].map(item => ({...item, price: latestFuelPrices.prices[item.code] || null}))))
     const vehicleOptions = computed(() => {
       const maintainedNames = new Set(fuelVehicles.value.map((item) => item.vehicleName))
       const legacyVehicleMap = new Map()
@@ -1196,8 +1210,6 @@ export default {
     )
 
     const formatCurrency = (value) => `¥${Number(value || 0).toFixed(2)}`
-    const formatUnitPrice = (value) => value ? `¥${Number(value).toFixed(3)}/L` : '-'
-    const formatEnergyUnitPrice = (value) => `¥${Number(value || 0).toFixed(3)}${currentFormEnergyType.value === 'ELECTRIC' ? '/kWh' : '/L'}`
     const formatDateTime = (value) => value ? `${value}`.replace('T', ' ').slice(0, 16) : '-'
     const formatRecordConsumption = (record) => {
       if (record.fuelConsumption != null) return formatConsumption(record.fuelConsumption)
@@ -1459,6 +1471,19 @@ export default {
       showDetailDialog.value = false
       detailRecord.value = null
     }
+
+    // 账单来源直接查询对应记录，避免目标不在当前分页时无法定位。
+    watch(() => route.query.recordId, async (recordId, previousId, onCleanup) => {
+      if (!recordId) return
+      let active = true
+      onCleanup(() => { active = false })
+      try {
+        const response = await getFuelRecord(recordId)
+        if (active) openDetailDialog(normalizeRecord(unwrapData(response)))
+      } catch (error) {
+        if (active) alert(error?.response?.data?.message || '打开加油记录失败')
+      }
+    }, {immediate: true})
 
     const closeDialog = () => {
       if (submitting.value) {
@@ -1761,8 +1786,6 @@ export default {
       consumptionClassMap,
       formatNumber,
       formatCurrency,
-      formatUnitPrice,
-      formatEnergyUnitPrice,
       formatDateTime,
       formatConsumption,
       formatRecordConsumption,
