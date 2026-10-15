@@ -1,160 +1,58 @@
-# 数据迁移功能架构设计
+# 数据迁移当前实现
 
-本文档描述系统菜单“数据迁移”的推荐实现方式，目标是让管理员可以在不同环境之间导出、导入系统数据和业务数据，并按需携带附件。
+核对日期：2026-10-15。本文替代早期推荐方案，依据 DataMigration.vue、src/api/dataMigration.js 与后端 gak-data-migration。代码机制不代表目标环境已通过恢复验收。
 
-## 1. 目标与边界
+## 页面与接口
 
-- 仅管理员可见、可操作。
-- 支持导出系统数据、业务数据或两者组合。
-- 支持按应用维度选择业务数据，避免每次都全量迁移。
-- 导出结果统一生成 ZIP 包，便于跨环境传输。
-- 导入时支持严格、合并、覆盖三种策略。
-- 导入导出都沉淀为任务，保留执行状态、统计值、失败原因和下载地址。
+页面 /system/data-migrations 提供资源选择、导出配置、ZIP 导入和分页任务历史。后端 DataMigrationAdminGuard 限制管理员操作。浏览器前缀 /api/system/data-migrations，代理去掉 /api。
 
-## 2. 前端架构
+| 方法 | 相对路径 | 行为 |
+| --- | --- | --- |
+| GET | /resources | 实际可迁移资源 |
+| GET | /tasks、/tasks/{taskId} | 历史、详情 |
+| POST | /exports | 创建导出 |
+| POST | /imports | multipart：file 与 JSON 字符串 metadata |
+| GET | /tasks/{taskId}/download | blob 下载 |
+| DELETE | /tasks/{taskId} | 删除导出任务与归档清理 |
 
-页面路由：`/system/data-migrations`
+页面最多缓存 80 条本地历史，接口失败时降级显示；缓存不能证明服务端任务已完成。
 
-页面沿用现有系统管理模块的全局壁纸背景和毛玻璃容器，不单独覆盖全局背景层。
+## 后端分工
 
-页面分为三块：
+| 实现 | 职责 |
+| --- | --- |
+| DataMigrationService | 鉴权、任务创建/查询、删除、下载 |
+| MigrationResourceHandler | 资源定义、顺序、业务导出/导入 |
+| DataMigrationTaskExecutionService | 执行、统计、失败记录 |
+| DataMigrationArchiveService | JSON、ZIP、manifest、校验和 |
+| DataMigrationPackageStorageService / 本地实现 | 归档与临时文件 |
+| AttachmentMigrationSupport | 附件导出恢复与绑定 |
+| LegacyAttachmentMigrationRunner | 历史附件迁移 |
 
-1. 导出配置区
-   - 快捷模式：全部数据、仅系统数据、仅业务数据、自定义。
-   - 系统资源勾选：用户、应用目录、权限、字典、系统参数。
-   - 业务资源勾选：按应用目录中的 `featureCode` 选择。
-   - 导出选项：包名、是否包含附件、迁移说明。
+任务及明细已落库，创建事务提交后由 TaskExecutor 执行。进程内异步执行不等于具备持久队列、跨实例消费或重启续跑。
 
-2. 导入执行区
-   - 上传 ZIP 包。
-   - 选择导入策略：`MERGE` / `OVERWRITE` / `STRICT`。
-   - 选择是否导入附件、是否遇错继续。
+## 可迁移范围
 
-3. 任务记录区
-   - 展示导出、导入历史记录，而不只是最近一次任务。
-   - 支持按任务类型、执行状态筛选，并支持分页查看。
-   - 支持查看状态、统计值和导出包下载。
-   - 导出历史支持删除，删除时应同步清理对应 ZIP 压缩包和冗余文件。
-   - 前端可缓存最近一批历史记录，在任务接口短暂不可用时作为只读兜底。
+Handler 覆盖用户、应用、权限、字典、审计，以及待办、工作日志、密码备忘、WoW 角色、账单、经验库、健康、油耗、行程。实际可选项以 /resources 为准。
 
-## 3. 后端架构
+当前没有芽记、站内消息、随身乐器、需求看板和软件仓库的专属 Handler，“全部数据”不能理解为全库备份。新增应用需单独实现 Handler 并验证恢复。
 
-推荐拆成四层：
+行程资源包含关联支付/退款账单，个人账单资源避免重复导出行程账单。完整恢复要带用户资源或保证目标用户存在，详见后端 gak-modules/gak-data-migration/docs/travel-record-backup.md。
 
-1. 资源清单层
-   - 统一管理可迁移资源编码。
-   - 系统资源使用固定编码。
-   - 业务资源直接复用应用目录中的 `appCode/featureCode`。
+## 归档与校验
 
-2. 归档打包层
-   - 导出时根据资源清单拉取数据库数据。
-   - 如果资源带附件，则联动文件服务拉取附件。
-   - 生成 `manifest.json`、结构化数据文件、附件目录后压缩为 ZIP。
+Handler 提供 JSON 相对路径，归档服务写入 manifest.json；有附件时生成 attachments/index.json 并复制文件。manifest 记录包名、版本、来源、创建信息、资源选择、记录/附件数、checksum、兼容版本和资源版本。
 
-3. 导入校验层
-   - 校验 ZIP 结构、`manifest` 版本、来源环境、校验和、资源依赖关系。
-   - 校验通过后再进入执行层。
+导入检查 manifest 存在、必需字段和校验和，解包包含路径边界检查。记录版本字段不等于完整版本兼容协商，validateManifest 当前主要检查包名与创建人；不能沿用旧方案宣称已全面校验来源、版本和所有依赖。
 
-4. 任务执行层
-   - 导入导出都按任务执行。
-   - 任务记录建议包含：任务号、类型、状态、资源数、记录数、附件数、操作人、开始时间、结束时间、错误信息、下载地址。
-   - 任务记录必须持久化，供前端历史列表分页查询。
-   - 导出任务删除时，应同步删除任务关联的 ZIP 包、临时压缩文件和可清理的冗余归档文件。
+## 导入与事务
 
-## 4. 包结构建议
+MERGE、OVERWRITE、STRICT 的具体冲突处理由各 Handler 实现，OVERWRITE 不是无条件清空整库。执行器逐资源导入，按遇错是否继续等条件更新结果；整个 ZIP 不承诺统一回滚。
 
-```text
-data-migration-20260329.zip
-├── manifest.json
-├── system/
-│   ├── users.json
-│   ├── apps.json
-│   ├── permissions.json
-│   └── dictionaries.json
-├── business/
-│   ├── APP_TODO_LIST/
-│   │   └── data.json
-│   └── APP_WORK_LOG/
-│       └── data.json
-└── attachments/
-    ├── index.json
-    └── ...
-```
+数据库与磁盘不在同一事务，失败可能留下待清理文件，已成功的其他资源也不一定回滚。先在隔离环境验证重复导入、ID/用户映射、依赖顺序、附件恢复，再处理目标数据。
 
-`manifest.json` 建议至少包含：
+## 存储与验收
 
-- `packageName`
-- `packageVersion`
-- `sourceEnv`
-- `createdAt`
-- `createdBy`
-- `systemResourceCodes`
-- `businessAppCodes`
-- `recordCount`
-- `attachmentCount`
-- `checksum`
-- `compatibleVersion`
+GAK_DATA_MIGRATION_STORAGE_DIR 默认 ./data/data-migrations，NAS 为 /app/data/data-migrations。默认实现为本地磁盘，旧方案列举的 MinIO/OSS/S3 不能当成已接入能力。
 
-## 5. 附件处理建议
-
-如果业务模块存在图片、图标、上传文件、附件索引等内容，后端建议接入文件服务，不要把附件直接硬塞在业务表里：
-
-- 对象存储：MinIO、阿里云 OSS、Amazon S3
-- 文件服务：Nginx 静态目录、本地文件服务器
-- 打包组件：`zip4j`、`commons-compress`
-
-导出时：
-
-- 结构化数据保留附件元数据。
-- 附件文件按资源清单同步归档到 `attachments/`。
-
-导入时：
-
-- 先恢复附件，再回填业务表中的附件地址或文件 ID。
-- 如果目标环境使用文件服务，建议返回新的文件 URL 或文件标识。
-
-## 6. 任务模型建议
-
-建议新增迁移任务表：`gak_data_migration_task`
-
-核心字段：
-
-- `id`
-- `task_no`
-- `task_type`
-- `status`
-- `scope_mode`
-- `package_name`
-- `system_resource_codes`
-- `business_app_codes`
-- `record_count`
-- `attachment_count`
-- `file_url`
-- `file_storage_type`
-- `error_message`
-- `operator_user_id`
-- `created_at`
-- `finished_at`
-
-如需更细颗粒度统计，可增加明细表：`gak_data_migration_task_item`。
-
-## 7. 典型流程
-
-### 7.1 导出流程
-
-1. 前端读取资源清单。
-2. 管理员选择导出范围并提交。
-3. 后端创建导出任务。
-4. 后端组装结构化数据和附件。
-5. 后端生成 ZIP 包并回填下载地址。
-6. 前端在任务列表展示状态，并允许下载。
-7. 前端把返回的任务写入历史区，并在需要时缓存最近结果。
-
-### 7.2 导入流程
-
-1. 前端上传 ZIP 包和导入参数。
-2. 后端落临时文件或文件服务。
-3. 后端解析 `manifest.json` 并做校验。
-4. 校验通过后按策略执行导入。
-5. 导入完成后写入任务结果。
-6. 前端刷新任务列表查看结果。
+验收覆盖管理员权限、失败详情、ZIP 下载和校验、三种策略、附件、行程账单、导出任务删除；页面可打开或构建通过不足以证明可恢复。业务迁移包不能替代数据库和文件完整备份。
