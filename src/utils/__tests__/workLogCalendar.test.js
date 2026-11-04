@@ -296,3 +296,24 @@ test('previous defaults use natural calendar date and latest update then numeric
   assert.equal(selectPreviousLogDefaults([]), null)
   assert.equal(logs[0].id, 9)
 })
+
+test('item effort drives totals, leaves are excluded and shared daily overtime counts once', () => {
+  const logs = [
+    {logDate: '2026-11-02', projectCode: 'A', personDay: 1, overtimeHours: 2, workItems: [{content: '开发', personDay: 0.2}]},
+    {logDate: '2026-11-02', projectCode: 'B', personDay: 1, overtimeHours: 2, workItems: [{content: '联调', personDay: 0.3}]},
+    {logDate: '2026-11-03', typeCodes: ['LEAVE'], personDay: 1, overtimeHours: 0}
+  ]
+  const stats = calculateLogStats(logs)
+  assert.equal(stats.personDayTotal, 0.5)
+  assert.equal(stats.overtimeHoursTotal, 2)
+})
+
+test('weekly repeated tasks accumulate item effort and retain the latest completion status', () => {
+  const logs = [
+    {logDate: '2026-11-02', projectCode: 'A', workItems: [{content: '开发', personDay: 0.2, status: 'UNFINISHED'}]},
+    {logDate: '2026-11-03', projectCode: 'A', workItems: [{content: '开发', personDay: 0.3, status: 'COMPLETED'}]}
+  ]
+  const groups = buildWeeklyReportGroups(logs)
+  assert.equal(groups[0].personDayTotal, 0.5)
+  assert.deepEqual(groups[0].items, [{content: '开发', personDay: 0.5, status: 'COMPLETED'}])
+})

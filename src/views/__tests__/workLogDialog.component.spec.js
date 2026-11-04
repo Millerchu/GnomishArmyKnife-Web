@@ -219,7 +219,7 @@ async function mountWorkLogAndOpenCreateDialog() {
 async function fillValidCreateForm(panel, workItem = '完成 MacDialog 提交集成验证') {
   const form = panel.querySelector('form#work-log-dialog-form')
   const logDateInput = form.querySelector('input[type="date"]')
-  const personDayInput = form.querySelector('input[type="number"][step="0.1"]')
+  const personDayInput = form.querySelector('.work-item-person-day')
   const workItemInput = form.querySelector('.work-item-input-row input')
   const submitButton = panel.querySelector('.mac-dialog-actions button[type="submit"]')
 
@@ -436,11 +436,11 @@ describe('WorkLog MacDialog integration', () => {
     const fieldLabels = [...form.querySelectorAll('.form-field > span')]
       .map((label) => label.textContent.trim())
     expect(fieldLabels).toEqual(expect.arrayContaining([
-      '日期',
-      '人天',
+      '日期（当天基本信息）',
+      '工作内容总人天',
       '日志类型',
       '禅道号（自动汇总）',
-      '地点',
+      '地点（当天共用）',
       '所属项目',
       '工作内容',
       '备注'
@@ -481,11 +481,13 @@ describe('WorkLog MacDialog integration', () => {
     vi.stubGlobal('alert', vi.fn())
     const wrapper = await mountWorkLogAndOpenCreateDialog()
     await flushPromises()
+    await nextTick()
     await wrapper.vm.submitDialog()
     expect(createWorkLog).not.toHaveBeenCalled()
     wrapper.vm.form.typeCodes = ['LEAVE']
     await nextTick()
     expect(getDialogPanel().textContent).toContain('工作内容（选填）')
+    await nextTick()
     await wrapper.vm.submitDialog()
     expect(createWorkLog).toHaveBeenCalledWith(expect.objectContaining({
       typeCodes: ['LEAVE'], workItems: [], workItem: '', projectCode: 'LEAVE', location: '居家'
@@ -566,6 +568,7 @@ describe('WorkLog MacDialog integration', () => {
     getWorkLogDetail.mockResolvedValue(buildApiResponse({...editLogDetail, typeCodes: ['LEAVE'], workItem: '', workItems: []}))
     listWorkLogs.mockClear()
     await openEditDialog(wrapper)
+    await nextTick()
     await wrapper.vm.submitDialog()
     expect(updateWorkLog).toHaveBeenCalledWith(88, expect.objectContaining({workItems: [], workItem: '', typeCodes: ['LEAVE']}))
     expect(listWorkLogs.mock.calls.every(([params]) => params.startDate !== '2026-07-09' || params.endDate !== '2026-07-09')).toBe(true)
@@ -674,7 +677,7 @@ describe('WorkLog MacDialog integration', () => {
       projectCode: 'PROJECT_ALPHA',
       workItem: '完成 MacDialog 提交集成验证',
       status: 'COMPLETED',
-      workItems: [{content: '完成 MacDialog 提交集成验证', status: 'COMPLETED', zentaoNo: ''}],
+      workItems: [{content: '完成 MacDialog 提交集成验证', status: 'COMPLETED', zentaoNo: '', personDay: 0}],
       personDay: 0
     }))
   })
@@ -690,7 +693,7 @@ describe('WorkLog MacDialog integration', () => {
     expect(getWorkLogDetail).toHaveBeenCalledWith(editLogDetail.id)
     expect(panel.querySelector('.mac-dialog-title').textContent).toBe('修改工作日志')
     expect(form.querySelector('input[type="date"]').value).toBe(editLogDetail.logDate)
-    expect(form.querySelector('input[type="number"][step="0.1"]').value).toBe('0')
+    expect(form.querySelector('.work-item-person-day').value).toBe('0')
     expect(panel.querySelector('.multi-select-trigger').textContent).toContain('正常工作')
     expect(locationSelect.value).toBe(editLogDetail.location)
     expect(projectInput.value).toBe('项目 Alpha')
@@ -711,7 +714,7 @@ describe('WorkLog MacDialog integration', () => {
       projectCode: editLogDetail.projectCode,
       workItem: editLogDetail.workItem,
       status: editLogDetail.status,
-      workItems: [{content: editLogDetail.workItem, status: editLogDetail.status, zentaoNo: ''}],
+      workItems: [{content: editLogDetail.workItem, status: editLogDetail.status, zentaoNo: '', personDay: editLogDetail.personDay}],
       zentaoNo: editLogDetail.zentaoNo,
       personDay: editLogDetail.personDay,
       offWorkTime: editLogDetail.offWorkTime,
@@ -840,8 +843,8 @@ describe('WorkLog MacDialog integration', () => {
       workItem: '第一项工作\n第二项工作',
       status: 'UNFINISHED',
       workItems: [
-        {content: '第一项工作', status: 'COMPLETED', zentaoNo: '6419'},
-        {content: '第二项工作', status: 'UNFINISHED', zentaoNo: '6420'}
+        {content: '第一项工作', status: 'COMPLETED', zentaoNo: '6419', personDay: 0},
+        {content: '第二项工作', status: 'UNFINISHED', zentaoNo: '6420', personDay: 0}
       ]
     }))
   })
@@ -895,8 +898,8 @@ describe('WorkLog MacDialog integration', () => {
     expect(panel.querySelector('.work-item-zentao-input').value).toBe('6419')
     expect(panel.querySelector('.work-status-option.is-unfinished').getAttribute('aria-pressed')).toBe('true')
 
-    panel.querySelector('input[type="number"][step="0.1"]').value = '0'
-    panel.querySelector('input[type="number"][step="0.1"]').dispatchEvent(new Event('input', {bubbles: true}))
+    panel.querySelector('.work-item-person-day').value = '0'
+    panel.querySelector('.work-item-person-day').dispatchEvent(new Event('input', {bubbles: true}))
     panel.querySelector('.mac-dialog-actions button[type="submit"]').click()
     await flushPromises()
 
@@ -904,7 +907,7 @@ describe('WorkLog MacDialog integration', () => {
       projectCode: 'PROJECT_ALPHA',
       workItem: '结构树多选问题排查修复',
       status: 'UNFINISHED',
-      workItems: [{content: '结构树多选问题排查修复', status: 'UNFINISHED', zentaoNo: '6419'}]
+      workItems: [{content: '结构树多选问题排查修复', status: 'UNFINISHED', zentaoNo: '6419', personDay: 0}]
     }))
   })
 
@@ -927,7 +930,7 @@ describe('WorkLog MacDialog integration', () => {
     await wrapper.vm.openCreateDialog()
     await flushPromises()
     const panel = getDialogPanel()
-    const personDayInput = panel.querySelector('input[type="number"][step="0.1"]')
+    const personDayInput = panel.querySelector('.work-item-person-day')
 
     expect(personDayInput.max).toBe('0.4')
     expect(panel.querySelector('.field-hint').textContent).toContain('剩余 0.4 人天')
@@ -935,6 +938,7 @@ describe('WorkLog MacDialog integration', () => {
     personDayInput.value = '0.5'
     personDayInput.dispatchEvent(new Event('input', {bubbles: true}))
     expect(personDayInput.checkValidity()).toBe(false)
+    await nextTick()
     await wrapper.vm.submitDialog()
 
     expect(createWorkLog).not.toHaveBeenCalled()

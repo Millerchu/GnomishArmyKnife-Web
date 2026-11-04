@@ -149,6 +149,26 @@ export function mergeLogsByIdentity(logGroups = []) {
   return Array.from(mergedMap.values())
 }
 
+export function isLeaveLog(log) {
+  return (log?.typeCodes || []).some((code) => ['LEAVE', 'SICK_LEAVE'].includes(code))
+}
+
+export function getLogPersonDay(log) {
+  if (isLeaveLog(log)) return 0
+  const items = log?.workItems || []
+  return items.length && items.every((item) => item.personDay != null)
+    ? items.reduce((total, item) => total + toNumber(item.personDay), 0)
+    : toNumber(log?.personDay)
+}
+
+function sumDailyOvertime(logs) {
+  const totals = new Map()
+  logs.forEach((log) => {
+    if (!isLeaveLog(log)) totals.set(log.logDate, Math.max(totals.get(log.logDate) || 0, toNumber(log.overtimeHours)))
+  })
+  return [...totals.values()].reduce((sum, hours) => sum + hours, 0)
+}
+
 export function calculateLogStats(logs = [], formatters = {}) {
   const formatProjectText = formatters.formatProjectText || ((value) => value || '-')
   const formatLocationText = formatters.formatLocationText || ((value) => value || '-')
@@ -163,10 +183,10 @@ export function calculateLogStats(logs = [], formatters = {}) {
     }
     pushUniqueValue(projects, formatProjectText(item?.projectCode))
     pushUniqueValue(locations, formatLocationText(item?.location))
-    return total + toNumber(item?.personDay, 0)
+    return total + getLogPersonDay(item)
   }, 0)
 
-  const overtimeHoursTotal = logs.reduce((total, item) => total + toNumber(item?.overtimeHours, 0), 0)
+  const overtimeHoursTotal = sumDailyOvertime(logs)
   const businessTripAllowanceTotal = logs.reduce(
     (total, item) => total + toNumber(item?.businessTripAllowanceAmount, 0),
     0
@@ -194,7 +214,7 @@ export function calculateLogStats(logs = [], formatters = {}) {
 
 export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) => value || '未关联项目') {
   const projectMap = new Map()
-  const sortedLogs = logs.filter((item) => toNumber(item?.personDay, 0) !== 0).sort(compareLogOrder)
+  const sortedLogs = logs.filter((item) => !isLeaveLog(item) && getLogPersonDay(item) !== 0).sort(compareLogOrder)
 
   sortedLogs.forEach((item) => {
     const projectCode = item?.projectCode || 'NO_PROJECT'
@@ -210,7 +230,7 @@ export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) =
     }
 
     const project = projectMap.get(projectCode)
-    project.personDayTotal += toNumber(item?.personDay, 0)
+    project.personDayTotal += getLogPersonDay(item)
     parseZentaoNos(item?.zentaoNo).forEach((zentaoNo) => {
       if (project.zentaoSet.has(zentaoNo)) {
         return
@@ -227,6 +247,7 @@ export function buildWeeklyReportGroups(logs = [], formatProjectText = (value) =
       // 保持首次出现的位置，但使用本周最后一次记录的状态。
       project.itemMap.set(content, {
         content,
+        ...(workItem.personDay == null ? {} : {personDay: Number((toNumber(project.itemMap.get(content)?.personDay) + toNumber(workItem.personDay)).toFixed(1))}),
         status: String(workItem.status || '').toUpperCase() === 'UNFINISHED' ? 'UNFINISHED' : 'COMPLETED'
       })
     })
@@ -297,8 +318,8 @@ export function buildDateSummaryMap(days = [], logs = [], helpers = {}) {
       workItems: Array.from(workItemSet),
       zentaoNos,
       projectsText: joinUniqueValues(list.map((item) => formatProjectText(item.projectCode)).filter((item) => item && item !== '-')),
-      personDayTotal: list.reduce((total, item) => total + toNumber(item.personDay, 0), 0),
-      overtimeHoursTotal: list.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0),
+      personDayTotal: list.reduce((total, item) => total + getLogPersonDay(item), 0),
+      overtimeHoursTotal: sumDailyOvertime(list),
       businessTripAllowanceTotal: list.reduce((total, item) => total + toNumber(item.businessTripAllowanceAmount, 0), 0)
     }
     return summary

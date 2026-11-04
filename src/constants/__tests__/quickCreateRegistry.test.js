@@ -44,6 +44,6 @@ test('work log quick create defaults every work item to completed', () => {
   const workLog = QUICK_CREATE_TYPES.find((item) => item.typeCode === 'WORK_LOG')
   const statusField = workLog.fields.find((field) => field.key === 'status')
 
-  assert.deepEqual(workLog.defaults().workItems, [{content: '', status: 'COMPLETED'}])
+  assert.deepEqual(workLog.defaults().workItems, [{content: '', status: 'COMPLETED', personDay: 1}])
   assert.equal(statusField, undefined)
 })

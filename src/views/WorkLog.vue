@@ -127,7 +127,7 @@
               <span class="weekly-work-status" :class="getWorkStatusClass(workItem.status)"
                     :title="formatWorkStatus(workItem.status)" role="img"
                     :aria-label="formatWorkStatus(workItem.status)">{{ workItem.status === 'UNFINISHED' ? '○' : '✓' }}</span>
-              <span>{{ workItem.content }}</span><b>;</b>
+              <span>{{ workItem.content }}</span><small v-if="workItem.personDay != null">（{{ formatPersonDayText(workItem.personDay) }}）</small><b>;</b>
             </li>
           </ol>
         </article>
@@ -549,14 +549,15 @@
       <form :inert="formInitializing" id="work-log-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitDialog">
         <div class="form-inline-grid dialog-grid-group">
           <label class="form-field">
-            <span>日期</span>
+            <span>日期（当天基本信息）</span>
             <input v-model="form.logDate" type="date" required @change="handleFormDateChange" />
           </label>
 
           <label class="form-field">
-            <span>人天</span>
+            <span>{{ isLeaveTypeSelected ? '请假人天' : '工作内容总人天' }}</span>
             <input
               v-model.number="form.personDay"
+              :readonly="!isLeaveTypeSelected"
               type="number"
               step="0.1"
               min="0"
@@ -568,7 +569,7 @@
           </label>
 
           <label class="form-field">
-            <span>地点</span>
+            <span>地点（当天共用）</span>
             <select v-model="form.location" :disabled="isLeaveTypeSelected || !locationSelectOptions.length">
               <option value="">{{ locationSelectOptions.length ? '请选择地点' : '暂无地点字典项' }}</option>
               <option v-for="item in locationSelectOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
@@ -735,6 +736,7 @@
 
         <div class="form-field dialog-span-all">
           <span>工作内容{{ isLeaveTypeSelected ? '（选填）' : '' }}</span>
+          <small v-if="!isLeaveTypeSelected" class="field-hint">逐条填写人天，系统自动汇总；当天合计不超过 1 人天。</small>
           <small v-if="previousLogNotice" class="field-hint">{{ previousLogNotice }}</small>
           <section v-if="dialogMode === 'create'" class="unfinished-reuse-panel">
             <div class="unfinished-reuse-head">
@@ -798,6 +800,9 @@
                 placeholder="禅道号（选填）"
                 :aria-label="`第 ${index + 1} 条工作内容禅道号`"
               />
+              <input v-if="!isLeaveTypeSelected" v-model.number="workItem.personDay"
+                class="work-item-person-day" type="number" min="0" :max="formPersonDayMax" step="0.1" required
+                :aria-label="`第 ${index + 1} 条工作内容人天`" placeholder="人天" />
               <div class="work-item-status-segment" role="group" :aria-label="`第 ${index + 1} 条工作内容完成状态`">
                 <button
                   v-for="statusOption in workStatusOptions"
@@ -832,7 +837,7 @@
 
           <template v-else>
             <label class="form-field dialog-span-2">
-              <span>实际下班时间</span>
+              <span>实际下班时间（当天共用）</span>
               <input v-model="form.offWorkTime" type="time" step="60" />
             </label>
 
@@ -1131,6 +1136,7 @@ function normalizeWorkItemList(item) {
     ? item.workItems
       .map((workItem) => ({
         id: workItem?.id,
+        personDay: workItem?.personDay ?? null,
         content: `${workItem?.content || workItem?.workItem || ''}`.trim(),
         status: normalizeWorkStatus(workItem?.status),
         zentaoNo: `${workItem?.zentaoNo || ''}`.trim(),
@@ -1142,11 +1148,11 @@ function normalizeWorkItemList(item) {
     return structuredItems
   }
   return parseWorkItemEntries(item?.workItem || item?.content || item?.brief)
-    .map((content, index) => ({content, status: legacyStatus, zentaoNo: '', sortNo: index + 1}))
+    .map((content, index) => ({content, status: legacyStatus, zentaoNo: '', personDay: null, sortNo: index + 1}))
 }
 
 function createEmptyWorkItem(status = WORK_STATUS_COMPLETED) {
-  return {content: '', status: normalizeWorkStatus(status), zentaoNo: ''}
+  return {content: '', status: normalizeWorkStatus(status), zentaoNo: '', personDay: 0}
 }
 
 function aggregateZentaoNumbers(values = []) {
@@ -1501,6 +1507,12 @@ export default {
         }
       })
     })
+
+    watch(() => [isLeaveTypeSelected.value, ...form.workItems.map((item) => [item.content, item.personDay])], () => {
+      if (!isLeaveTypeSelected.value) {
+        form.personDay = Number(form.workItems.filter((item) => item.content.trim()).reduce((sum, item) => sum + toNumber(item.personDay, 0), 0).toFixed(1))
+      }
+    }, {deep: true})
 
     const formOtherDayLogs = computed(() => formDayLogs.value.filter((item) => item.id !== form.id))
     const formUsedPersonDay = computed(() => {
@@ -1862,8 +1874,16 @@ export default {
         id: workItem.id,
         content: workItem.content,
         status: normalizeWorkStatus(workItem.status),
-        zentaoNo: `${workItem.zentaoNo || ''}`.trim()
+        zentaoNo: `${workItem.zentaoNo || ''}`.trim(),
+        personDay: workItem.personDay ?? 0
       }))
+      const unassignedIndex = detail.workItems.findIndex((item) => item.personDay == null)
+      previousLogNotice.value = unassignedIndex >= 0
+        ? '历史日志尚未分配条目人天，原总额暂列在首条未分配内容，请按实际调整。' : ''
+      if (unassignedIndex >= 0) {
+        const assigned = detail.workItems.reduce((sum, item) => sum + toNumber(item.personDay, 0), 0)
+        form.workItems[unassignedIndex].personDay = Math.max(0, Number((detail.personDay - assigned).toFixed(1)))
+      }
       if (!form.workItems.length) {
         form.workItems = [createEmptyWorkItem()]
       }
@@ -2098,7 +2118,9 @@ export default {
           loadPreviousLogDefaults(form.logDate, initializationId)
         ])
         if (!isCurrentCreateInitialization(initializationId)) return
+        applyDayBasicDefaults()
         form.personDay = formPersonDayMax.value
+        form.workItems[0].personDay = formPersonDayMax.value
       } finally {
         if (initializationId === createInitializationId) formInitializing.value = false
       }
@@ -2266,9 +2288,9 @@ export default {
         zentaoNo: `${item?.zentaoNo || ''}`.trim()
       }
       if (form.workItems.length === 1 && !form.workItems[0].content.trim()) {
-        form.workItems = [reusableItem]
+        form.workItems = [{...reusableItem, personDay: formPersonDayMax.value}]
       } else if (!form.workItems.some((workItem) => workItem.content.trim() === content)) {
-        form.workItems.push(reusableItem)
+        form.workItems.push({...reusableItem, personDay: 0})
       }
       if (projectSelectOptions.value.some((option) => option.value === item.projectCode)) {
         form.projectCode = item.projectCode
@@ -2276,8 +2298,17 @@ export default {
       }
     }
 
+    function applyDayBasicDefaults() {
+      const existing = formDayLogs.value.find((item) => !item.typeCodes.includes(TYPE_LEAVE))
+      if (!existing || isLeaveTypeSelected.value) return
+      form.location = existing.location
+      form.offWorkTime = existing.offWorkTime || STANDARD_OFF_WORK_TIME
+      form.manualOvertimeHours = existing.overtimeHours
+    }
+
     async function handleFormDateChange() {
       await fetchFormDayLogs(form.logDate)
+      applyDayBasicDefaults()
       form.personDay = Math.min(toNumber(form.personDay, 0), formPersonDayMax.value)
     }
 
@@ -2300,7 +2331,8 @@ export default {
         .map((workItem) => ({
           content: `${workItem?.content || ''}`.trim(),
           status: normalizeWorkStatus(workItem?.status),
-          zentaoNo: `${workItem?.zentaoNo || ''}`.trim()
+          zentaoNo: `${workItem?.zentaoNo || ''}`.trim(),
+          personDay: Number(workItem.personDay)
         }))
         .filter((workItem) => workItem.content)
       const workItem = serializeWorkItemEntries(normalizedWorkItems.map((item) => item.content))
@@ -2312,10 +2344,13 @@ export default {
         alert('工作内容合计不能超过 4000 个字符')
         return
       }
-      const duplicateProject = formOtherDayLogs.value.some((item) => item.projectCode === form.projectCode)
-      if (duplicateProject) {
-        alert('当前日期下已存在该项目的工作日志')
+      if (!isLeaveTypeSelected.value && normalizedWorkItems.some((item) => !Number.isFinite(item.personDay)
+          || item.personDay < 0 || item.personDay > 1 || Math.abs(item.personDay * 10 - Math.round(item.personDay * 10)) > 1e-8)) {
+        alert('每条工作内容人天须为 0 到 1 之间且最多一位小数')
         return
+      }
+      if (!isLeaveTypeSelected.value) {
+        form.personDay = Number(normalizedWorkItems.reduce((sum, item) => sum + item.personDay, 0).toFixed(1))
       }
       if (toNumber(form.personDay, 0) > formPersonDayMax.value) {
         alert(`当天剩余 ${formatDecimal(formPersonDayMax.value, 1)} 人天，请调整人天投入`)
@@ -2340,7 +2375,7 @@ export default {
         status: normalizedWorkItems.some((item) => item.status === WORK_STATUS_UNFINISHED)
           ? WORK_STATUS_UNFINISHED
           : WORK_STATUS_COMPLETED,
-        workItems: normalizedWorkItems,
+        workItems: isLeaveTypeSelected.value ? normalizedWorkItems.map(({personDay, ...item}) => item) : normalizedWorkItems,
         zentaoNo: formZentaoNo.value,
         personDay: Number(form.personDay),
         overtimeHours,
@@ -3950,7 +3985,7 @@ export default {
 
 .work-item-input-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) minmax(132px, 0.28fr) auto auto;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(120px, 0.25fr) 80px auto auto;
   align-items: center;
   gap: 8px;
 }
@@ -5987,4 +6022,7 @@ export default {
 .month-day-card.weekend {
   border-top: 3px solid color-mix(in srgb, var(--theme-warning) 55%, transparent);
 }
+
+.work-item-person-day { width: 80px; min-width: 0; }
+@media (max-width: 768px) { .work-item-person-day { grid-column: 2; width: 100%; } }
 </style>

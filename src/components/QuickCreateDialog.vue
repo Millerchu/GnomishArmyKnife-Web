@@ -49,9 +49,9 @@
         </header>
         <p v-if="loadError" class="form-error">{{ loadError }}</p>
         <div class="field-grid">
-          <label v-for="field in activeType.fields" :key="field.key" class="form-field" :class="[{'wide-field': ['textarea', 'work-items'].includes(field.type)}, `field-${field.key}`]">
-            <span>{{ field.label }}<b v-if="field.required"> *</b></span>
-            <textarea v-if="field.type === 'textarea'" v-model.trim="form[field.key]" :rows="field.rows || 3" :maxlength="field.maxlength" :placeholder="field.placeholder" />
+          <label v-for="field in visibleFields" :key="field.key" class="form-field" :class="[{'wide-field': ['textarea', 'work-items'].includes(field.type)}, `field-${field.key}`]">
+            <span>{{ field.label }}<b v-if="field.required && !(isWorkLogLeave && field.key === 'workItems')"> *</b></span>
+            <textarea v-if="field.type === 'textarea'" v-model.trim="form[field.key]" :rows="field.rows || 3" :maxlength="field.maxlength" :placeholder="field.placeholder" @change="handleFieldChange(field)" />
             <select v-else-if="field.type === 'select'" v-model="form[field.key]" :required="field.required">
               <option v-for="option in field.options" :key="option[0]" :value="option[0]">{{ option[1] }}</option>
             </select>
@@ -78,6 +78,8 @@
                   maxlength="4000"
                   :placeholder="index === 0 ? '填写工作内容、处理结果或跟进结论' : '继续添加工作事项'"
                 />
+                <input v-if="!isWorkLogLeave" v-model.number="workItem.personDay" type="number"
+                  min="0" max="1" step="0.1" required :aria-label="`第 ${index + 1} 条工作内容人天`" placeholder="人天" />
                 <div class="work-item-status" :aria-label="`第 ${index + 1} 条工作内容完成状态`" role="group">
                   <button
                     v-for="statusOption in workStatusOptions"
@@ -97,7 +99,7 @@
             <label v-else-if="field.type === 'checkbox'" class="check-control">
               <input v-model="form[field.key]" type="checkbox" /><span>是</span>
             </label>
-            <input v-else v-model="form[field.key]" :type="field.inputType || field.type" :required="field.required" :min="field.min" :max="field.max" :step="field.step" :maxlength="field.maxlength" :placeholder="field.placeholder" />
+            <input v-else v-model="form[field.key]" :type="field.inputType || field.type" :required="field.required" :min="field.min" :max="field.max" :step="field.step" :maxlength="field.maxlength" :placeholder="field.placeholder" @change="handleFieldChange(field)" />
           </label>
         </div>
         <p v-if="submitError" class="form-error">{{ submitError }}</p>
@@ -117,7 +119,7 @@ import MacDialog from '@/components/MacDialog.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import AppIconImage from '@/components/AppIconImage.vue'
 import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
-import {createWorkLog} from '@/api/workLog'
+import {createWorkLog, listWorkLogs} from '@/api/workLog'
 import {createPasswordMemo} from '@/api/passwordMemo'
 import {createTodoTask} from '@/api/todoList'
 import {createFuelRecord} from '@/api/fuelStats'
@@ -127,7 +129,7 @@ import {createKnowledgeEntry} from '@/api/knowledgeBase'
 import {createSoftwarePackage, createSoftwareVersion, listSoftwarePackages} from '@/api/softwareRepo'
 import {createHealthRecord, createHealthReport, createHealthVisit} from '@/api/healthRecord'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
-import {serializeWorkItemEntries} from '@/utils/workLogCalendar'
+import {serializeWorkItemEntries, getPreviousLogDate, selectPreviousLogDefaults} from '@/utils/workLogCalendar'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
 
 const props = defineProps({
@@ -152,6 +154,13 @@ const workStatusOptions = [
 ]
 
 const activeType = computed(() => props.types.find((item) => item.typeCode === selectedTypeCode.value) || null)
+const isWorkLogLeave = computed(() => activeType.value?.api === 'workLog' && form.typeCodes?.includes('LEAVE'))
+const visibleFields = computed(() => (activeType.value?.fields || []).filter((field) => {
+  if (activeType.value?.api !== 'workLog') return true
+  if (field.key === 'personDay') return isWorkLogLeave.value
+  return !isWorkLogLeave.value || !['projectCode', 'location'].includes(field.key)
+}))
+
 const activeApp = computed(() => props.apps.find((item) => item.featureCode === activeType.value?.featureCode) || null)
 const groupedTypes = computed(() => {
   const groups = new Map()
@@ -208,12 +217,54 @@ async function loadDependencies(type) {
     const results = await Promise.allSettled(tasks)
     const failedResult = results.find((result) => result.status === 'rejected')
     if (failedResult) throw failedResult.reason
+    if (type.api === 'workLog') await loadWorkLogDefaults()
   } catch (error) {
     loadError.value = error?.response?.data?.message || '表单选项加载失败，请稍后重试。'
   } finally {
     initialSnapshot.value = JSON.stringify(form)
     loadingDependencies.value = false
   }
+}
+
+async function handleFieldChange(field) {
+  if (activeType.value?.api !== 'workLog' || field.key !== 'logDate' || !form.logDate) return
+  loadingDependencies.value = true
+  try {
+    await loadWorkLogDefaults()
+    loadError.value = ''
+  } catch {
+    loadError.value = '当天日志加载失败，请稍后重试。'
+  } finally {
+    loadingDependencies.value = false
+  }
+}
+
+async function loadWorkLogDefaults() {
+  const date = form.logDate
+  const previous = getPreviousLogDate(date)
+  const [dayResponse, previousResponse] = await Promise.all([
+    listWorkLogs({startDate: date, endDate: date}),
+    listWorkLogs({startDate: previous, endDate: previous})
+  ])
+  if (activeType.value?.api !== 'workLog' || form.logDate !== date) return
+  const day = unwrapData(dayResponse) || []
+  const defaults = selectPreviousLogDefaults(unwrapData(previousResponse) || [])
+  if (defaults) {
+    for (const key of ['typeCodes', 'location', 'projectCode']) {
+      const options = dictionaryOptions[key] || []
+      if (key === 'typeCodes') form[key] = defaults[key].filter((value) => options.some((option) => option.value === value))
+      else if (options.some((option) => option.value === defaults[key])) form[key] = defaults[key]
+    }
+  }
+  const basic = day.find((item) => !item.typeCodes?.includes('LEAVE'))
+  if (basic) {
+    form.location = basic.location
+    form.offWorkTime = basic.offWorkTime
+    form.overtimeHours = basic.overtimeHours
+  }
+  const remaining = Math.max(0, Number((1 - day.reduce((sum, item) => sum + Number(item.personDay || 0), 0)).toFixed(1)))
+  form.personDay = remaining
+  if (form.workItems.length === 1 && !form.workItems[0].content) form.workItems[0].personDay = remaining
 }
 
 async function handleTypeChange(event) {
@@ -243,7 +294,7 @@ function handleVisibleChange(value) {
 function nullable(value) { return value === '' || value === undefined ? null : value }
 function numeric(value) { return value === '' || value === null ? null : Number(value) }
 function usesImageIcon(iconType) { return ['UPLOAD', 'URL'].includes(iconType) }
-function addWorkItem(fieldKey) { form[fieldKey].push({content: '', status: 'COMPLETED'}) }
+function addWorkItem(fieldKey) { form[fieldKey].push({content: '', status: 'COMPLETED', personDay: 0}) }
 function removeWorkItem(fieldKey, index) {
   if (form[fieldKey].length > 1) form[fieldKey].splice(index, 1)
 }
@@ -253,10 +304,12 @@ function buildPayload(type) {
   if (type.api === 'workLog') {
     payload.userId = props.currentUser.id ?? props.currentUser.userId
     payload.typeCodes = Array.isArray(form.typeCodes) ? [...form.typeCodes] : []
-    payload.personDay = Number(form.personDay)
+    payload.personDay = isWorkLogLeave.value ? Number(form.personDay)
+      : Number(form.workItems.filter((item) => item.content.trim()).reduce((sum, item) => sum + Number(item.personDay || 0), 0).toFixed(1))
+    if (isWorkLogLeave.value) { payload.projectCode = 'LEAVE'; payload.location = '居家' }
     payload.overtimeHours = Number(form.overtimeHours || 0)
     payload.workItems = form.workItems
-      .map((item) => ({content: `${item?.content || ''}`.trim(), status: item?.status || 'COMPLETED'}))
+      .map((item) => ({content: `${item?.content || ''}`.trim(), status: item?.status || 'COMPLETED', ...(isWorkLogLeave.value ? {} : {personDay: Number(item.personDay)})}))
       .filter((item) => item.content)
     payload.workItem = serializeWorkItemEntries(payload.workItems.map((item) => item.content))
     payload.status = payload.workItems.some((item) => item.status === 'UNFINISHED') ? 'UNFINISHED' : 'COMPLETED'
@@ -299,7 +352,7 @@ async function submit() {
   if (passwordIdentityMissing) { submitError.value = '用户名、注册手机、注册邮箱至少填写一项。'; return }
   if (activeType.value.api === 'fuel' && Number(form.discountedAmount) > Number(form.totalAmount)) { submitError.value = '优惠后金额不能大于加油金额。'; return }
   if (activeType.value.api === 'bill' && Number(form.amount) <= 0) { submitError.value = '账单金额必须大于 0。'; return }
-  if (activeType.value.api === 'workLog' && !serializeWorkItemEntries(form.workItems.map((item) => item?.content))) { submitError.value = '请至少填写一条工作内容。'; return }
+  if (activeType.value.api === 'workLog' && !isWorkLogLeave.value && !serializeWorkItemEntries(form.workItems.map((item) => item?.content))) { submitError.value = '请至少填写一条工作内容。'; return }
   submitting.value = true
   try {
     await apiHandlers[activeType.value.api](buildPayload(activeType.value))
@@ -585,7 +638,7 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
 
 .work-item-row {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto auto;
+  grid-template-columns: 30px minmax(0, 1fr) 88px auto auto;
   align-items: center;
   gap: 8px;
 }
@@ -783,6 +836,10 @@ watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.va
 
   .work-item-row {
     grid-template-columns: 26px minmax(0, 1fr);
+  }
+
+  .work-item-row input[type="number"] {
+    grid-column: 2;
   }
 
   .work-item-row button {
