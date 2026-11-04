@@ -4,7 +4,7 @@
 
 - [README](../README.md)：环境、开发代理、测试、构建和部署。
 - [架构与功能清单](architecture.md)：目录、路由/API、登录与权限。
-- [用户看板需求记录](user-board-requirements.md)：各应用需求 / Bug 的原始内容、前端分析和验收记录；当前仅建立模板，内容同步方式待定。
+- [用户看板需求记录](user-board-requirements.md)：各应用需求 / Bug 的原始内容、前端分析和验收记录；已整理 2026-11-04 全部 39 条，长期同步方式待定。
 - [数据迁移实现](data-migration-architecture.md)：资源、异步任务、归档与局限。
 
 prompt/ 是历史跨端需求，superpowers/specs/ 与 superpowers/plans/ 是历史设计与实施计划，保留原文用于理解需求和决策，不作为现行完整接口规范。软件仓库提示词描述了预期能力，但当前配套后端未提供对应 Controller。

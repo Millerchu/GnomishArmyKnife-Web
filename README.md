@@ -4,7 +4,7 @@ GnomishArmyKnife 的 Vue 单页前端，以桌面首页组织个人工具、系�
 
 ## 文档入口
 
-- [用户看板需求记录](docs/user-board-requirements.md)：供 AI 编程查阅的需求 / Bug 记录、开发分析和验收模板，内容同步方式待定。
+- [用户看板需求记录](docs/user-board-requirements.md)：供 AI 编程查阅；已整理 2026-11-04 NAS 看板全部 39 条需求 / Bug、进度及开发分析，长期同步方式待定。
 - [架构与功能清单](docs/architecture.md)
 - [数据迁移当前实现](docs/data-migration-architecture.md)
 - [文档索引](docs/README.md)
