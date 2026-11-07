@@ -677,6 +677,10 @@ onMounted(async () => {
 
 <style scoped>
 .travel-page {
+  /* 应用外壳隐藏溢出内容，行笺需要在一屏高度内独立滚动。 */
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   max-width: 1280px;
   margin: auto;
   padding: 28px 36px 70px;
