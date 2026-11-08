@@ -446,7 +446,7 @@ function isSystemMenuOnlyRoute(route = '') {
     return false
   }
 
-  if (normalized.startsWith('/system/')) {
+  if (normalized.startsWith('/system/') || normalized === '/system-log') {
     return true
   }
 
@@ -618,7 +618,14 @@ export default {
     ]
     const visibleSystemMenus = computed(() => {
       if (currentUserRole.value === 'ADMIN') {
-        return systemMenus
+        return systemMenus.filter((item) => item.key !== 'log' || (
+          !appPermissionLoading.value
+          && user.value.enabled !== false
+          && (!user.value.status || user.value.status === 'ENABLED')
+          && appPermissionSource.value === 'backend'
+          && accessibleFeatureCodes.value.includes('APP_SYSTEM_LOG')
+          && toolCatalog.value.some((app) => app.featureCode === 'APP_SYSTEM_LOG' && app.enabled)
+        ))
       }
       return systemMenus.filter((item) => ['profile', 'logout'].includes(item.key))
     })
@@ -823,6 +830,10 @@ export default {
       }
       if (menu.key === 'migration') {
         router.push('/system/data-migrations')
+        return
+      }
+      if (menu.key === 'log' && visibleSystemMenus.value.some((item) => item.key === 'log')) {
+        router.push('/system-log')
         return
       }
       if (menu.key === 'logout') {

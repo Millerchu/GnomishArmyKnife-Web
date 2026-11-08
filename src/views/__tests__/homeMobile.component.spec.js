@@ -167,4 +167,45 @@ describe('Home mobile behavior', () => {
     expect(trigger.attributes('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(trigger.element)
   })
+
+  it('opens system logs only for administrators with a backend app grant', async () => {
+    localStorage.setItem('user', JSON.stringify({roleCode: 'ADMIN', username: 'synthetic-admin'}))
+    getCurrentUserAccessibleApps.mockResolvedValue(buildApiResponse({featureCodes: ['APP_SYSTEM_LOG'], permissionSource: 'BACKEND'}))
+    const wrapper = await mountHome()
+    expect(wrapper.findAll('.tool-item').some(tool => tool.text().includes('系统日志'))).toBe(false)
+    await wrapper.get('.system-menu-toggle').trigger('click')
+    const action = wrapper.findAll('.system-dropdown-item').find(item => item.text().includes('系统日志'))
+    expect(action).toBeDefined()
+    await action.trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/system-log')
+  })
+
+  it.each([
+    ['USER', {featureCodes: ['APP_SYSTEM_LOG'], permissionSource: 'BACKEND'}],
+    ['ADMIN', {featureCodes: [], permissionSource: 'BACKEND'}],
+    ['ADMIN', {featureCodes: ['APP_SYSTEM_LOG'], permissionSource: 'ADMIN_FALLBACK'}],
+    ['ADMIN', {featureCodes: ['APP_SYSTEM_LOG'], apps: [{appCode: 'APP_SYSTEM_LOG', enabled: false}], permissionSource: 'BACKEND'}]
+  ])('hides the system log menu without both role and enabled grant: %s, %j', async (roleCode, payload) => {
+    localStorage.setItem('user', JSON.stringify({roleCode, username: 'synthetic-user'}))
+    getCurrentUserAccessibleApps.mockResolvedValue(buildApiResponse(payload))
+    const wrapper = await mountHome()
+    await wrapper.get('.system-menu-toggle').trigger('click')
+    expect(wrapper.findAll('.system-dropdown-item').some(item => item.text().includes('系统日志'))).toBe(false)
+  })
+
+  it('hides the system log menu when app permissions fail to load', async () => {
+    localStorage.setItem('user', JSON.stringify({roleCode: 'ADMIN', username: 'synthetic-admin'}))
+    getCurrentUserAccessibleApps.mockRejectedValue(new Error('synthetic network failure'))
+    const wrapper = await mountHome()
+    await wrapper.get('.system-menu-toggle').trigger('click')
+    expect(wrapper.findAll('.system-dropdown-item').some(item => item.text().includes('系统日志'))).toBe(false)
+  })
+
+  it.each([{enabled: false}, {status: 'DISABLED'}])('hides logs for known inactive user state: %j', async (state) => {
+    localStorage.setItem('user', JSON.stringify({roleCode: 'ADMIN', username: 'synthetic-admin', ...state}))
+    getCurrentUserAccessibleApps.mockResolvedValue(buildApiResponse({featureCodes: ['APP_SYSTEM_LOG'], permissionSource: 'BACKEND'}))
+    const wrapper = await mountHome()
+    await wrapper.get('.system-menu-toggle').trigger('click')
+    expect(wrapper.findAll('.system-dropdown-item').some(item => item.text().includes('系统日志'))).toBe(false)
+  })
 })

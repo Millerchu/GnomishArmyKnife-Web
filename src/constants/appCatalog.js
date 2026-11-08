@@ -160,6 +160,12 @@ export const USER_APP_DEFINITIONS = [
     enabled: true,
     sortNo: 120,
     description: '在手机上演奏古筝、吉他、乌克丽丽、琵琶和钢琴，并使用节拍器与录制回放练习。'
+  },
+  {
+    key: 'system-log', name: '系统日志', featureCode: 'APP_SYSTEM_LOG', route: '/system-log',
+    category: '系统管理', dataSourceMode: 'REAL', securityLevel: 'INTERNAL', encryptionMode: 'NONE',
+    iconType: 'TEXT', iconText: '日志', sortNo: 150,
+    description: '查看已接入异常边界的系统异常记录。'
   }
 ]
 
@@ -169,11 +175,5 @@ export const RESERVED_SYSTEM_CAPABILITIES = [
     name: '应用管理',
     status: '前端已接入',
     description: '当前可维护应用名称、图标、数据来源、密级、加密方式、排序与上下线状态。'
-  },
-  {
-    key: 'permission-log',
-    name: '系统日志',
-    status: '预留',
-    description: '后续接入授权变更、访问审计、异常告警与操作留痕。'
   }
 ]

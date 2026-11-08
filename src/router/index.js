@@ -7,6 +7,7 @@ const routes = [
     {path: '/travel-record', component: () => import('../views/TravelRecords.vue')},
     {path: '/messages', component: () => import('../views/MessageCenter.vue')},
     {path: '/system/messages', meta: {requiresAdmin: true}, component: () => import('../views/MessageManagement.vue')},
+    {path: '/system-log', meta: {requiresAdmin: true, showAdminDenied: true}, component: () => import('../views/SystemLog.vue')},
     {path: '/', redirect: '/login'}, // 打开直接进入登录页
     {path: '/login', component: () => import('../views/Login.vue')},
     {path: '/register', component: () => import('../views/Register.vue')},
@@ -36,7 +37,8 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-    if (to.meta.requiresAdmin && readAuthState().user?.roleCode?.toUpperCase() !== 'ADMIN') return '/home'
+    // 系统日志在页面内显示明确的权限状态；其他管理员页面维持原有跳转。
+    if (to.meta.requiresAdmin && !to.meta.showAdminDenied && readAuthState().user?.roleCode?.toUpperCase() !== 'ADMIN') return '/home'
   const redirectPath = resolveNavigationTarget(to.path, readAuthState())
     return redirectPath && redirectPath !== to.path ? redirectPath : true
 })
