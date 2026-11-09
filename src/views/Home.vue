@@ -2,15 +2,30 @@
   <div class="home-page">
     <main class="main-area">
       <div class="top-bar">
-        <button
-          class="easter-egg-trigger"
-          type="button"
-          aria-label="主页彩蛋入口"
-          title="连续点击三次试试看"
-          @click="handleEasterEggTrigger"
-        >
-          <span class="easter-egg-mark">侏</span>
-        </button>
+        <div class="top-left-actions">
+          <button
+            class="easter-egg-trigger"
+            type="button"
+            aria-label="主页彩蛋入口"
+            title="连续点击三次试试看"
+            @click="handleEasterEggTrigger"
+          >
+            <span class="easter-egg-mark">侏</span>
+          </button>
+          <a
+            class="printer-service-link"
+            href="http://192.168.31.138:1180/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="打印机管理"
+            aria-label="打印机管理（在新标签页打开）"
+          >
+            <svg class="printer-service-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M7 8V3h10v5M7 17H4V8h16v9h-3M7 14h10v7H7z" />
+              <path d="M16 11h1" />
+            </svg>
+          </a>
+        </div>
 
         <div class="top-right-wrap">
           <div class="welcome-wrap">
@@ -1221,6 +1236,13 @@ export default {
   gap: 16px;
 }
 
+.top-left-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .system-menu-box {
   position: relative;
 }
@@ -1471,6 +1493,35 @@ export default {
 
 .mobile-tool-status {
   display: none;
+}
+
+.printer-service-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+  color: var(--theme-text-muted);
+  background: var(--theme-surface-muted);
+  text-decoration: none;
+}
+
+.printer-service-link:hover {
+  color: var(--theme-text-soft);
+  background: var(--theme-control-surface);
+}
+
+.printer-service-link:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 3px;
+}
+
+.printer-service-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .home-title {
@@ -1863,7 +1914,8 @@ export default {
     -webkit-backdrop-filter: blur(24px) saturate(180%);
   }
 
-  .easter-egg-trigger {
+  .easter-egg-trigger,
+  .printer-service-link {
     width: var(--mobile-control-size);
     height: var(--mobile-control-size);
     flex: 0 0 var(--mobile-control-size);
@@ -2243,7 +2295,7 @@ export default {
   }
 
   .user-name-text {
-    max-width: 52px;
+    display: none;
   }
 
   .mobile-tool-status .app-count {
