@@ -31,10 +31,37 @@ test('参数仅含契约字段，补秒不做 UTC 转换，空字段省略', () 
   assert.equal(formatSystemLogTime('2026-11-07T21:30:00'), '2026-11-07 21:30:00')
 })
 
+test('分钟精度范围包含整分钟，显式秒数保持原样，校验与查询边界一致', () => {
+  assert.deepEqual(buildSystemLogQuery({occurredFrom: '2026-11-07T21:30', occurredTo: '2026-11-07T21:30'}), {
+    pageNo: 1, pageSize: 20, occurredFrom: '2026-11-07T21:30:00', occurredTo: '2026-11-07T21:30:59'
+  })
+  const filters = {occurredFrom: '2026-11-07T21:30:45', occurredTo: '2026-11-07T21:30'}
+  assert.equal(validateSystemLogTimeRange(filters), '')
+  assert.equal(buildSystemLogQuery(filters).occurredTo, '2026-11-07T21:30:59')
+  assert.deepEqual(buildSystemLogQuery({occurredFrom: '2026-11-07T21:30:12', occurredTo: '2026-11-07T21:30:34'}), {
+    pageNo: 1, pageSize: 20, occurredFrom: '2026-11-07T21:30:12', occurredTo: '2026-11-07T21:30:34'
+  })
+  assert.equal(buildSystemLogQuery({occurredTo: '2026-11-07T21:30:00'}).occurredTo, '2026-11-07T21:30:00')
+  assert.equal(validateSystemLogTimeRange({occurredFrom: '2026-11-07T21:30:45', occurredTo: '2026-11-07T21:30:44'}), '开始时间不能晚于结束时间')
+})
+
 test('响应只接受成功码 0，保留 HTTP/业务错误码供权限与 404 状态使用', () => {
   const data = {list: [], total: 0}
   assert.equal(readSystemLogResponse({data: {code: '0', data}}), data)
   assert.throws(() => readSystemLogResponse({data: {code: '404'}}), error => systemLogErrorCode(error) === '404')
   assert.equal(systemLogErrorCode({response: {status: 403, data: {code: '403'}}}), '403')
   assert.equal(systemLogErrorCode({response: {data: {code: 'SYSTEM_LOG_QUERY_INVALID'}}}), 'SYSTEM_LOG_QUERY_INVALID')
+})
+
+test('2xx 响应按契约业务码识别错误，非 2xx 优先使用 HTTP 状态', () => {
+  for (const code of [401, '401', 403, '403', 404, '404', 400, '400', 'SYSTEM_LOG_QUERY_INVALID']) {
+    assert.throws(() => readSystemLogResponse({status: 200, data: {code}}), error => systemLogErrorCode(error) === String(code))
+    assert.equal(systemLogErrorCode({response: {status: 200, data: {code}}}), String(code))
+  }
+  assert.equal(systemLogErrorCode({response: {status: 201, data: {code: '403'}}}), '403')
+  for (const [status, code] of [[400, 'SYSTEM_LOG_QUERY_INVALID'], [403, '404'], [404, '403'], [500, 'SYSTEM_LOG_QUERY_INVALID']]) {
+    assert.equal(systemLogErrorCode({response: {status, data: {code}}}), String(status))
+    assert.throws(() => readSystemLogResponse({status, data: {code}}), error => systemLogErrorCode(error) === String(status))
+  }
+  assert.equal(systemLogErrorCode(new Error('network failure')), '')
 })

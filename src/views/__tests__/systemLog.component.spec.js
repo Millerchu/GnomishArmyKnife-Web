@@ -70,10 +70,10 @@ describe('系统日志列表与查询', () => {
     await wrapper.find('form').trigger('submit')
     expect(wrapper.text()).toContain('开始时间不能晚于结束时间')
     expect(listSystemLogs).toHaveBeenCalledTimes(calls)
-    await wrapper.find('[name="occurredTo"]').setValue('2026-11-09T10:00:00')
+    await wrapper.find('[name="occurredTo"]').setValue('2026-11-09T10:00:01')
     await wrapper.find('[name="traceId"]').setValue(' synthetic-trace ')
     await wrapper.find('form').trigger('submit'); await flushPromises()
-    expect(listSystemLogs).toHaveBeenLastCalledWith({pageNo: 1, pageSize: 20, occurredFrom: '2026-11-08T10:00:00', occurredTo: '2026-11-09T10:00:00', exceptionType: 'demo.OtherException', traceId: 'synthetic-trace'})
+    expect(listSystemLogs).toHaveBeenLastCalledWith({pageNo: 1, pageSize: 20, occurredFrom: '2026-11-08T10:00:00', occurredTo: '2026-11-09T10:00:01', exceptionType: 'demo.OtherException', traceId: 'synthetic-trace'})
     await button(wrapper, '下一页').trigger('click'); await flushPromises()
     await button(wrapper, '重置').trigger('click'); await flushPromises()
     expect(listSystemLogs).toHaveBeenLastCalledWith({pageNo: 1, pageSize: 20})
@@ -97,14 +97,49 @@ describe('系统日志列表与查询', () => {
     expect(wrapper.text()).toContain('暂无系统日志')
   })
 
-  it('刷新失败不保留旧日志，可在页面重试', async () => {
+  it.each([new Error('synthetic network failure'), error(500), error(503), {response: {status: 500, data: {code: 'SYSTEM_LOG_QUERY_INVALID'}}}])('刷新失败保留网络提示且不保留旧日志，可在页面重试：%j', async failure => {
     const wrapper = create(); await flushPromises()
-    listSystemLogs.mockRejectedValueOnce(new Error('synthetic network failure'))
+    listSystemLogs.mockRejectedValueOnce(failure)
     await button(wrapper, '手动刷新').trigger('click'); await flushPromises()
     expect(wrapper.text()).toContain('日志加载失败，请重试')
+    expect(wrapper.text()).toContain('请检查网络连接后重试。')
+    expect(wrapper.text()).not.toContain('查询条件不合法')
     expect(wrapper.text()).not.toContain(item.summary)
     await button(wrapper, '重试').trigger('click'); await flushPromises()
     expect(wrapper.text()).toContain(item.summary)
+  })
+
+  it.each([
+    ['HTTP 400', {status: 400, code: '400'}, false],
+    ['HTTP 400 查询非法码', {status: 400, code: 'SYSTEM_LOG_QUERY_INVALID'}, false],
+    ['HTTP 200 业务 400', {status: 200, code: 400}, true],
+    ['HTTP 200 查询非法码', {status: 200, code: 'SYSTEM_LOG_QUERY_INVALID'}, true],
+    ['无 HTTP 状态的查询非法码', {code: 'SYSTEM_LOG_QUERY_INVALID'}, false]
+  ])('%s 提示调整筛选条件，修改后可恢复查询', async (_label, {status, code}, resolved) => {
+    const wrapper = create(); await flushPromises()
+    const result = {status, data: {code}}
+    if (resolved) listSystemLogs.mockResolvedValueOnce(result)
+    else listSystemLogs.mockRejectedValueOnce({response: result})
+    await wrapper.find('[name="keyword"]').setValue('synthetic')
+    await wrapper.find('form').trigger('submit'); await flushPromises()
+    expect(wrapper.text()).toContain('查询条件不合法，请调整筛选条件后重试')
+    expect(wrapper.text()).not.toContain('请检查网络连接后重试')
+    expect(wrapper.text()).not.toContain(item.summary)
+    expect(wrapper.find('fieldset').element.disabled).toBe(false)
+    await wrapper.find('[name="keyword"]').setValue('adjusted')
+    await wrapper.find('form').trigger('submit'); await flushPromises()
+    expect(listSystemLogs).toHaveBeenLastCalledWith({pageNo: 1, pageSize: 20, keyword: 'adjusted'})
+    expect(wrapper.text()).toContain(item.summary)
+    expect(wrapper.text()).not.toContain('查询条件不合法')
+  })
+
+  it('分钟精度结束时间包含整分钟，带秒开始时间可在同一分钟内查询', async () => {
+    const wrapper = create(); await flushPromises()
+    await wrapper.find('[name="occurredFrom"]').setValue('2026-11-07T21:30:45')
+    await wrapper.find('[name="occurredTo"]').setValue('2026-11-07T21:30')
+    await wrapper.find('form').trigger('submit'); await flushPromises()
+    expect(wrapper.text()).not.toContain('开始时间不能晚于结束时间')
+    expect(listSystemLogs).toHaveBeenLastCalledWith({pageNo: 1, pageSize: 20, occurredFrom: '2026-11-07T21:30:45', occurredTo: '2026-11-07T21:30:59'})
   })
 
   it('普通用户直达显示无权限，不请求日志', async () => {
@@ -115,14 +150,19 @@ describe('系统日志列表与查询', () => {
     expect(wrapper.find('form').exists()).toBe(false)
   })
 
-  it('管理员也以服务端授权结果为准，列表/详情 403 清空敏感内容', async () => {
+  it.each([
+    ['HTTP 403', false],
+    ['HTTP 200 业务 403', true]
+  ])('管理员也以服务端授权结果为准，列表/详情 %s 清空敏感内容', async (_label, businessError) => {
     const wrapper = create(); await flushPromises()
-    getSystemLog.mockRejectedValueOnce(error(403))
+    if (businessError) getSystemLog.mockResolvedValueOnce({status: 200, data: {code: '403'}})
+    else getSystemLog.mockRejectedValueOnce(error(403))
     await button(wrapper, '详情').trigger('click'); await flushPromises()
     expect(wrapper.text()).toContain('无权限查看系统日志')
     expect(wrapper.text()).not.toContain(item.summary)
     expect(drawer()).toBeNull()
-    listSystemLogs.mockRejectedValueOnce(error(403))
+    if (businessError) listSystemLogs.mockResolvedValueOnce({status: 200, data: {code: '403'}})
+    else listSystemLogs.mockRejectedValueOnce(error(403))
     const second = create(); await flushPromises()
     expect(second.text()).toContain('无权限查看系统日志')
   })
@@ -183,8 +223,12 @@ describe('日志详情的独立状态', () => {
     expect(drawer()).toBeNull()
   })
 
-  it('详情 404 可关闭刷新，普通失败可在抽屉内重试且保留列表', async () => {
-    getSystemLog.mockRejectedValueOnce(error(404))
+  it.each([
+    ['HTTP 404', false],
+    ['HTTP 200 业务 404', true]
+  ])('详情 %s 可关闭刷新，普通失败可在抽屉内重试且保留列表', async (_label, businessError) => {
+    if (businessError) getSystemLog.mockResolvedValueOnce({status: 200, data: {code: '404'}})
+    else getSystemLog.mockRejectedValueOnce(error(404))
     const wrapper = create(); await flushPromises()
     await button(wrapper, '详情').trigger('click'); await flushPromises()
     expect(drawer().textContent).toContain('该日志已不存在')

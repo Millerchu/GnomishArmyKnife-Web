@@ -633,6 +633,7 @@ export default {
     ]
     const visibleSystemMenus = computed(() => {
       if (currentUserRole.value === 'ADMIN') {
+        // 系统日志必须有后端明确授权；目录 enabled 默认为 true，仅作补充检查，不能替代授权。
         return systemMenus.filter((item) => item.key !== 'log' || (
           !appPermissionLoading.value
           && user.value.enabled !== false

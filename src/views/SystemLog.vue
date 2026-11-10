@@ -24,7 +24,7 @@
           <thead><tr><th>发生时间（北京时间）</th><th>来源</th><th>异常类型</th><th>脱敏摘要</th><th>请求方法</th><th>路径</th><th>追踪编号</th><th>操作</th></tr></thead>
           <tbody>
             <tr v-if="loading"><td colspan="8" class="system-log-loading" role="status">正在加载系统日志…</td></tr>
-            <tr v-else-if="listError"><td colspan="8"><MacEmptyState title="日志加载失败，请重试" description="请检查网络连接后重试。"><button type="button" @click="loadLogs">重试</button></MacEmptyState></td></tr>
+            <tr v-else-if="listError"><td colspan="8"><MacEmptyState title="日志加载失败，请重试" :description="listError"><button type="button" @click="loadLogs">重试</button></MacEmptyState></td></tr>
             <tr v-else-if="!logs.length"><td colspan="8"><MacEmptyState :title="hasAppliedFilters ? '没有符合条件的日志' : '暂无系统日志'" :description="hasAppliedFilters ? '可调整查询条件或重置筛选。' : '可稍后手动刷新。'"><button v-if="hasAppliedFilters" type="button" @click="reset">重置筛选</button></MacEmptyState></td></tr>
             <tr v-for="log in logs" v-else :key="log.id">
               <td class="system-log-time">{{ formatSystemLogTime(log.occurredAt) }}</td><td>{{ systemLogSourceLabel(log.source) }}</td>
@@ -62,7 +62,7 @@ const appliedFilters = ref(emptySystemLogFilters())
 const user = readAuthState().user
 const forbidden = ref(String(user?.roleCode || '').toUpperCase() !== 'ADMIN')
 const loading = ref(!forbidden.value)
-const listError = ref(false)
+const listError = ref('')
 const logs = ref([])
 const total = ref(0)
 const pageNo = ref(1)
@@ -88,7 +88,7 @@ async function loadLogs() {
   if (forbidden.value) return
   const sequence = ++listSequence
   loading.value = true
-  listError.value = false
+  listError.value = ''
   // 失败不保留旧数据，避免把上次结果误作本次结果。
   logs.value = []
   total.value = 0
@@ -99,8 +99,11 @@ async function loadLogs() {
     total.value = data.total
   } catch (error) {
     if (sequence !== listSequence) return
-    if (systemLogErrorCode(error) === '403') denyAccess()
-    else listError.value = true
+    const code = systemLogErrorCode(error)
+    if (code === '403') denyAccess()
+    else listError.value = ['400', 'SYSTEM_LOG_QUERY_INVALID'].includes(code)
+      ? '查询条件不合法，请调整筛选条件后重试'
+      : '请检查网络连接后重试。'
   } finally {
     if (sequence === listSequence) loading.value = false
   }

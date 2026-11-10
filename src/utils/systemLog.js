@@ -13,11 +13,11 @@ export function emptySystemLogFilters() {
   return {occurredFrom: '', occurredTo: '', exceptionType: '', traceId: '', keyword: ''}
 }
 
-function normalizeTime(value) {
+function normalizeTime(value, defaultSecond = '00') {
   if (!value) return ''
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value)
   if (!match) throw new Error('请输入有效的北京时间')
-  const [, year, month, day, hour, minute, second = '00'] = match
+  const [, year, month, day, hour, minute, second = defaultSecond] = match
   const leap = Number(year) % 4 === 0 && (Number(year) % 100 !== 0 || Number(year) % 400 === 0)
   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
   if (Number(year) < 1 || Number(month) < 1 || Number(month) > 12 || Number(day) < 1
@@ -30,7 +30,7 @@ function normalizeTime(value) {
 export function validateSystemLogTimeRange(filters) {
   try {
     const from = normalizeTime(filters.occurredFrom)
-    const to = normalizeTime(filters.occurredTo)
+    const to = normalizeTime(filters.occurredTo, '59')
     return from && to && from > to ? '开始时间不能晚于结束时间' : ''
   } catch (error) {
     return error.message
@@ -42,7 +42,8 @@ export function buildSystemLogQuery(filters, pageNo = 1, pageSize = 20) {
   if (error) throw new Error(error)
   const params = {pageNo, pageSize}
   for (const key of ['occurredFrom', 'occurredTo']) {
-    const time = normalizeTime(filters[key])
+    // 契约按秒包含边界；结束时间只有分钟时覆盖这一分钟的全部记录。
+    const time = normalizeTime(filters[key], key === 'occurredTo' ? '59' : '00')
     if (time) params[key] = time
   }
   for (const key of ['exceptionType', 'traceId', 'keyword']) {
@@ -64,5 +65,8 @@ export function readSystemLogResponse(response) {
 }
 
 export function systemLogErrorCode(error) {
-  return String(error?.response?.status || error?.status || error?.response?.data?.code || error?.code || '')
+  const status = error?.response?.status || error?.status
+  // 非 2xx 以 HTTP 状态为准；2xx 也可能携带契约中的业务错误码。
+  if (status && (status < 200 || status >= 300)) return String(status)
+  return String(error?.response?.data?.code || error?.code || '')
 }
