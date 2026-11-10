@@ -47,7 +47,7 @@
           </div>
           <div><strong>{{ activeType.label }}</strong><span>{{ activeType.appName }}</span></div>
         </header>
-        <p v-if="loadError" class="form-error">{{ loadError }}</p>
+        <RequestErrorMessage v-if="loadError" class="form-error" :message="loadError" :error="loadFailure" />
         <div class="field-grid">
           <label v-for="field in visibleFields" :key="field.key" class="form-field" :class="[{'wide-field': ['textarea', 'work-items'].includes(field.type)}, `field-${field.key}`]">
             <span>{{ field.label }}<b v-if="field.required && !(isWorkLogLeave && field.key === 'workItems')"> *</b></span>
@@ -102,7 +102,7 @@
             <input v-else v-model="form[field.key]" :type="field.inputType || field.type" :required="field.required" :min="field.min" :max="field.max" :step="field.step" :maxlength="field.maxlength" :placeholder="field.placeholder" @change="handleFieldChange(field)" />
           </label>
         </div>
-        <p v-if="submitError" class="form-error">{{ submitError }}</p>
+        <RequestErrorMessage v-if="submitError" class="form-error" :message="submitError" :error="submitFailure" />
       </form>
     </div>
     <template v-if="activeType" #footer>
@@ -114,8 +114,9 @@
 </template>
 
 <script setup>
-import {computed, reactive, ref, watch} from 'vue'
+import {computed, reactive, ref, shallowRef, watch} from 'vue'
 import MacDialog from '@/components/MacDialog.vue'
+import RequestErrorMessage from '@/components/RequestErrorMessage.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import AppIconImage from '@/components/AppIconImage.vue'
 import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
@@ -144,6 +145,8 @@ const submitting = ref(false)
 const loadingDependencies = ref(false)
 const submitError = ref('')
 const loadError = ref('')
+const submitFailure = shallowRef(null)
+const loadFailure = shallowRef(null)
 const packages = ref([])
 const dictionaryOptions = reactive({})
 const form = reactive({})
@@ -180,6 +183,8 @@ function resetForm(type = activeType.value) {
   initialSnapshot.value = JSON.stringify(form)
   submitError.value = ''
   loadError.value = ''
+  submitFailure.value = null
+  loadFailure.value = null
 }
 
 async function loadDependencies(type) {
@@ -220,6 +225,7 @@ async function loadDependencies(type) {
     if (type.api === 'workLog') await loadWorkLogDefaults()
   } catch (error) {
     loadError.value = error?.response?.data?.message || '表单选项加载失败，请稍后重试。'
+    loadFailure.value = error
   } finally {
     initialSnapshot.value = JSON.stringify(form)
     loadingDependencies.value = false
@@ -232,8 +238,10 @@ async function handleFieldChange(field) {
   try {
     await loadWorkLogDefaults()
     loadError.value = ''
-  } catch {
+    loadFailure.value = null
+  } catch (error) {
     loadError.value = '当天日志加载失败，请稍后重试。'
+    loadFailure.value = error
   } finally {
     loadingDependencies.value = false
   }
@@ -348,6 +356,7 @@ const apiHandlers = {
 async function submit() {
   if (!activeType.value || submitting.value) return
   submitError.value = ''
+  submitFailure.value = null
   const passwordIdentityMissing = activeType.value.api === 'passwordMemo' && !form.username && !form.registeredPhone && !form.registeredEmail
   if (passwordIdentityMissing) { submitError.value = '用户名、注册手机、注册邮箱至少填写一项。'; return }
   if (activeType.value.api === 'fuel' && Number(form.discountedAmount) > Number(form.totalAmount)) { submitError.value = '优惠后金额不能大于加油金额。'; return }
@@ -365,6 +374,7 @@ async function submit() {
     resetForm(null)
   } catch (error) {
     submitError.value = error?.response?.data?.message || error?.message || '保存失败，请检查后重试。'
+    submitFailure.value = error
   } finally {
     submitting.value = false
   }

@@ -99,6 +99,10 @@ request.interceptors.response.use(
     return response
   },
   (error) => {
+    const traceId = error?.response?.headers?.['x-trace-id']
+    if (typeof traceId === 'string' && /^[0-9a-f]{32}$/.test(traceId)) {
+      error.traceId = traceId
+    }
     if (shouldForceLogout(error?.response?.data, error?.response?.status, error?.config?.url || '')) {
       redirectToLogin()
       return Promise.reject(new Error('登录状态已失效'))
