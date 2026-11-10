@@ -1058,6 +1058,44 @@ describe('WorkLog MacDialog integration', () => {
     expect(dailyZentaoSummaries[0].text()).toBe('禅道：ZEN-201、ZEN-202、ZEN-203')
   })
 
+  it('excludes transit effort in week, month and day details while preserving the recorded log', async () => {
+    const today = new Date()
+    const logDate = [today.getFullYear(), `${today.getMonth() + 1}`.padStart(2, '0'), `${today.getDate()}`.padStart(2, '0')].join('-')
+    listWorkLogs.mockResolvedValue(buildApiResponse([{
+      ...editLogDetail,
+      logDate,
+      location: '出差在途',
+      typeCodes: ['OUT_OF_CITY_BUSINESS_TRIP'],
+      personDay: 0.6,
+      workItem: '出差返程',
+      workItems: [{content: '出差返程', status: 'COMPLETED', personDay: 0.6}],
+      businessTripAllowanceAmount: 110
+    }]))
+    const wrapper = await mountWorkLog()
+    const personDayCard = () => wrapper.findAll('.stats-card').find((card) => card.text().includes('人天总计'))
+
+    expect(wrapper.vm.activeStats.personDayTotal).toBe(0)
+    expect(personDayCard().get('.stats-metric-block strong').text()).toBe('0 人天')
+    expect(wrapper.vm.daySummaryMap[logDate].personDayTotal).toBe(0)
+    expect(wrapper.findAll('.weekly-report-project')).toHaveLength(0)
+
+    await wrapper.vm.openDayDetail(logDate)
+    await flushPromises()
+    expect(wrapper.vm.detailProjectGroups[0].personDayTotal).toBe(0)
+    expect(wrapper.vm.detailDayLogs[0].personDay).toBe(0.6)
+    expect(wrapper.vm.detailProjectGroups[0].workItems[0].personDay).toBe(0.6)
+    const detailPanel = document.body.querySelector('.work-log-day-detail-dialog')
+    expect(detailPanel.textContent).toContain('出差返程')
+
+    const monthButton = wrapper.findAll('button').find((button) => button.text() === '月视图')
+    await monthButton.trigger('click')
+    await flushPromises()
+    expect(wrapper.vm.activeStats.personDayTotal).toBe(0)
+    expect(personDayCard().get('.stats-metric-block strong').text()).toBe('0 人天')
+    expect(wrapper.vm.monthSummaryMap[logDate].personDayTotal).toBe(0)
+    expect(wrapper.vm.activeStats.businessTripAllowanceTotal).toBe(110)
+  })
+
   it('builds a de-duplicated weekly report by project and hides it in month view', async () => {
     listWorkLogs.mockResolvedValue(buildApiResponse([
       {

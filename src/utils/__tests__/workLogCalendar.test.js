@@ -6,6 +6,7 @@ import {
   buildMonthCalendarDays,
   buildWeeklyReportGroups,
   calculateLogStats,
+  getLogPersonDay,
   getWorkLogTypeTone,
   getMonthRange,
   getPreviousLogDate,
@@ -316,4 +317,53 @@ test('weekly repeated tasks accumulate item effort and retain the latest complet
   const groups = buildWeeklyReportGroups(logs)
   assert.equal(groups[0].personDayTotal, 0.5)
   assert.deepEqual(groups[0].items, [{content: '开发', personDay: 0.5, status: 'COMPLETED'}])
+})
+
+test('transit location excludes legacy and item effort without changing the recorded effort', () => {
+  for (const workItems of [undefined, [{content: '出差赶路', personDay: 0.6}]]) {
+    const log = {location: '出差在途', personDay: 0.6, workItems}
+    assert.equal(getLogPersonDay(log), 0)
+    assert.equal(log.personDay, 0.6)
+    if (workItems) assert.equal(workItems[0].personDay, 0.6)
+  }
+  for (const location of ['客户现场', '上海办公室', undefined]) {
+    assert.equal(getLogPersonDay({
+      location,
+      typeCodes: ['OUT_OF_CITY_BUSINESS_TRIP'],
+      businessTripAllowanceScene: 'OUT_OF_CITY_TRANSIT',
+      personDay: 0.6
+    }), 0.6)
+  }
+})
+
+test('stats and calendar exclude transit effort while retaining logs, overtime and allowances', () => {
+  const logs = [
+    {logDate: '2026-11-09', location: '客户现场', personDay: 0.5, overtimeHours: 1},
+    {logDate: '2026-11-10', location: '出差在途', personDay: 1, overtimeHours: 2, businessTripAllowanceAmount: 110, businessTripReimbursed: true},
+    {logDate: '2026-11-10', location: '出差在途', personDay: 0.5, overtimeHours: 2, workItems: [{content: '赶路', personDay: 0.5}]}
+  ]
+  const stats = calculateLogStats(logs)
+  assert.equal(stats.personDayTotal, 0.5)
+  assert.equal(stats.logCount, 3)
+  assert.equal(stats.workDays, 2)
+  assert.equal(stats.overtimeHoursTotal, 3)
+  assert.equal(stats.businessTripAllowanceTotal, 110)
+  assert.equal(stats.reimbursedAllowanceTotal, 110)
+  const summaries = buildDateSummaryMap([{date: '2026-11-09'}, {date: '2026-11-10'}], logs)
+  assert.equal(summaries['2026-11-09'].personDayTotal, 0.5)
+  assert.equal(summaries['2026-11-10'].personDayTotal, 0)
+  assert.equal(summaries['2026-11-10'].count, 2)
+  assert.equal(summaries['2026-11-10'].businessTripAllowanceTotal, 110)
+})
+
+test('weekly reports exclude transit logs from project effort and work content', () => {
+  const groups = buildWeeklyReportGroups([
+    {logDate: '2026-11-09', projectCode: 'A', location: '客户现场', personDay: 0.5, workItem: '现场联调'},
+    {logDate: '2026-11-10', projectCode: 'A', location: '出差在途', personDay: 0.5, workItems: [{content: '返程', personDay: 0.5}]},
+    {logDate: '2026-11-11', projectCode: 'B', location: '出差在途', personDay: 1, workItem: '出发'}
+  ])
+  assert.equal(groups.length, 1)
+  assert.equal(groups[0].projectCode, 'A')
+  assert.equal(groups[0].personDayTotal, 0.5)
+  assert.deepEqual(groups[0].items, [{content: '现场联调', status: 'COMPLETED'}])
 })

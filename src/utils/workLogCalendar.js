@@ -1,4 +1,5 @@
 const WEEK_TEXT = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const BUSINESS_TRIP_TRANSIT_LOCATION = '出差在途'
 const WORK_LOG_TYPE_TONE_MAP = {
   NORMAL: 'normal',
   OVERTIME: 'overtime',
@@ -154,7 +155,8 @@ export function isLeaveLog(log) {
 }
 
 export function getLogPersonDay(log) {
-  if (isLeaveLog(log)) return 0
+  // 请假与出差在途保留填报人天，但不计入工作人天汇总。
+  if (isLeaveLog(log) || log?.location === BUSINESS_TRIP_TRANSIT_LOCATION) return 0
   const items = log?.workItems || []
   return items.length && items.every((item) => item.personDay != null)
     ? items.reduce((total, item) => total + toNumber(item.personDay), 0)

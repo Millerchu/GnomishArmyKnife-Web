@@ -889,6 +889,7 @@ import {
   buildMonthCalendarDays,
   buildWeeklyReportGroups,
   calculateLogStats,
+  getLogPersonDay,
   formatDate,
   getWorkLogTypeTone,
   getMonthRange,
@@ -1501,7 +1502,7 @@ export default {
           zentaoNosText: joinOptionalValues(logs.map((item) => item.zentaoNo)),
           remarksText: joinOptionalValues(logs.map((item) => item.remark)),
           workItems: logs.flatMap((item) => item.workItems),
-          personDayTotal: logs.reduce((total, item) => total + toNumber(item.personDay, 0), 0),
+          personDayTotal: logs.reduce((total, item) => total + getLogPersonDay(item), 0),
           overtimeHoursTotal: logs.reduce((total, item) => total + toNumber(item.overtimeHours, 0), 0),
           allowanceTotal: logs.reduce((total, item) => total + toNumber(item.businessTripAllowanceAmount, 0), 0)
         }
