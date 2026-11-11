@@ -25,6 +25,12 @@
   overflow: auto;
 }
 
+.home-page,
+.main-area {
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-scrollbar) transparent;
+}
+
 .top-bar {
   width: 100%;
   display: flex;
