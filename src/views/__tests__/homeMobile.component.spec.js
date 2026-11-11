@@ -16,7 +16,12 @@ const routerPush = vi.fn()
 const mountedWrappers = []
 let mobileViewportMatches = true
 
+vi.mock('@/api/workbenchPreference', () => ({
+  getWorkbenchPreferences: vi.fn(async () => ({data: {code: '0', data: {version: 0, schemaVersion: 1, payload: null}}})),
+  saveWorkbenchPreferences: vi.fn(async ({version, payload}) => ({data: {code: '0', data: {version: version + 1, schemaVersion: 1, payload}}}))
+}))
 vi.mock('vue-router', () => ({
+  onBeforeRouteLeave: vi.fn(),
   useRouter: () => ({push: routerPush})
 }))
 

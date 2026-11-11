@@ -15,8 +15,13 @@ import {getHealthSummary} from '@/api/healthRecord'
 import {getPersonalBillSummary} from '@/api/personalBills'
 import {localDate} from '@/utils/workbenchData'
 import {WORKBENCH_LAYOUT_KEY} from '@/utils/workbenchLayout'
+import {WORKBENCH_GRID_KEY} from '@/utils/workbenchGrid'
 import {writeAuthState} from '@/utils/authStorage'
-vi.mock('vue-router', () => ({useRouter: () => ({push: vi.fn()}), useRoute: () => ({path: '/home'})}))
+vi.mock('@/api/workbenchPreference', () => ({
+  getWorkbenchPreferences: vi.fn(async () => ({data: {code: '0', data: {version: 0, schemaVersion: 1, payload: null}}})),
+  saveWorkbenchPreferences: vi.fn(async ({version, payload}) => ({data: {code: '0', data: {version: version + 1, schemaVersion: 1, payload}}}))
+}))
+vi.mock('vue-router', () => ({onBeforeRouteLeave: vi.fn(), useRouter: () => ({push: vi.fn()}), useRoute: () => ({path: '/home'})}))
 vi.mock('@/api/permission', () => ({getCurrentUserAccessibleApps: vi.fn()}))
 vi.mock('@/api/todoList', () => ({listTodoTasks: vi.fn(), updateTodoTaskStatus: vi.fn(), createTodoTask: vi.fn()}))
 vi.mock('@/api/workLog', () => ({listUnfinishedWorkItems: vi.fn(), getWeeklyBrief: vi.fn(), createWorkLog: vi.fn(), listWorkLogs: vi.fn()}))
@@ -98,20 +103,27 @@ it('今日摘要只取已加载的真实数据，快速新增成功后的 refres
   expect(wrapper.get('.wb-summary').text()).toContain('今日还有 3 条待办，工作日志已写')
   expect(listTodoTasks).toHaveBeenCalledTimes(2)
 })
-it('整理态保存顺序与隐藏、禁用内容，刷新后保持，可恢复默认', async () => {
-  const wrapper = panel(); await flushPromises()
+it('移动整理态只改草稿，完成保存顺序与隐藏，恢复默认须再次完成', async () => {
+  const wrapper = panel({mobile: true}); await flushPromises()
   await wrapper.get('[aria-pressed]').trigger('click')
   expect(wrapper.get('.wb-card-content').attributes()).toHaveProperty('inert')
   await wrapper.get('[aria-label="下移今日待办"]').trigger('click')
   await wrapper.get('[aria-label="显示健康"]').setValue(false)
-  expect(JSON.parse(localStorage.getItem(`${WORKBENCH_LAYOUT_KEY}:1`))).toMatchObject({order: ['workLog', 'todo', 'bills', 'health'], hidden: ['health']})
-  await wrapper.get('[aria-pressed]').trigger('click')
+  expect(localStorage.getItem(`${WORKBENCH_GRID_KEY}:1`)).toBeNull()
+  expect(wrapper.text()).toContain('有未保存更改')
+  await wrapper.get('[aria-pressed]').trigger('click'); await flushPromises()
+  const saved = JSON.parse(localStorage.getItem(`${WORKBENCH_GRID_KEY}:1`))
+  expect(saved.cards.map(card => card.id)).toEqual(['todo', 'workLog', 'bills', 'health', 'fuel', 'knowledge'])
+  expect(saved.cards.find(card => card.id === 'workLog')).toMatchObject({x: 0, y: 0})
+  expect(saved.cards.filter(card => card.hidden).map(card => card.id)).toEqual(['health'])
   expect(wrapper.find('[data-card=health]').exists()).toBe(false)
   const restored = panel(); await flushPromises()
-  expect(restored.findAll('[data-card]').map(item => item.attributes('data-card'))).toEqual(['workLog', 'todo', 'bills'])
+  expect(restored.findAll('[data-card]').map(item => item.attributes('data-card'))).toEqual(['todo', 'workLog', 'bills'])
   await restored.get('[aria-pressed]').trigger('click')
   await restored.findAll('button').find(button => button.text() === '恢复默认').trigger('click')
-  expect(JSON.parse(localStorage.getItem(`${WORKBENCH_LAYOUT_KEY}:1`)).hidden).toEqual([])
+  expect(JSON.parse(localStorage.getItem(`${WORKBENCH_GRID_KEY}:1`))).toEqual(saved)
+  await restored.get('[aria-pressed]').trigger('click'); await flushPromises()
+  expect(JSON.parse(localStorage.getItem(`${WORKBENCH_GRID_KEY}:1`)).cards.some(card => card.hidden)).toBe(false)
   expect(restored.findAll('[data-card]')[0].attributes('data-card')).toBe('todo')
 })
 it('隐藏全部卡片后仍可整理恢复，未授权的隐藏卡不显示', async () => {
@@ -264,6 +276,7 @@ it('仅 token 变化也重读当前账号的三个偏好，无 id 写回旧键',
   await wrapper.get('[aria-label="显示健康"]').setValue(false)
   await wrapper.get('.wb-dock-head button').trigger('click')
   expect(JSON.parse(localStorage.getItem('home_tool_custom_order'))).toEqual(['todo-list'])
-  expect(JSON.parse(localStorage.getItem(WORKBENCH_LAYOUT_KEY)).hidden).toEqual(['health'])
+  await wrapper.get('[aria-pressed]').trigger('click'); await flushPromises()
+  expect(JSON.parse(localStorage.getItem(WORKBENCH_GRID_KEY)).cards.filter(card => card.hidden).map(card => card.id)).toEqual(['health'])
   expect(localStorage.getItem('gak_workbench_dock_collapsed_v1')).toBe('true')
 })

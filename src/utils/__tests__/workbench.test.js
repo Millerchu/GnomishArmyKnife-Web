@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {moveWorkbenchCard, normalizeWorkbenchLayout, readWorkbenchLayout} from '../workbenchLayout.js'
+import {moveWorkbenchCard, normalizeWorkbenchLayout, readWorkbenchLayout, WORKBENCH_LAYOUT_KEY} from '../workbenchLayout.js'
 import {highlightCommand, workbenchCommands} from '../workbenchCommands.js'
-import {formatTodoDueDate, localDate, summarizeWeek, weekDates} from '../workbenchData.js'
+import {consumption, formatTodoDueDate, localDate, summarizeWeek, weekDates, workbenchFuelSummary, workbenchKnowledgeEntries} from '../workbenchData.js'
 import {resolvePermissionViewState} from '../permissionAccess.js'
 import {getLogPersonDay} from '../workLogCalendar.js'
 import {normalizeWorkbenchOrder, readUserStorage, userStorageKey} from '../workbenchStorage.js'
@@ -44,7 +44,7 @@ for (const key of ['gak_workbench_layout_v1', 'gak_workbench_dock_collapsed_v1',
 }
 
 test('布局迁移忽略未知与重复键，并补充新增卡片', () => {
-  assert.deepEqual(normalizeWorkbenchLayout({order: ['health', 'old', 'health'], hidden: ['health', 'old', 'health']}), {version: 1, order: ['health', 'todo', 'workLog', 'bills'], hidden: ['health']})
+  assert.deepEqual(normalizeWorkbenchLayout({order: ['health', 'old', 'health'], hidden: ['health', 'old', 'health']}), {version: 1, order: ['health', 'todo', 'workLog', 'bills', 'fuel', 'knowledge'], hidden: ['health']})
 })
 test('损坏存储恢复默认布局', () => {
   assert.deepEqual(readWorkbenchLayout({getItem: () => '{bad'}), normalizeWorkbenchLayout())
@@ -52,9 +52,47 @@ test('损坏存储恢复默认布局', () => {
 })
 test('卡片移动跳过未授权键，越界与未知键保持原布局', () => {
   const initial = normalizeWorkbenchLayout()
-  assert.deepEqual(moveWorkbenchCard(initial, 'todo', 1, ['todo', 'health']).order, ['health', 'workLog', 'bills', 'todo'])
+  assert.deepEqual(moveWorkbenchCard(initial, 'todo', 1, ['todo', 'health']).order, ['health', 'workLog', 'bills', 'todo', 'fuel', 'knowledge'])
   assert.deepEqual(moveWorkbenchCard(initial, 'todo', -1), initial)
   assert.deepEqual(moveWorkbenchCard(initial, 'unknown', 1), initial)
+})
+test('一期用户布局补油耗和经验库到末尾并默认可见，保留排序、隐藏和旧键', () => {
+  const legacy = JSON.stringify({version: 1, order: ['health', 'bills', 'todo', 'workLog'], hidden: ['bills']})
+  const values = new Map([[WORKBENCH_LAYOUT_KEY, legacy]])
+  const storage = {getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value)}
+  const layout = readWorkbenchLayout(storage, '9223372036854775807')
+  assert.deepEqual(layout.order, ['health', 'bills', 'todo', 'workLog', 'fuel', 'knowledge'])
+  assert.deepEqual(layout.hidden, ['bills'])
+  assert.equal(values.get(WORKBENCH_LAYOUT_KEY), legacy)
+  assert.deepEqual(normalizeWorkbenchLayout(layout), layout)
+  const moved = moveWorkbenchCard(layout, 'knowledge', -1, ['fuel', 'knowledge'])
+  assert.deepEqual(moved.order.slice(-2), ['knowledge', 'fuel'])
+})
+test('油耗仅保留展示字段，限制记录和车辆数量，零元历史与本月零不当空态', () => {
+  const record = {id: '9223372036854775807', fuelDate: '2026-10-01', vehicleName: '车', discountedAmount: '0', fuelConsumption: null, note: '不可展示', attachments: [{name: '不可展示'}]}
+  const result = workbenchFuelSummary({currentMonthAmount: '0.00', averageConsumption: null, recentRecords: Array(6).fill(record), vehicleStats: Array(5).fill({vehicleName: '车', averageConsumption: 8, recordCount: 1})})
+  assert.equal(result.hasRecords, true)
+  assert.equal(result.currentMonthAmount, '0.00')
+  assert.equal(result.recentRecords.length, 4)
+  assert.deepEqual(result.recentRecords[0], {fuelDate: '2026-10-01', vehicleName: '车', discountedAmount: '0', fuelConsumption: null})
+  assert.equal(result.vehicleStats.length, 3)
+  assert.deepEqual(result.vehicleStats[0], {vehicleName: '车', averageConsumption: 8})
+  assert.equal(consumption(null), '暂无')
+  assert.equal(consumption('0'), '0 L/100km')
+})
+test('油耗无记录才为空，累计金额、油量及车辆历史都可证明存在记录', () => {
+  assert.equal(workbenchFuelSummary({totalAmount: '0', totalFuelVolume: '0', recentRecords: [], vehicleStats: []}).hasRecords, false)
+  for (const summary of [{totalAmount: '300'}, {totalFuelVolume: '40'}, {currentMonthAmount: '200'}, {vehicleStats: [{recordCount: '1'}]}]) {
+    assert.equal(workbenchFuelSummary(summary).hasRecords, true)
+  }
+})
+test('经验库只保留四个白名单字段，按字符截断摘要并限制五条，不读取正文', () => {
+  const entry = {title: '标题', category: '开发', summary: '😀'.repeat(100), updatedAt: '2026-11-11T10:20:30', ownerUserId: '9223372036854775807', attachments: [], reviewRemark: '不可展示'}
+  Object.defineProperty(entry, 'content', {get() { throw new Error('不应读取正文') }})
+  const result = workbenchKnowledgeEntries({list: Array(7).fill(entry), total: 70})
+  assert.equal(result.list.length, 5)
+  assert.deepEqual(result.list[0], {title: '标题', category: '开发', summary: `${'😀'.repeat(90)}…`, updatedAt: '2026-11-11'})
+  assert.deepEqual(workbenchKnowledgeEntries({list: null}), {list: []})
 })
 test('命令默认取六个应用四个新增，输入后搜索全量并排除系统路由', () => {
   const apps = Array.from({length: 8}, (_, i) => ({key: String(i), name: `应用${i}`, route: `/app${i}`}))

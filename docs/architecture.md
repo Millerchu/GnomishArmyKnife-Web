@@ -59,7 +59,7 @@ routeAccess.js 将 /login、/register 视为公开页面，其余要求 token �
 
 appCatalog.js 保存目录与元数据，实际可用性依赖后端状态和授权。目录标记、页面存在、后端实现是不同证据。
 
-个人工作台以独立卡片并行取数，App 共享权限目录与全局 Ctrl/⌘ K / 快速新增；布局只保存在浏览器。详见[个人工作台首期](workbench.md)。
+个人工作台以独立卡片并行取数，App 共享权限目录与全局 Ctrl/⌘ K / 快速新增；布局与应用坞通过 `/workbench/preferences` 按版本同步，浏览器保留按用户隔离的缓存与待同步标记。详见[个人工作台](workbench.md)。
 
 ## 消息、附件与维护
 
