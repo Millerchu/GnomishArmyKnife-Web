@@ -1,5 +1,5 @@
 <template>
-  <section class="workbench" :class="{'is-editing': editing}">
+  <section ref="workbenchRoot" class="workbench" :class="{'is-editing': editing}">
     <header class="wb-glass wb-heading">
       <div><h1>{{ greeting }}，{{ displayName }} <small>侏儒军刀 · 个人工作台</small></h1><p class="wb-mobile-date">{{ dateText }}</p><p v-if="todaySummary" class="wb-summary">{{ todaySummary }}</p></div>
       <div class="wb-heading-actions"><button type="button" class="wb-search-trigger" @click="openSearch">⌕ 搜索应用 <kbd>{{ shortcut }} K</kbd></button><button type="button" :aria-pressed="editing" :disabled="loading || source === 'unavailable' || saving" @click="editing ? finish() : beginEditing()">{{ waitingForSync ? '正在同步…' : saving ? '正在保存…' : editing ? '完成整理' : '☷ 整理工作台' }}</button><button class="wb-primary wb-quick-trigger" type="button" :disabled="loading || !types.length" @click="$emit('create', '')">＋ 快速新增</button></div>
@@ -11,11 +11,29 @@
     <div v-else-if="source === 'unavailable'" class="wb-glass wb-page-state" role="alert"><h2>权限不可用</h2><p>应用权限接口当前不可用，请先恢复后端权限服务。</p><button type="button" @click="$emit('retry-permissions')">重新读取权限</button></div>
     <div v-else-if="!tools.length" class="wb-glass wb-page-state"><h2>当前账号暂无可见应用</h2><p>请先在权限管理中完成授权。</p></div>
     <template v-else>
-      <div v-if="editing" class="wb-organize"><div><strong>整理工作台</strong><p id="wb-edit-help">{{ mobile ? '用 ↑ ↓ 调整顺序，用开关显示或隐藏卡片。' : '拖动卡片手柄调整位置，拖动右下角缩放。聚焦卡片后用方向键移动，Shift＋方向键切换尺寸。' }} 完成整理后保存。</p><p v-if="dirty" class="wb-dirty" role="status">有未保存更改</p><p v-if="storageError" role="alert">{{ storageError }}</p></div><div class="wb-organize-actions"><button type="button" :disabled="saving" @click="resetLayout">恢复默认</button><button type="button" :disabled="saving" @click="cancel">取消</button></div></div>
+      <div v-if="editing" class="wb-organize">
+        <div>
+          <strong>整理工作台</strong>
+          <p id="wb-edit-help">{{ mobile ? '用 ↑ ↓ 调整顺序。' : '拖动手柄移动，拖动右下角缩放。聚焦卡片后也可用方向键移动，Shift＋方向键切换尺寸。' }} 完成整理后保存。</p>
+          <p v-if="dirty" class="wb-dirty" role="status">有未保存更改</p>
+          <p v-if="storageError" role="alert">{{ storageError }}</p>
+        </div>
+        <div class="wb-organize-actions">
+          <button type="button" :disabled="saving" @click="resetLayout">恢复默认</button>
+          <button type="button" :disabled="saving" @click="cancel">取消</button>
+        </div>
+      </div>
+      <div v-if="editing && availableCards.length" class="wb-add-components" role="group" aria-label="添加组件">
+        <strong>添加组件</strong>
+        <button v-for="card in availableCards" :key="card.id" type="button" :disabled="saving"
+          :data-add-card="card.id" :aria-label="`添加${card.title}组件`" @click="addCard(card)">
+          ＋ {{ card.title }}
+        </button>
+      </div>
       <p class="wb-sr-only" aria-live="polite" aria-atomic="true">{{ announcement }}</p>
       <WorkbenchGrid v-if="displayCards.length" :cards="displayCards" :mobile="mobile" :editing="editing && !saving" @change="changeGrid">
         <template #default="{card}">
-        <section class="wb-glass wb-card" :class="{'is-hidden': card.hidden}" :data-card="card.id" :tabindex="editing ? 0 : undefined" :aria-label="`${card.title}，尺寸${sizeLabels[card.size]}`" :aria-describedby="editing ? 'wb-edit-help' : undefined" :aria-keyshortcuts="editing ? (mobile ? 'ArrowUp ArrowDown' : 'ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight') : undefined" @keydown.self="onCardKey($event, card)">
+        <section class="wb-glass wb-card" :data-card="card.id" :tabindex="editing ? 0 : undefined" :aria-label="`${card.title}，尺寸${sizeLabels[card.size]}`" :aria-describedby="editing ? 'wb-edit-help' : undefined" :aria-keyshortcuts="editing ? (mobile ? 'ArrowUp ArrowDown' : 'ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight') : undefined" @keydown.self="onCardKey($event, card)">
           <header class="wb-card-head">
             <span v-if="editing && !mobile" class="wb-drag-handle" aria-hidden="true">⠿</span>
             <AuthenticatedImage v-if="cardApp(card)?.iconType === 'UPLOAD' && cardApp(card)?.iconAttachmentId" :attachment-id="cardApp(card).iconAttachmentId" alt="" />
@@ -23,21 +41,18 @@
             <button v-if="!editing && mobile && card.mobileFolded" type="button" class="wb-fold" :aria-label="`${folded[card.id] ? '展开' : '收起'}${card.title}`" :aria-expanded="!folded[card.id]" @click="folded[card.id] = !folded[card.id]">{{ folded[card.id] ? '▸' : '▾' }}</button>
           </header>
           <div v-if="editing" class="wb-edit-controls">
-            <template v-if="mobile"><button type="button" :disabled="saving || card.hidden || displayCards.filter(item => !item.hidden)[0]?.id === card.id" :aria-label="`上移${card.title}`" @click="move(card.id, -1)">↑</button><button type="button" :disabled="saving || card.hidden || displayCards.filter(item => !item.hidden).at(-1)?.id === card.id" :aria-label="`下移${card.title}`" @click="move(card.id, 1)">↓</button></template>
+            <template v-if="mobile"><button type="button" :disabled="saving || displayCards[0]?.id === card.id" :aria-label="`上移${card.title}`" @click="move(card.id, -1)">↑</button><button type="button" :disabled="saving || displayCards.at(-1)?.id === card.id" :aria-label="`下移${card.title}`" @click="move(card.id, 1)">↓</button></template>
             <template v-else><button v-for="size in ['S', 'M', 'L']" :key="size" type="button" :disabled="saving" :aria-pressed="card.size === size" :aria-label="`将${card.title}设为${sizeLabels[size]}号`" @click="resizeCard(card.id, size)">{{ size }}</button></template>
-            <label><input type="checkbox" :disabled="saving" :checked="!card.hidden" :aria-label="`显示${card.title}`" @change="toggleCard(card.id)" />显示</label>
+            <button type="button" class="wb-remove-card" :disabled="saving" :aria-label="`删除${card.title}组件`" @click="removeCard(card)">删除</button>
           </div>
-          <p v-if="card.hidden && editing" class="wb-fine">此卡片已隐藏，阅读态不会显示。打开开关即可恢复。</p>
-          <template v-else>
-            <p v-if="mobile && folded[card.id] && !editing" class="wb-fold-summary">{{ foldedSummary(card.id) }}</p>
-            <WorkbenchCardContent v-show="!mobile || !folded[card.id] || editing" :inert="editing">
-              <component :is="components[card.id]" :refresh-key="refreshKey" @create="$emit('create', $event)" @state="states[card.id] = $event" />
-            </WorkbenchCardContent>
-          </template>
+          <p v-if="mobile && folded[card.id] && !editing" class="wb-fold-summary">{{ foldedSummary(card.id) }}</p>
+          <WorkbenchCardContent v-show="!mobile || !folded[card.id] || editing" :inert="editing">
+            <component :is="components[card.id]" :refresh-key="refreshKey" @create="$emit('create', $event)" @state="states[card.id] = $event" />
+          </WorkbenchCardContent>
         </section>
         </template>
       </WorkbenchGrid>
-      <p v-else-if="authorizedCards.length" class="wb-glass wb-page-state">卡片已全部隐藏，可在「整理工作台」中恢复显示。</p>
+      <p v-else-if="authorizedCards.length" class="wb-glass wb-page-state">{{ editing ? '工作台还没有组件。' : '工作台还没有组件，可在「整理工作台」中添加。' }}</p>
       <AppDock :tools="tools" :source="source" :is-mobile-viewport="mobile" @order="$emit('order', $event)" @notice="(...args) => $emit('notice', ...args)" />
     </template>
   </section>
@@ -68,14 +83,16 @@ const components = {todo: TodoCard, workLog: WorkLogCard, bills: BillsCard, heal
 const {layout, hasCachedLayout, draft, current, editing, dirty, busy: saving, waitingForSync, error: storageError, notice: syncNotice, conflict, useCloud, overwriteCloud, begin, cancel, reset, finish} = useWorkbenchLayout()
 onBeforeRouteLeave(() => !dirty.value || confirmDialog('放弃未保存的整理？', {confirmText: '放弃整理', cancelText: '继续整理'}))
 const announcement = ref('')
+const workbenchRoot = ref(null)
 const sizeLabels = {S: '小', M: '中', L: '大'}
 const folded = reactive(Object.fromEntries(WORKBENCH_CARDS.map(card => [card.key, Boolean(card.mobileFolded)])))
 const states = reactive({})
 const shortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'
 const greeting = computed(() => { const hour = (props.now || new Date()).getHours(); return hour < 6 ? '夜深了' : hour < 12 ? '上午好' : hour < 18 ? '下午好' : '晚上好' })
 const authorizedCards = computed(() => current.value.cards.map(item => ({...item, ...WORKBENCH_CARDS.find(card => card.key === item.id)})).filter(card => props.featureCodes.includes(card.featureCode)))
+const availableCards = computed(() => authorizedCards.value.filter(card => card.hidden))
 const displayCards = computed(() => {
-  const cards = authorizedCards.value.filter(card => editing.value || !card.hidden)
+  const cards = authorizedCards.value.filter(card => !card.hidden)
   return props.mobile ? visualGridOrder(cards) : cards
 })
 // 默认/迁移布局及权限变化时紧凑排列；已保存坐标在刷新和断点切换时保留。
@@ -127,12 +144,27 @@ function resizeCard(id, size) {
   const cards = updateGridCard(authorizedCards.value, id, {size})
   changeGrid(cards, id)
 }
-function toggleCard(id) {
+async function removeCard({id, title}) {
+  if (!editing.value || saving.value) return
+  const ordered = visualGridOrder(displayCards.value)
+  const index = ordered.findIndex(card => card.id === id)
+  const neighbor = ordered[index + 1] ?? ordered[index - 1]
+  const card = draft.value.cards.find(card => card.id === id)
+  card.hidden = true
+  delete states[id]
+  announcement.value = `已删除${title}组件，可重新添加`
+  await nextTick()
+  workbenchRoot.value?.querySelector(neighbor ? `[data-card="${neighbor.id}"]` : `[data-add-card="${id}"]`)?.focus()
+}
+async function addCard({id, title}) {
   if (!editing.value || saving.value) return
   const card = draft.value.cards.find(card => card.id === id)
-  card.hidden = !card.hidden
-  announcement.value = `${WORKBENCH_CARDS.find(card => card.key === id).title}已${card.hidden ? '隐藏' : '显示'}`
-  delete states[id]
+  // 优先沿用删除前的尺寸与坐标；有冲突时只为重新添加的组件找位置。
+  card.hidden = false
+  draft.value.cards = settleGridCards(draft.value.cards, id, {preserveOthers: true})
+  announcement.value = `已添加${title}组件`
+  await nextTick()
+  workbenchRoot.value?.querySelector(`[data-card="${id}"]`)?.focus()
 }
 function resetLayout() { reset(); compactAuthorized(draft.value); announcement.value = '已恢复默认布局，完成整理后保存' }
 function onCardKey(event, card) {

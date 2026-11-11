@@ -166,7 +166,7 @@ it('移动端迁移六卡后新卡参与草稿排序和显隐，完成后持久�
   expect(saveWorkbenchPreferences).toHaveBeenCalledOnce()
   await wrapper.get('[aria-pressed]').trigger('click')
   await wrapper.get('[aria-label="上移经验库"]').trigger('click')
-  await wrapper.get('[aria-label="显示油耗统计"]').setValue(false)
+  await wrapper.get('[aria-label="删除油耗统计组件"]').trigger('click')
   expect(wrapper.get('[data-card=knowledge] .wb-card-content').attributes()).toHaveProperty('inert')
   expect(localStorage.getItem(`${WORKBENCH_GRID_KEY}:1`)).toBe(syncedCache)
   await wrapper.get('[aria-pressed]').trigger('click'); await flushPromises()

@@ -32,7 +32,7 @@ afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); document.body.in
 it.each([true, false])('有未保存草稿离开时系统确认框，选择 %s 决定路由是否离开', async accepted => {
   const {wrapper, router} = await page()
   await wrapper.get('.wb-heading [aria-pressed]').trigger('click')
-  await wrapper.get('[aria-label="显示健康"]').setValue(false)
+  await wrapper.get('[aria-label="删除健康组件"]').trigger('click')
   const navigation = router.push('/other'); await flushPromises()
   const dialog = document.querySelector('[role="alertdialog"]')
   expect(dialog.textContent).toContain('放弃未保存的整理？')
@@ -42,7 +42,7 @@ it.each([true, false])('有未保存草稿离开时系统确认框，选择 %s �
   await navigation; await flushPromises()
   expect(router.currentRoute.value.path).toBe(accepted ? '/other' : '/home')
   if (!accepted) {
-    expect(wrapper.get('[aria-label="显示健康"]').element.checked).toBe(false)
+    expect(wrapper.find('[aria-label="添加健康组件"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('有未保存更改')
   }
 })

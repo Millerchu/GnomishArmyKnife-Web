@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs'
 import {flushPromises, mount} from '@vue/test-utils'
 import {afterEach, beforeEach, expect, it, vi} from 'vitest'
 import {GridItem, GridLayout} from 'grid-layout-plus'
+import {saveWorkbenchPreferences} from '@/api/workbenchPreference'
 import WorkbenchPanel from '../workbench/WorkbenchPanel.vue'
 import WorkbenchGrid from '../workbench/WorkbenchGrid.vue'
 import {applyWorkbenchPayload, cardsOverlap, defaultGridCards, GRID_SIZES, WORKBENCH_GRID_KEY} from '@/utils/workbenchGrid'
@@ -145,7 +146,7 @@ it('桌面方向键移动一格、Shift 切档并播报，边界合法，不拦�
   expect(document.activeElement).toBe(card.element)
   expect(positions(wrapper)[0]).toMatchObject({size: 'M', w: 6, h: 3})
   const before = positions(wrapper)
-  await wrapper.get('[aria-label="显示今日待办"]').trigger('keydown', {key: 'ArrowDown'})
+  await wrapper.get('[aria-label="删除今日待办组件"]').trigger('keydown', {key: 'ArrowDown'})
   await card.trigger('keydown', {key: 'ArrowLeft', ctrlKey: true})
   expect(positions(wrapper)).toEqual(before); expectLegal(before)
 })
@@ -155,7 +156,7 @@ it.each(['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'])('Shift+%s 可切换
   await wrapper.get('[data-card=todo]').trigger('keydown', {key, shiftKey: true}); await flushPromises()
   expect(positions(wrapper)[0].size).toBe(['ArrowUp', 'ArrowLeft'].includes(key) ? 'S' : 'L')
 })
-it('移动端不用网格库、没有档位和手柄，只有排序显隐；左右和 Shift 不改尺寸', async () => {
+it('移动端不用网格库、没有档位和手柄，支持排序和删除；左右和 Shift 不改尺寸', async () => {
   const wrapper = panel({mobile: true}); await toggleEdit(wrapper)
   expect(wrapper.findComponent(GridLayout).exists()).toBe(false)
   expect(wrapper.findComponent(GridItem).exists()).toBe(false)
@@ -175,19 +176,20 @@ it('移动端不用网格库、没有档位和手柄，只有排序显隐；左�
   expect(wrapper.get('[aria-live="polite"]').text()).toBe('本月账单已移到第 3 行第 1 列，尺寸小')
   await wrapper.get('[aria-label="上移本月账单"]').trigger('click')
   expect(positions(wrapper)).toEqual(before)
-  await wrapper.get('[aria-label="显示健康"]').setValue(false)
-  expect(positions(wrapper).find(card => card.id === 'health').hidden).toBe(true)
+  await wrapper.get('[aria-label="删除健康组件"]').trigger('click')
+  expect(positions(wrapper)).toEqual(before.filter(card => card.id !== 'health'))
+  expect(wrapper.get('[aria-label="添加健康组件"]').exists()).toBe(true)
   expect(localStorage.getItem(cacheKey)).toBeNull()
 })
 it('完成写新键且保持旧键，取消丢弃深拷贝草稿，恢复默认只改草稿', async () => {
   const old = JSON.stringify({version: 1, order: ['health', 'todo'], hidden: ['bills']})
   localStorage.setItem(`${WORKBENCH_LAYOUT_KEY}:9223372036854775807`, old)
   const wrapper = panel(); const before = positions(wrapper); await toggleEdit(wrapper)
-  await wrapper.get('[aria-label="显示健康"]').setValue(false)
+  await wrapper.get('[aria-label="删除健康组件"]').trigger('click')
   await button(wrapper, '取消').trigger('click')
   expect(positions(wrapper)).toEqual(before)
   await toggleEdit(wrapper)
-  await wrapper.get('[aria-label="显示健康"]').setValue(false)
+  await wrapper.get('[aria-label="删除健康组件"]').trigger('click')
   await toggleEdit(wrapper)
   const saved = JSON.parse(localStorage.getItem(cacheKey))
   expect(saved.schemaVersion).toBe(1)
@@ -206,18 +208,18 @@ it('有未保存草稿时 beforeunload 提示，未修改、取消、完成和�
   function unload() { const event = new Event('beforeunload', {cancelable: true}); window.dispatchEvent(event); return event.defaultPrevented }
   expect(unload()).toBe(false)
   await toggleEdit(wrapper); expect(unload()).toBe(false)
-  await wrapper.get('[aria-label="显示健康"]').setValue(false); expect(unload()).toBe(true)
+  await wrapper.get('[aria-label="删除健康组件"]').trigger('click'); expect(unload()).toBe(true)
   await button(wrapper, '取消').trigger('click'); expect(unload()).toBe(false)
-  await toggleEdit(wrapper); await wrapper.get('[aria-label="显示健康"]').setValue(false); await toggleEdit(wrapper)
+  await toggleEdit(wrapper); await wrapper.get('[aria-label="删除健康组件"]').trigger('click'); await toggleEdit(wrapper)
   expect(unload()).toBe(false)
-  await toggleEdit(wrapper); await wrapper.get('[aria-label="显示健康"]').setValue(true); expect(unload()).toBe(true)
+  await toggleEdit(wrapper); await wrapper.get('[aria-label="添加健康组件"]').trigger('click'); expect(unload()).toBe(true)
   wrapper.unmount(); wrappers.splice(wrappers.indexOf(wrapper), 1); expect(unload()).toBe(false)
 })
 it('存储失败保留草稿和提示，可重试完成；保存失败不影响旧缓存', async () => {
   const initial = applyWorkbenchPayload(null)
   localStorage.setItem(cacheKey, JSON.stringify(initial))
   const wrapper = panel(); await toggleEdit(wrapper)
-  await wrapper.get('[aria-label="显示健康"]').setValue(false)
+  await wrapper.get('[aria-label="删除健康组件"]').trigger('click')
   const original = localStorage.setItem.bind(localStorage)
   const spy = vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => { if (key === cacheKey) throw new Error('quota'); original(key, value) })
   await toggleEdit(wrapper)
@@ -241,11 +243,11 @@ it('坞折叠/顺序即时保存且取消不回滚；完成取坞最新值进入
 })
 it('身份变化丢弃旧账号草稿，按新账号读取和提交，不串 Long ID', async () => {
   const wrapper = panel(); await toggleEdit(wrapper)
-  await wrapper.get('[aria-label="显示健康"]').setValue(false)
+  await wrapper.get('[aria-label="删除健康组件"]').trigger('click')
   writeAuthState(localStorage, {token: 'b-token', user: {id: '9223372036854775806'}}); await flushPromises()
   expect(wrapper.find('.wb-organize').exists()).toBe(false)
   expect(wrapper.find('[data-card=health]').exists()).toBe(true)
-  await toggleEdit(wrapper); await wrapper.get('[aria-label="显示油耗统计"]').setValue(false); await toggleEdit(wrapper)
+  await toggleEdit(wrapper); await wrapper.get('[aria-label="删除油耗统计组件"]').trigger('click'); await toggleEdit(wrapper)
   expect(localStorage.getItem(cacheKey)).toBeNull()
   expect(JSON.parse(localStorage.getItem(`${WORKBENCH_GRID_KEY}:9223372036854775806`)).cards.find(card => card.id === 'fuel').hidden).toBe(true)
 })
@@ -320,8 +322,31 @@ it.each(['legacy', 'cached'])('隐藏 health 的 %s 布局阅读时无空洞，�
     expect(saved.find(card => card.id === 'knowledge').y).toBe(4)
   }
   await toggleEdit(wrapper)
-  expect(positions(wrapper)).toEqual(saved)
-  expect(positions(wrapper).find(card => card.id === 'health').hidden).toBe(true)
+  expect(positions(wrapper)).toEqual(saved.filter(card => !card.hidden))
+  expect(wrapper.get('[aria-label="添加健康组件"]').exists()).toBe(true)
+})
+
+it.each([false, true])('删除后完成整理保存布局，重新添加保留组件档位与其他组件的位置（mobile=%s）', async mobile => {
+  const wrapper = panel({mobile})
+  await toggleEdit(wrapper)
+  saveWorkbenchPreferences.mockClear()
+  const original = positions(wrapper)
+  const remaining = original.filter(card => card.id !== 'health')
+  await wrapper.get('[aria-label="删除健康组件"]').trigger('click')
+  expect(positions(wrapper)).toEqual(remaining)
+  expect(wrapper.get('[aria-live="polite"]').text()).toBe('已删除健康组件，可重新添加')
+  expect(document.activeElement).toBe(wrapper.get('[data-card=workLog]').element)
+  expect(saveWorkbenchPreferences).not.toHaveBeenCalled()
+  await toggleEdit(wrapper)
+  expect(saveWorkbenchPreferences).toHaveBeenLastCalledWith(expect.objectContaining({
+    payload: expect.objectContaining({cards: expect.arrayContaining([expect.objectContaining({id: 'health', hidden: true})])})
+  }))
+  await toggleEdit(wrapper)
+  await wrapper.get('[aria-label="添加健康组件"]').trigger('click')
+  expect(positions(wrapper)).toEqual(original)
+  expect(document.activeElement).toBe(wrapper.get('[data-card=health]').element)
+  await toggleEdit(wrapper)
+  expect(JSON.parse(localStorage.getItem(cacheKey)).cards.find(card => card.id === 'health').hidden).toBe(false)
 })
 it.each([['bills', '上移本月账单'], ['todo', '下移今日待办']])('移动端 %s 跨档换位后切回桌面并完成，其他四卡保存坐标不变', async (id, label) => {
   const cards = defaultGridCards().map(card => ({...card, y: card.y + 10}))

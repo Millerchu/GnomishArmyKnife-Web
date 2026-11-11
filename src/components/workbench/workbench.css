@@ -651,11 +651,30 @@
   color: #fff;
 }
 
-.wb-edit-controls label {
+.wb-add-components {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  font-size: 11px;
-  white-space: nowrap;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--theme-border);
+  border-radius: 14px;
+  background: var(--theme-surface);
+}
+
+.wb-add-components strong {
+  margin-right: 4px;
+  color: var(--theme-text-soft);
+}
+
+.workbench .wb-edit-controls .wb-remove-card {
+  margin-left: auto;
+  padding-inline: 10px;
+  color: var(--theme-danger);
+}
+
+.workbench .wb-remove-card:hover:not(:disabled) {
+  background: var(--theme-danger-soft);
 }
 
 .wb-dock {
@@ -1000,8 +1019,8 @@
     display: none;
   }
 
-  .wb-edit-controls label {
-    font-size: 11px;
+  .workbench .wb-edit-controls .wb-remove-card {
+    min-height: 36px;
   }
 
   .workbench button {
