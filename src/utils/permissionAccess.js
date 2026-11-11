@@ -8,7 +8,7 @@ export function extractAccessibleFeatureCodes(payload) {
       .filter(Boolean)))
   }
 
-  const rawCodes = payload.featureCodes || payload.grantedFeatureCodes || payload.appCodes || payload.grantedAppCodes
+  const rawCodes = payload.accessibleFeatureCodes || payload.featureCodes || payload.grantedFeatureCodes || payload.appCodes || payload.grantedAppCodes
   if (Array.isArray(rawCodes)) {
     return Array.from(new Set(rawCodes.filter(Boolean)))
   }

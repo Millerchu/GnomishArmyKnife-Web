@@ -7,6 +7,7 @@
     <div class="content">
       <router-view/>
     </div>
+    <WorkbenchCommandHost/>
     <SystemDialogHost/>
     <MessageHost v-if="$route.path !== '/home'"/>
   </div>
@@ -16,15 +17,19 @@
 import {onMounted, ref} from 'vue'
 import SystemDialogHost from './components/SystemDialogHost.vue'
 import MessageHost from './components/MessageHost.vue'
+import WorkbenchCommandHost from './components/workbench/WorkbenchCommandHost.vue'
+import {useWorkbenchAccess} from './composables/useWorkbenchAccess'
 
 const FALLBACK_BACKGROUND = 'var(--theme-wallpaper-overlay), var(--theme-wallpaper-fallback)'
 
 export default {
   components: {
+    WorkbenchCommandHost,
     SystemDialogHost,
     MessageHost
   },
   setup() {
+    useWorkbenchAccess(true)
     const bgStyle = ref({
       background: FALLBACK_BACKGROUND,
       opacity: 1,

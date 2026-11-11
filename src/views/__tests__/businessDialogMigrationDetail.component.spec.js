@@ -49,8 +49,9 @@ describe('详情与安全弹窗迁移契约', () => {
   it('主页退出请求打开共享确认弹窗，不再使用浏览器原生确认框', async () => {
     const {default: source} = await import('../Home.vue?raw')
 
-    expect(source).not.toContain('window.confirm')
+    const {default: shellSource} = await import('../../composables/useHomeShell.js?raw')
+    expect(source + shellSource).not.toContain('window.confirm')
     expect(source).not.toContain('logoutDialogRef')
-    expect(source).toMatch(/const requestLogout = \(\) => \{\s*logoutPending\.value = true\s*\}/)
+    expect(source + shellSource).toMatch(/const requestLogout = \(\) => \{\s*logoutPending\.value = true\s*\}/)
   })
 })

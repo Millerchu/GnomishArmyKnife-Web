@@ -872,6 +872,7 @@
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
+import {WORK_LOG_STATUS_LABELS} from '@/constants/workLogStatus'
 import MacDialog from '@/components/MacDialog.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import {
@@ -1204,7 +1205,7 @@ function normalizeWorkStatus(value) {
 }
 
 function formatWorkStatus(value) {
-  return normalizeWorkStatus(value) === WORK_STATUS_UNFINISHED ? '未完成' : '已完成'
+  return WORK_LOG_STATUS_LABELS[normalizeWorkStatus(value)]
 }
 
 function getWorkStatusClass(value) {

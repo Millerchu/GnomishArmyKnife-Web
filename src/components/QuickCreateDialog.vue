@@ -135,6 +135,7 @@ import {getPresetIconSvg} from '@/constants/appIconLibrary'
 
 const props = defineProps({
   modelValue: Boolean,
+  initialTypeCode: {type: String, default: ''},
   types: {type: Array, default: () => []},
   apps: {type: Array, default: () => []},
   currentUser: {type: Object, default: () => ({})}
@@ -380,7 +381,13 @@ async function submit() {
   }
 }
 
-watch(() => props.modelValue, (visible) => { if (visible && !selectedTypeCode.value) resetForm(null) })
+watch(() => props.modelValue, async (visible) => {
+  if (!visible || selectedTypeCode.value) return
+  const initial = props.types.find(type => type.typeCode === props.initialTypeCode)
+  selectedTypeCode.value = initial?.typeCode || ''
+  resetForm(initial || null)
+  if (initial) await loadDependencies(initial)
+}, {immediate: true})
 </script>
 
 <style scoped>

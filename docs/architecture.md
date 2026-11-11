@@ -26,7 +26,7 @@ API 为后端前缀，浏览器默认再加 `/api`。
 | 页面入口 | 用途 | API / 边界 |
 | --- | --- | --- |
 | /login、/register | 登录注册 | /auth |
-| /home | 桌面、内嵌需求看板 | 应用/授权接口；看板 /requirement-items |
+| /home | 个人工作台、应用坞、内嵌需求看板 | 授权目录；待办/日志/账单/健康摘要；看板 /requirement-items |
 | /growth-record | 芽记 | /growth-records |
 | /travel-record | 行笺 | /travel-records、/travel-groups |
 | /messages、/system/messages | 收件箱、管理发布 | /messages |
@@ -58,6 +58,8 @@ HTTP 401 或约定的登录失效码/信息触发登录状态清理和跳转；�
 routeAccess.js 将 /login、/register 视为公开页面，其余要求 token 与 user 同时存在，登录用户访问 /login 转 /home。当前仅消息管理路由显式声明 requiresAdmin。桌面应用可见性、业务页面权限是另一层，不能声称守卫统一验证了全部 APP_* 权限；后端仍须检查授权和数据归属。
 
 appCatalog.js 保存目录与元数据，实际可用性依赖后端状态和授权。目录标记、页面存在、后端实现是不同证据。
+
+个人工作台以独立卡片并行取数，App 共享权限目录与全局 Ctrl/⌘ K / 快速新增；布局只保存在浏览器。详见[个人工作台首期](workbench.md)。
 
 ## 消息、附件与维护
 
