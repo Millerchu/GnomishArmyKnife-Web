@@ -1,3 +1,6 @@
+import {GROWTH_METRICS, newGrowthRecord} from '../utils/growthRecords.js'
+import {newTravelRecord, TRANSPORT_TYPES, TRAVEL_STATUSES, TRAVEL_PURPOSES} from '../utils/travelRecords.js'
+
 const today = () => new Date().toISOString().slice(0, 10)
 
 const text = (key, label, required = false, extra = {}) => ({key, label, type: 'text', required, ...extra})
@@ -8,6 +11,20 @@ const dictionary = (key, label, featureCode, moduleCode, required = false, multi
   key, label, type: multiple ? 'dictionary-multi' : 'dictionary-select', required,
   dictionaryUsage: {appCode: featureCode, moduleCode, bizFieldCode: key}
 })
+
+function growthType(kind, typeCode, label, fields) {
+  const needsChild = kind !== 'child'
+  return {
+    typeCode, label, featureCode: 'APP_GROWTH_RECORD', appName: '芽记', api: 'growth', growthKind: kind,
+    loadChildren: needsChild,
+    defaults: () => needsChild ? {childId: '', ...newGrowthRecord(kind)} : newGrowthRecord(kind),
+    fields: [
+      ...(needsChild ? [{key: 'childId', label: '宝宝', type: 'child-select', required: true}] : []),
+      ...fields,
+      area('note', kind === 'milestone' ? '那天的故事' : '备注', {maxlength: 1000})
+    ]
+  }
+}
 
 export const QUICK_CREATE_TYPES = [
   {
@@ -28,7 +45,7 @@ export const QUICK_CREATE_TYPES = [
     defaults: () => ({category: '', siteName: '', siteUrl: '', username: '', password: '', registeredPhone: '', registeredEmail: '', remark: ''}),
     fields: [dictionary('category', '类别', 'APP_PASSWORD_MEMO', 'PASSWORD_MEMO', true),
       text('siteName', '网站名', true), text('siteUrl', '地址', true), text('username', '用户名'),
-      text('password', '密码', true, {inputType: 'password'}), text('registeredPhone', '注册手机'),
+      text('password', '密码', false, {inputType: 'password', maxlength: 128, placeholder: '密码（可留空）'}), text('registeredPhone', '注册手机'),
       text('registeredEmail', '注册邮箱', false, {inputType: 'email'}), area('remark', '备注')]
   },
   {
@@ -112,7 +129,50 @@ export const QUICK_CREATE_TYPES = [
     defaults: () => ({visitId: '', examDate: today(), hospitalName: '', reportTitle: '', summary: '', doctorAdvice: '', reportFileName: '', reportUrl: ''}),
     fields: [text('visitId', '关联就诊 ID'), {key: 'examDate', label: '检查日期', type: 'date', required: true}, text('hospitalName', '医院名称'), text('reportTitle', '报告标题', true),
       area('summary', '报告摘要'), area('doctorAdvice', '医生建议'), text('reportFileName', '报告文件名'), text('reportUrl', '报告文件地址')]
-  }
+  },
+  {
+    typeCode: 'TRAVEL_RECORD', featureCode: 'APP_TRAVEL_RECORD', appName: '行笺', label: '新增行程', api: 'travel',
+    defaults: () => ({
+      ...newTravelRecord(), syncBill: false, departureTime: '', arrivalDate: '', arrivalTime: '',
+      purpose: '', serviceNumber: '', note: ''
+    }),
+    fields: [
+      select('transportType', '交通类型', Object.entries(TRANSPORT_TYPES), true),
+      select('status', '状态', Object.entries(TRAVEL_STATUSES), true),
+      text('departure', '出发地', true, {maxlength: 96}),
+      text('arrival', '到达地', true, {maxlength: 96}),
+      {key: 'departureDate', label: '出发日期', type: 'date', required: true},
+      {key: 'departureTime', label: '出发时间', type: 'time'},
+      {key: 'arrivalDate', label: '到达日期', type: 'date'},
+      {key: 'arrivalTime', label: '到达时间', type: 'time'},
+      text('departureZone', '出发地时区', true, {maxlength: 96}),
+      text('arrivalZone', '到达地时区', true, {maxlength: 96}),
+      text('serviceNumber', '车次 / 航班号', false, {maxlength: 60}),
+      select('purpose', '用途', [['', '未填写'], ...Object.entries(TRAVEL_PURPOSES)]),
+      area('note', '备注', {maxlength: 1000})
+    ]
+  },
+  growthType('child', 'GROWTH_CHILD', '新增宝宝档案', [
+    text('name', '宝宝昵称', true, {maxlength: 64}),
+    {key: 'birthday', label: '出生日期', type: 'date', required: true},
+    select('gender', '性别', [['UNKNOWN', '暂不填写'], ['BOY', '男孩'], ['GIRL', '女孩']])
+  ]),
+  growthType('measurement', 'GROWTH_MEASUREMENT', '新增生长测量', [
+    {key: 'measureDate', label: '测量日期', type: 'date', required: true},
+    ...GROWTH_METRICS.map(({key, label, unit}) => number(key, `${label}（${unit}）`, false, {min: 0.01, max: 9999.99, step: '0.01'})),
+    text('recordedBy', '记录人', false, {maxlength: 64})
+  ]),
+  growthType('vaccination', 'GROWTH_VACCINATION', '新增接种记录', [
+    text('vaccineName', '疫苗名称', true, {maxlength: 128}),
+    number('dose', '针次', true, {min: 1, max: 99, step: 1}),
+    select('status', '状态', [['COMPLETED', '已接种'], ['PLANNED', '待接种计划']]),
+    {key: 'vaccinationDate', label: '接种 / 预约日期', type: 'date', required: true},
+    text('institution', '接种单位', false, {maxlength: 128})
+  ]),
+  growthType('milestone', 'GROWTH_MILESTONE', '新增成长里程碑', [
+    text('title', '里程碑标题', true, {maxlength: 128}),
+    {key: 'eventDate', label: '发生日期', type: 'date', required: true}
+  ])
 ]
 
 export function resolveQuickCreateTypes(featureCodes = []) {

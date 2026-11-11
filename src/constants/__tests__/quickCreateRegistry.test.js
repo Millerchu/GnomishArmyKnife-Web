@@ -11,9 +11,15 @@ test('医院就诊快捷新增支持可选自付金额', () => {
   assert.equal(amount.step, '0.01')
 })
 
-test('quick create registry exposes all thirteen business create types', () => {
-  assert.equal(QUICK_CREATE_TYPES.length, 13)
-  assert.equal(new Set(QUICK_CREATE_TYPES.map((item) => item.typeCode)).size, 13)
+test('quick create types have unique codes', () => {
+  assert.equal(new Set(QUICK_CREATE_TYPES.map((item) => item.typeCode)).size, QUICK_CREATE_TYPES.length)
+})
+
+test('行笺和芽记的快速新增按各自应用授权过滤', () => {
+  assert.deepEqual(resolveQuickCreateTypes(['APP_TRAVEL_RECORD']).map(type => type.typeCode), ['TRAVEL_RECORD'])
+  assert.deepEqual(resolveQuickCreateTypes(['APP_GROWTH_RECORD']).map(type => type.typeCode), [
+    'GROWTH_CHILD', 'GROWTH_MEASUREMENT', 'GROWTH_VACCINATION', 'GROWTH_MILESTONE'
+  ])
 })
 
 test('quick create types are filtered by granted feature codes', () => {
@@ -38,6 +44,14 @@ test('password memo category is loaded from its dictionary usage', () => {
     moduleCode: 'PASSWORD_MEMO',
     bizFieldCode: 'category'
   })
+})
+
+test('password memo quick create defaults to an optional empty password', () => {
+  const type = QUICK_CREATE_TYPES.find(item => item.typeCode === 'PASSWORD_MEMO')
+  const field = type.fields.find(item => item.key === 'password')
+  assert.equal(type.defaults().password, '')
+  assert.equal(field.required, false)
+  assert.equal(field.maxlength, 128)
 })
 
 test('work log quick create defaults every work item to completed', () => {

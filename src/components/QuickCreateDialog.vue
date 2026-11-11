@@ -59,6 +59,10 @@
               <option value="">{{ loadingDependencies ? '正在加载软件列表...' : '请选择所属软件' }}</option>
               <option v-for="item in packages" :key="item.id" :value="item.id">{{ item.softwareName || item.name }}</option>
             </select>
+            <select v-else-if="field.type === 'child-select'" v-model="form.childId" required :disabled="loadingDependencies || !growthChildren.length">
+              <option value="">{{ childPickerPlaceholder }}</option>
+              <option v-for="child in growthChildren" :key="child.id" :value="String(child.id)">{{ child.name }}</option>
+            </select>
             <select v-else-if="field.type === 'dictionary-select'" v-model="form[field.key]" :required="field.required" :disabled="loadingDependencies || !dictionaryOptions[field.key]?.length">
               <option value="">{{ loadingDependencies ? '正在加载字典...' : (dictionaryOptions[field.key]?.length ? '请选择' : '暂无可用字典项') }}</option>
               <option v-for="item in dictionaryOptions[field.key]" :key="item.value" :value="item.value">{{ item.label }}</option>
@@ -106,7 +110,7 @@
       </form>
     </div>
     <template v-if="activeType" #footer>
-      <button form="quick-create-form" type="submit" class="quick-submit" :disabled="submitting || loadingDependencies">
+      <button form="quick-create-form" type="submit" class="quick-submit" :disabled="submitting || loadingDependencies || (activeType.loadChildren && !selectedGrowthChild)">
         {{ submitting ? '提交中...' : '保存新增' }}
       </button>
     </template>
@@ -129,8 +133,12 @@ import {createAnnualBudget, createPersonalBill} from '@/api/personalBills'
 import {createKnowledgeEntry} from '@/api/knowledgeBase'
 import {createSoftwarePackage, createSoftwareVersion, listSoftwarePackages} from '@/api/softwareRepo'
 import {createHealthRecord, createHealthReport, createHealthVisit} from '@/api/healthRecord'
+import {createGrowthChild, createGrowthMeasurement, createGrowthVaccination, createGrowthMilestone, listGrowthChildren} from '@/api/growthRecords'
+import {createTravelRecord} from '@/api/travelRecords'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
 import {serializeWorkItemEntries, getPreviousLogDate, selectPreviousLogDefaults} from '@/utils/workLogCalendar'
+import {growthPayload, hasGrowthMeasurement, localToday} from '@/utils/growthRecords'
+import {travelPayload, validateTravelRecord} from '@/utils/travelRecords'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
 
 const props = defineProps({
@@ -149,6 +157,7 @@ const loadError = ref('')
 const submitFailure = shallowRef(null)
 const loadFailure = shallowRef(null)
 const packages = ref([])
+const growthChildren = ref([])
 const dictionaryOptions = reactive({})
 const form = reactive({})
 const initialSnapshot = ref('{}')
@@ -158,12 +167,26 @@ const workStatusOptions = [
 ]
 
 const activeType = computed(() => props.types.find((item) => item.typeCode === selectedTypeCode.value) || null)
+const selectedGrowthChild = computed(() => growthChildren.value.find(child => String(child.id) === form.childId))
+const childPickerPlaceholder = computed(() => {
+  if (loadingDependencies.value) return '正在加载宝宝档案…'
+  if (loadError.value) return '宝宝档案加载失败'
+  return growthChildren.value.length ? '请选择宝宝' : '请先选择「新增宝宝档案」'
+})
 const isWorkLogLeave = computed(() => activeType.value?.api === 'workLog' && form.typeCodes?.includes('LEAVE'))
-const visibleFields = computed(() => (activeType.value?.fields || []).filter((field) => {
-  if (activeType.value?.api !== 'workLog') return true
-  if (field.key === 'personDay') return isWorkLogLeave.value
-  return !isWorkLogLeave.value || !['projectCode', 'location'].includes(field.key)
-}))
+const visibleFields = computed(() => {
+  const type = activeType.value
+  const fields = type?.fields || []
+  if (type?.api === 'workLog') {
+    return fields.filter(field => field.key === 'personDay' ? isWorkLogLeave.value :
+      !isWorkLogLeave.value || !['projectCode', 'location'].includes(field.key))
+  }
+  if (!type?.growthKind) return fields
+  const allowFuture = type.growthKind === 'vaccination' && form.status === 'PLANNED'
+  return fields.map(field => field.type === 'date' ? {
+    ...field, min: selectedGrowthChild.value?.birthday, max: allowFuture ? undefined : localToday()
+  } : field)
+})
 
 const activeApp = computed(() => props.apps.find((item) => item.featureCode === activeType.value?.featureCode) || null)
 const groupedTypes = computed(() => {
@@ -179,6 +202,7 @@ function unwrapData(response) {
 }
 
 function resetForm(type = activeType.value) {
+  growthChildren.value = []
   Object.keys(form).forEach((key) => delete form[key])
   if (type) Object.assign(form, type.defaults())
   initialSnapshot.value = JSON.stringify(form)
@@ -192,7 +216,7 @@ async function loadDependencies(type) {
   packages.value = []
   Object.keys(dictionaryOptions).forEach((key) => delete dictionaryOptions[key])
   const dictionaryFields = type?.fields?.filter((field) => field.dictionaryUsage) || []
-  if (!type?.loadPackages && !dictionaryFields.length) return
+  if (!type?.loadPackages && !type?.loadChildren && !dictionaryFields.length) return
   loadingDependencies.value = true
   try {
     const tasks = []
@@ -200,6 +224,15 @@ async function loadDependencies(type) {
       tasks.push(listSoftwarePackages({pageNo: 1, pageSize: 100}).then((response) => {
         const payload = unwrapData(response) || {}
         packages.value = payload.list || payload.records || payload.items || (Array.isArray(payload) ? payload : [])
+      }))
+    }
+    if (type.loadChildren) {
+      tasks.push(listGrowthChildren().then(response => {
+        const children = unwrapData(response)
+        if (!Array.isArray(children)) throw new Error('宝宝档案数据格式不正确')
+        if (activeType.value !== type) return
+        growthChildren.value = children
+        if (children.length === 1) form.childId = String(children[0].id)
       }))
     }
     dictionaryFields.forEach((field) => {
@@ -309,6 +342,8 @@ function removeWorkItem(fieldKey, index) {
 }
 
 function buildPayload(type) {
+  if (type.growthKind) return growthPayload(type.growthKind, form)
+  if (type.api === 'travel') return travelPayload(form)
   const payload = {...form}
   if (type.api === 'workLog') {
     payload.userId = props.currentUser.id ?? props.currentUser.userId
@@ -346,29 +381,60 @@ function buildPayload(type) {
   return payload
 }
 
+async function saveTravel(payload) {
+  try {
+    return await createTravelRecord(payload)
+  } catch (error) {
+    if (error?.response?.data?.code !== 'TRAVEL_DUPLICATE') throw error
+    const confirmed = await confirmDialog('存在相同日期、车次和起终点的行程，仍要保存吗？', {
+      title: '发现相似行程',
+      confirmText: '仍然保存',
+      cancelText: '返回检查'
+    })
+    if (!confirmed) throw error
+    return createTravelRecord({...payload, duplicateConfirmed: true})
+  }
+}
+
+const growthHandlers = {
+  child: payload => createGrowthChild(payload),
+  measurement: payload => createGrowthMeasurement(form.childId, payload),
+  vaccination: payload => createGrowthVaccination(form.childId, payload),
+  milestone: payload => createGrowthMilestone(form.childId, payload)
+}
+
 const apiHandlers = {
   workLog: (payload) => createWorkLog(payload), passwordMemo: (payload) => createPasswordMemo(payload), todo: (payload) => createTodoTask(payload),
   fuel: (payload) => createFuelRecord(payload), wow: (payload) => createWowCharacter(payload), bill: (payload) => createPersonalBill(payload),
   budget: (payload) => createAnnualBudget(payload), knowledge: (payload) => createKnowledgeEntry(payload), software: (payload) => createSoftwarePackage(payload),
   softwareVersion: (payload) => { const packageId = payload.packageId; delete payload.packageId; return createSoftwareVersion(packageId, payload) },
-  healthRecord: (payload) => createHealthRecord(payload), healthVisit: (payload) => createHealthVisit(payload), healthReport: (payload) => createHealthReport(payload)
+  healthRecord: (payload) => createHealthRecord(payload), healthVisit: (payload) => createHealthVisit(payload), healthReport: (payload) => createHealthReport(payload),
+  travel: saveTravel
 }
 
 async function submit() {
-  if (!activeType.value || submitting.value) return
+  const type = activeType.value
+  if (!type || submitting.value || loadingDependencies.value) return
   submitError.value = ''
   submitFailure.value = null
-  const passwordIdentityMissing = activeType.value.api === 'passwordMemo' && !form.username && !form.registeredPhone && !form.registeredEmail
+  const passwordIdentityMissing = type.api === 'passwordMemo' && !form.username && !form.registeredPhone && !form.registeredEmail
   if (passwordIdentityMissing) { submitError.value = '用户名、注册手机、注册邮箱至少填写一项。'; return }
-  if (activeType.value.api === 'fuel' && Number(form.discountedAmount) > Number(form.totalAmount)) { submitError.value = '优惠后金额不能大于加油金额。'; return }
-  if (activeType.value.api === 'bill' && Number(form.amount) <= 0) { submitError.value = '账单金额必须大于 0。'; return }
-  if (activeType.value.api === 'workLog' && !isWorkLogLeave.value && !serializeWorkItemEntries(form.workItems.map((item) => item?.content))) { submitError.value = '请至少填写一条工作内容。'; return }
+  if (type.api === 'fuel' && Number(form.discountedAmount) > Number(form.totalAmount)) { submitError.value = '优惠后金额不能大于加油金额。'; return }
+  if (type.api === 'bill' && Number(form.amount) <= 0) { submitError.value = '账单金额必须大于 0。'; return }
+  if (type.api === 'workLog' && !isWorkLogLeave.value && !serializeWorkItemEntries(form.workItems.map((item) => item?.content))) { submitError.value = '请至少填写一条工作内容。'; return }
+  if (type.loadChildren && !selectedGrowthChild.value) { submitError.value = '请选择宝宝。'; return }
+  if (type.growthKind === 'measurement' && !hasGrowthMeasurement(form)) { submitError.value = '身高、体重、头围至少填写一项。'; return }
+  if (type.api === 'travel') {
+    submitError.value = validateTravelRecord(form)
+    if (submitError.value) return
+  }
   submitting.value = true
   try {
-    await apiHandlers[activeType.value.api](buildPayload(activeType.value))
-    const message = activeType.value.api === 'knowledge' && `${props.currentUser.roleCode || props.currentUser.role}`.toUpperCase() !== 'ADMIN'
+    const save = type.growthKind ? growthHandlers[type.growthKind] : apiHandlers[type.api]
+    await save(buildPayload(type))
+    const message = type.api === 'knowledge' && `${props.currentUser.roleCode || props.currentUser.role}`.toUpperCase() !== 'ADMIN'
       ? '投稿已提交，等待管理员审核'
-      : `${activeType.value.label}成功`
+      : `${type.label}成功`
     emit('success', message)
     emit('update:modelValue', false)
     selectedTypeCode.value = ''

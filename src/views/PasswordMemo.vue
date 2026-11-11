@@ -245,8 +245,7 @@
                   class="input"
                   :type="passwordVisibility.create ? 'text' : 'password'"
                   maxlength="128"
-                  placeholder="密码"
-                  required
+                  placeholder="密码（可留空）"
                 />
                 <button
                   type="button"
@@ -315,8 +314,7 @@
             type="password"
             maxlength="128"
             autocomplete="new-password"
-            :placeholder="historyMode === 'create' ? '请输入历史密码' : '留空则保持原密码'"
-            :required="historyMode === 'create'"
+            :placeholder="historyMode === 'create' ? '历史密码（可留空）' : '留空则保持原密码'"
           />
         </label>
         <div class="history-period-grid">
@@ -360,8 +358,7 @@
               :type="passwordVisibility.updateNew ? 'text' : 'password'"
               maxlength="128"
               autocomplete="new-password"
-              placeholder="请输入新密码"
-              required
+              placeholder="新密码（可留空）"
             />
             <button
               type="button"
@@ -395,7 +392,6 @@
               maxlength="128"
               autocomplete="new-password"
               placeholder="请再次输入新密码"
-              required
             />
             <button
               type="button"
@@ -456,7 +452,7 @@
               <p class="password-label">密码</p>
               <p class="password-value">{{ displayedMaskedPassword || activeDetail.maskedPassword || maskPassword(activeDetail.password) }}</p>
             </div>
-            <span v-if="displayedMaskedPassword" class="copy-status-badge">已安全复制</span>
+            <span v-if="displayedMaskedPassword && displayedMaskedPassword !== EMPTY_PASSWORD_LABEL" class="copy-status-badge">已安全复制</span>
           </div>
 
           <form id="password-memo-verify-form" class="verify-form" @submit.prevent="verifyAndRevealPassword">
@@ -550,6 +546,7 @@ import {
 const PAGE_SIZE_OPTIONS = [8, 12, 20]
 const PASSWORD_MEMO_APP_CODE = 'APP_PASSWORD_MEMO'
 const PASSWORD_MEMO_MODULE_CODE = 'PASSWORD_MEMO'
+const EMPTY_PASSWORD_LABEL = '未设置'
 const CATEGORY_FIELD_CODE = 'category'
 
 // 兼容统一响应包装与直接返回数据的两种接口形态。
@@ -598,7 +595,7 @@ function normalizeDictionaryOptions(payload) {
 function maskPassword(value) {
   const source = `${value || ''}`
   if (!source) {
-    return '未设置'
+    return EMPTY_PASSWORD_LABEL
   }
   if (source.length <= 4) {
     return `${source[0] || '*'}${'*'.repeat(Math.max(source.length - 2, 1))}${source.slice(-1)}`
@@ -894,10 +891,6 @@ export default {
         alert('请选择类别')
         return
       }
-      if (editMode.value === 'create' && !form.password) {
-        alert('请输入密码')
-        return
-      }
       if (!form.username && !form.registeredPhone && !form.registeredEmail) {
         alert('用户名、注册手机、注册邮箱至少填写一项')
         return
@@ -1002,17 +995,21 @@ export default {
           loginPassword: verifyForm.loginPassword
         })
         const payload = unwrapData(res) || {}
-        const fullPassword = payload.password || payload.fullPassword || ''
-        if (!fullPassword) {
+        const fullPassword = payload.password ?? payload.fullPassword
+        if (typeof fullPassword !== 'string') {
           throw new Error('接口未返回完整密码')
         }
-        await copyText(fullPassword)
-        displayedMaskedPassword.value = payload.maskedPassword || maskPasswordToFirstCharacter(fullPassword)
+        if (fullPassword === '') {
+          displayedMaskedPassword.value = EMPTY_PASSWORD_LABEL
+        } else {
+          await copyText(fullPassword)
+          displayedMaskedPassword.value = payload.maskedPassword || maskPasswordToFirstCharacter(fullPassword)
+        }
         if (Array.isArray(payload.passwordHistory)) {
           activeDetail.value.passwordHistory = normalizeMemo({passwordHistory: payload.passwordHistory}).passwordHistory
         }
         verifyForm.loginPassword = ''
-        detailStatusMessage.value = '账号密码已自动复制到剪贴板'
+        detailStatusMessage.value = fullPassword === '' ? '此账号未设置密码' : '账号密码已自动复制到剪贴板'
         detailStatusType.value = 'success'
       } catch (error) {
         detailStatusMessage.value = extractErrorMessage(error, '密码校验或复制失败，请稍后重试')
@@ -1048,10 +1045,6 @@ export default {
 
     const submitPasswordUpdate = async () => {
       if (!activeDetail.value) {
-        return
-      }
-      if (!passwordUpdateForm.newPassword) {
-        passwordUpdateError.value = '请输入新密码'
         return
       }
       if (passwordUpdateForm.newPassword !== passwordUpdateForm.confirmPassword) {
@@ -1113,10 +1106,6 @@ export default {
       if (!activeDetail.value) {
         return
       }
-      if (historyMode.value === 'create' && !historyForm.password) {
-        historyFormError.value = '请输入历史密码'
-        return
-      }
       if (!historyForm.usageStartedAt || !historyForm.usageEndedAt) {
         historyFormError.value = '请填写完整的使用起止时间'
         return
@@ -1127,7 +1116,7 @@ export default {
       }
 
       const payload = {
-        password: historyForm.password || undefined,
+        password: historyMode.value === 'create' ? historyForm.password : historyForm.password || undefined,
         usageStartedAt: historyForm.usageStartedAt,
         usageEndedAt: historyForm.usageEndedAt
       }
@@ -1182,6 +1171,7 @@ export default {
     })
 
     return {
+      EMPTY_PASSWORD_LABEL,
       loading,
       categoryLoading,
       submitting,

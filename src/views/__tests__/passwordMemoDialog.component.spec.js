@@ -5,7 +5,10 @@ import {nextTick} from 'vue'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import PasswordMemo from '../PasswordMemo.vue'
+import QuickCreateDialog from '@/components/QuickCreateDialog.vue'
+import {resolveQuickCreateTypes} from '@/constants/quickCreateRegistry'
 import {
+  createPasswordMemo,
   createPasswordMemoHistory,
   getPasswordMemoDetail,
   listPasswordMemos,
@@ -201,7 +204,67 @@ describe('PasswordMemo MacDialog integration', () => {
     expect([...panel.querySelectorAll('button')].some((button) => button.textContent.trim() === '复制密码')).toBe(false)
   })
 
-  it('专用更新密码表单调用独立接口', async () => {
+  it.each(['', '   ', ' secret '])('新增备忘录时原样提交密码', async (password) => {
+    const wrapper = mount(PasswordMemo, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+    wrapper.vm.openCreateDialog()
+    Object.assign(wrapper.vm.form, {siteName: '示例站点', siteUrl: 'https://example.test', username: 'test-user', password})
+    await nextTick()
+    expect(document.body.querySelector('#password-memo-create-password').required).toBe(false)
+    await wrapper.vm.submitEditDialog()
+
+    expect(createPasswordMemo).toHaveBeenCalledWith(expect.objectContaining({password}))
+  })
+
+  it.each(['', '   '])('首页快速新增原样提交可选密码', async (password) => {
+    const wrapper = mount(QuickCreateDialog, {
+      props: {
+        modelValue: true,
+        initialTypeCode: 'PASSWORD_MEMO',
+        currentUser: {id: '1'},
+        types: resolveQuickCreateTypes(['APP_PASSWORD_MEMO'])
+      },
+      global: {stubs: {MacDialog: {template: '<div><slot/><slot name="footer"/></div>'}}}
+    })
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+    await wrapper.get('.field-siteName input').setValue('示例站点')
+    await wrapper.get('.field-siteUrl input').setValue('https://example.test')
+    await wrapper.get('.field-username input').setValue('test-user')
+    const input = wrapper.get('.field-password input')
+    expect(input.element.required).toBe(false)
+    await input.setValue(password)
+    await wrapper.get('#quick-create-form').trigger('submit')
+    await flushPromises()
+
+    expect(createPasswordMemo).toHaveBeenCalledWith(expect.objectContaining({password}))
+  })
+
+  it('校验空密码后显示未设置并保留剪贴板', async () => {
+    const writeText = vi.fn()
+    vi.stubGlobal('navigator', {...navigator, clipboard: {writeText}})
+    verifyPasswordMemoAccess.mockResolvedValue(buildApiResponse({password: '', maskedPassword: '未设置'}))
+    const wrapper = mount(PasswordMemo, {
+      attachTo: document.body,
+      global: {stubs: {transition: true}}
+    })
+    mountedWrappers.push(wrapper)
+    await wrapper.vm.openDetailDialog({id: 7})
+    wrapper.vm.verifyForm.loginPassword = 'login-password'
+    await wrapper.vm.verifyAndRevealPassword()
+
+    const panel = document.body.querySelector('.password-memo-verify-dialog')
+    expect(panel.querySelector('.password-value').textContent).toBe('未设置')
+    expect(panel.querySelector('.copy-status-badge')).toBeNull()
+    expect(panel.textContent).toContain('此账号未设置密码')
+    expect(writeText).not.toHaveBeenCalled()
+  })
+
+  it.each(['new-secret', '', '   '])('专用更新密码表单原样调用独立接口', async (password) => {
     updatePasswordMemoPassword.mockResolvedValue(buildApiResponse({
       id: 7,
       siteName: 'GitHub',
@@ -218,16 +281,19 @@ describe('PasswordMemo MacDialog integration', () => {
     await flushPromises()
     await wrapper.vm.openDetailDialog({id: 7})
     wrapper.vm.openUpdatePasswordDialog()
-    wrapper.vm.passwordUpdateForm.newPassword = 'new-secret'
-    wrapper.vm.passwordUpdateForm.confirmPassword = 'new-secret'
+    wrapper.vm.passwordUpdateForm.newPassword = password
+    wrapper.vm.passwordUpdateForm.confirmPassword = password
+    await nextTick()
+    expect(document.body.querySelector('#password-memo-update-password').required).toBe(false)
+    expect(document.body.querySelector('#password-memo-confirm-password').required).toBe(false)
 
     await wrapper.vm.submitPasswordUpdate()
 
-    expect(updatePasswordMemoPassword).toHaveBeenCalledWith(7, {newPassword: 'new-secret'})
+    expect(updatePasswordMemoPassword).toHaveBeenCalledWith(7, {newPassword: password})
     expect(wrapper.vm.activeDetail.passwordHistory).toHaveLength(1)
   })
 
-  it('支持手工新增和编辑历史密码', async () => {
+  it.each(['old-secret', '', '   '])('支持手工新增历史密码并在编辑留空时仅更新使用周期', async (password) => {
     const historyResponse = buildApiResponse({
       id: 7,
       siteName: 'GitHub',
@@ -251,13 +317,13 @@ describe('PasswordMemo MacDialog integration', () => {
     await wrapper.vm.openDetailDialog({id: 7})
 
     wrapper.vm.openCreateHistoryDialog()
-    wrapper.vm.historyForm.password = 'old-secret'
+    wrapper.vm.historyForm.password = password
     wrapper.vm.historyForm.usageStartedAt = '2026-01-01T08:00'
     wrapper.vm.historyForm.usageEndedAt = '2026-02-01T08:00'
     await wrapper.vm.submitHistoryForm()
 
     expect(createPasswordMemoHistory).toHaveBeenCalledWith(7, {
-      password: 'old-secret',
+      password,
       usageStartedAt: '2026-01-01T08:00',
       usageEndedAt: '2026-02-01T08:00'
     })

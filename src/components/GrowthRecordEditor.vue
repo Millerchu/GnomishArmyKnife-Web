@@ -35,7 +35,7 @@
 <script setup>
 import {ref, watch} from 'vue'
 import MacDialog from '@/components/MacDialog.vue'
-import {GROWTH_METRICS, hasMetric, localToday} from '@/utils/growthRecords'
+import {GROWTH_METRICS, hasGrowthMeasurement, localToday} from '@/utils/growthRecords'
 const props = defineProps({open: Boolean, kind: String, title: String, birthday: String,
   saving: Boolean, error: String, baseline: Number})
 const form = defineModel('form', {type: Object, required: true})
@@ -45,7 +45,7 @@ const today = localToday()
 watch(() => props.baseline, () => { validationError.value = '' })
 function submit() {
   validationError.value = ''
-  if (props.kind === 'measurement' && !GROWTH_METRICS.some(({key}) => hasMetric(form.value[key]))) {
+  if (props.kind === 'measurement' && !hasGrowthMeasurement(form.value)) {
     validationError.value = '身高、体重、头围至少填写一项'
     return
   }

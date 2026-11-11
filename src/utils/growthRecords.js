@@ -54,6 +54,22 @@ export function hasMetric(value) {
   return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
 }
 
+export function hasGrowthMeasurement(form) {
+  return GROWTH_METRICS.some(({key}) => hasMetric(form[key]))
+}
+
+export function newGrowthRecord(kind, vaccinationStatus = 'COMPLETED') {
+  if (kind === 'child') return {name: '', birthday: '', gender: 'UNKNOWN', note: ''}
+  const today = localToday()
+  if (kind === 'measurement') {
+    return {measureDate: today, heightCm: '', weightKg: '', headCm: '', recordedBy: '', note: ''}
+  }
+  if (kind === 'vaccination') {
+    return {vaccineName: '', dose: 1, vaccinationDate: today, status: vaccinationStatus, institution: '', note: ''}
+  }
+  return {title: '', eventDate: today, note: ''}
+}
+
 // 差值逐指标寻找前一条有效测量，筛选年份后仍使用完整历史的比较结果。
 export function measurementHistory(records) {
   const previous = {}

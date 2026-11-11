@@ -44,7 +44,7 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 import GrowthTrendChart from '@/components/GrowthTrendChart.vue'
 import GrowthRecordEditor from '@/components/GrowthRecordEditor.vue'
 import {confirmDialog} from '@/components/systemDialog'
-import {GROWTH_METRICS, ageText, localToday, hasMetric, metricValue, deltaText, measurementHistory, metricSummary, growthPayload} from '@/utils/growthRecords'
+import {GROWTH_METRICS, ageText, hasMetric, metricValue, deltaText, measurementHistory, metricSummary, growthPayload, newGrowthRecord} from '@/utils/growthRecords'
 
 const router = useRouter()
 const logoUrl = '/app-icons/app-growth-record.svg'
@@ -119,10 +119,7 @@ function retry() { void loadChildren() }
 function openEditor(kind, record = null) {
   if (busy.value) return
   editorKind.value = kind; editorId.value = record?.id ?? null; editorChildId.value = selectedId.value
-  const defaults = kind === 'child' ? {name:'',birthday:'',gender:'UNKNOWN',note:''}
-    : kind === 'measurement' ? {measureDate:localToday(),heightCm:'',weightKg:'',headCm:'',recordedBy:'',note:''}
-      : kind === 'vaccination' ? {vaccineName:'',dose:1,vaccinationDate:localToday(),status:vaccineStatus.value,institution:'',note:''}
-        : {title:'',eventDate:localToday(),note:''}
+  const defaults = newGrowthRecord(kind, vaccineStatus.value)
   form.value = record ? {...defaults,...record} : defaults
   formError.value = ''; editorBaseline.value += 1; editorOpen.value = true
 }
