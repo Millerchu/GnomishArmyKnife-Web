@@ -9,6 +9,7 @@ import {listKnowledgeEntries, getKnowledgeHighlights} from '@/api/knowledgeBase'
 import {getWorkbenchPreferences, saveWorkbenchPreferences} from '@/api/workbenchPreference'
 import {WORKBENCH_LAYOUT_KEY} from '@/utils/workbenchLayout'
 import {WORKBENCH_GRID_KEY} from '@/utils/workbenchGrid'
+import {resolveQuickCreateTypes} from '@/constants/quickCreateRegistry'
 
 const {push} = vi.hoisted(() => ({push: vi.fn()}))
 vi.mock('vue-router', () => ({onBeforeRouteLeave: vi.fn(), useRouter: () => ({push})}))
@@ -49,20 +50,18 @@ beforeEach(() => {
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()) })
 
 describe.each([
-  ['油耗', FuelCard, getFuelSummary, emptyFuel, '还没有加油记录', 'FUEL_RECORD', '＋ 新增加油记录'],
-  ['经验库', KnowledgeCard, listKnowledgeEntries, {list: [], total: 0}, '暂无已发布经验', 'KNOWLEDGE_ENTRY', '＋ 新增经验']
-])('%s卡', (_name, component, api, emptyData, emptyTitle, typeCode, label) => {
-  it('独立加载骨架、空态及真实快速新增类型', async () => {
+  ['油耗', FuelCard, getFuelSummary, emptyFuel, '还没有加油记录'],
+  ['经验库', KnowledgeCard, listKnowledgeEntries, {list: [], total: 0}, '暂无已发布经验']
+])('%s卡', (_name, component, api, emptyData, emptyTitle) => {
+  it('独立加载骨架和空态说明', async () => {
     const request = deferred(); api.mockReturnValueOnce(request.promise)
     const wrapper = render(component)
     expect(wrapper.find('[aria-label="正在加载"]').exists()).toBe(true)
     request.resolve(response(emptyData)); await flushPromises()
     expect(wrapper.text()).toContain(emptyTitle)
     expect(wrapper.find('.wb-stats').exists()).toBe(false)
-    expect(wrapper.get('.wb-empty button').text()).toBe(label)
-    await wrapper.get('.wb-empty button').trigger('click')
-    expect(wrapper.emitted('create')[0]).toEqual([typeCode])
-    if (typeCode === 'KNOWLEDGE_ENTRY') expect(wrapper.text()).toContain('可能需要审核')
+    expect(wrapper.find('.wb-empty button').exists()).toBe(false)
+    if (component === KnowledgeCard) expect(wrapper.text()).toContain('可能需要审核')
   })
   it('请求失败重试恢复，且支持业务失败信封', async () => {
     api.mockRejectedValueOnce(new Error('失败'))
@@ -111,7 +110,7 @@ it('油耗本月零仍展示历史、平均油耗、最近四条及前三辆车�
     expect(wrapper.html()).not.toContain(hidden)
     expect(JSON.stringify(wrapper.emitted('state'))).not.toContain(hidden)
   }
-  await wrapper.findAll('.wb-card-footer button')[1].trigger('click')
+  await wrapper.get('.wb-card-footer button').trigger('click')
   expect(push).toHaveBeenCalledWith('/fuel-stats')
   expect(wrapper.text()).toContain('打开油耗统计 →')
 })
@@ -131,7 +130,7 @@ it('经验库使用已发布分页，仅展示四个白名单字段、最多五�
   }
   expect(wrapper.find('img').exists()).toBe(false)
   await wrapper.get('.wb-knowledge-entry').trigger('click')
-  await wrapper.findAll('.wb-card-footer button')[1].trigger('click')
+  await wrapper.get('.wb-card-footer button').trigger('click')
   expect(push.mock.calls).toEqual([['/knowledge-base'], ['/knowledge-base']])
   expect(wrapper.text()).toContain('打开经验库 →')
 })
@@ -186,15 +185,15 @@ it('移动端迁移六卡后新卡参与草稿排序和显隐，完成后持久�
   expect(saveWorkbenchPreferences).toHaveBeenCalledTimes(2)
 })
 
-it.each([false, true])('桌面/移动（mobile=%s）新卡快速新增转发既有类型并随 refreshKey 重读', async mobile => {
-  const wrapper = panel({mobile}); await flushPromises()
-  for (const [key, label, type] of [['fuel', '油耗统计', 'FUEL_RECORD'], ['knowledge', '经验库', 'KNOWLEDGE_ENTRY']]) {
-    if (mobile) {
-      expect(wrapper.get(`[data-card=${key}] .wb-card-content`).element.style.display).toBe('none')
-      expect(wrapper.get(`[data-card=${key}] .wb-fold-summary`).text()).toContain('展开可新增')
-      await wrapper.get(`[aria-label="展开${label}"]`).trigger('click')
-    }
-    await wrapper.get(`[data-card=${key}] .wb-empty button`).trigger('click')
+it.each([false, true])('桌面/移动（mobile=%s）六张卡片从标题栏快速新增并随 refreshKey 重读', async mobile => {
+  const wrapper = panel({mobile, featureCodes: allCodes, types: resolveQuickCreateTypes(allCodes)}); await flushPromises()
+  for (const [key, type] of [
+    ['todo', 'TODO_ITEM'], ['workLog', 'WORK_LOG'], ['bills', 'PERSONAL_BILL'],
+    ['health', 'HEALTH_RECORD'], ['fuel', 'FUEL_RECORD'], ['knowledge', 'KNOWLEDGE_ENTRY']
+  ]) {
+    const card = wrapper.get(`[data-card=${key}]`)
+    if (mobile && card.find('.wb-fold').exists()) expect(card.get('.wb-card-content').element.style.display).toBe('none')
+    await card.get('.wb-card-head .wb-card-create').trigger('click')
     expect(wrapper.emitted('create').at(-1)).toEqual([type])
   }
   getFuelSummary.mockResolvedValue(response(fuel)); listKnowledgeEntries.mockResolvedValue(response(knowledge))
@@ -203,6 +202,15 @@ it.each([false, true])('桌面/移动（mobile=%s）新卡快速新增转发既�
   expect(listKnowledgeEntries).toHaveBeenCalledTimes(2)
   expect(wrapper.get('[data-card=fuel]').text()).toContain('¥0.00')
   expect(wrapper.get('[data-card=knowledge]').text()).toContain('发布经验')
+})
+
+it('卡片仅在获准快速新增且处于浏览状态时展示新增入口', async () => {
+  const wrapper = panel({types: resolveQuickCreateTypes(['APP_KNOWLEDGE_BASE'])})
+  await flushPromises()
+  expect(wrapper.find('[data-card=fuel] .wb-card-create').exists()).toBe(false)
+  expect(wrapper.find('[data-card=knowledge] .wb-card-create').exists()).toBe(true)
+  await wrapper.get('.wb-heading [aria-pressed]').trigger('click')
+  expect(wrapper.find('.wb-card-create').exists()).toBe(false)
 })
 
 it('移动新卡一行摘要覆盖加载、失败重试及成功，整理态展开两卡', async () => {

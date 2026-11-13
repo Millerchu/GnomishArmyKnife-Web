@@ -2,12 +2,12 @@ import {readUserStorage} from './workbenchStorage.js'
 
 export const WORKBENCH_LAYOUT_KEY = 'gak_workbench_layout_v1'
 export const WORKBENCH_CARDS = [
-  {key: 'todo', title: '今日待办', featureCode: 'APP_TODO_LIST'},
-  {key: 'workLog', title: '工作日志', featureCode: 'APP_WORK_LOG'},
-  {key: 'bills', title: '本月账单', featureCode: 'APP_PERSONAL_BILLS', mobileFolded: true},
-  {key: 'health', title: '健康', featureCode: 'APP_HEALTH_RECORD', mobileFolded: true},
-  {key: 'fuel', title: '油耗统计', featureCode: 'APP_FUEL_STATS', mobileFolded: true},
-  {key: 'knowledge', title: '经验库', featureCode: 'APP_KNOWLEDGE_BASE', mobileFolded: true}
+  {key: 'todo', title: '今日待办', featureCode: 'APP_TODO_LIST', createType: 'TODO_ITEM', createLabel: '新增待办'},
+  {key: 'workLog', title: '工作日志', featureCode: 'APP_WORK_LOG', createType: 'WORK_LOG', createLabel: '写今日日志'},
+  {key: 'bills', title: '本月账单', featureCode: 'APP_PERSONAL_BILLS', createType: 'PERSONAL_BILL', createLabel: '记一笔', mobileFolded: true},
+  {key: 'health', title: '健康', featureCode: 'APP_HEALTH_RECORD', createType: 'HEALTH_RECORD', createLabel: '记一条', mobileFolded: true},
+  {key: 'fuel', title: '油耗统计', featureCode: 'APP_FUEL_STATS', createType: 'FUEL_RECORD', createLabel: '新增加油记录', mobileFolded: true},
+  {key: 'knowledge', title: '经验库', featureCode: 'APP_KNOWLEDGE_BASE', createType: 'KNOWLEDGE_ENTRY', createLabel: '新增经验', mobileFolded: true}
 ]
 
 // 忽略旧版本未知键，新增卡片补在末尾，重复键只保留第一次。

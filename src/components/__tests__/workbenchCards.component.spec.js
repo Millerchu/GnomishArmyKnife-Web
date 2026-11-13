@@ -32,13 +32,13 @@ beforeEach(() => {
 })
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); vi.useRealTimers() })
 const cases = [
-  ['待办', TodoCard, listTodoTasks, '今天没有待办', 'TODO_ITEM'],
-  ['日志', WorkLogCard, getWeeklyBrief, '今日还没写日志', 'WORK_LOG'],
-  ['账单', BillsCard, getPersonalBillSummary, '本月还没有账单', 'PERSONAL_BILL'],
-  ['健康', HealthCard, getHealthSummary, '还没有健康记录', 'HEALTH_RECORD']
+  ['待办', TodoCard, listTodoTasks, '今天没有待办'],
+  ['日志', WorkLogCard, getWeeklyBrief, '今日还没写日志'],
+  ['账单', BillsCard, getPersonalBillSummary, '本月还没有账单'],
+  ['健康', HealthCard, getHealthSummary, '还没有健康记录']
 ]
-describe.each(cases)('%s卡状态', (_name, component, api, emptyText, typeCode) => {
-  it('加载时显示独立骨架，返回空数据后提供真实新增动作', async () => {
+describe.each(cases)('%s卡状态', (_name, component, api, emptyText) => {
+  it('加载时显示独立骨架，返回空数据后展示空态说明', async () => {
     const request = deferred(); api.mockReturnValueOnce(request.promise)
     const wrapper = render(component)
     expect(wrapper.find('[aria-label="正在加载"]').exists()).toBe(true)
@@ -46,8 +46,7 @@ describe.each(cases)('%s卡状态', (_name, component, api, emptyText, typeCode)
     await flushPromises()
     expect(wrapper.text()).toContain(emptyText)
     expect(wrapper.find('.wb-stats').exists()).toBe(false)
-    await wrapper.get('.wb-empty button').trigger('click')
-    expect(wrapper.emitted('create')[0]).toEqual([typeCode])
+    expect(wrapper.find('.wb-empty button').exists()).toBe(false)
   })
   it('失败不显示假数据，重试恢复', async () => {
     api.mockRejectedValueOnce(new Error('synthetic'))

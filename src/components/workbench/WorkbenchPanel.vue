@@ -39,6 +39,9 @@
             <AuthenticatedImage v-if="cardApp(card)?.iconType === 'UPLOAD' && cardApp(card)?.iconAttachmentId" :attachment-id="cardApp(card).iconAttachmentId" alt="" />
             <AppIconImage v-else-if="cardApp(card)?.iconUrl" :src="cardApp(card).iconUrl" :chroma-key="cardApp(card).iconChromaKey" alt="" /><h2>{{ card.title }}</h2>
             <button v-if="!editing && mobile && card.mobileFolded" type="button" class="wb-fold" :aria-label="`${folded[card.id] ? '展开' : '收起'}${card.title}`" :aria-expanded="!folded[card.id]" @click="folded[card.id] = !folded[card.id]">{{ folded[card.id] ? '▸' : '▾' }}</button>
+            <button v-if="!editing && types.some(type => type.typeCode === card.createType)" type="button" class="wb-card-create" @click="$emit('create', card.createType)">
+              <span aria-hidden="true">＋</span> {{ card.createLabel }}
+            </button>
           </header>
           <div v-if="editing" class="wb-edit-controls">
             <template v-if="mobile"><button type="button" :disabled="saving || displayCards[0]?.id === card.id" :aria-label="`上移${card.title}`" @click="move(card.id, -1)">↑</button><button type="button" :disabled="saving || displayCards.at(-1)?.id === card.id" :aria-label="`下移${card.title}`" @click="move(card.id, 1)">↓</button></template>
@@ -47,7 +50,7 @@
           </div>
           <p v-if="mobile && folded[card.id] && !editing" class="wb-fold-summary">{{ foldedSummary(card.id) }}</p>
           <WorkbenchCardContent v-show="!mobile || !folded[card.id] || editing" :inert="editing">
-            <component :is="components[card.id]" :refresh-key="refreshKey" @create="$emit('create', $event)" @state="states[card.id] = $event" />
+            <component :is="components[card.id]" :refresh-key="refreshKey" @state="states[card.id] = $event" />
           </WorkbenchCardContent>
         </section>
         </template>
@@ -192,8 +195,8 @@ function foldedSummary(key) {
   if (!state || state.status === 'loading') return '正在加载…'
   if (state.status === 'error') return '加载失败，展开后可重试'
   const data = state.data
-  if (key === 'fuel') return data.hasRecords ? `本月实付 ${money(data.currentMonthAmount)} · 平均油耗 ${consumption(data.averageConsumption)}` : '暂无加油记录，展开可新增'
-  if (key === 'knowledge') return data.list.length ? `最近已发布 ${data.list.length} 条 · ${data.list[0].title}` : '暂无已发布经验，展开可新增'
+  if (key === 'fuel') return data.hasRecords ? `本月实付 ${money(data.currentMonthAmount)} · 平均油耗 ${consumption(data.averageConsumption)}` : '暂无加油记录'
+  if (key === 'knowledge') return data.list.length ? `最近已发布 ${data.list.length} 条 · ${data.list[0].title}` : '暂无已发布经验'
   return key === 'bills' ? `支出 ${money(data.currentMonthExpense)} · 收入 ${money(data.currentMonthIncome)} · 预算 ${Number(data.annualBudgetAmount) > 0 ? percent(data.annualBudgetUsageRate) : '未设置'}`
     : `最近测量 ${data.latestMeasureDate || '暂无'} · 就诊 ${data.lastVisitDate || '暂无'} · 报告 ${data.lastExamDate || '暂无'}`
 }

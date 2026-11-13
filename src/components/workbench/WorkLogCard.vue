@@ -1,6 +1,6 @@
 <template>
   <CardState :loading="loading" :error="error" :empty="!data?.unfinished.length && !data?.briefs.length"
-    empty-title="今日还没写日志" empty-text="本周也还没有记录，写一条就能看到本周人天。" action-label="✎ 写今日日志" type-code="WORK_LOG" route="/work-log" app-name="工作日志" @retry="load" @create="$emit('create', $event)">
+    empty-title="今日还没写日志" empty-text="本周也还没有记录，写一条就能看到本周人天。" route="/work-log" app-name="工作日志" @retry="load">
     <div><span class="wb-status" :class="data.todayWritten ? 'is-success' : 'is-warning'">{{ data.todayWritten ? '今日已写' : '今日未写' }}</span></div>
     <div class="wb-section-label">本周 <b>合计 {{ decimal(week.total) }} 人天</b></div>
     <div class="wb-week"><div v-for="(day, index) in week.days" :key="day.date" :class="{today: day.date === data.today}"><span>{{ weekdays[index] }}</span><b>{{ decimal(day.personDay) }}</b></div></div>
@@ -20,7 +20,7 @@ import {decimal, localDate, summarizeWeek, weekDates} from '@/utils/workbenchDat
 import {WORK_LOG_STATUS_LABELS} from '@/constants/workLogStatus'
 import CardState from './CardState.vue'
 const props = defineProps({refreshKey: Number})
-const emit = defineEmits(['create', 'state'])
+const emit = defineEmits(['state'])
 const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const {loading, error, data, load} = useWorkbenchResource(async () => {
   const now = new Date()

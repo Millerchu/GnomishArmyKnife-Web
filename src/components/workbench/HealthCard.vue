@@ -1,6 +1,6 @@
 <template>
   <CardState :loading="loading" :error="error" :empty="!hasRecords" empty-title="还没有健康记录" empty-text="记录测量、就诊或报告后，这里只显示最近日期和条数。"
-    action-label="＋ 记一条" type-code="HEALTH_RECORD" route="/health" app-name="健康" @retry="load" @create="$emit('create', $event)">
+    route="/health" app-name="健康" @retry="load">
     <div class="wb-health"><div v-for="item in categories" :key="item.date"><span>{{ item.label }}</span><b>{{ data[item.date] || '暂无记录' }}</b><small>共 {{ data[item.count] ?? '—' }} {{ item.unit }}</small></div></div>
     <p class="wb-fine">仅显示日期与条数。</p>
   </CardState>
@@ -11,7 +11,7 @@ import {getHealthSummary} from '@/api/healthRecord'
 import {useWorkbenchResource, workbenchPayload} from '@/composables/useWorkbenchResource'
 import CardState from './CardState.vue'
 const props = defineProps({refreshKey: Number})
-const emit = defineEmits(['create', 'state'])
+const emit = defineEmits(['state'])
 const {loading, error, data, load} = useWorkbenchResource(() => workbenchPayload(getHealthSummary()), emit, () => props.refreshKey)
 const categories = [
   {label: '最近测量', date: 'latestMeasureDate', count: 'recordCount', unit: '次'},

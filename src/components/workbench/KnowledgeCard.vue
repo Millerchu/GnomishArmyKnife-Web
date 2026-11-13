@@ -1,6 +1,6 @@
 <template>
   <CardState :loading="loading" :error="error" :empty="empty" empty-title="暂无已发布经验" empty-text="这里展示最近已发布的经验；新增经验可能需要审核。"
-    action-label="＋ 新增经验" type-code="KNOWLEDGE_ENTRY" route="/knowledge-base" app-name="经验库" @retry="load" @create="$emit('create', $event)">
+    route="/knowledge-base" app-name="经验库" @retry="load">
     <ul class="wb-knowledge-list">
       <li v-for="(entry, index) in data.list" :key="index">
         <button type="button" class="wb-knowledge-entry" @click="router.push('/knowledge-base')">
@@ -20,7 +20,7 @@ import {useWorkbenchResource, workbenchPayload} from '@/composables/useWorkbench
 import {workbenchKnowledgeEntries} from '@/utils/workbenchData'
 import CardState from './CardState.vue'
 const props = defineProps({refreshKey: Number})
-const emit = defineEmits(['create', 'state'])
+const emit = defineEmits(['state'])
 const router = useRouter()
 const {loading, error, data, load} = useWorkbenchResource(async () => workbenchKnowledgeEntries(await workbenchPayload(listKnowledgeEntries({view: 'published', pageNo: 1, pageSize: 5}))), emit, () => props.refreshKey)
 const empty = computed(() => data.value && !data.value.list.length)

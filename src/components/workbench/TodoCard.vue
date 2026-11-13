@@ -1,6 +1,6 @@
 <template>
   <CardState :loading="loading" :error="error" :empty="!tasks.length && !upcoming.length" empty-title="今天没有待办"
-    empty-text="截止今天或加入「我的一天」的未完成任务会显示在这里。" action-label="＋ 新增待办" type-code="TODO_ITEM" route="/todo-list" app-name="待办列表" @retry="load" @create="$emit('create', $event)">
+    empty-text="截止今天或加入「我的一天」的未完成任务会显示在这里。" route="/todo-list" app-name="待办列表" @retry="load">
     <div class="wb-stats">
       <div v-for="[key, label] in counters" :key="key" class="wb-stat"><b>{{ data.summary?.[key] ?? '—' }}</b><span>{{ label }}</span></div>
     </div>
@@ -24,7 +24,7 @@ import {useWorkbenchResource, workbenchPayload} from '@/composables/useWorkbench
 import {formatTodoDueDate, localDate} from '@/utils/workbenchData'
 import CardState from './CardState.vue'
 const props = defineProps({refreshKey: Number})
-const emit = defineEmits(['create', 'state'])
+const emit = defineEmits(['state'])
 const {loading, error, data, load, isAlive} = useWorkbenchResource(async () => {
   const result = await workbenchPayload(listTodoTasks({viewCode: 'TODAY', pageNo: 1, pageSize: 6}))
   return {...result, today: localDate(), list: (result.list || []).filter(task => task.status !== 'COMPLETED')}
