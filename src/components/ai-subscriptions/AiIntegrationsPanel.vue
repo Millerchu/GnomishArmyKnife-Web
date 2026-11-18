@@ -53,5 +53,6 @@ function changeLink(mode) { return write(() => mode === 'unlink' ? unlinkPayment
 watch([() => props.month, paymentId], () => { notice.value = ''; load() })
 </script>
 <style scoped>
-.settings{margin-top:16px;padding:16px;border:1px solid #cbded6;border-radius:12px;background:#fff}.settings summary{cursor:pointer;font-weight:600}.settings form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.settings label{display:inline-grid;gap:5px;font-size:13px;margin:5px}.settings input,.settings select,.settings button{padding:8px;border:1px solid #a5beb4;border-radius:6px;font:inherit;max-width:100%;box-sizing:border-box}.settings button{cursor:pointer}.settings p{font-size:14px}.settings [role=alert]{color:#883f21}
+.settings{margin-top:16px;padding:16px;border:1px solid var(--theme-border);border-radius:12px;background:var(--theme-surface-muted)}.settings summary{cursor:pointer;font-weight:600}.settings form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.settings label{display:inline-grid;gap:5px;font-size:13px;margin:5px}.settings input,.settings select,.settings button{padding:8px;border:1px solid var(--theme-border-strong);border-radius:6px;font:inherit;max-width:100%;box-sizing:border-box}.settings button{cursor:pointer}.settings p{font-size:14px}.settings [role=alert]{color:var(--theme-danger)}
+.settings button{background:var(--theme-control-surface);color:var(--theme-text)}
 </style>

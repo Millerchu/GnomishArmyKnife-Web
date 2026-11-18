@@ -25,5 +25,5 @@ const empty = computed(() => data.value && !data.value.hasRecords)
 const amount = value => value == null ? '未记录' : Number(value).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})
 </script>
 <style scoped>
-.ai-card{display:grid;gap:10px}.ai-card p{margin:0}.ai-currency{padding:12px;border-radius:12px;background:var(--wb-soft-bg,#edf6f0);display:grid;gap:5px}.ai-currency strong{font-size:24px;font-variant-numeric:tabular-nums}.ai-currency>span,.ai-currency small{font-size:12px;color:var(--wb-text-secondary,#526f65)}.ai-details{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px}.ai-incomplete{font-size:12px;line-height:1.6;color:#8a5917}
+.ai-card{display:grid;gap:10px}.ai-card p{margin:0}.ai-currency{padding:12px;border-radius:12px;background:var(--theme-surface-muted);display:grid;gap:5px}.ai-currency strong{font-size:24px;font-variant-numeric:tabular-nums}.ai-currency>span,.ai-currency small{font-size:12px;color:var(--theme-text-muted)}.ai-details{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px}.ai-incomplete{font-size:12px;line-height:1.6;color:var(--theme-warning)}
 </style>

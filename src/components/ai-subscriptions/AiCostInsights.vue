@@ -58,5 +58,5 @@ watch(() => props.month, load)
 onBeforeUnmount(() => { generation++ })
 </script>
 <style scoped>
-.cost-insights{margin-top:16px;padding:16px;border:1px solid #cbded6;border-radius:12px;background:#fff}.cost-insights summary{cursor:pointer;font-weight:600}.cost-insights h3{margin-top:18px}.cost-insights li,.cost-insights p{font-size:14px;line-height:1.65}.trend{padding:0;list-style:none}.trend li{display:grid;grid-template-columns:5.5rem minmax(0,1fr) minmax(5rem,auto);align-items:center;gap:10px}.track{height:7px;border-radius:6px;background:#e0ebe5;overflow:hidden}.track i{display:block;height:100%;border-radius:6px;background:#127969}
+.cost-insights{margin-top:16px;padding:16px;border:1px solid var(--theme-border);border-radius:12px;background:var(--theme-surface-muted)}.cost-insights summary{cursor:pointer;font-weight:600}.cost-insights h3{margin-top:18px}.cost-insights li,.cost-insights p{font-size:14px;line-height:1.65}.trend{padding:0;list-style:none}.trend li{display:grid;grid-template-columns:5.5rem minmax(0,1fr) minmax(5rem,auto);align-items:center;gap:10px}.track{height:7px;border-radius:6px;background:var(--theme-divider);overflow:hidden}.track i{display:block;height:100%;border-radius:6px;background:var(--theme-accent)}
 </style>
