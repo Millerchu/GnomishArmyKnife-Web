@@ -13,9 +13,25 @@
             <label>工具<select v-model="form.toolCode" :disabled="Boolean(initialValue?.id)" required><option value="">请选择工具</option><option v-for="tool in tools" :key="tool.code" :value="tool.code">{{ tool.name }}</option></select></label>
             <label>账号别名<input v-model.trim="form.alias" maxlength="80" required placeholder="例如：工作账号" /></label>
             <div class="wide editor-note">只记录账号身份；无需填写登录密码或 API Key。六个工具均支持手动记录。</div>
-            <div class="wide memo-picker"><button type="button" @click="loadMemos" :disabled="memoLoading">{{ memoLoading ? '读取中…' : '选择密码备忘录关联（可选）' }}</button>
-              <p v-if="memoError" role="alert">{{ memoError }}</p>
-              <label v-if="memoLoaded || form.passwordMemoId">密码备忘录<select v-model="form.passwordMemoId"><option value="">不关联 / 解绑</option><option v-if="form.passwordMemoId && !memos.some(item => String(item.id) === form.passwordMemoId)" :value="form.passwordMemoId">当前关联 · 保存时校验</option><option v-for="memo in memos" :key="memo.id" :value="String(memo.id)">{{ memo.summary }}</option></select></label>
+            <div class="wide memo-picker">
+              <button ref="memoToggle" type="button" :aria-expanded="memoOpen" :aria-controls="memoPanelId" @click="toggleMemos">
+                {{ memoOpen ? '收起密码备忘录' : form.passwordMemoId ? '更换密码备忘录关联' : '选择密码备忘录关联（可选）' }}
+              </button>
+              <p v-if="form.passwordMemoId" class="editor-note" role="status">已选择：{{ selectedMemoSummary }}</p>
+              <div v-show="memoOpen" :id="memoPanelId" class="memo-panel">
+                <p v-if="memoLoading" class="editor-note" role="status">正在读取密码备忘录…</p>
+                <div v-else-if="memoError" class="memo-feedback">
+                  <p class="editor-error" role="alert">{{ memoError }}</p>
+                  <button type="button" @click="loadMemos">重新读取</button>
+                </div>
+                <p v-else-if="memoLoaded && !memos.length" class="editor-note" role="status">还没有可关联的密码备忘录。可以先在密码备忘录中添加，或直接保存账号。</p>
+                <ul v-else-if="memos.length" class="memo-options" aria-label="可关联的密码备忘录">
+                  <li v-for="memo in memos" :key="memo.id">
+                    <button type="button" :aria-pressed="String(memo.id) === form.passwordMemoId" @click="chooseMemo(String(memo.id))">{{ memo.summary }}</button>
+                  </li>
+                </ul>
+                <button v-if="form.passwordMemoId" type="button" @click="chooseMemo('')">取消关联</button>
+              </div>
             </div>
           </template>
           <template v-else>
@@ -68,7 +84,7 @@
   </section>
 </template>
 <script setup>
-import {computed, onBeforeUnmount, reactive, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, reactive, ref, useId, watch} from 'vue'
 import {aiPayload, listAiTools, listAiAccounts, listAiSubscriptions, listAiPayments, listAiPasswordMemoOptions, createAiAccount, updateAiAccount, createAiSubscription, updateAiSubscription, createAiUsageRecord, createAiPayment} from '@/api/aiSubscriptions'
 import {AI_EDITOR_LABELS, AI_PAYMENT_LABELS, aiToday, aiMoney, aiRequestKey} from '@/utils/aiSubscriptions'
 const props = defineProps({kind: {type: String, required: true}, initialValue: {type: Object, default: null}})
@@ -79,7 +95,15 @@ const tools = ref([]), accounts = ref([]), subscriptions = ref([]), payments = r
 const loading = ref(false), saving = ref(false), memoLoading = ref(false), memoLoaded = ref(false)
 const loadError = ref(''), saveError = ref(''), memoError = ref(''), baseline = ref('')
 const form = reactive({})
+const memoPanelId = useId()
+const memoOpen = ref(false)
+const memoToggle = ref(null)
+let memoRequest = 0
 let generation = 0
+const selectedMemoSummary = computed(() =>
+  memos.value.find(item => String(item.id) === form.passwordMemoId)?.summary ||
+  props.initialValue?.passwordMemoSummary || '已关联的备忘录'
+)
 const availableAccounts = computed(() => accounts.value.filter(account => !account.archived || activeKind.value === 'payment'))
 const selectableAccounts = computed(() => availableAccounts.value.filter(account => !account.archived || form.type === 'REFUND'))
 const accountSubscriptions = computed(() => subscriptions.value.filter(item => String(item.accountId) === form.accountId && !item.terminated))
@@ -95,6 +119,12 @@ function defaults(kind) {
   return {accountId: '', type: 'SUBSCRIPTION', subscriptionId: '', originalPaymentId: '', amount: '', currency: 'CNY', paymentDate: today, coverageStart: '', coverageEnd: '', note: '', requestKey: aiRequestKey()}
 }
 function initialize(value = null) {
+  memoRequest++
+  memoOpen.value = false
+  memoLoading.value = false
+  memoLoaded.value = false
+  memoError.value = ''
+  memos.value = []
   Object.keys(form).forEach(key => delete form[key])
   const initial = defaults(activeKind.value)
   Object.assign(form, initial)
@@ -141,11 +171,36 @@ function paymentTypeChanged() {
 }
 function startAccount() { returnKind.value = activeKind.value; activeKind.value = 'account'; initialize() }
 function returnToForm() { activeKind.value = returnKind.value; returnKind.value = ''; initialize() }
+function toggleMemos() {
+  memoOpen.value = !memoOpen.value
+  if (memoOpen.value && !memoLoaded.value) loadMemos()
+}
+async function chooseMemo(id) {
+  form.passwordMemoId = id
+  memoOpen.value = false
+  await nextTick()
+  memoToggle.value?.focus()
+}
 async function loadMemos() {
-  memoLoading.value = true; memoError.value = ''
-  try { const options = aiPayload(await listAiPasswordMemoOptions()); if (!Array.isArray(options)) throw new Error('关联列表格式不正确'); memos.value = options; memoLoaded.value = true }
-  catch (error) { memoError.value = message(error) }
-  finally { memoLoading.value = false }
+  if (memoLoading.value) return
+  const request = ++memoRequest
+  memoLoading.value = true
+  memoError.value = ''
+  try {
+    const options = aiPayload(await listAiPasswordMemoOptions())
+    if (request !== memoRequest) return
+    if (!Array.isArray(options)) throw new Error('关联列表格式不正确')
+    memos.value = options
+    memoLoaded.value = true
+  } catch (error) {
+    if (request === memoRequest) {
+      memoError.value = error?.response?.status === 403
+        ? '当前账号没有密码备忘录权限，仍可直接保存 AI 账号。'
+        : error?.response?.data?.message || '暂时无法读取密码备忘录，请重试。'
+    }
+  } finally {
+    if (request === memoRequest) memoLoading.value = false
+  }
 }
 function payload() {
   const result = {...form}
@@ -178,8 +233,14 @@ async function save() {
 watch(form, () => emit('dirty', JSON.stringify(form) !== baseline.value), {deep: true})
 watch([loading, saving], () => emit('busy', loading.value || saving.value))
 watch(() => [props.kind, props.initialValue], () => { activeKind.value = props.kind; returnKind.value = ''; load() }, {immediate: true})
-onBeforeUnmount(() => { generation++ })
+onBeforeUnmount(() => { generation++; memoRequest++ })
 </script>
 <style scoped>
 .ai-editor{color:var(--theme-text);font-size:14px}.editor-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.editor-fields label{display:flex;flex-direction:column;gap:8px;min-width:0}.editor-fields input,.editor-fields select,.editor-fields textarea{box-sizing:border-box;width:100%;border:1px solid var(--theme-border-strong);border-radius:8px;padding:10px 12px;font:inherit;background:var(--theme-field-surface);color:inherit;min-width:0}.editor-fields .wide{grid-column:1/-1}.editor-fields .check{flex-direction:row;align-items:center}.check input{width:auto}.editor-note{font-size:12px;line-height:1.8;color:var(--theme-text-muted);margin:0}.editor-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:24px}.ai-editor button{border:1px solid var(--theme-border-strong);border-radius:8px;background:var(--theme-control-surface);padding:10px 16px;color:var(--theme-text);font:inherit;cursor:pointer}.editor-actions button[type=submit]{background:var(--theme-accent-strong);color:var(--theme-on-accent)}.ai-editor button:disabled{opacity:.55;cursor:wait}.editor-error{color:var(--theme-danger);line-height:1.8}.editor-empty{padding:28px;text-align:center;background:var(--theme-surface-muted);border-radius:12px}.memo-picker{display:grid;gap:12px}.ai-editor :focus-visible{outline:3px solid var(--theme-accent);outline-offset:2px}@media(max-width:600px){.editor-fields{grid-template-columns:1fr}.editor-actions button{flex:1}}
+.memo-picker > button{justify-self:start}
+.memo-panel{padding:12px;border:1px solid var(--theme-border);border-radius:12px;background:var(--theme-surface-muted)}
+.memo-feedback p{margin:0 0 8px}
+.memo-options{list-style:none;display:grid;gap:6px;max-height:200px;overflow:auto;margin:0 0 8px;padding:4px}
+.memo-options button{width:100%;text-align:left;overflow-wrap:anywhere}
+.memo-options button:hover,.memo-options button[aria-pressed=true]{background:var(--theme-accent-soft);border-color:var(--theme-accent);color:var(--theme-link)}
 </style>
