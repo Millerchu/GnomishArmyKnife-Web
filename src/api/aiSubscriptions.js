@@ -18,6 +18,8 @@ export const createAiPayment = (payload) => request.post(`${base}/payments`, pay
 export const getAiSummary = (params) => request.get(`${base}/summary`, {params})
 export const getAiInsights = month => request.get(`${base}/insights`, {params: {month}})
 export const listAiPasswordMemoOptions = () => request.get(`${base}/password-memo-options`)
+export const listAiQuotaSnapshots = accountId => request.get(`${base}/quota-snapshots`, {params: {accountId}})
+export const saveAiQuotaSnapshot = snapshot => request.post(`${base}/quota-snapshots`, snapshot)
 
 export function aiPayload(response) {
   const envelope = response?.data

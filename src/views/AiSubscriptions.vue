@@ -13,7 +13,7 @@
     <section v-else-if="!allowed" class="notice"><h2>尚未获得智订访问权限</h2><p>请联系管理员在权限管理中授权。</p></section>
     <template v-else>
       <nav class="view-nav" aria-label="智订视图"><button v-for="view in views" :key="view.key" type="button" :aria-current="active === view.key ? 'page' : undefined" @click="active = view.key">{{ view.label }}</button></nav>
-      <div class="toolbar"><div class="filters"><label>工具<select v-model="toolFilter"><option value="">全部工具</option><option v-for="tool in tools" :key="tool.code" :value="tool.code">{{ tool.name }}</option></select></label><label v-if="active !== 'overview'">账号<select v-model="accountFilter"><option value="">全部账号</option><option v-for="account in filteredAccounts" :key="account.id" :value="String(account.id)">{{ account.alias }}{{ account.archived ? '（已归档）' : '' }}</option></select></label></div><button type="button" :disabled="dataLoading" @click="loadData">{{ dataLoading ? '读取中…' : '刷新记录' }}</button></div>
+      <div v-if="active !== 'quota'" class="toolbar"><div class="filters"><label>工具<select v-model="toolFilter"><option value="">全部工具</option><option v-for="tool in tools" :key="tool.code" :value="tool.code">{{ tool.name }}</option></select></label><label v-if="active !== 'overview'">账号<select v-model="accountFilter"><option value="">全部账号</option><option v-for="account in filteredAccounts" :key="account.id" :value="String(account.id)">{{ account.alias }}{{ account.archived ? '（已归档）' : '' }}</option></select></label></div><button type="button" :disabled="dataLoading" @click="loadData">{{ dataLoading ? '读取中…' : '刷新记录' }}</button></div>
       <p v-if="dataError" class="notice error" role="alert">{{ dataError }} <button type="button" @click="loadData">重试</button><span v-if="summary"> · 当前保留上次读取的数据</span></p>
       <p v-if="notice" class="notice" role="status">{{ notice }}</p>
       <section class="workspace" aria-live="polite" :aria-busy="dataLoading">
@@ -31,6 +31,7 @@
           </template>
           <div class="tool-section"><h3>你的 AI 工具箱</h3><ul class="tool-list"><li v-for="tool in tools" :key="tool.code"><span class="tool-dot" aria-hidden="true"></span><strong>{{ tool.name }}</strong><small>{{ tool.syncNote || '手动记录' }}</small></li></ul></div>
         </template>
+        <AiQuotaPanel v-else-if="active === 'quota'" :accounts="accounts" :tools="tools" @create-account="openEditor('account')" />
         <template v-else-if="active === 'accounts'">
           <div class="subs-section-heading"><div><p class="eyebrow">SUBSCRIPTIONS & ACCOUNTS</p><h2>订阅与账号</h2></div><div class="actions"><button type="button" @click="openEditor('account')">＋ 账号</button><button type="button" @click="openEditor('subscription')">＋ 订阅</button></div></div>
           <div v-if="!visibleAccounts.length" class="empty-state"><h3>还没有符合条件的账号</h3><p>支持同一工具多个账号，无密码备忘录也可使用。</p></div>
@@ -69,6 +70,7 @@ import AiSubscriptionEditor from '@/components/ai-subscriptions/AiSubscriptionEd
 import AiIntegrationsPanel from '@/components/ai-subscriptions/AiIntegrationsPanel.vue'
 import AiCostInsights from '@/components/ai-subscriptions/AiCostInsights.vue'
 import AiSyncPanel from '@/components/ai-subscriptions/AiSyncPanel.vue'
+import AiQuotaPanel from '@/components/ai-subscriptions/AiQuotaPanel.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import {aiPayload, listAiTools, listAiAccounts, listAiSubscriptions, listAiUsageRecords, listAiPayments, getAiSummary, archiveAiAccount, terminateAiSubscription, resolveAiUsageRecord} from '@/api/aiSubscriptions'
 import {AI_EDITOR_LABELS, AI_PAYMENT_LABELS, AI_USAGE_LABELS, aiToday, aiMoney, aiSubscriptionStatus, aiRenewals} from '@/utils/aiSubscriptions'
@@ -79,7 +81,7 @@ const dateFrom = ref(''), dateTo = ref(''), usageStatus = ref(''), renewalDays =
 const tools = ref([]), accounts = ref([]), subscriptions = ref([]), usageRecords = ref([]), payments = ref([]), summary = ref(null)
 const dataLoading = ref(false), dataError = ref(''), summaryError = ref(''), notice = ref(''), mutating = ref(false)
 const editorOpen = ref(false), editorKind = ref('account'), editing = ref(null), editorDirty = ref(false), editorBusy = ref(false)
-const views = [{key: 'overview', label: '总览'}, {key: 'accounts', label: '订阅与账号'}, {key: 'usage', label: '用量与费用'}, {key: 'renewals', label: '续费日历'}]
+const views = [{key: 'overview', label: '总览'}, {key: 'quota', label: '套餐额度'}, {key: 'accounts', label: '订阅与账号'}, {key: 'usage', label: '用量与费用'}, {key: 'renewals', label: '续费日历'}]
 let generation = 0, summaryGeneration = 0
 const filteredAccounts = computed(() => accounts.value.filter(item => !toolFilter.value || item.toolCode === toolFilter.value))
 const visibleAccounts = computed(() => filteredAccounts.value.filter(item => !accountFilter.value || String(item.id) === accountFilter.value))
