@@ -1168,6 +1168,8 @@ export default {
 
     onMounted(() => {
       Promise.all([loadCategoryOptions(), loadMemos()])
+      const memoId = router.currentRoute?.value?.query?.memoId
+      if (typeof memoId === 'string' && /^\d{1,19}$/.test(memoId)) openDetailDialog({id: memoId})
     })
 
     return {

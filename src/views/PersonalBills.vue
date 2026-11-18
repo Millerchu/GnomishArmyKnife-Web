@@ -263,7 +263,7 @@ const billBaselineKey = ref(0)
 function resetBillForm() { Object.assign(billForm, { refund: false, currency: query.currency, billType: 'EXPENSE', categoryName: billCategoryOptions.value[0]?.value || '', amount: 0, accountName: '', paymentMethod: '', merchantName: '', billDate: today(), note: '' }); amountExpression.value = '' }
 function openCreateBillDialog() { billDialogMode.value = 'create'; editingBill.value = null; resetBillForm(); showBillDialog.value = true; nextTick(() => amountInput.value?.focus()) }
 function openEditBillDialog(item) {
-  const sourceRoutes = { TRAVEL_RECORD: '/travel-record', FUEL_RECORD: '/fuel-stats', HEALTH_VISIT: '/health' }
+  const sourceRoutes = { AI_SUBSCRIPTION: '/ai-subscriptions', TRAVEL_RECORD: '/travel-record', FUEL_RECORD: '/fuel-stats', HEALTH_VISIT: '/health' }
   if (sourceRoutes[item.sourceType] && item.sourceId) {
     router.push({ path: sourceRoutes[item.sourceType], query: { recordId: String(item.sourceId) } })
     return

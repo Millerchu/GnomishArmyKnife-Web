@@ -59,8 +59,8 @@ it('阅读和整理共用 12 列坐标，阅读禁拖拽缩放无手柄；整理
   await toggleEdit(wrapper)
   expect(positions(wrapper)).toEqual(saved)
   expect(grid.props()).toMatchObject({isDraggable: true, isResizable: true})
-  expect(wrapper.findAll('[data-card][tabindex="0"]')).toHaveLength(6)
-  expect(wrapper.findAll('.wb-drag-handle')).toHaveLength(6)
+  expect(wrapper.findAll('[data-card][tabindex="0"]')).toHaveLength(7)
+  expect(wrapper.findAll('.wb-drag-handle')).toHaveLength(7)
   expect(wrapper.get('.wb-drag-handle').attributes('tabindex')).toBeUndefined()
   expect(wrapper.get('[data-card=todo] .wb-card-content').attributes()).toHaveProperty('inert')
   expect(wrapper.get('[data-card=todo]').attributes('aria-describedby')).toBe('wb-edit-help')
@@ -166,7 +166,7 @@ it('移动端不用网格库、没有档位和手柄，支持排序和删除；�
   await wrapper.get('[data-card=todo]').trigger('keydown', {key: 'ArrowRight'})
   await wrapper.get('[data-card=todo]').trigger('keydown', {key: 'ArrowDown', shiftKey: true})
   expect(positions(wrapper)).toEqual(before)
-  expect(before.map(card => card.id)).toEqual(['todo', 'bills', 'health', 'workLog', 'fuel', 'knowledge'])
+  expect(before.map(card => card.id)).toEqual(['todo', 'bills', 'health', 'workLog', 'fuel', 'knowledge', 'aiSubscriptions'])
   const focused = wrapper.get('[data-card=bills]').element
   focused.focus()
   await wrapper.get('[data-card=bills]').trigger('keydown', {key: 'ArrowDown'}); await flushPromises()
@@ -280,11 +280,11 @@ it('桌面和平板卡高保持紧凑，移动断点后卸载库，减少动态�
   expect(css).toMatch(/@media \(prefers-reduced-motion:reduce\)[\s\S]*\.workbench \.vgl-layout,.workbench \.vgl-item\s*\{\s*transition: none !important/)
   expect(css).not.toContain('wb-count-')
 })
-it('默认六卡坐标固定，格内间隔保持等宽、14px 间距和首尾齐边，整理时不变', async () => {
+it('默认卡片坐标固定，原有三列仍保持等宽、14px 间距和首尾齐边', async () => {
   const wrapper = panel(); await flushPromises()
   expect(positions(wrapper).map(({id, x, y, w, h}) => [id, x, y, w, h])).toEqual([
     ['todo', 0, 0, 8, 4], ['workLog', 0, 4, 4, 2], ['bills', 8, 0, 4, 2],
-    ['health', 8, 2, 4, 2], ['fuel', 4, 4, 4, 2], ['knowledge', 8, 4, 4, 2]
+    ['health', 8, 2, 4, 2], ['fuel', 4, 4, 4, 2], ['knowledge', 8, 4, 4, 2], ['aiSubscriptions', 0, 6, 6, 3]
   ])
   const bounds = width => wrapper.findAllComponents(GridItem).map(item => {
     const {i: id, x, w, y} = item.props()

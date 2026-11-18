@@ -6,8 +6,8 @@ export const WORKBENCH_SCHEMA_VERSION = 1
 export const DOCK_COLLAPSED_KEY = 'gak_workbench_dock_collapsed_v1'
 export const DOCK_ORDER_KEY = 'home_tool_custom_order'
 export const GRID_SIZES = Object.freeze({S: {w: 4, h: 2}, M: {w: 6, h: 3}, L: {w: 8, h: 4}})
-const defaultSizes = {todo: 'L', workLog: 'S', bills: 'S', health: 'S', fuel: 'S', knowledge: 'S'}
-const defaultPositions = {todo: [0, 0], workLog: [0, 4], bills: [8, 0], health: [8, 2], fuel: [4, 4], knowledge: [8, 4]}
+const defaultSizes = {aiSubscriptions: 'M', todo: 'L', workLog: 'S', bills: 'S', health: 'S', fuel: 'S', knowledge: 'S'}
+const defaultPositions = {aiSubscriptions: [0, 6], todo: [0, 0], workLog: [0, 4], bills: [8, 0], health: [8, 2], fuel: [4, 4], knowledge: [8, 4]}
 const keys = WORKBENCH_CARDS.map(card => card.key)
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const integer = value => Number.isInteger(value) && value >= -2147483648 && value <= 2147483647
@@ -30,7 +30,7 @@ function firstSpace(card, placed) {
       if (!placed.some(other => cardsOverlap(candidate, other))) return candidate
     }
   }
-  // 六张最大档卡也只占 24 行，正常输入始终能在 48 行内找到位置。
+  // 七张最大档卡也只占 28 行，正常输入始终能在 48 行内找到位置。
   throw new Error('工作台布局没有可用位置')
 }
 export function packGridCards(cards) {
@@ -85,7 +85,7 @@ export function defaultGridCards(legacy) {
     const [x, y] = defaultPositions[id]
     return {id, hidden: hidden.includes(id), size: defaultSizes[id], x, y, ...GRID_SIZES[defaultSizes[id]]}
   })
-  // 默认六卡铺满 12×6；旧版定制顺序仍按原规则紧凑迁移，不改卡片数组顺序。
+  // 原有六卡铺满 12×6，智订追加在下方；旧版定制顺序仍按原规则紧凑迁移，不改卡片数组顺序。
   return !hidden.length && order.every((id, index) => id === keys[index]) ? cards : packGridCards(cards)
 }
 

@@ -7,7 +7,8 @@ export const WORKBENCH_CARDS = [
   {key: 'bills', title: '本月账单', featureCode: 'APP_PERSONAL_BILLS', createType: 'PERSONAL_BILL', createLabel: '记一笔', mobileFolded: true},
   {key: 'health', title: '健康', featureCode: 'APP_HEALTH_RECORD', createType: 'HEALTH_RECORD', createLabel: '记一条', mobileFolded: true},
   {key: 'fuel', title: '油耗统计', featureCode: 'APP_FUEL_STATS', createType: 'FUEL_RECORD', createLabel: '新增加油记录', mobileFolded: true},
-  {key: 'knowledge', title: '经验库', featureCode: 'APP_KNOWLEDGE_BASE', createType: 'KNOWLEDGE_ENTRY', createLabel: '新增经验', mobileFolded: true}
+  {key: 'knowledge', title: '经验库', featureCode: 'APP_KNOWLEDGE_BASE', createType: 'KNOWLEDGE_ENTRY', createLabel: '新增经验', mobileFolded: true},
+  {key: 'aiSubscriptions', title: '智订 · AI Subs', featureCode: 'APP_AI_SUBSCRIPTION', createType: 'AI_SUBSCRIPTION', createLabel: '新增订阅', mobileFolded: true}
 ]
 
 // 忽略旧版本未知键，新增卡片补在末尾，重复键只保留第一次。

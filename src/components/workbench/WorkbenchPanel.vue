@@ -75,6 +75,7 @@ import WorkLogCard from './WorkLogCard.vue'
 import BillsCard from './BillsCard.vue'
 import HealthCard from './HealthCard.vue'
 import FuelCard from './FuelCard.vue'
+import AiSubscriptionsCard from './AiSubscriptionsCard.vue'
 import KnowledgeCard from './KnowledgeCard.vue'
 import {WORKBENCH_CARDS} from '@/utils/workbenchLayout'
 import {GRID_SIZES, gridAnnouncement, packGridCards, settleGridCards, sortGridCard, updateGridCard, visualGridOrder} from '@/utils/workbenchGrid'
@@ -82,7 +83,7 @@ import {useWorkbenchLayout} from '@/composables/useWorkbenchLayout'
 import {consumption, money, percent} from '@/utils/workbenchData'
 const props = defineProps({loading: Boolean, source: String, featureCodes: {type: Array, default: () => []}, tools: {type: Array, default: () => []}, types: {type: Array, default: () => []}, displayName: String, dateText: String, now: Date, mobile: Boolean, refreshKey: Number})
 defineEmits(['create', 'retry-permissions', 'order', 'notice'])
-const components = {todo: TodoCard, workLog: WorkLogCard, bills: BillsCard, health: HealthCard, fuel: FuelCard, knowledge: KnowledgeCard}
+const components = {aiSubscriptions: AiSubscriptionsCard, todo: TodoCard, workLog: WorkLogCard, bills: BillsCard, health: HealthCard, fuel: FuelCard, knowledge: KnowledgeCard}
 const {layout, hasCachedLayout, draft, current, editing, dirty, busy: saving, waitingForSync, error: storageError, notice: syncNotice, conflict, useCloud, overwriteCloud, begin, cancel, reset, finish} = useWorkbenchLayout()
 onBeforeRouteLeave(() => !dirty.value || confirmDialog('放弃未保存的整理？', {confirmText: '放弃整理', cancelText: '继续整理'}))
 const announcement = ref('')
@@ -195,6 +196,7 @@ function foldedSummary(key) {
   if (!state || state.status === 'loading') return '正在加载…'
   if (state.status === 'error') return '加载失败，展开后可重试'
   const data = state.data
+  if (key === 'aiSubscriptions') return data.hasRecords ? (data.complete ? '订阅与费用已更新' : '部分金额待核对，展开查看') : '尚未记录 AI 订阅'
   if (key === 'fuel') return data.hasRecords ? `本月实付 ${money(data.currentMonthAmount)} · 平均油耗 ${consumption(data.averageConsumption)}` : '暂无加油记录'
   if (key === 'knowledge') return data.list.length ? `最近已发布 ${data.list.length} 条 · ${data.list[0].title}` : '暂无已发布经验'
   return key === 'bills' ? `支出 ${money(data.currentMonthExpense)} · 收入 ${money(data.currentMonthIncome)} · 预算 ${Number(data.annualBudgetAmount) > 0 ? percent(data.annualBudgetUsageRate) : '未设置'}`

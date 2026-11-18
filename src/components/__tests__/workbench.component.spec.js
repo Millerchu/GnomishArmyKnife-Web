@@ -113,7 +113,7 @@ it('移动整理态删除只改草稿，完成后保存顺序和删除结果', a
   expect(wrapper.text()).toContain('有未保存更改')
   await wrapper.get('[aria-pressed]').trigger('click'); await flushPromises()
   const saved = JSON.parse(localStorage.getItem(`${WORKBENCH_GRID_KEY}:1`))
-  expect(saved.cards.map(card => card.id)).toEqual(['todo', 'workLog', 'bills', 'health', 'fuel', 'knowledge'])
+  expect(saved.cards.map(card => card.id)).toEqual(['todo', 'workLog', 'bills', 'health', 'fuel', 'knowledge', 'aiSubscriptions'])
   expect(saved.cards.find(card => card.id === 'workLog')).toMatchObject({x: 0, y: 0})
   expect(saved.cards.filter(card => card.hidden).map(card => card.id)).toEqual(['health'])
   expect(wrapper.find('[data-card=health]').exists()).toBe(false)

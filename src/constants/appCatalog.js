@@ -29,6 +29,11 @@ export const APP_DATA_SOURCE_OPTIONS = [
 
 export const USER_APP_DEFINITIONS = [
   {
+    key: 'ai-subscription', name: '智订', featureCode: 'APP_AI_SUBSCRIPTION', route: '/ai-subscriptions',
+    category: '效率工具', dataSourceMode: 'REAL', securityLevel: 'CONFIDENTIAL', encryptionMode: 'NONE',
+    sortNo: 160, description: 'AI 订阅、用量与费用管理（应用框架，业务功能建设中）。'
+  },
+  {
     key: 'growth-record', name: '芽记', featureCode: 'APP_GROWTH_RECORD', route: '/growth-record',
     category: '个人生活', dataSourceMode: 'REAL', securityLevel: 'CONFIDENTIAL', encryptionMode: 'NONE',
     description: '管理宝宝档案、生长测量、接种记录和成长里程碑。'

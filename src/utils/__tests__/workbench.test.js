@@ -44,7 +44,7 @@ for (const key of ['gak_workbench_layout_v1', 'gak_workbench_dock_collapsed_v1',
 }
 
 test('布局迁移忽略未知与重复键，并补充新增卡片', () => {
-  assert.deepEqual(normalizeWorkbenchLayout({order: ['health', 'old', 'health'], hidden: ['health', 'old', 'health']}), {version: 1, order: ['health', 'todo', 'workLog', 'bills', 'fuel', 'knowledge'], hidden: ['health']})
+  assert.deepEqual(normalizeWorkbenchLayout({order: ['health', 'old', 'health'], hidden: ['health', 'old', 'health']}), {version: 1, order: ['health', 'todo', 'workLog', 'bills', 'fuel', 'knowledge', 'aiSubscriptions'], hidden: ['health']})
 })
 test('损坏存储恢复默认布局', () => {
   assert.deepEqual(readWorkbenchLayout({getItem: () => '{bad'}), normalizeWorkbenchLayout())
@@ -52,7 +52,7 @@ test('损坏存储恢复默认布局', () => {
 })
 test('卡片移动跳过未授权键，越界与未知键保持原布局', () => {
   const initial = normalizeWorkbenchLayout()
-  assert.deepEqual(moveWorkbenchCard(initial, 'todo', 1, ['todo', 'health']).order, ['health', 'workLog', 'bills', 'todo', 'fuel', 'knowledge'])
+  assert.deepEqual(moveWorkbenchCard(initial, 'todo', 1, ['todo', 'health']).order, ['health', 'workLog', 'bills', 'todo', 'fuel', 'knowledge', 'aiSubscriptions'])
   assert.deepEqual(moveWorkbenchCard(initial, 'todo', -1), initial)
   assert.deepEqual(moveWorkbenchCard(initial, 'unknown', 1), initial)
 })
@@ -61,12 +61,12 @@ test('一期用户布局补油耗和经验库到末尾并默认可见，保留�
   const values = new Map([[WORKBENCH_LAYOUT_KEY, legacy]])
   const storage = {getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value)}
   const layout = readWorkbenchLayout(storage, '9223372036854775807')
-  assert.deepEqual(layout.order, ['health', 'bills', 'todo', 'workLog', 'fuel', 'knowledge'])
+  assert.deepEqual(layout.order, ['health', 'bills', 'todo', 'workLog', 'fuel', 'knowledge', 'aiSubscriptions'])
   assert.deepEqual(layout.hidden, ['bills'])
   assert.equal(values.get(WORKBENCH_LAYOUT_KEY), legacy)
   assert.deepEqual(normalizeWorkbenchLayout(layout), layout)
   const moved = moveWorkbenchCard(layout, 'knowledge', -1, ['fuel', 'knowledge'])
-  assert.deepEqual(moved.order.slice(-2), ['knowledge', 'fuel'])
+  assert.deepEqual(moved.order.slice(-3), ['knowledge', 'fuel', 'aiSubscriptions'])
 })
 test('油耗仅保留展示字段，限制记录和车辆数量，零元历史与本月零不当空态', () => {
   const record = {id: '9223372036854775807', fuelDate: '2026-10-01', vehicleName: '车', discountedAmount: '0', fuelConsumption: null, note: '不可展示', attachments: [{name: '不可展示'}]}

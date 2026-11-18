@@ -82,7 +82,7 @@ it('云端覆盖本地网格、折叠和共享排序且不产生回写', async (
 })
 it.each([{version: 4, schemaVersion: 2, payload: null}, {version: 2, schemaVersion: 1, payload: null}])('宽松应用已存空 payload，保留 version=$version，不误作首次上传', async latest => {
   getWorkbenchPreferences.mockResolvedValue(reply(latest)); const vm = harness(); await flushPromises()
-  expect(vm.version).toBe(latest.version); expect(vm.layout.cards).toHaveLength(6); expect(saveWorkbenchPreferences).not.toHaveBeenCalled()
+  expect(vm.version).toBe(latest.version); expect(vm.layout.cards).toHaveLength(7); expect(saveWorkbenchPreferences).not.toHaveBeenCalled()
   await edit(vm); expect(saveWorkbenchPreferences.mock.calls[0][0].version).toBe(latest.version)
 })
 it('完成携带最新即时坞值、当前版本并采用服务端新版本', async () => {
@@ -313,7 +313,7 @@ it('真实冲突弹窗聚焦使用云端、Tab 循环；Esc 关闭保留草稿�
   saveWorkbenchPreferences.mockRejectedValueOnce(conflictError(3))
   finish.element.focus(); await finish.trigger('click'); await flushPromises(); await nextTick()
   const dialog = document.querySelector('.wb-conflict-dialog')
-  expect(dialog.textContent).toContain('2026-11-11 13:00:00'); expect(dialog.textContent).toContain('可见卡片：5 张')
+  expect(dialog.textContent).toContain('2026-11-11 13:00:00'); expect(dialog.textContent).toContain('可见卡片：6 张')
   expect(document.activeElement.textContent).toBe('使用云端')
   const buttons = [...dialog.querySelectorAll('button:not(:disabled)')]
   buttons.at(-1).focus(); buttons.at(-1).dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, cancelable: true}))

@@ -27,6 +27,9 @@ function growthType(kind, typeCode, label, fields) {
 }
 
 export const QUICK_CREATE_TYPES = [
+  ...[['AI_SUBSCRIPTION', 'subscription', 'AI 订阅'], ['AI_USAGE', 'usage', 'AI 用量'], ['AI_PAYMENT', 'payment', 'AI 支付']].map(([typeCode, aiKind, label]) => ({
+    typeCode, aiKind, label, featureCode: 'APP_AI_SUBSCRIPTION', appName: '智订', api: 'aiSubscription', defaults: () => ({}), fields: []
+  })),
   {
     typeCode: 'WORK_LOG', featureCode: 'APP_WORK_LOG', appName: '工作日志', label: '新增工作日志', api: 'workLog',
     defaults: () => ({logDate: today(), typeCodes: [], location: '', projectCode: '', workItems: [{content: '', status: 'COMPLETED', personDay: 1}], zentaoNo: '', personDay: 1, overtimeHours: 0, remark: ''}),

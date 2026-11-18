@@ -24,13 +24,13 @@ test('默认待办 L 与五张 S 铺满六行，任意授权子集可从左上�
   assert.deepEqual(defaults.map(({id, size, x, y, w, h}) => [id, size, x, y, w, h]), [
     ['todo', 'L', 0, 0, 8, 4], ['workLog', 'S', 0, 4, 4, 2],
     ['bills', 'S', 8, 0, 4, 2], ['health', 'S', 8, 2, 4, 2],
-    ['fuel', 'S', 4, 4, 4, 2], ['knowledge', 'S', 8, 4, 4, 2]
+    ['fuel', 'S', 4, 4, 4, 2], ['knowledge', 'S', 8, 4, 4, 2], ['aiSubscriptions', 'M', 0, 6, 6, 3]
   ])
   for (let y = 0; y < 6; y++) for (let x = 0; x < 12; x++) {
     assert.equal(defaults.filter(card => x >= card.x && x < card.x + card.w && y >= card.y && y < card.y + card.h).length, 1)
   }
   validGrid(defaults)
-  for (let mask = 1; mask < 64; mask++) {
+  for (let mask = 1; mask < 2 ** defaults.length; mask++) {
     const packed = packGridCards(defaults.filter((_, index) => mask & (1 << index)))
     assert.equal(packed[0].x, 0); assert.equal(packed[0].y, 0)
     validGrid(packed)
@@ -40,7 +40,7 @@ test('读取旧云端两张 L 的无碰撞布局时保留定制尺寸和坐标',
   const cards = defaultGridCards().map(card => ({...card,
     ...(card.id === 'workLog' ? {size: 'L', w: 8, h: 4} : {}),
     ...(card.id === 'fuel' ? {x: 8} : {}),
-    ...(card.id === 'knowledge' ? {y: 6} : {})
+    ...(card.id === 'knowledge' ? {y: 6} : {}), ...(card.id === 'aiSubscriptions' ? {y: 8} : {})
   }))
   validGrid(cards)
   assert.deepEqual(applyWorkbenchPayload({cards}).cards, cards)
@@ -108,7 +108,7 @@ test('移动排序按行列跳过未授权及隐藏卡，同档交换坐标且�
   assert.deepEqual(sortGridCard(cards, 'unknown', 1), cards)
   const hidden = cards.map(card => ({...card, hidden: card.id === 'health'}))
   assert.deepEqual(sortGridCard(hidden, 'health', -1), hidden)
-  assert.deepEqual(sortGridCard(hidden, 'knowledge', 1), hidden)
+  assert.deepEqual(sortGridCard(hidden, 'aiSubscriptions', 1), hidden)
 })
 test('移动排序不同档位双向换位只安置大卡，另外四卡桌面坐标保持不变', () => {
   const cards = defaultGridCards().map(card => ({...card, y: card.y + 10}))
@@ -143,7 +143,7 @@ test('迁移用户隔离的一期三项，order 转坐标，隐藏保留，新�
   const before = [...store.values]
   const migrated = readWorkbenchGrid(store, '9223372036854775807')
   assert.equal(migrated.schemaVersion, 1)
-  assert.deepEqual(migrated.cards.map(card => card.id), [...legacy.order, 'fuel', 'knowledge'])
+  assert.deepEqual(migrated.cards.map(card => card.id), [...legacy.order, 'fuel', 'knowledge', 'aiSubscriptions'])
   assert.deepEqual(migrated.cards.filter(card => card.hidden).map(card => card.id), ['bills'])
   assert.equal(migrated.cards.at(-1).hidden, false)
   assert.deepEqual(migrated.dock, {collapsed: true, order: ['work-log', 'todo-list']})
@@ -196,7 +196,7 @@ test('payload 宽松应用丢弃非法卡、未知卡、重复卡，采用第一
   const copy = cloneLayout(payload)
   const result = applyWorkbenchPayload(payload)
   assert.deepEqual(result.cards[0], {id: 'health', hidden: true, size: 'S', x: 8, y: 2, w: 4, h: 2})
-  assert.equal(result.cards.length, 6)
+  assert.equal(result.cards.length, 7)
   assert.deepEqual(result.dock, {collapsed: false, order: ['old', '😀']})
   assert.deepEqual(payload, copy); validGrid(result.cards)
 })

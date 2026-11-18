@@ -1,13 +1,16 @@
 import {useWorkbenchAccess} from './useWorkbenchAccess'
 import {unwrapData} from '@/utils/workbenchApps'
 
-import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
+import {computed, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {changePasswordApi, getPasswordPublicKeyApi} from '@/api/auth'
 import {listSystemUsers, updateSystemUser} from '@/api/systemUser'
 import {clearAuthState, readAuthState, writeAuthState} from '@/utils/authStorage'
 import {encryptPasswordByPublicKey} from '@/utils/rsaEncrypt'
 import {getMyAvatarAttachments, saveMyAvatarAttachments} from '@/api/attachment'
+import {dailyAiSyncCheck, getAiSyncJob} from '@/api/aiSync'
+import {checkReminders} from '@/api/aiIntegrations'
+import {aiPayload} from '@/api/aiSubscriptions'
 
 const WEEK_LABELS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
 function normalizeCurrentUser(source = {}) {
@@ -56,6 +59,47 @@ export default function useHomeShell() {
   const easterEggClickCount = ref(0)
   const logoutPending = ref(false)
   const refreshKey = ref(0)
+  let lastAiCheck = 0
+  let aiPollTimer
+  let aiCheckActive = false
+  let homeMounted = false
+  const aiAllowed = computed(() => accessibleFeatureCodes.value.includes('APP_AI_SUBSCRIPTION'))
+
+  function pollAiJobs(ids, attempts = 15) {
+    if (!homeMounted || !aiAllowed.value || !ids.length || attempts === 0) return
+    aiPollTimer = setTimeout(async () => {
+      const results = await Promise.allSettled(ids.map(async id => aiPayload(await getAiSyncJob(id))))
+      if (!homeMounted || !aiAllowed.value) return
+      if (results.some(result => result.status === 'fulfilled' && result.value.status === 'SUCCEEDED')) {
+        refreshKey.value++
+        checkReminders().catch(() => {})
+      }
+      pollAiJobs(ids.filter((id, index) => results[index].status === 'rejected' ||
+        ['QUEUED', 'RUNNING', 'RETRY'].includes(results[index].value.status)), attempts - 1)
+    }, 4000)
+  }
+
+  async function checkAiMaintenance(force = false) {
+    if (!homeMounted || !aiAllowed.value || document.hidden || aiCheckActive) return
+    if (!force && Date.now() - lastAiCheck < 60 * 60_000) return
+    lastAiCheck = Date.now()
+    aiCheckActive = true
+    try {
+      const jobs = aiPayload(await dailyAiSyncCheck())
+      clearTimeout(aiPollTimer)
+      pollAiJobs(jobs.filter(job => ['QUEUED', 'RUNNING', 'RETRY'].includes(job.status)).map(job => job.id))
+    } catch {
+      lastAiCheck = Date.now() - 55 * 60_000
+    } finally {
+      aiCheckActive = false
+    }
+    if (homeMounted && aiAllowed.value) checkReminders().catch(() => {})
+  }
+  const checkAiOnVisibility = () => checkAiMaintenance(true)
+  watch(aiAllowed, allowed => {
+    if (allowed) checkAiMaintenance(true)
+    else clearTimeout(aiPollTimer)
+  })
   const requirementBoard = ref(null)
   const avatarAttachments = ref([])
   const profileAvatarAttachments = ref([])
@@ -462,22 +506,29 @@ export default function useHomeShell() {
   }
 
   onMounted(() => {
+    homeMounted = true
+    checkAiMaintenance()
     // 首次权限加载由共享上下文负责，回到首页时复用后台刷新，避免重复首屏请求。
     if (!appPermissionLoading.value) access.reload()
     timer = setInterval(() => {
       currentTime.value = new Date()
+      checkAiMaintenance()
     }, 60 * 1000)
     syncMobileViewport()
     window.addEventListener('resize', syncMobileViewport)
     window.addEventListener('gak:quick-created', handleQuickCreateSuccess)
     document.addEventListener('click', handleDocumentClick)
     document.addEventListener('keydown', handleEscapeKey)
+    document.addEventListener('visibilitychange', checkAiOnVisibility)
     loadCurrentUserAvatar().catch(() => {
       avatarAttachments.value = []
     })
   })
 
   onBeforeUnmount(() => {
+    homeMounted = false
+    clearTimeout(aiPollTimer)
+    document.removeEventListener('visibilitychange', checkAiOnVisibility)
     if (timer) {
       clearInterval(timer)
     }

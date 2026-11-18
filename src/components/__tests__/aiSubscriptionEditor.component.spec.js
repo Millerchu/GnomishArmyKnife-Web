@@ -1,0 +1,89 @@
+// @vitest-environment happy-dom
+import {beforeEach, describe, expect, it, vi} from 'vitest'
+import {flushPromises, mount} from '@vue/test-utils'
+import AiSubscriptionEditor from '../ai-subscriptions/AiSubscriptionEditor.vue'
+import QuickCreateDialog from '../QuickCreateDialog.vue'
+import {resolveQuickCreateTypes} from '@/constants/quickCreateRegistry'
+import * as api from '@/api/aiSubscriptions'
+vi.mock('@/api/aiSubscriptions', async importOriginal => {
+  const original = await importOriginal()
+  return {...original, ...Object.fromEntries(['listAiTools', 'listAiAccounts', 'listAiSubscriptions', 'listAiPayments', 'listAiPasswordMemoOptions', 'createAiAccount', 'updateAiAccount', 'createAiSubscription', 'updateAiSubscription', 'createAiUsageRecord', 'createAiPayment'].map(name => [name, vi.fn()]))}
+})
+const ok = data => ({data: {code: '0', data}})
+const account = {id: '9007199254740993', toolCode: 'CHATGPT', alias: '工作账号', archived: false}
+const field = (wrapper, label) => wrapper.findAll('label').find(item => item.text().startsWith(label))
+beforeEach(() => {
+  vi.clearAllMocks()
+  api.listAiTools.mockResolvedValue(ok([{code: 'CHATGPT', name: 'ChatGPT'}]))
+  api.listAiAccounts.mockResolvedValue(ok([account]))
+  api.listAiSubscriptions.mockResolvedValue(ok([]))
+  api.listAiPayments.mockResolvedValue(ok([]))
+  api.createAiUsageRecord.mockResolvedValue(ok({id: '1'}))
+  api.createAiPayment.mockResolvedValue(ok({id: '2'}))
+})
+describe('智订共享编辑器', () => {
+  it('账号加载失败可重试，不能显示为空账号', async () => {
+    api.listAiAccounts.mockRejectedValueOnce(new Error('账户读取失败'))
+    const wrapper = mount(AiSubscriptionEditor, {props: {kind: 'usage'}})
+    await flushPromises()
+    expect(wrapper.text()).toContain('账户读取失败')
+    expect(wrapper.text()).not.toContain('先添加一个 AI 账号')
+    await wrapper.get('button').trigger('click'); await flushPromises()
+    expect(wrapper.find('form').exists()).toBe(true)
+  })
+  it('空账号允许先创建再继续原用量表单', async () => {
+    api.listAiAccounts.mockResolvedValue(ok([]))
+    api.createAiAccount.mockResolvedValue(ok(account))
+    const wrapper = mount(AiSubscriptionEditor, {props: {kind: 'usage'}})
+    await flushPromises()
+    expect(wrapper.text()).toContain('先添加一个 AI 账号')
+    await wrapper.get('button').trigger('click')
+    await field(wrapper, '工具').get('select').setValue('CHATGPT')
+    await field(wrapper, '账号别名').get('input').setValue('工作账号')
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(wrapper.text()).toContain('计量方式')
+    expect(field(wrapper, '账号').get('select').element.value).toBe(account.id)
+    expect(wrapper.emitted('saved')).toBeUndefined()
+  })
+  it('套餐累计记录保持字符串ID，费用不会重复计入', async () => {
+    const wrapper = mount(AiSubscriptionEditor, {props: {kind: 'usage'}})
+    await flushPromises()
+    await field(wrapper, '归属').get('select').setValue('PACKAGE')
+    await field(wrapper, '计量方式').get('select').setValue('CUMULATIVE')
+    await field(wrapper, '数量').get('input').setValue('12.5')
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(api.createAiUsageRecord).toHaveBeenCalledWith(expect.objectContaining({accountId: account.id, mode: 'CUMULATIVE', quantity: '12.5', cost: null}))
+    expect(wrapper.emitted('saved')).toHaveLength(1)
+  })
+  it('支付重试复用幂等键，业务失败不报告保存成功', async () => {
+    api.createAiPayment.mockResolvedValueOnce({data: {code: 'ERROR', message: '保存失败'}})
+    const wrapper = mount(AiSubscriptionEditor, {props: {kind: 'payment'}})
+    await flushPromises()
+    await field(wrapper, '支付类型').get('select').setValue('TOPUP')
+    await field(wrapper, '实付').get('input').setValue('30')
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(wrapper.text()).toContain('保存失败')
+    expect(wrapper.emitted('saved')).toBeUndefined()
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(api.createAiPayment.mock.calls[0][0].requestKey).toBe(api.createAiPayment.mock.calls[1][0].requestKey)
+    expect(api.createAiPayment.mock.calls[1][0].subscriptionId).toBeNull()
+  })
+  it('无效区间阻止提交', async () => {
+    const wrapper = mount(AiSubscriptionEditor, {props: {kind: 'usage'}})
+    await flushPromises()
+    await field(wrapper, '区间开始').get('input').setValue('2026-11-20')
+    await field(wrapper, '区间结束').get('input').setValue('2026-11-19')
+    await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(api.createAiUsageRecord).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('结束日必须晚于开始日')
+  })
+  it('快捷新增复用编辑器且成功关闭对话框', async () => {
+    const wrapper = mount(QuickCreateDialog, {props: {modelValue: true, initialTypeCode: 'AI_USAGE', types: resolveQuickCreateTypes(['APP_AI_SUBSCRIPTION'])}, global: {stubs: {MacDialog: {template: '<div><slot/><slot name="footer"/></div>'}}}})
+    await flushPromises()
+    const editor = wrapper.getComponent(AiSubscriptionEditor)
+    expect(editor.props('kind')).toBe('usage')
+    editor.vm.$emit('saved', {id: '1'}); await flushPromises()
+    expect(wrapper.emitted('update:modelValue').at(-1)).toEqual([false])
+    expect(wrapper.emitted('success').at(-1)[0]).toContain('AI 用量')
+  })
+})

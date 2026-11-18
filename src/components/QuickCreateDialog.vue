@@ -6,14 +6,14 @@
     width="920px"
     panel-class="quick-create-dialog"
     mobile-presentation="fullScreen"
-    :close-disabled="submitting || loadingDependencies"
+    :close-disabled="submitting || loadingDependencies || aiBusy"
     :dirty="isDirty"
     @update:model-value="handleVisibleChange"
   >
     <div class="quick-create-shell">
       <label class="type-picker">
         <span>新增类型</span>
-        <select :value="selectedTypeCode" :disabled="submitting || loadingDependencies" @change="handleTypeChange">
+        <select :value="selectedTypeCode" :disabled="submitting || loadingDependencies || aiBusy" @change="handleTypeChange">
           <option value="">请先选择新增类型</option>
           <optgroup v-for="group in groupedTypes" :key="group.name" :label="group.name">
             <option v-for="item in group.items" :key="item.typeCode" :value="item.typeCode">{{ item.label }}</option>
@@ -27,6 +27,8 @@
         <span>选择上方类型，表单会在这里展开。</span>
       </div>
 
+      <AiSubscriptionEditor v-else-if="activeType.aiKind" :key="activeType.typeCode" :kind="activeType.aiKind"
+        @dirty="aiDirty = $event" @busy="aiBusy = $event" @saved="handleAiSaved" />
       <form v-else :inert="loadingDependencies" id="quick-create-form" class="quick-form" :class="{'personal-bill-quick-form': activeType.typeCode === 'PERSONAL_BILL'}" @submit.prevent="submit">
         <header class="form-heading">
           <div class="form-mark" :style="activeApp?.iconStyle">
@@ -109,7 +111,7 @@
         <RequestErrorMessage v-if="submitError" class="form-error" :message="submitError" :error="submitFailure" />
       </form>
     </div>
-    <template v-if="activeType" #footer>
+    <template v-if="activeType && !activeType.aiKind" #footer>
       <button form="quick-create-form" type="submit" class="quick-submit" :disabled="submitting || loadingDependencies || (activeType.loadChildren && !selectedGrowthChild)">
         {{ submitting ? '提交中...' : '保存新增' }}
       </button>
@@ -120,6 +122,7 @@
 <script setup>
 import {computed, reactive, ref, shallowRef, watch} from 'vue'
 import MacDialog from '@/components/MacDialog.vue'
+import AiSubscriptionEditor from '@/components/ai-subscriptions/AiSubscriptionEditor.vue'
 import RequestErrorMessage from '@/components/RequestErrorMessage.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import AppIconImage from '@/components/AppIconImage.vue'
@@ -150,6 +153,8 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'success'])
 const selectedTypeCode = ref('')
+const aiDirty = ref(false)
+const aiBusy = ref(false)
 const submitting = ref(false)
 const loadingDependencies = ref(false)
 const submitError = ref('')
@@ -194,7 +199,7 @@ const groupedTypes = computed(() => {
   props.types.forEach((item) => groups.set(item.appName, [...(groups.get(item.appName) || []), item]))
   return Array.from(groups, ([name, items]) => ({name, items}))
 })
-const isDirty = computed(() => Boolean(activeType.value) && JSON.stringify(form) !== initialSnapshot.value)
+const isDirty = computed(() => activeType.value?.aiKind ? aiDirty.value : Boolean(activeType.value) && JSON.stringify(form) !== initialSnapshot.value)
 
 function unwrapData(response) {
   const payload = response?.data
@@ -202,6 +207,8 @@ function unwrapData(response) {
 }
 
 function resetForm(type = activeType.value) {
+  aiDirty.value = false
+  aiBusy.value = false
   growthChildren.value = []
   Object.keys(form).forEach((key) => delete form[key])
   if (type) Object.assign(form, type.defaults())
@@ -322,6 +329,14 @@ async function handleTypeChange(event) {
   selectedTypeCode.value = nextCode
   resetForm()
   await loadDependencies(activeType.value)
+}
+
+function handleAiSaved() {
+  const label = activeType.value?.label || 'AI 记录'
+  aiDirty.value = false
+  aiBusy.value = false
+  handleVisibleChange(false)
+  emit('success', `${label}已保存`)
 }
 
 function handleVisibleChange(value) {

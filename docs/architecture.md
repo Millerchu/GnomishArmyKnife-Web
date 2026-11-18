@@ -37,6 +37,7 @@ API 为后端前缀，浏览器默认再加 `/api`。
 | /fuel-stats | 油耗 | /fuel-records、/fuel-vehicles |
 | /wow-character-stats | WoW 角色 | /wow-characters、/wow-specialization-guides |
 | /personal-bills | 账单 | /personal-bills |
+| /ai-subscriptions | 智订 | /ai-subscriptions；账号、订阅、用量、费用、续费与官方同步 |
 | /knowledge-base | 经验库 | /knowledge-base |
 | /health | 健康 | /health-records |
 | /instrument-practice | 随身乐器 | 本地音频；作品 /instrument-practice/takes |
