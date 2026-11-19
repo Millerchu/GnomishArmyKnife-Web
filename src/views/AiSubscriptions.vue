@@ -61,8 +61,8 @@
   </main>
 </template>
 <script setup>
-import {computed, onBeforeUnmount, ref, watch} from 'vue'
-import {RouterLink} from 'vue-router'
+import {computed, inject, onBeforeUnmount, ref, watch} from 'vue'
+import {RouterLink, routeLocationKey} from 'vue-router'
 import {useWorkbenchAccess} from '@/composables/useWorkbenchAccess'
 import MacDialog from '@/components/MacDialog.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
@@ -76,7 +76,9 @@ import {aiPayload, listAiTools, listAiAccounts, listAiSubscriptions, listAiUsage
 import {AI_EDITOR_LABELS, AI_PAYMENT_LABELS, AI_USAGE_LABELS, aiToday, aiMoney, aiSubscriptionStatus, aiRenewals} from '@/utils/aiSubscriptions'
 const {loading, source, featureCodes, reload} = useWorkbenchAccess()
 const allowed = computed(() => featureCodes.value.includes('APP_AI_SUBSCRIPTION'))
-const active = ref('overview'), month = ref(aiToday().slice(0, 7)), toolFilter = ref(''), accountFilter = ref('')
+const route = inject(routeLocationKey, null)
+const active = ref(route?.query.view === 'quota' ? 'quota' : 'overview')
+const month = ref(aiToday().slice(0, 7)), toolFilter = ref(''), accountFilter = ref('')
 const dateFrom = ref(''), dateTo = ref(''), usageStatus = ref(''), renewalDays = ref(30)
 const tools = ref([]), accounts = ref([]), subscriptions = ref([]), usageRecords = ref([]), payments = ref([]), summary = ref(null)
 const dataLoading = ref(false), dataError = ref(''), summaryError = ref(''), notice = ref(''), mutating = ref(false)

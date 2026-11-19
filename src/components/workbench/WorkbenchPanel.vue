@@ -196,7 +196,6 @@ function foldedSummary(key) {
   if (!state || state.status === 'loading') return '正在加载…'
   if (state.status === 'error') return '加载失败，展开后可重试'
   const data = state.data
-  if (key === 'aiSubscriptions') return data.hasRecords ? (data.complete ? '订阅与费用已更新' : '部分金额待核对，展开查看') : '尚未记录 AI 订阅'
   if (key === 'fuel') return data.hasRecords ? `本月实付 ${money(data.currentMonthAmount)} · 平均油耗 ${consumption(data.averageConsumption)}` : '暂无加油记录'
   if (key === 'knowledge') return data.list.length ? `最近已发布 ${data.list.length} 条 · ${data.list[0].title}` : '暂无已发布经验'
   return key === 'bills' ? `支出 ${money(data.currentMonthExpense)} · 收入 ${money(data.currentMonthIncome)} · 预算 ${Number(data.annualBudgetAmount) > 0 ? percent(data.annualBudgetUsageRate) : '未设置'}`
