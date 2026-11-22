@@ -112,6 +112,8 @@
       <div v-else class="empty-state">暂无健康指标记录</div>
     </section>
 
+    <DentalCleaningPanel />
+
     <div class="split-layout">
       <section class="panel-section">
         <div class="panel-head">
@@ -440,6 +442,7 @@
 <script>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import DentalCleaningPanel from '@/components/DentalCleaningPanel.vue'
 import MacDialog from '@/components/MacDialog.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import AttachmentManager from '@/components/AttachmentManager.vue'
@@ -525,7 +528,7 @@ function buildNumericPayload(rawForm, fieldConfigs) {
 
 export default {
   name: 'HealthRecord',
-  components: {MacDialog, AttachmentManager, AttachmentGallery},
+  components: {MacDialog, AttachmentManager, AttachmentGallery, DentalCleaningPanel},
   setup() {
     const router = useRouter()
     const route = useRoute()

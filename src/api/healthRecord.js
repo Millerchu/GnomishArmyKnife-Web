@@ -71,3 +71,25 @@ export function uploadHealthReportFile(file) {
     }
   })
 }
+
+const dentalCleaningsPath = '/health-records/dental-cleanings'
+
+export function getDentalCleanings() {
+  return request.get(dentalCleaningsPath)
+}
+
+export function createDentalCleaning(data) {
+  return request.post(dentalCleaningsPath, data)
+}
+
+export function updateDentalCleaning(id, data) {
+  return request.put(`${dentalCleaningsPath}/${id}`, data)
+}
+
+export function deleteDentalCleaning(id) {
+  return request.delete(`${dentalCleaningsPath}/${id}`)
+}
+
+export function saveDentalReminder(data) {
+  return request.put(`${dentalCleaningsPath}/reminder`, data)
+}

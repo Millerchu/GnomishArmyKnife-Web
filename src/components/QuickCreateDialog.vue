@@ -135,7 +135,8 @@ import {createWowCharacter} from '@/api/wowCharacter'
 import {createAnnualBudget, createPersonalBill} from '@/api/personalBills'
 import {createKnowledgeEntry} from '@/api/knowledgeBase'
 import {createSoftwarePackage, createSoftwareVersion, listSoftwarePackages} from '@/api/softwareRepo'
-import {createHealthRecord, createHealthReport, createHealthVisit} from '@/api/healthRecord'
+import {dentalCleaningPayload} from '@/utils/dentalCleaning'
+import {createDentalCleaning, createHealthRecord, createHealthReport, createHealthVisit} from '@/api/healthRecord'
 import {createGrowthChild, createGrowthMeasurement, createGrowthVaccination, createGrowthMilestone, listGrowthChildren} from '@/api/growthRecords'
 import {createTravelRecord} from '@/api/travelRecords'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
@@ -389,6 +390,7 @@ function buildPayload(type) {
     delete payload.tagsText
     payload.source = nullable(payload.source)
   }
+  if (type.api === 'dentalCleaning') return dentalCleaningPayload(payload)
   if (type.api === 'healthRecord') Object.keys(payload).filter((key) => !['measureDate', 'note'].includes(key)).forEach((key) => { payload[key] = numeric(payload[key]) })
   if (type.api === 'healthVisit' || type.api === 'healthReport') Object.keys(payload).forEach((key) => { if (key !== 'visitId') payload[key] = nullable(payload[key]) })
   if (type.api === 'healthVisit') payload.amount = numeric(payload.amount)
@@ -423,6 +425,7 @@ const apiHandlers = {
   fuel: (payload) => createFuelRecord(payload), wow: (payload) => createWowCharacter(payload), bill: (payload) => createPersonalBill(payload),
   budget: (payload) => createAnnualBudget(payload), knowledge: (payload) => createKnowledgeEntry(payload), software: (payload) => createSoftwarePackage(payload),
   softwareVersion: (payload) => { const packageId = payload.packageId; delete payload.packageId; return createSoftwareVersion(packageId, payload) },
+  dentalCleaning: (payload) => createDentalCleaning(payload),
   healthRecord: (payload) => createHealthRecord(payload), healthVisit: (payload) => createHealthVisit(payload), healthReport: (payload) => createHealthReport(payload),
   travel: saveTravel
 }

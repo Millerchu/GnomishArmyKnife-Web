@@ -1,3 +1,4 @@
+import {DENTAL_CLEANING_FIELDS, newDentalCleaning} from '../utils/dentalCleaning.js'
 import {GROWTH_METRICS, newGrowthRecord} from '../utils/growthRecords.js'
 import {newTravelRecord, TRANSPORT_TYPES, TRAVEL_STATUSES, TRAVEL_PURPOSES} from '../utils/travelRecords.js'
 
@@ -126,6 +127,10 @@ export const QUICK_CREATE_TYPES = [
       select('visitType', '就诊类型', [['OUTPATIENT', '门诊'], ['EMERGENCY', '急诊'], ['INPATIENT', '住院'], ['FOLLOW_UP', '复诊']]),
       area('chiefComplaint', '主诉'), area('diagnosisSummary', '诊断摘要'), area('treatmentPlan', '治疗方案'), area('doctorAdvice', '医嘱'),
       text('caseRecordFileName', '病历文件名'), text('caseRecordUrl', '病历文件地址'), area('note', '备注')]
+  },
+  {
+    typeCode: 'DENTAL_CLEANING', featureCode: 'APP_HEALTH_RECORD', appName: '健康', label: '新增洁牙记录', api: 'dentalCleaning',
+    defaults: newDentalCleaning, fields: DENTAL_CLEANING_FIELDS
   },
   {
     typeCode: 'HEALTH_REPORT', featureCode: 'APP_HEALTH_RECORD', appName: '健康', label: '新增健康报告', api: 'healthReport',
