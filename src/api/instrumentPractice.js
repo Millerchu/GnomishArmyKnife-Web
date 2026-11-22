@@ -20,3 +20,17 @@ export function createInstrumentPracticeTake(data) {
 export function deleteInstrumentPracticeTake(takeId) {
   return request.delete(`/instrument-practice/takes/${takeId}`)
 }
+
+export function listInstrumentPracticeScores() {
+  return request.get('/instrument-practice/scores')
+}
+
+export function saveInstrumentPracticeScore({id, ...score}) {
+  return id
+    ? request.put(`/instrument-practice/scores/${id}`, score)
+    : request.post('/instrument-practice/scores', score)
+}
+
+export function deleteInstrumentPracticeScore(scoreId) {
+  return request.delete(`/instrument-practice/scores/${scoreId}`)
+}

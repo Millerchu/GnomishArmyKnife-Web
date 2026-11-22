@@ -4,6 +4,7 @@ import {flushPromises, mount} from '@vue/test-utils'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import InstrumentPractice from '../InstrumentPractice.vue'
+import {deleteInstrumentPracticeScore, listInstrumentPracticeScores, saveInstrumentPracticeScore} from '@/api/instrumentPractice.js'
 import {__instrumentPracticeMocks} from '@/features/instrument-practice/composables/index.js'
 
 const routerPush = vi.fn()
@@ -27,7 +28,10 @@ vi.mock('@/api/instrumentPractice.js', () => ({
       }
     }
   })),
-  deleteInstrumentPracticeTake: vi.fn(async () => ({data: {data: null}}))
+  deleteInstrumentPracticeTake: vi.fn(async () => ({data: {data: null}})),
+  listInstrumentPracticeScores: vi.fn(async () => ({data: {data: []}})),
+  saveInstrumentPracticeScore: vi.fn(async (score) => ({data: {data: {...score, id: score.id || '200'}}})),
+  deleteInstrumentPracticeScore: vi.fn(async () => ({data: {data: null}}))
 }))
 
 vi.mock('@/features/instrument-practice/composables/index.js', async () => {
@@ -410,6 +414,55 @@ describe('随身乐器页面流程', () => {
 
     await wrapper.get('input[aria-label="启用真实乐器背景"]').setValue(true)
     expect(wrapper.get('[data-test="guzheng-surface"]').attributes('data-photo-background')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('保存第 20 首曲谱，载入修改并删除后可继续保存新曲谱', async () => {
+    const scores = Array.from({length: 19}, (_, index) => ({
+      id: String(index + 1),
+      title: `旧曲谱 ${index + 1}`,
+      notation: '1 2 3 4',
+      tonic: 0,
+      mode: 'major',
+      meter: '4/4',
+      bpm: 80,
+      instrumentId: '',
+      tuningId: ''
+    }))
+    listInstrumentPracticeScores.mockResolvedValueOnce({data: {data: scores}})
+    const wrapper = mountPage()
+    await wrapper.get('.score-button').trigger('click')
+    await flushPromises()
+
+    const title = wrapper.get('.score-title-field input')
+    await title.setValue('练习曲')
+    await wrapper.get('.score-save-actions button').trigger('click')
+    await flushPromises()
+    expect(saveInstrumentPracticeScore).toHaveBeenCalledWith(expect.objectContaining({
+      title: '练习曲',
+      instrumentId: ''
+    }))
+    expect(wrapper.get('.score-library').text()).toContain('20/20 首')
+    expect(wrapper.findAll('.score-save-actions button')[1].element.disabled).toBe(true)
+
+    await wrapper.get('.score-library select').setValue('1')
+    await wrapper.findAll('.score-library button')[0].trigger('click')
+    expect(title.element.value).toBe('旧曲谱 1')
+    expect(wrapper.get('.notation-field textarea').element.value).toBe('1 2 3 4')
+    await title.setValue('修改后的曲名')
+    await wrapper.get('.score-save-actions button').trigger('click')
+    await flushPromises()
+    expect(saveInstrumentPracticeScore).toHaveBeenLastCalledWith(expect.objectContaining({
+      id: '1',
+      title: '修改后的曲名'
+    }))
+
+    await wrapper.findAll('.score-library button')[1].trigger('click')
+    await flushPromises()
+    expect(deleteInstrumentPracticeScore).toHaveBeenCalledWith('1')
+    expect(wrapper.get('.score-library').text()).toContain('19/20 首')
+    expect(wrapper.get('.score-save-actions button').text()).toBe('保存曲谱')
+    expect(wrapper.get('.score-save-actions button').element.disabled).toBe(false)
     wrapper.unmount()
   })
 

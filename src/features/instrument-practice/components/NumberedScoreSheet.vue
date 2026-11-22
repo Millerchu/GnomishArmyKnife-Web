@@ -1,5 +1,23 @@
 <template>
   <div class="score-sheet">
+    <section class="score-library" aria-labelledby="score-library-title">
+      <div class="section-heading">
+        <h2 id="score-library-title">我的曲谱</h2>
+        <span v-if="libraryReady" class="character-count">{{ savedScores.length }}/{{ MAX_SAVED_SCORES }} 首</span>
+      </div>
+      <div v-if="savedScores.length" class="score-library-actions">
+        <select v-model="selectedScoreId" aria-label="已保存的曲谱" :disabled="libraryBusy">
+          <option value="" disabled>选择已保存的曲谱</option>
+          <option v-for="score in savedScores" :key="score.id" :value="score.id">{{ score.title }}</option>
+        </select>
+        <button type="button" :disabled="!selectedScoreId || libraryBusy" @click="loadScore">载入</button>
+        <button type="button" :disabled="!selectedScoreId || libraryBusy" @click="removeScore">删除</button>
+      </div>
+      <p v-if="libraryReady && !savedScores.length" class="score-library-status">还没有保存的曲谱</p>
+      <button v-if="!libraryReady && !libraryBusy" type="button" @click="loadLibrary">重新加载</button>
+      <p v-if="libraryMessage" role="status" class="score-library-status">{{ libraryMessage }}</p>
+    </section>
+
     <section class="score-editor" aria-labelledby="score-editor-title">
       <div class="section-heading">
         <div>
@@ -10,6 +28,12 @@
           {{ draft.notation.length }}/{{ MAX_NUMBERED_SCORE_LENGTH }}
         </span>
       </div>
+
+      <label class="score-title-field">
+        <span>曲名</span>
+        <input :value="draft.title || ''" maxlength="80" placeholder="保存前请输入曲名"
+               @input="setField('title', $event.target.value)">
+      </label>
 
       <div class="score-meta-grid">
         <label>
@@ -138,6 +162,18 @@
       </label>
     </section>
 
+    <div class="score-save-actions">
+      <button type="button" :disabled="!canSave" @click="saveScore(false)">
+        {{ draft.id ? '保存修改' : '保存曲谱' }}
+      </button>
+      <button v-if="draft.id" type="button" :disabled="!canSave || isLibraryFull" @click="saveScore(true)">
+        另存为新曲谱
+      </button>
+      <button v-if="draft.id" type="button" :disabled="libraryBusy" @click="newScore">新建曲谱</button>
+      <p v-if="isLibraryFull" class="score-library-status">已满 {{ MAX_SAVED_SCORES }} 首，删除一首后可保存新曲谱。</p>
+      <p v-if="saveMessage" role="status" class="score-library-status">{{ saveMessage }}</p>
+    </div>
+
     <button
       class="start-score-button"
       type="button"
@@ -155,13 +191,20 @@
 </template>
 
 <script setup>
-import {computed} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 
+import {
+  deleteInstrumentPracticeScore,
+  listInstrumentPracticeScores,
+  saveInstrumentPracticeScore
+} from '@/api/instrumentPractice.js'
+import {confirmDialog} from '@/components/systemDialog.js'
 import {INSTRUMENT_DEFINITIONS} from '../instruments/definitions.js'
 import {
   MAX_NUMBERED_SCORE_LENGTH,
   SCORE_MODE_OPTIONS,
   SCORE_TONIC_OPTIONS,
+  createDefaultNumberedScoreDraft,
   parseNumberedScore
 } from '../score/numberedScore.js'
 
@@ -173,6 +216,14 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:draft', 'play'])
+const MAX_SAVED_SCORES = 20
+const savedScores = ref([])
+const selectedScoreId = ref('')
+const libraryReady = ref(false)
+const libraryBusy = ref(false)
+const libraryMessage = ref('')
+const saveMessage = ref('')
+const isLibraryFull = computed(() => savedScores.value.length >= MAX_SAVED_SCORES)
 const meterOptions = Object.freeze(['2/4', '3/4', '4/4', '6/8'])
 const instrumentOptions = Object.values(INSTRUMENT_DEFINITIONS)
 const parsedScore = computed(() => parseNumberedScore(props.draft))
@@ -185,8 +236,127 @@ const canStart = computed(() => (
   && Boolean(selectedDefinition.value)
   && selectedDefinition.value.tuningPresets.some((tuning) => tuning.id === props.draft.tuningId)
 ))
+const canSave = computed(() => (
+  libraryReady.value
+  && !libraryBusy.value
+  && parsedScore.value.valid
+  && Number.isInteger(props.draft.bpm)
+  && Boolean(props.draft.title?.trim())
+  && (Boolean(props.draft.id) || !isLibraryFull.value)
+))
+
+onMounted(loadLibrary)
+
+async function loadLibrary() {
+  libraryBusy.value = true
+  libraryMessage.value = '正在加载曲谱…'
+  try {
+    const response = await listInstrumentPracticeScores()
+    savedScores.value = response.data.data
+    selectedScoreId.value = savedScores.value.find((score) => score.id === props.draft.id)?.id || ''
+    libraryReady.value = true
+    libraryMessage.value = ''
+  } catch (error) {
+    libraryMessage.value = scoreErrorMessage(error, '曲谱加载失败，请重试')
+  } finally {
+    libraryBusy.value = false
+  }
+}
+
+function scoreErrorMessage(error, fallback) {
+  return error?.response?.data?.message || error?.response?.data?.msg || fallback
+}
+
+async function saveScore(asNew) {
+  if (!canSave.value || (asNew && isLibraryFull.value)) return
+
+  libraryBusy.value = true
+  saveMessage.value = '正在保存曲谱…'
+  const draft = props.draft
+  try {
+    const response = await saveInstrumentPracticeScore({
+      ...draft,
+      id: asNew ? undefined : draft.id,
+      title: draft.title.trim()
+    })
+    const saved = response.data.data
+    savedScores.value = [saved, ...savedScores.value.filter((score) => score.id !== saved.id)]
+    selectedScoreId.value = saved.id
+    emit('update:draft', {...props.draft, id: saved.id})
+    saveMessage.value = '曲谱已保存'
+    libraryMessage.value = ''
+  } catch (error) {
+    saveMessage.value = scoreErrorMessage(error, '曲谱保存失败，请重试')
+  } finally {
+    libraryBusy.value = false
+  }
+}
+
+function draftHasChanges() {
+  const original = savedScores.value.find((score) => score.id === props.draft.id)
+    || createDefaultNumberedScoreDraft()
+  return Object.entries({...props.draft, title: props.draft.title?.trim() || ''})
+    .some(([key, value]) => key !== 'id' && value !== (original[key] ?? ''))
+}
+
+async function replaceDraft(draft) {
+  if (libraryBusy.value) return
+
+  libraryBusy.value = true
+  try {
+    if (draftHasChanges() && !await confirmDialog('切换后，当前曲谱未保存的修改将丢失。', {
+      title: '切换曲谱？',
+      confirmText: '切换',
+      cancelText: '继续编辑'
+    })) return
+
+    emit('update:draft', {...draft})
+    saveMessage.value = ''
+  } finally {
+    libraryBusy.value = false
+  }
+}
+
+function loadScore() {
+  const score = savedScores.value.find((item) => item.id === selectedScoreId.value)
+  if (score) replaceDraft(score)
+}
+
+function newScore() {
+  replaceDraft({...createDefaultNumberedScoreDraft(), notation: ''})
+}
+
+async function removeScore() {
+  const score = savedScores.value.find((item) => item.id === selectedScoreId.value)
+  if (!score || libraryBusy.value) return
+
+  libraryBusy.value = true
+  try {
+    const confirmed = await confirmDialog(`确定删除「${score.title}」？`, {
+      title: '删除曲谱？',
+      tone: 'danger',
+      confirmText: '删除',
+      cancelText: '保留'
+    })
+    if (!confirmed) return
+
+    await deleteInstrumentPracticeScore(score.id)
+    savedScores.value = savedScores.value.filter((item) => item.id !== score.id)
+    selectedScoreId.value = ''
+    if (props.draft.id === score.id) {
+      emit('update:draft', {...props.draft, id: undefined})
+      saveMessage.value = ''
+    }
+    libraryMessage.value = '曲谱已删除'
+  } catch (error) {
+    libraryMessage.value = scoreErrorMessage(error, '曲谱删除失败，请重试')
+  } finally {
+    libraryBusy.value = false
+  }
+}
 
 function setField(field, value) {
+  if (!libraryBusy.value) saveMessage.value = ''
   emit('update:draft', {
     ...props.draft,
     [field]: value
@@ -234,6 +404,7 @@ function startPlayback() {
   color: var(--theme-text-primary, #f5fbff);
 }
 
+.score-library,
 .score-editor,
 .score-analysis,
 .instrument-choice {
@@ -278,6 +449,51 @@ function startPlayback() {
 
 .character-count.invalid {
   color: #ff9878;
+}
+
+.score-library-actions,
+.score-save-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.score-library-actions select {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.score-library button,
+.score-save-actions button {
+  min-height: 2.45rem;
+  padding: 0.48rem 0.75rem;
+  border: 1px solid rgba(171, 219, 232, 0.2);
+  border-radius: 0.7rem;
+  color: inherit;
+  background: rgba(101, 230, 237, 0.08);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.score-library button:disabled,
+.score-save-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.score-library-status {
+  flex-basis: 100%;
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+}
+
+.score-title-field {
+  display: grid;
+  gap: 0.3rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.78rem;
 }
 
 .score-meta-grid {
@@ -637,6 +853,15 @@ button.selected .selection-mark {
   color: #132833;
 }
 
+:global(:root[data-theme="light"]) .character-count {
+  color: #385461;
+}
+
+:global(:root[data-theme="light"]) .character-count.invalid {
+  color: #a13721;
+}
+
+:global(:root[data-theme="light"]) .score-library,
 :global(:root[data-theme="light"]) .score-editor,
 :global(:root[data-theme="light"]) .score-analysis,
 :global(:root[data-theme="light"]) .instrument-choice {

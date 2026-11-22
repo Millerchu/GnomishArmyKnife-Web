@@ -307,7 +307,7 @@
     <MacDialog
       v-model="scoreDialogVisible"
       title="简谱自动演奏"
-      subtitle="输入单声部简谱，再选择一种乐器演奏"
+      subtitle="编辑、保存和演奏单声部简谱"
       width="640px"
       mobile-presentation="sheet"
       :confirm-on-dirty="false"
