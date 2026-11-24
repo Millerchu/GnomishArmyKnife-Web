@@ -1,24 +1,10 @@
 <template>
-  <div class="wow-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBack">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">WoW角色统计</h1>
-        <p class="page-subtitle">维护正式服角色装等、当前钥匙和赛季评分，列表只保留日常检索最常用字段。</p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">已接真实接口</span>
-        <span class="hero-tag">角色总数 {{ overview.totalCharacters }}</span>
-        <span class="hero-tag">最高装等 {{ formatDecimal(overview.highestItemLevel) }}</span>
-        <span class="hero-tag">最高评分 {{ formatDecimal(overview.highestMythicScore) }}</span>
-      </div>
-    </div>
+  <div class="wow-page standard-app-page">
+    <AppPageHeader title="WoW角色统计" @back="goBack">
+      <span>角色总数 {{ overview.totalCharacters }}</span>
+      <span>最高装等 {{ formatDecimal(overview.highestItemLevel) }}</span>
+      <span>最高评分 {{ formatDecimal(overview.highestMythicScore) }}</span>
+    </AppPageHeader>
 
     <section class="season-intelligence-hub">
       <nav class="season-intelligence-tabs" aria-label="赛季资讯导航">
@@ -1020,6 +1006,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
@@ -1338,7 +1325,7 @@ function normalizeOverview(payload = {}, dungeonOptions = []) {
 
 export default {
   name: 'WowCharacterStats',
-  components: {MacDialog, WowSpecializationGuidePanel},
+  components: {AppPageHeader, MacDialog, WowSpecializationGuidePanel},
   setup() {
     const router = useRouter()
 

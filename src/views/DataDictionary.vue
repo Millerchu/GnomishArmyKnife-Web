@@ -1,21 +1,8 @@
 <template>
-  <div class="dict-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBackHome">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">数据字典</h1>
-        <p class="page-subtitle">系统管理 / 数据字典，可为工作日志、用户管理等模块维护预设选项</p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">共 {{ pagination.total }} 条</span>
-      </div>
-    </div>
+  <div class="dict-page standard-app-page">
+    <AppPageHeader title="数据字典" @back="goBackHome">
+      <span>共 {{ pagination.total }} 条</span>
+    </AppPageHeader>
 
     <section class="panel filter-panel">
       <div class="filter-grid">
@@ -434,6 +421,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import GlassSelect from '@/components/GlassSelect.vue'
@@ -571,6 +559,7 @@ function extractEntityId(payload, candidates = ['id']) {
 export default {
   name: 'DataDictionary',
   components: {
+    AppPageHeader,
     GlassSelect,
     MacDialog
   },

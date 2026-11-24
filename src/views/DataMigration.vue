@@ -1,26 +1,11 @@
 <template>
-  <div class="migration-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBackHome">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">数据迁移</h1>
-        <p class="page-subtitle">
-          面向管理员的环境间迁移能力。支持系统数据、业务数据和附件一并导出为 ZIP 包，并在目标环境按策略导入。
-        </p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">{{ resourceSourceLabel }}</span>
-        <span class="hero-tag">系统资源 {{ systemResources.length }}</span>
-        <span class="hero-tag">业务应用 {{ businessApps.length }}</span>
-        <span class="hero-tag">历史记录 {{ historyPagination.total }}</span>
-      </div>
-    </div>
+  <div class="migration-page standard-app-page">
+    <AppPageHeader title="数据迁移" @back="goBackHome">
+      <span>{{ resourceSourceLabel }}</span>
+      <span>系统资源 {{ systemResources.length }}</span>
+      <span>业务应用 {{ businessApps.length }}</span>
+      <span>历史记录 {{ historyPagination.total }}</span>
+    </AppPageHeader>
 
     <section v-if="!isAdmin" class="panel access-panel">
       <h2 class="panel-title">仅系统管理员可使用</h2>
@@ -539,6 +524,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import AppIconImage from '@/components/AppIconImage.vue'
@@ -901,6 +887,7 @@ function filterTaskHistory(list, filters = {}) {
 
 export default {
   components: {
+    AppPageHeader,
     AppIconImage
   },
   setup() {

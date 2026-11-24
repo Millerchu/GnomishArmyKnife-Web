@@ -1,26 +1,11 @@
 <template>
-  <div class="permission-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBackHome">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">权限管理</h1>
-        <p class="page-subtitle">
-          以“用户 - 应用授权”为核心设计。当前页面只认后端真实数据，不再使用本地草稿回退。
-        </p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">用户 {{ pagination.total }}</span>
-        <span class="hero-tag">应用 {{ appCatalog.length }}</span>
-        <span class="hero-tag">已授权 {{ grantedCount }} 项</span>
-        <span class="hero-tag">{{ permissionSourceLabel }}</span>
-      </div>
-    </div>
+  <div class="permission-page standard-app-page">
+    <AppPageHeader title="权限管理" @back="goBackHome">
+      <span>用户 {{ pagination.total }}</span>
+      <span>应用 {{ appCatalog.length }}</span>
+      <span>已授权 {{ grantedCount }} 项</span>
+      <span>{{ permissionSourceLabel }}</span>
+    </AppPageHeader>
 
     <section class="status-ribbon">
       <article class="status-card" :class="statusToneClass(catalogSource)">
@@ -314,6 +299,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import AppIconImage from '@/components/AppIconImage.vue'
@@ -398,6 +384,7 @@ function buildNotice(type, title, message) {
 export default {
   name: 'PermissionManagement',
   components: {
+    AppPageHeader,
     AppIconImage
   },
   setup() {

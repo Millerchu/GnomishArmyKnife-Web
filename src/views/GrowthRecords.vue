@@ -1,10 +1,9 @@
 <template>
-  <main class="growth-page">
-    <nav class="page-nav"><button class="back-home-btn" @click="router.push('/home')"><span>←</span> 返回桌面</button><div class="nav-right"><small>个人生活 · 芽记</small><ThemeToggle /></div></nav>
-    <header class="hero-panel">
-      <div class="app-heading"><img :src="logoUrl" alt="芽记" /><div><h1 class="page-title">芽记 <span>成长记录</span></h1><p class="page-subtitle">管理宝宝档案、生长测量、接种记录和成长里程碑。</p></div></div>
-      <div class="hero-tags"><span class="hero-tag">宝宝档案 {{ children.length }}</span><span v-if="measurements.length" class="hero-tag">最近测量 {{ history[0]?.measureDate }}</span></div>
-    </header>
+  <main class="growth-page standard-app-page">
+    <AppPageHeader title="芽记" :icon="logoUrl" @back="router.push('/home')">
+      <span>宝宝档案 {{ children.length }}</span>
+      <span v-if="measurements.length">最近测量 {{ history[0]?.measureDate }}</span>
+    </AppPageHeader>
     <p v-if="error" class="surface-notice error" role="alert">{{ error }} <button class="link" :disabled="busy" @click="retry">重试加载</button></p>
     <p v-if="notice" class="surface-notice" role="status">{{ notice }}</p>
     <div v-if="loadingChildren" class="panel-section empty-state" role="status">正在读取宝宝档案…</div>
@@ -37,10 +36,10 @@
 </template>
 
 <script setup>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import * as api from '@/api/growthRecords'
-import ThemeToggle from '@/components/ThemeToggle.vue'
 import GrowthTrendChart from '@/components/GrowthTrendChart.vue'
 import GrowthRecordEditor from '@/components/GrowthRecordEditor.vue'
 import {confirmDialog} from '@/components/systemDialog'

@@ -1,28 +1,10 @@
 <template>
-  <div class="knowledge-base-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBack">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <section class="hero-panel">
-      <div class="hero-copy">
-        <p class="eyebrow">Public Knowledge Desk</p>
-        <h1 class="page-title">经验库</h1>
-        <p class="page-subtitle">
-          已发布经验默认对所有登录用户可见。普通用户提交后进入待审核队列，管理员审核通过后才会进入公共经验库。
-        </p>
-      </div>
-      <div class="hero-stats">
-        <span class="hero-chip">公共条目 {{ publishedTotal }}</span>
-        <span class="hero-chip">推荐 {{ highlightEntries.length }}</span>
-        <span class="hero-chip" :class="isAdmin ? 'hero-chip-admin' : 'hero-chip-user'">
-          {{ isAdmin ? '管理员审核视图' : '投稿审核制' }}
-        </span>
-      </div>
-    </section>
+  <div class="knowledge-base-page standard-app-page">
+    <AppPageHeader title="经验库" @back="goBack">
+      <span>公共条目 {{ publishedTotal }}</span>
+      <span>推荐 {{ highlightEntries.length }}</span>
+      <span>{{ isAdmin ? '管理员审核视图' : '投稿审核制' }}</span>
+    </AppPageHeader>
 
     <p v-if="pageMessage.text" class="page-message" :class="`page-message-${pageMessage.tone}`">
       {{ pageMessage.text }}
@@ -315,6 +297,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
@@ -367,7 +350,7 @@ function shortText(text, maxLength = 60) {
 
 export default {
   name: 'KnowledgeBase',
-  components: {MacDialog, AttachmentManager, AttachmentGallery},
+  components: {AppPageHeader, MacDialog, AttachmentManager, AttachmentGallery},
   setup() {
     const router = useRouter()
     const currentUser = ref(normalizeCurrentUser(readAuthState(localStorage).user || {}))

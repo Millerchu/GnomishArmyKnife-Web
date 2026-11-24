@@ -1,23 +1,10 @@
 <template>
-  <div class="health-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBack">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">健康</h1>
-        <p class="page-subtitle">把健康指标、医院就诊和报告单放在一个入口里，先看总体状态，再回看每次复查与病历记录。</p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">最近测量 {{ summary.latestMeasureDate || '暂无' }}</span>
-        <span class="hero-tag">最近就诊 {{ summary.lastVisitDate || '暂无' }}</span>
-        <span class="hero-tag">最近报告 {{ summary.lastExamDate || '暂无' }}</span>
-      </div>
-    </div>
+  <div class="health-page standard-app-page">
+    <AppPageHeader title="健康" @back="goBack">
+      <span>最近测量 {{ summary.latestMeasureDate || '暂无' }}</span>
+      <span>最近就诊 {{ summary.lastVisitDate || '暂无' }}</span>
+      <span>最近报告 {{ summary.lastExamDate || '暂无' }}</span>
+    </AppPageHeader>
 
     <section class="summary-grid">
       <article class="summary-card">
@@ -440,6 +427,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import DentalCleaningPanel from '@/components/DentalCleaningPanel.vue'
@@ -528,7 +516,7 @@ function buildNumericPayload(rawForm, fieldConfigs) {
 
 export default {
   name: 'HealthRecord',
-  components: {MacDialog, AttachmentManager, AttachmentGallery, DentalCleaningPanel},
+  components: {AppPageHeader, MacDialog, AttachmentManager, AttachmentGallery, DentalCleaningPanel},
   setup() {
     const router = useRouter()
     const route = useRoute()

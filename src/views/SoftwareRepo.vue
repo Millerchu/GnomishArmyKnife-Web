@@ -1,23 +1,10 @@
 <template>
-  <div class="repo-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBack">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">软件仓库</h1>
-        <p class="page-subtitle">集中整理个人常用软件安装包，支持多版本查看、本地安装包上传、本地文件服务器优先下载，以及桌面端直接下载。</p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">软件 {{ total }}</span>
-        <span class="hero-tag">版本 {{ summary.totalVersions }}</span>
-        <span class="hero-tag">{{ isDesktopViewport ? '桌面端可下载' : '移动端仅查看版本信息' }}</span>
-      </div>
-    </div>
+  <div class="repo-page standard-app-page">
+    <AppPageHeader title="软件仓库" @back="goBack">
+      <span>软件 {{ total }}</span>
+      <span>版本 {{ summary.totalVersions }}</span>
+      <span>{{ isDesktopViewport ? '桌面端可下载' : '移动端仅查看版本信息' }}</span>
+    </AppPageHeader>
 
     <section class="filter-panel">
       <div class="filter-grid">
@@ -407,6 +394,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
@@ -571,6 +559,7 @@ function buildSummary(packages = []) {
 export default {
   name: 'SoftwareRepo',
   components: {
+    AppPageHeader,
     MacDialog
   },
   setup() {

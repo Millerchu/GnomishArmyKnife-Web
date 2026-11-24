@@ -1,22 +1,8 @@
 <template>
-  <div class="calculator-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBackHome">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">科学计算器</h1>
-        <p class="page-subtitle">支持常用科学函数、历史记录和移动端触屏布局，后续可接后端统一保存历史。</p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">{{ usingLocalHistory ? '本地历史缓存' : '已接真实接口' }}</span>
-        <span class="hero-tag">历史 {{ historyRecords.length }} 条</span>
-      </div>
-    </div>
+  <div class="calculator-page standard-app-page">
+    <AppPageHeader title="科学计算器" @back="goBackHome">
+      <span>历史 {{ historyRecords.length }} 条</span>
+    </AppPageHeader>
 
     <div class="calculator-layout">
       <section class="panel display-panel">
@@ -76,6 +62,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {
@@ -563,6 +550,7 @@ function getCurrentNumberSegment(expression) {
 }
 
 export default {
+  components: {AppPageHeader},
   name: 'Calculator',
   setup() {
     const router = useRouter()

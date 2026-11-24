@@ -1,26 +1,11 @@
 <template>
-  <div class="app-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBackHome">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">应用管理</h1>
-        <p class="page-subtitle">
-          应用目录作为权限管理和主页展示的上游数据源，由管理员统一维护名称、图标、密级、加密方式、路由和上下线状态。
-        </p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">应用 {{ pagination.total }}</span>
-        <span class="hero-tag">当前页启用 {{ enabledCount }}</span>
-        <span class="hero-tag">当前页受限 {{ confidentialCount }}</span>
-        <span class="hero-tag">{{ catalogSourceLabel }}</span>
-      </div>
-    </div>
+  <div class="app-page standard-app-page">
+    <AppPageHeader title="应用管理" @back="goBackHome">
+      <span>应用 {{ pagination.total }}</span>
+      <span>当前页启用 {{ enabledCount }}</span>
+      <span>当前页受限 {{ confidentialCount }}</span>
+      <span>{{ catalogSourceLabel }}</span>
+    </AppPageHeader>
 
     <section class="filter-panel">
       <div class="filter-grid">
@@ -378,6 +363,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import AppIconImage from '@/components/AppIconImage.vue'
@@ -512,6 +498,7 @@ function normalizeFormPayload(form) {
 export default {
   name: 'AppManagement',
   components: {
+    AppPageHeader,
     AppIconImage,
     AuthenticatedImage,
     MacDialog

@@ -1,23 +1,9 @@
 <template>
-  <div class="todo-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBack">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">待办列表</h1>
-        <p class="page-subtitle">参考主流待办应用的轻量规划方式，支持智能视图、重要标记、提醒时间和子任务拆解。</p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">今日 {{ summary.today }} 项</span>
-        <span class="hero-tag">重要 {{ summary.important }} 项</span>
-        <span class="hero-tag">已接真实接口</span>
-      </div>
-    </div>
+  <div class="todo-page standard-app-page">
+    <AppPageHeader title="待办列表" @back="goBack">
+      <span>今日 {{ summary.today }} 项</span>
+      <span>重要 {{ summary.important }} 项</span>
+    </AppPageHeader>
 
     <section class="filter-panel">
       <div class="view-switch">
@@ -368,6 +354,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
@@ -535,6 +522,7 @@ function normalizeReminderPayload(value) {
 export default {
   name: 'TodoList',
   components: {
+    AppPageHeader,
     MacDialog
   },
   setup() {

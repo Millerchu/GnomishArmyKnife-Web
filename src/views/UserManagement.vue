@@ -1,21 +1,8 @@
 <template>
-  <div class="user-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBackHome">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-    </div>
-
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">用户管理</h1>
-        <p class="page-subtitle">系统管理 / 用户管理（默认列表）</p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">共 {{ pagination.total }} 条</span>
-      </div>
-    </div>
+  <div class="user-page standard-app-page">
+    <AppPageHeader title="用户管理" @back="goBackHome">
+      <span>共 {{ pagination.total }} 条</span>
+    </AppPageHeader>
 
     <section class="panel filter-panel">
       <div class="filter-grid">
@@ -346,6 +333,7 @@
 </template>
 
 <script>
+import AppPageHeader from '@/components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
@@ -451,6 +439,7 @@ function generatePassword(length = 12) {
 export default {
   name: 'UserManagement',
   components: {
+    AppPageHeader,
     MacDialog
   },
   setup() {
