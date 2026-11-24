@@ -458,8 +458,8 @@
     --mobile-radius-surface: 22px;
     --mobile-control-size: 44px;
     --mobile-system-blue: #0a84ff;
-    --mobile-home-safe-left: max(var(--mobile-space-md), env(safe-area-inset-left, 0px));
-    --mobile-home-safe-right: max(var(--mobile-space-md), env(safe-area-inset-right, 0px));
+    --mobile-home-safe-left: var(--workbench-left);
+    --mobile-home-safe-right: var(--workbench-right);
     --mobile-material: color-mix(in srgb, var(--theme-surface-raised) 82%, transparent);
     --mobile-material-strong: color-mix(in srgb, var(--theme-popover-surface) 90%, transparent);
     position: relative;
@@ -691,11 +691,6 @@
 }
 
 @media (max-width: 420px) {
-  .home-page {
-    --mobile-home-safe-left: max(12px, env(safe-area-inset-left, 0px));
-    --mobile-home-safe-right: max(12px, env(safe-area-inset-right, 0px));
-  }
-
   .top-right-wrap {
     gap: 6px;
   }
@@ -736,8 +731,8 @@
 .main-area {
   height: 100%;
   min-height: 0;
-  padding: 16px 28px 28px;
-  max-width: 1540px;
+  padding: 16px var(--workbench-right) 28px var(--workbench-left);
+  max-width: var(--workbench-max-width);
   margin: 0 auto;
 }
 
