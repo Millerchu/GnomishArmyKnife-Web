@@ -5,7 +5,7 @@
       <span>重要 {{ summary.important }} 项</span>
     </AppPageHeader>
 
-    <section class="filter-panel">
+    <section class="app-card filter-panel">
       <div class="view-switch">
         <button
           v-for="item in viewOptions"
@@ -63,7 +63,7 @@
     </section>
 
     <div class="todo-layout">
-      <section class="list-panel">
+      <section class="app-card list-panel">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">任务清单</h2>
@@ -186,7 +186,7 @@
         </div>
       </section>
 
-      <aside class="insight-panel">
+      <aside class="app-card insight-panel">
         <div class="panel-head aside-head">
           <div>
             <h2 class="panel-title">今日聚焦</h2>
@@ -195,19 +195,19 @@
         </div>
 
         <div class="summary-grid">
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>全部任务</span>
             <strong>{{ summary.total }}</strong>
           </article>
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>今日待办</span>
             <strong>{{ summary.today }}</strong>
           </article>
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>重要任务</span>
             <strong>{{ summary.important }}</strong>
           </article>
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>已完成</span>
             <strong>{{ summary.completed }}</strong>
           </article>

@@ -4,7 +4,7 @@
       <span>共 {{ pagination.total }} 条</span>
     </AppPageHeader>
 
-    <section class="panel filter-panel">
+    <section class="app-card panel filter-panel">
       <div class="filter-grid">
         <label class="field-item">
           <span>关键字</span>
@@ -39,7 +39,7 @@
       </div>
     </section>
 
-    <section class="panel table-panel">
+    <section class="app-card panel table-panel">
       <div class="toolbar">
         <div class="toolbar-left">
           <button class="action-btn" :disabled="loading || submitting" @click="openCreateDialog">新增用户</button>
@@ -137,7 +137,7 @@
       <div class="mobile-user-list">
         <div v-if="loading && !users.length" class="mobile-empty">加载中...</div>
         <div v-else-if="!users.length" class="mobile-empty">暂无用户数据</div>
-        <article v-for="item in users" v-else :key="item.id" class="mobile-user-card">
+        <article v-for="item in users" v-else :key="item.id" class="app-card mobile-user-card">
           <div class="mobile-card-head">
             <label class="mobile-check">
               <input

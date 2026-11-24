@@ -8,17 +8,17 @@
     </AppPageHeader>
 
     <section class="status-ribbon">
-      <article class="status-card" :class="statusToneClass(catalogSource)">
+      <article class="app-card status-card" :class="statusToneClass(catalogSource)">
         <span>应用目录</span>
         <strong>{{ catalogSourceLabel }}</strong>
         <p>{{ catalogHintText }}</p>
       </article>
-      <article class="status-card" :class="statusToneClass(userSource)">
+      <article class="app-card status-card" :class="statusToneClass(userSource)">
         <span>用户清单</span>
         <strong>{{ userSourceLabel }}</strong>
         <p>{{ userHintText }}</p>
       </article>
-      <article class="status-card" :class="statusToneClass(permissionSource)">
+      <article class="app-card status-card" :class="statusToneClass(permissionSource)">
         <span>当前授权</span>
         <strong>{{ permissionSourceLabel }}</strong>
         <p>{{ permissionHintText }}</p>
@@ -33,7 +33,7 @@
       <button type="button" class="notice-close" @click="clearPageNotice">关闭</button>
     </div>
 
-    <section class="filter-panel">
+    <section class="app-card filter-panel">
       <div class="filter-grid">
         <label class="field">
           <span>用户检索</span>
@@ -73,7 +73,7 @@
     </section>
 
     <div class="permission-layout">
-      <aside class="user-panel">
+      <aside class="app-card user-panel">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">用户清单</h2>
@@ -126,7 +126,7 @@
         </div>
       </aside>
 
-      <section class="grant-panel">
+      <section class="app-card grant-panel">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">应用授权矩阵</h2>
@@ -221,7 +221,7 @@
         </template>
       </section>
 
-      <aside class="insight-panel">
+      <aside class="app-card insight-panel">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">权限摘要</h2>
@@ -230,19 +230,19 @@
         </div>
 
         <div class="summary-grid">
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>可见应用</span>
             <strong>{{ grantedCount }}</strong>
           </article>
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>受限应用</span>
             <strong>{{ confidentialGrantedCount }}</strong>
           </article>
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>应用目录</span>
             <strong>{{ appCatalog.length }}</strong>
           </article>
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>授权来源</span>
             <strong>{{ permissionSourceLabel }}</strong>
           </article>

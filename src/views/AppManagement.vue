@@ -7,7 +7,7 @@
       <span>{{ catalogSourceLabel }}</span>
     </AppPageHeader>
 
-    <section class="filter-panel">
+    <section class="app-card filter-panel">
       <div class="filter-grid">
         <label class="field">
           <span>应用检索</span>
@@ -58,7 +58,7 @@
       </div>
     </section>
 
-    <section class="catalog-panel">
+    <section class="app-card catalog-panel">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">应用列表</h2>
@@ -165,7 +165,7 @@
     </section>
 
     <section class="insight-grid">
-      <article class="insight-card">
+      <article class="app-card insight-card">
         <h3 class="insight-title">图标策略</h3>
         <div class="note-box">
           <p>支持预设图标、本地上传、图片地址和文本图标四种来源。</p>
@@ -173,7 +173,7 @@
         </div>
       </article>
 
-      <article class="insight-card">
+      <article class="app-card insight-card">
         <h3 class="insight-title">权限联动</h3>
         <div class="note-box">
           <p>权限管理应直接读取应用目录表，而不是写死前端枚举。</p>

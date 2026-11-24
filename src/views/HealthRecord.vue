@@ -7,25 +7,25 @@
     </AppPageHeader>
 
     <section class="summary-grid">
-      <article class="summary-card">
+      <article class="app-card summary-card">
         <span>指标记录</span>
         <strong>{{ summary.recordCount || 0 }}</strong>
       </article>
-      <article class="summary-card">
+      <article class="app-card summary-card">
         <span>医院就诊</span>
         <strong>{{ summary.visitCount || 0 }}</strong>
       </article>
-      <article class="summary-card">
+      <article class="app-card summary-card">
         <span>报告单</span>
         <strong>{{ summary.reportCount || 0 }}</strong>
       </article>
-      <article class="summary-card">
+      <article class="app-card summary-card">
         <span>最新体重</span>
         <strong>{{ latestMetricText('weightKg', latestRecord?.weightKg) }}</strong>
       </article>
     </section>
 
-    <section class="panel-section">
+    <section class="app-card panel-section">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">指标概览</h2>
@@ -40,7 +40,7 @@
 
       <template v-else>
         <div class="metric-grid">
-          <article v-for="item in metricCards" :key="item.key" class="metric-card">
+          <article v-for="item in metricCards" :key="item.key" class="app-card metric-card">
             <span class="metric-label">{{ item.label }}</span>
             <strong class="metric-value">{{ item.value }}</strong>
             <small class="metric-date">{{ latestRecord?.measureDate || '暂无记录' }}</small>
@@ -74,7 +74,7 @@
       </template>
     </section>
 
-    <section class="panel-section">
+    <section class="app-card panel-section">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">指标历史</h2>
@@ -83,7 +83,7 @@
       </div>
 
       <div v-if="records.length" class="record-list">
-        <article v-for="item in records" :key="item.id" class="record-card">
+        <article v-for="item in records" :key="item.id" class="app-card record-card">
           <div class="record-head">
             <div>
               <strong>{{ item.measureDate }}</strong>
@@ -102,7 +102,7 @@
     <DentalCleaningPanel />
 
     <div class="split-layout">
-      <section class="panel-section">
+      <section class="app-card panel-section">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">医院就诊</h2>
@@ -114,7 +114,7 @@
         </div>
 
         <div v-if="visits.length" class="visit-list">
-          <article v-for="item in visits" :key="item.id" class="visit-card">
+          <article v-for="item in visits" :key="item.id" class="app-card visit-card">
             <div class="visit-card-head">
               <div>
                 <strong>{{ item.visitDate }} · {{ item.hospitalName }}</strong>
@@ -140,7 +140,7 @@
         <div v-else class="empty-state">暂无医院就诊记录</div>
       </section>
 
-      <section class="panel-section">
+      <section class="app-card panel-section">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">报告单</h2>
@@ -152,7 +152,7 @@
         </div>
 
         <div v-if="reports.length" class="report-list">
-          <article v-for="item in reports" :key="item.id" class="report-card">
+          <article v-for="item in reports" :key="item.id" class="app-card report-card">
             <div class="visit-card-head">
               <div>
                 <strong>{{ item.reportTitle }}</strong>

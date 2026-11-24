@@ -6,7 +6,7 @@
       <span>{{ isDesktopViewport ? '桌面端可下载' : '移动端仅查看版本信息' }}</span>
     </AppPageHeader>
 
-    <section class="filter-panel">
+    <section class="app-card filter-panel">
       <div class="filter-grid">
         <label class="field">
           <span>关键词</span>
@@ -43,7 +43,7 @@
     </section>
 
     <div class="repo-layout">
-      <section class="list-panel">
+      <section class="app-card list-panel">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">软件列表</h2>
@@ -65,7 +65,7 @@
         <div v-else-if="!pagedPackages.length" class="empty-state">当前条件下暂无软件记录</div>
 
         <div v-else class="software-list">
-          <article v-for="item in pagedPackages" :key="item.id" class="software-card">
+          <article v-for="item in pagedPackages" :key="item.id" class="app-card software-card">
             <div class="software-head">
               <div class="software-main">
                 <div class="software-icon" :style="buildSoftwareIconStyle(item)">
@@ -139,7 +139,7 @@
               </div>
 
               <div class="mobile-version-list">
-                <article v-for="version in item.versions" :key="version.id" class="mobile-version-card">
+                <article v-for="version in item.versions" :key="version.id" class="app-card mobile-version-card">
                   <div class="mobile-version-head">
                     <div>
                       <strong>{{ version.versionName }}</strong>
@@ -179,7 +179,7 @@
         </div>
       </section>
 
-      <aside class="insight-panel">
+      <aside class="app-card insight-panel">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">仓库概览</h2>
@@ -188,19 +188,19 @@
         </div>
 
           <div class="summary-grid">
-            <article class="summary-card">
+            <article class="app-card summary-card">
               <span>软件总数</span>
             <strong>{{ summary.totalPackages }}</strong>
           </article>
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>版本总数</span>
             <strong>{{ summary.totalVersions }}</strong>
           </article>
-          <article class="summary-card">
+          <article class="app-card summary-card">
             <span>推荐版本</span>
             <strong>{{ summary.recommendedVersions }}</strong>
           </article>
-            <article class="summary-card">
+            <article class="app-card summary-card">
               <span>桌面下载</span>
               <strong>{{ isDesktopViewport ? '已开启' : '未提供' }}</strong>
             </article>

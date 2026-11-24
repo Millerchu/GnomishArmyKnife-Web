@@ -10,7 +10,7 @@
       {{ pageMessage.text }}
     </p>
 
-    <section class="panel-section compact-section">
+    <section class="app-card panel-section compact-section">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">今日精选经验</h2>
@@ -37,7 +37,7 @@
       <div v-else class="empty-state">暂无已发布经验，登录页暂不会展示经验短句。</div>
     </section>
 
-    <section class="panel-section">
+    <section class="app-card panel-section">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">公共经验库</h2>
@@ -84,7 +84,7 @@
       </template>
     </section>
 
-    <section class="panel-section">
+    <section class="app-card panel-section">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">我的投稿</h2>
@@ -123,7 +123,7 @@
       <div v-else class="empty-state">你还没有提交过经验。</div>
     </section>
 
-    <section v-if="isAdmin" class="panel-section admin-panel">
+    <section v-if="isAdmin" class="app-card panel-section admin-panel">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">待审核投稿</h2>

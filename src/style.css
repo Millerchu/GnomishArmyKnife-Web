@@ -418,3 +418,10 @@ body {
   padding-inline: var(--workbench-left) var(--workbench-right) !important;
   color: var(--theme-text);
 }
+
+/* 部分旧页面的 scoped 面板样式带有 !important，共享卡片材质优先。 */
+#app .standard-app-page .app-card {
+  background: var(--theme-surface) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+}

@@ -5,7 +5,7 @@
     </AppPageHeader>
 
     <div class="calculator-layout">
-      <section class="panel display-panel">
+      <section class="app-card panel display-panel">
         <div class="display-head">
           <div class="mode-wrap">
             <button class="mode-btn" @click="toggleAngleMode">{{ angleMode }}</button>
@@ -39,7 +39,7 @@
         </div>
       </section>
 
-      <aside class="panel history-panel">
+      <aside class="app-card panel history-panel">
         <div class="history-head">
           <h2 class="history-title">计算历史</h2>
           <span>{{ historyRecords.length }} 条</span>

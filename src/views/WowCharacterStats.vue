@@ -84,7 +84,7 @@
       />
     </section>
 
-    <section class="spotlight-panel">
+    <section class="app-card spotlight-panel">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">主角色名片</h2>
@@ -152,7 +152,7 @@
       </div>
     </section>
 
-    <section class="filter-panel">
+    <section class="app-card filter-panel">
       <div class="filter-grid">
         <label class="field">
           <span>关键词</span>
@@ -200,7 +200,7 @@
     </section>
 
     <div class="content-layout">
-      <section class="list-panel">
+      <section class="app-card list-panel">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">角色列表</h2>
@@ -379,7 +379,7 @@
         </div>
       </section>
 
-      <aside class="insight-panel">
+      <aside class="app-card insight-panel">
         <div class="panel-head insight-panel-head">
           <div>
             <h2 class="panel-title">角色概览</h2>
@@ -394,19 +394,19 @@
         </div>
 
         <div class="overview-metrics">
-          <article class="overview-metric">
+          <article class="app-card overview-metric">
             <span>角色</span>
             <strong>{{ overview.totalCharacters }}</strong>
           </article>
-          <article class="overview-metric">
+          <article class="app-card overview-metric">
             <span>平均装等</span>
             <strong>{{ formatDecimal(overview.averageItemLevel) }}</strong>
           </article>
-          <article class="overview-metric">
+          <article class="app-card overview-metric">
             <span>最高评分</span>
             <strong>{{ formatDecimal(overview.highestMythicScore) }}</strong>
           </article>
-          <article class="overview-metric">
+          <article class="app-card overview-metric">
             <span>服务器</span>
             <strong>{{ overview.totalRealms }}</strong>
           </article>

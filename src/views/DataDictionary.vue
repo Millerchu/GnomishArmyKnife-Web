@@ -4,7 +4,7 @@
       <span>共 {{ pagination.total }} 条</span>
     </AppPageHeader>
 
-    <section class="panel filter-panel">
+    <section class="app-card panel filter-panel">
       <div class="filter-grid">
         <label class="field-item">
           <span>关键字</span>
@@ -39,7 +39,7 @@
       </div>
     </section>
 
-    <section class="panel table-panel">
+    <section class="app-card panel table-panel">
       <div class="toolbar">
         <div class="toolbar-left">
           <button class="action-btn" :disabled="loading || submitting" @click="openCreateDictionaryDialog">新增字典</button>
@@ -111,7 +111,7 @@
           v-for="item in dictionaries"
           v-else
           :key="item.id"
-          class="mobile-dict-card"
+          class="app-card mobile-dict-card"
           :class="{activeMobileCard: selectedDictionaryId === item.id}"
           @click="selectDictionary(item)"
         >
@@ -162,7 +162,7 @@
       </div>
     </section>
 
-    <section class="panel items-panel">
+    <section class="app-card panel items-panel">
       <div class="items-head">
         <div>
           <h2 class="items-title">字典项维护</h2>
@@ -233,7 +233,7 @@
       <div v-if="selectedDictionary" class="mobile-item-list">
         <div v-if="itemsLoading && !dictionaryItems.length" class="mobile-empty">加载中...</div>
         <div v-else-if="!dictionaryItems.length" class="mobile-empty">该字典暂无字典项</div>
-        <article v-for="item in dictionaryItems" v-else :key="item.id" class="mobile-dict-card">
+        <article v-for="item in dictionaryItems" v-else :key="item.id" class="app-card mobile-dict-card">
           <div class="mobile-card-head">
             <div class="mobile-card-title-wrap">
               <strong class="mobile-card-title">{{ item.itemLabel }}</strong>

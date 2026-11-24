@@ -7,7 +7,7 @@
       <span>历史记录 {{ historyPagination.total }}</span>
     </AppPageHeader>
 
-    <section v-if="!isAdmin" class="panel access-panel">
+    <section v-if="!isAdmin" class="app-card panel access-panel">
       <h2 class="panel-title">仅系统管理员可使用</h2>
       <p class="panel-tip">
         当前页面涉及跨环境导出、导入和覆盖写入，前端只向管理员开放入口。若需要试用，请使用管理员账号登录。
@@ -20,7 +20,7 @@
     <template v-else>
       <div class="migration-layout">
         <div class="main-column">
-          <section class="panel tab-panel">
+          <section class="app-card panel tab-panel">
             <div class="tab-row">
               <button
                 class="tab-btn"
@@ -46,7 +46,7 @@
             </p>
           </section>
 
-          <section v-if="activeTab === 'export'" class="panel">
+          <section v-if="activeTab === 'export'" class="app-card panel">
             <div class="section-head">
               <div>
                 <h2 class="panel-title">导出范围配置</h2>
@@ -197,19 +197,19 @@
             </div>
 
             <div class="summary-bar">
-              <article class="summary-card">
+              <article class="app-card summary-card">
                 <span>导出模式</span>
                 <strong>{{ exportScopeSummaryLabel }}</strong>
               </article>
-              <article class="summary-card">
+              <article class="app-card summary-card">
                 <span>系统数据</span>
                 <strong>{{ exportForm.systemResourceCodes.length }}</strong>
               </article>
-              <article class="summary-card">
+              <article class="app-card summary-card">
                 <span>业务应用</span>
                 <strong>{{ exportForm.businessAppCodes.length }}</strong>
               </article>
-              <article class="summary-card">
+              <article class="app-card summary-card">
                 <span>附件策略</span>
                 <strong>{{ exportForm.includeAttachments ? '包含附件' : '仅元数据' }}</strong>
               </article>
@@ -223,7 +223,7 @@
             </div>
           </section>
 
-          <section v-else class="panel">
+          <section v-else class="app-card panel">
             <div class="section-head">
               <div>
                 <h2 class="panel-title">导入执行配置</h2>
@@ -303,19 +303,19 @@
             </div>
 
             <div class="summary-bar">
-              <article class="summary-card">
+              <article class="app-card summary-card">
                 <span>导入文件</span>
                 <strong>{{ selectedImportFile ? selectedImportFile.name : '未选择' }}</strong>
               </article>
-              <article class="summary-card">
+              <article class="app-card summary-card">
                 <span>文件大小</span>
                 <strong>{{ selectedImportFile ? formatBytes(selectedImportFile.size) : '-' }}</strong>
               </article>
-              <article class="summary-card">
+              <article class="app-card summary-card">
                 <span>冲突策略</span>
                 <strong>{{ currentImportModeLabel }}</strong>
               </article>
-              <article class="summary-card">
+              <article class="app-card summary-card">
                 <span>错误策略</span>
                 <strong>{{ importForm.continueOnError ? '继续执行' : '立即终止' }}</strong>
               </article>
@@ -330,7 +330,7 @@
         </div>
 
         <aside class="side-column">
-          <section class="panel insight-panel">
+          <section class="app-card panel insight-panel">
             <div class="section-head compact-head">
               <div>
                 <h2 class="panel-title">迁移架构</h2>
@@ -349,7 +349,7 @@
             </div>
           </section>
 
-          <section class="panel insight-panel">
+          <section class="app-card panel insight-panel">
             <div class="section-head compact-head">
               <div>
                 <h2 class="panel-title">当前摘要</h2>
@@ -381,7 +381,7 @@
             </div>
           </section>
 
-          <section class="panel insight-panel">
+          <section class="app-card panel insight-panel">
             <div class="section-head compact-head">
               <div>
                 <h2 class="panel-title">导入包要求</h2>
@@ -399,7 +399,7 @@
         </aside>
       </div>
 
-      <section class="panel task-panel">
+      <section class="app-card panel task-panel">
         <div class="section-head">
           <div>
             <h2 class="panel-title">导出导入历史</h2>
