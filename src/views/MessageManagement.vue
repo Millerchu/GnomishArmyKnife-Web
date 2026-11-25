@@ -1,9 +1,11 @@
 <template>
-  <main class="messages-page">
-    <nav class="messages-nav"><RouterLink to="/home">← 返回桌面</RouterLink><RouterLink to="/messages">我的消息</RouterLink></nav>
-    <header class="messages-heading"><div><span class="messages-eyebrow">COMMUNICATIONS</span><h1>消息管理</h1><p>把需要知道的事，送到对的人面前。</p></div><div role="tablist" aria-label="消息管理视图"><button class="msg-button messages-tab" role="tab" :aria-selected="tab === 'compose'" @click="tab = 'compose'">发布消息</button> <button class="msg-button messages-tab" role="tab" :aria-selected="tab === 'history'" @click="tab = 'history'; loadHistory()">发送记录</button></div></header>
+  <main class="messages-page standard-app-page">
+    <AppPageHeader title="消息管理" @back="$router.push('/home')">
+      <RouterLink to="/messages">我的消息</RouterLink>
+    </AppPageHeader>
+    <div class="messages-views" role="tablist" aria-label="消息管理视图"><button class="msg-button messages-tab" role="tab" :aria-selected="tab === 'compose'" @click="tab = 'compose'">发布消息</button> <button class="msg-button messages-tab" role="tab" :aria-selected="tab === 'history'" @click="tab = 'history'; loadHistory()">发送记录</button></div>
     <p v-if="error" class="messages-error" role="alert">{{ error }}</p><p v-if="success" class="messages-success" role="status">{{ success }}</p>
-    <section v-if="tab === 'compose'" class="messages-panel">
+    <section v-if="tab === 'compose'" class="messages-panel app-card">
       <form class="messages-compose" @submit.prevent="preview">
         <label>消息标题<input v-model="form.title" maxlength="120" required placeholder="用一句话说明这条消息" :disabled="sending"></label>
         <div class="messages-form-pair"><label>消息分类<select v-model="form.category" :disabled="sending"><option v-for="(label, value) in categoryLabels" :key="value" :value="value">{{ label }}</option></select></label><label>重要级别<select v-model="form.priority" :disabled="sending"><option value="NORMAL">普通</option><option value="IMPORTANT">重要</option></select></label></div>
@@ -20,7 +22,7 @@
         <div class="messages-actions"><button class="msg-button primary" :disabled="sending">预览并发送 →</button></div>
       </form>
     </section>
-    <section v-else class="messages-panel" :aria-busy="historyLoading">
+    <section v-else class="messages-panel app-card" :aria-busy="historyLoading">
       <div class="messages-toolbar"><select v-model="historyQuery.category" aria-label="发送记录分类" @change="historyQuery.pageNo = 1; loadHistory()"><option value="">全部分类</option><option v-for="(label, value) in categoryLabels" :key="value" :value="value">{{ label }}</option></select><button class="msg-button" :disabled="historyLoading" @click="loadHistory">刷新记录</button></div>
       <p v-if="!history.list.length" class="messages-empty">{{ historyLoading ? '正在加载发送记录…' : '还没有发送记录' }}</p>
       <ul class="messages-list"><li v-for="item in history.list" :key="item.id" class="messages-row"><button class="messages-row-main" @click="detail = item"><div class="messages-meta"><span>{{ categoryLabels[item.category] }}</span><span>{{ sourceLabel(item.source) }}</span><span v-if="item.priority === 'IMPORTANT'" class="messages-important">重要</span></div><strong>{{ item.title }}</strong><p>{{ item.body }}</p><div class="messages-meta"><span>{{ formatMessageTime(item.createdAt) }}</span><span>{{ item.audience === 'ALL' ? '全体用户' : '指定用户' }}</span></div></button><button class="msg-button" @click="showRecipients(item)">已读 {{ item.readCount }} / {{ item.recipientCount }} 人</button></li></ul>
@@ -39,6 +41,7 @@
   </main>
 </template>
 <script setup>
+import AppPageHeader from '../components/AppPageHeader.vue'
 import {reactive, ref, onBeforeUnmount} from 'vue'
 import {createMessageSendKey} from '../utils/messageStream'
 import MacDialog from '../components/MacDialog.vue'

@@ -1,10 +1,12 @@
 <template>
-  <main class="messages-page">
-    <nav class="messages-nav"><RouterLink to="/home">← 返回桌面</RouterLink><RouterLink v-if="isAdmin" to="/system/messages">消息管理</RouterLink></nav>
-    <header class="messages-heading"><div><span class="messages-eyebrow">INBOX</span><h1>消息中心</h1><p>与你有关的更新，都在这里。<span v-if="state.unreadCount">还有 {{ state.unreadCount }} 条未读消息。</span></p></div><button class="msg-button" :disabled="busy || !state.unreadCount" @click="readAll">全部标记已读</button></header>
+  <main class="messages-page standard-app-page">
+    <AppPageHeader title="消息中心" @back="$router.push('/home')">
+      <span v-if="state.unreadCount">{{ state.unreadCount }} 条未读消息</span>
+      <RouterLink v-if="isAdmin" to="/system/messages">消息管理</RouterLink>
+    </AppPageHeader>
     <p v-if="error" class="messages-error" role="alert">{{ error }} <button class="msg-button" @click="load">重试</button></p>
-    <section class="messages-panel" aria-label="收件箱" :aria-busy="loading">
-      <div class="messages-toolbar"><select v-model="filters.category" aria-label="消息分类" @change="search"><option value="">全部分类</option><option v-for="(label, value) in categoryLabels" :key="value" :value="value">{{ label }}</option></select><select v-model="filters.unread" aria-label="阅读状态" @change="search"><option value="">全部消息</option><option value="true">未读</option><option value="false">已读</option></select><button class="msg-button" :disabled="loading" @click="load">刷新</button></div>
+    <section class="messages-panel app-card" aria-label="收件箱" :aria-busy="loading">
+      <div class="messages-toolbar"><button class="msg-button" :disabled="busy || !state.unreadCount" @click="readAll">全部标记已读</button><select v-model="filters.category" aria-label="消息分类" @change="search"><option value="">全部分类</option><option v-for="(label, value) in categoryLabels" :key="value" :value="value">{{ label }}</option></select><select v-model="filters.unread" aria-label="阅读状态" @change="search"><option value="">全部消息</option><option value="true">未读</option><option value="false">已读</option></select><button class="msg-button" :disabled="loading" @click="load">刷新</button></div>
       <p v-if="loading && !inbox.list.length" class="messages-empty">正在加载消息…</p>
       <p v-else-if="!inbox.list.length && !error" class="messages-empty">这里暂时没有消息<br>有新的通知时，我们会在右上角提醒你。</p>
       <ul class="messages-list"><li v-for="item in inbox.list" :key="item.id" class="messages-row" :class="{unread: !item.readAt}">
@@ -16,6 +18,7 @@
   </main>
 </template>
 <script setup>
+import AppPageHeader from '../components/AppPageHeader.vue'
 import {computed, ref, reactive, watch, onBeforeUnmount} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import MessageDetail from '../components/MessageDetail.vue'

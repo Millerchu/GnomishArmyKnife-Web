@@ -1,13 +1,11 @@
 <template>
-  <main class="system-log-page" :inert="selectedId !== null">
-    <nav><RouterLink to="/home">← 返回桌面</RouterLink></nav>
-    <header class="system-log-heading">
-      <div><h1>系统日志</h1><p>仅显示已接入异常边界的记录，部分后台任务内部处理的异常不在此处。</p></div>
-      <button v-if="!forbidden" type="button" :disabled="loading" @click="loadLogs">手动刷新</button>
-    </header>
+  <main class="system-log-page standard-app-page" :inert="selectedId !== null">
+    <AppPageHeader title="系统日志" @back="$router.push('/home')">
+      <span>仅显示已接入异常边界的记录，部分后台任务内部处理的异常不在此处。</span>
+    </AppPageHeader>
     <MacEmptyState v-if="forbidden" title="无权限查看系统日志" description="请联系管理员确认账号状态与应用授权。"/>
     <template v-else>
-      <form class="system-log-filters" @submit.prevent="search">
+      <form class="system-log-filters app-card" @submit.prevent="search">
         <fieldset :disabled="loading">
           <legend>筛选日志</legend>
           <label>开始时间（北京时间）<input v-model="filters.occurredFrom" name="occurredFrom" type="datetime-local" step="1" :aria-invalid="!!timeError" :aria-describedby="timeError ? 'system-log-time-error' : undefined"></label>
@@ -21,6 +19,7 @@
       </form>
       <section :aria-busy="loading" aria-label="系统日志列表">
         <MacTable label="系统日志列表" title="异常记录" subtitle="发生时间倒序 · 北京时间">
+          <template #toolbar><button type="button" :disabled="loading" @click="loadLogs">手动刷新</button></template>
           <thead><tr><th>发生时间（北京时间）</th><th>来源</th><th>异常类型</th><th>脱敏摘要</th><th>请求方法</th><th>路径</th><th>追踪编号</th><th>操作</th></tr></thead>
           <tbody>
             <tr v-if="loading"><td colspan="8" class="system-log-loading" role="status">正在加载系统日志…</td></tr>
@@ -48,6 +47,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../components/AppPageHeader.vue'
 import {computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef} from 'vue'
 import MacTable from '@/components/MacTable.vue'
 import MacEmptyState from '@/components/MacEmptyState.vue'
@@ -143,11 +143,8 @@ onBeforeUnmount(() => { listSequence++ })
 </script>
 
 <style scoped>
-.system-log-page { max-width: 1600px; margin: auto; padding: 28px; color: var(--theme-text); }
-nav a { color: var(--theme-text-muted); text-decoration: none; }
-.system-log-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin: 24px 0; }
-h1 { margin: 0 0 10px; font-size: 28px; }
-.system-log-heading p { margin: 0; color: var(--theme-text-muted); line-height: 1.6; }
+.system-log-page { height: 100%; overflow: auto; padding-block: 24px 40px; }
+.system-log-page :deep(.theme-toggle) { margin-inline-end: 48px; }
 .system-log-filters { padding: 20px; margin-bottom: 20px; border: 1px solid var(--theme-border); border-radius: 16px; background: var(--theme-surface-raised); }
 fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; border: 0; margin: 0; padding: 0; min-width: 0; }
 legend { padding: 0 0 16px; font-weight: 650; }
@@ -156,7 +153,7 @@ input { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px 12px; b
 button { min-height: 40px; padding: 8px 14px; border: 1px solid var(--theme-border-strong); border-radius: 12px; color: var(--theme-text); background: var(--theme-surface-raised); font: inherit; cursor: pointer; white-space: nowrap; }
 button.primary { color: var(--theme-accent); background: var(--theme-accent-soft); }
 button:disabled { opacity: .5; cursor: not-allowed; }
-button:focus-visible, input:focus-visible, nav a:focus-visible { outline: 3px solid var(--theme-focus-ring); outline-offset: 3px; }
+button:focus-visible, input:focus-visible, .system-log-page :deep(.app-return:focus-visible) { outline: 3px solid var(--theme-focus-ring); outline-offset: 3px; }
 .system-log-actions { display: flex; gap: 10px; align-items: end; }
 .system-log-error { color: var(--theme-danger, var(--theme-text)); margin-bottom: 0; }
 .system-log-ellipsis { display: block; max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -166,5 +163,5 @@ button:focus-visible, input:focus-visible, nav a:focus-visible { outline: 3px so
 .system-log-pagination { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding: 18px 0; font-size: 13px; }
 .system-log-pagination label { display: flex; align-items: center; }
 @media (min-width: 1200px) { fieldset { grid-template-columns: repeat(4, minmax(0, 1fr)); } .system-log-keyword { grid-column: span 2; } }
-@media (max-width: 720px) { .system-log-page { padding: 18px 12px; } .system-log-heading { align-items: flex-start; flex-direction: column; } fieldset { grid-template-columns: 1fr; } .system-log-pagination { justify-content: flex-start; } }
+@media (max-width: 720px) { .system-log-page { padding-block-start: 12px; } fieldset { grid-template-columns: 1fr; } .system-log-pagination { justify-content: flex-start; } }
 </style>
