@@ -1,29 +1,11 @@
 <template>
-  <div class="fuel-page">
-    <div class="page-nav">
-      <button type="button" class="nav-icon-btn back-home-btn" aria-label="返回桌面" @click="goBack">
-        <span class="back-home-icon" aria-hidden="true">‹</span>
-        <span class="back-home-text">返回桌面</span>
-      </button>
-      <strong class="mobile-nav-title">油耗统计</strong>
-      <button type="button" class="nav-icon-btn mobile-nav-add" aria-label="新增加油记录" @click="openCreateDialog">
-        <span aria-hidden="true">＋</span>
-      </button>
-    </div>
+  <div class="fuel-page standard-app-page">
+    <AppPageHeader title="油耗统计" @back="goBack">
+      <span>平均油耗 <FuelMetric :value="summary.averageConsumption || null" unit="L/100km" /></span>
+      <span>本月实付 <FuelMetric :value="summary.currentMonthAmount" prefix="¥" /></span>
+    </AppPageHeader>
 
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">油耗统计</h1>
-        <p class="page-subtitle">记录每次加油数据，持续观察平均油耗、月度花费和车辆用车成本，字段设计参考成熟加油类 App。</p>
-      </div>
-      <div class="hero-tags">
-        <span class="hero-tag">平均油耗 <FuelMetric :value="summary.averageConsumption || null" unit="L/100km" /></span>
-        <span class="hero-tag">本月实付 <FuelMetric :value="summary.currentMonthAmount" prefix="¥" /></span>
-        <span class="hero-tag">已接真实接口</span>
-      </div>
-    </div>
-
-    <section class="headline-panel">
+    <section class="headline-panel app-card">
       <article class="headline-card">
         <div class="headline-copy">
           <div class="headline-topline">
@@ -69,7 +51,7 @@
       </article>
     </section>
 
-    <section class="price-panel">
+    <section class="price-panel app-card">
       <div class="price-layout">
         <div class="price-info">
           <div class="panel-head price-panel-head">
@@ -239,7 +221,7 @@
     </section>
 
     <div class="fuel-layout">
-      <section class="list-panel">
+      <section class="list-panel app-card">
         <div class="panel-head">
           <div>
             <h2 class="panel-title">加油记录</h2>
@@ -348,7 +330,7 @@
         </div>
       </section>
 
-      <aside class="insight-panel">
+      <aside class="insight-panel app-card">
         <div class="panel-head aside-head">
           <div>
             <h2 class="panel-title">用车洞察</h2>
@@ -412,7 +394,7 @@
       </aside>
     </div>
 
-    <section class="report-panel">
+    <section class="report-panel app-card">
       <div class="report-grid">
         <article class="report-card">
           <div class="panel-head">
@@ -698,6 +680,7 @@
 </template>
 
 <script>
+import AppPageHeader from '../components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter, useRoute} from 'vue-router'
 import FuelMetric from '@/components/FuelMetric.vue'
@@ -891,7 +874,7 @@ function buildYearlyCostReport(records = []) {
 
 export default {
   name: 'FuelStats',
-  components: {MacDialog, AttachmentManager, AttachmentGallery, FuelMetric},
+  components: {AppPageHeader, MacDialog, AttachmentManager, AttachmentGallery, FuelMetric},
   setup() {
     const router = useRouter()
     const route = useRoute()
@@ -1830,60 +1813,10 @@ export default {
   overflow: auto;
 }
 
-.page-nav {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin-bottom: 12px;
-}
-
-.nav-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--theme-border);
-  color: var(--theme-text-soft);
-  cursor: pointer;
-  background: var(--theme-control-surface);
-  box-shadow: var(--theme-shadow-xs);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  transition: transform 100ms ease-out, background 180ms ease, border-color 180ms ease;
-}
-
-.back-home-btn {
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 16px 0 12px;
-  border-radius: 999px;
-}
-
-.back-home-btn:hover {
-  transform: translateY(-1px);
-  background: var(--theme-surface-hover);
-  border-color: var(--theme-border-strong);
-}
-
-.back-home-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  font-size: 28px;
-  font-weight: 500;
-  line-height: 1;
-  background: var(--theme-surface-muted);
-}
-
-.mobile-nav-title,
-.mobile-nav-add,
 .mobile-action-dock {
   display: none;
 }
 
-.nav-icon-btn:active,
 .headline-switch-btn:active,
 .action-btn:active,
 .ghost-btn:active,
@@ -1893,7 +1826,6 @@ export default {
   transition-duration: 100ms;
 }
 
-.hero-panel,
 .headline-panel,
 .price-panel,
 .list-panel,
@@ -1905,7 +1837,6 @@ export default {
   backdrop-filter: blur(16px);
 }
 
-.hero-panel,
 .headline-panel,
 .price-panel,
 .list-panel,
@@ -1915,7 +1846,6 @@ export default {
   padding: 16px 18px;
 }
 
-.hero-panel,
 .toolbar,
 .panel-head,
 .pager,
@@ -1929,7 +1859,6 @@ export default {
   gap: 12px;
 }
 
-.hero-panel,
 .toolbar,
 .panel-head,
 .pager,
@@ -1939,7 +1868,6 @@ export default {
   justify-content: space-between;
 }
 
-.hero-panel,
 .headline-panel,
 .price-panel {
   margin-bottom: 14px;
@@ -2067,18 +1995,12 @@ export default {
   margin-top: 14px;
 }
 
-.page-title,
 .panel-title,
 .insight-title,
 .mobile-record-title {
   margin: 0;
 }
 
-.page-title {
-  font-size: 28px;
-}
-
-.page-subtitle,
 .panel-tip,
 .subtle-empty,
 .mobile-record-subtitle {
@@ -2086,7 +2008,6 @@ export default {
   color: var(--theme-text-muted);
 }
 
-.hero-tags,
 .toolbar-left,
 .toolbar-right,
 .row-actions,
@@ -2096,7 +2017,6 @@ export default {
   gap: 8px;
 }
 
-.hero-tag,
 .consumption-chip {
   display: inline-flex;
   align-items: center;
@@ -2105,11 +2025,6 @@ export default {
   padding: 0 10px;
   border-radius: 999px;
   font-size: 12px;
-}
-
-.hero-tag {
-  background: var(--theme-accent-soft);
-  color: var(--theme-link);
 }
 
 .price-date {
@@ -3305,65 +3220,6 @@ export default {
     font-optical-sizing: auto;
   }
 
-  .page-nav {
-    position: sticky;
-    z-index: 20;
-    top: 0;
-    min-height: calc(56px + env(safe-area-inset-top));
-    margin: 0 -12px 10px;
-    padding: env(safe-area-inset-top) 12px 0;
-    justify-content: space-between;
-    background: color-mix(in srgb, var(--theme-surface) 72%, transparent);
-    backdrop-filter: blur(22px) saturate(180%);
-    -webkit-backdrop-filter: blur(22px) saturate(180%);
-  }
-
-  .page-nav::after {
-    position: absolute;
-    right: 0;
-    bottom: -12px;
-    left: 0;
-    height: 12px;
-    content: "";
-    pointer-events: none;
-    background: linear-gradient(to bottom, color-mix(in srgb, var(--theme-surface) 22%, transparent), transparent);
-  }
-
-  .back-home-btn,
-  .mobile-nav-add {
-    display: inline-flex;
-    width: 44px;
-    height: 44px;
-    min-height: 44px;
-    padding: 0;
-    border-color: transparent;
-    border-radius: 50%;
-    box-shadow: none;
-  }
-
-  .back-home-text {
-    display: none;
-  }
-
-  .back-home-icon {
-    width: auto;
-    height: auto;
-    background: transparent;
-  }
-
-  .mobile-nav-title {
-    display: block;
-    font-size: 17px;
-    font-weight: 650;
-    letter-spacing: -0.01em;
-  }
-
-  .mobile-nav-add {
-    font-size: 24px;
-    color: var(--theme-link);
-  }
-
-  .hero-panel,
   .headline-card,
   .price-panel,
   .toolbar,
@@ -3373,38 +3229,8 @@ export default {
     align-items: stretch;
   }
 
-  .hero-panel {
-    gap: 12px;
-    padding: 2px 0 6px;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .hero-panel > div:first-child {
-    display: none;
-  }
-
-  .hero-tags {
-    flex-wrap: nowrap;
-    margin: 0 -2px;
-    padding: 2px;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-  }
-
-  .hero-tags::-webkit-scrollbar,
   .headline-switches::-webkit-scrollbar {
     display: none;
-  }
-
-  .hero-tag {
-    flex: 0 0 auto;
-    min-height: 32px;
-    scroll-snap-align: start;
   }
 
   .headline-card {
@@ -3744,7 +3570,6 @@ export default {
 }
 
 @media (max-width: 560px) {
-  .hero-panel,
   .headline-copy,
   .headline-stats,
   .price-panel,
@@ -3820,7 +3645,6 @@ export default {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nav-icon-btn,
   .headline-switch-btn,
   .action-btn,
   .ghost-btn,
@@ -3843,10 +3667,7 @@ export default {
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .page-nav,
   .mobile-action-dock,
-  .nav-icon-btn,
-  .hero-panel,
   .headline-panel,
   .price-panel,
   .list-panel,
@@ -3862,7 +3683,6 @@ export default {
 }
 
 @media (prefers-contrast: more) {
-  .page-nav,
   .mobile-action-dock,
   .mobile-record-card,
   .price-card,
@@ -3872,5 +3692,11 @@ export default {
   .trend-summary > div {
     border-color: var(--theme-text);
   }
+}
+
+/* 为页面右上角的全局消息按钮留出空间。 */
+.app-page-header :deep(.theme-toggle) { margin-inline-end: 48px; }
+@media (max-width: 720px) {
+  .fuel-page { padding-block-start: max(12px, env(safe-area-inset-top)); }
 }
 </style>

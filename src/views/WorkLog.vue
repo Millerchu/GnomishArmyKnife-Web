@@ -1,38 +1,12 @@
 <template>
-  <div class="work-log-page">
-    <div class="page-nav">
-      <button type="button" class="back-home-btn" @click="goBack">
-        <span class="back-home-icon">←</span>
-        <span>返回桌面</span>
-      </button>
-      <div class="mobile-nav-title-block">
-        <h1 class="mobile-nav-title">工作日志</h1>
-        <span class="mobile-nav-status">{{ dictionarySourceText }}</span>
-      </div>
-      <button
-        type="button"
-        class="mobile-nav-add"
-        :disabled="loading"
-        aria-label="新增工作日志"
-        @click="openCreateDialog"
-      >
-        <span aria-hidden="true">＋</span>
-      </button>
-    </div>
+  <div class="work-log-page standard-app-page">
+    <AppPageHeader title="工作日志" @back="goBack">
+      <span v-if="calendarView === 'month'">{{ calendarRangeText }}</span>
+      <span>{{ showYearList ? '已展开年度列表' : (calendarView === 'month' ? '月视图' : '周视图') }}</span>
+      <span>{{ dictionarySourceText }}</span>
+    </AppPageHeader>
 
-    <div class="hero-panel">
-      <div>
-        <h1 class="page-title">工作日志</h1>
-        <p class="page-subtitle">按周或按月查看与维护日志，类型、地点和项目优先使用数据字典配置，视图切换后同步展示对应统计。</p>
-      </div>
-      <div class="hero-tags">
-        <span v-if="calendarView === 'month'" class="hero-tag">{{ calendarRangeText }}</span>
-        <span class="hero-tag">{{ showYearList ? '已展开年度列表' : (calendarView === 'month' ? '月视图' : '周视图') }}</span>
-        <span class="hero-tag">{{ dictionarySourceText }}</span>
-      </div>
-    </div>
-
-    <section class="week-stats-panel" :class="{'is-week-stats': calendarView === 'week'}">
+    <section class="week-stats-panel app-card" :class="{'is-week-stats': calendarView === 'week'}">
       <div class="panel-head">
         <div>
           <h2 class="panel-title">{{ activeStatsTitle }}</h2>
@@ -99,7 +73,7 @@
       </div>
     </section>
 
-    <section v-if="calendarView === 'week'" class="weekly-report-panel">
+    <section v-if="calendarView === 'week'" class="weekly-report-panel app-card">
       <div class="panel-head weekly-report-head">
         <div>
           <h2 class="panel-title">周报统计</h2>
@@ -175,7 +149,7 @@
         <button class="action-btn" :disabled="loading" @click="changeCalendarRange(1)">
           {{ calendarView === 'month' ? '下一月' : '下一周' }}
         </button>
-        <button class="action-btn create-log-action" :disabled="loading" @click="openCreateDialog">新增</button>
+        <button class="action-btn create-log-action" aria-label="新增工作日志" :disabled="loading" @click="openCreateDialog">新增</button>
         <button class="action-btn year-list-action" :disabled="loading" @click="toggleYearList">
           {{ showYearList ? '收起年度' : '年度列表' }}
         </button>
@@ -264,7 +238,7 @@
       </div>
     </div>
 
-    <div v-else class="month-view-panel">
+    <div v-else class="month-view-panel app-card">
       <div class="month-view-head">
         <h2 class="panel-title">{{ monthLabel }}</h2>
         <span class="panel-tip desktop-calendar-tip">单击选择日期，双击当月日期查看当天日志详情。</span>
@@ -336,7 +310,7 @@
       </div>
     </div>
 
-    <div v-if="showYearList" class="detail-panel">
+    <div v-if="showYearList" class="detail-panel app-card">
       <div class="year-head">
         <h2 class="panel-title">日志列表（默认当年）</h2>
         <select v-model.number="yearFilter" class="year-select">
@@ -869,6 +843,7 @@
 </template>
 
 <script>
+import AppPageHeader from '../components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {listDataDictionaryOptionsByUsage} from '@/api/dataDictionary'
@@ -1249,6 +1224,7 @@ function joinOptionalValues(values) {
 export default {
   name: 'WorkLog',
   components: {
+    AppPageHeader,
     MacDialog
   },
   setup() {
@@ -2647,53 +2623,10 @@ export default {
   -webkit-overflow-scrolling: touch;
 }
 
-.page-nav {
-  display: flex;
-  justify-content: flex-start;
-  margin-bottom: 12px;
-}
-
-.mobile-nav-title-block,
-.mobile-nav-add,
 .mobile-range-row {
   display: none;
 }
 
-.back-home-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 16px 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  color: #fff;
-  cursor: pointer;
-  background: rgba(12, 32, 52, 0.58);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(12px);
-  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
-}
-
-.back-home-btn:hover {
-  transform: translateY(-1px);
-  background: rgba(16, 40, 64, 0.76);
-  border-color: rgba(255, 255, 255, 0.28);
-}
-
-.back-home-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  font-size: 15px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.hero-panel,
 .week-stats-panel,
 .weekly-report-panel,
 .month-view-panel,
@@ -2705,39 +2638,6 @@ export default {
   backdrop-filter: blur(16px);
 }
 
-.hero-panel {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 14px;
-  padding: 15px 16px;
-}
-
-.page-title {
-  margin: 0;
-  font-size: clamp(30px, 3.1vw, 40px);
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  line-height: 1.06;
-}
-
-.page-subtitle {
-  margin: 8px 0 0;
-  max-width: 780px;
-  font-size: 14px;
-  line-height: 1.65;
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.hero-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.hero-tag,
 .stats-chip,
 .summary-chip,
 .detail-type-chip {
@@ -4396,27 +4296,12 @@ export default {
   color: var(--theme-text);
 }
 
-.back-home-btn {
-  color: var(--theme-text-soft);
-  background: var(--theme-surface);
-  border-color: var(--theme-border);
-  box-shadow: var(--theme-shadow-xs);
-}
-
-.back-home-btn:hover {
-  color: var(--theme-text);
-  background: var(--theme-surface-raised);
-  border-color: var(--theme-border-strong);
-}
-
-.back-home-icon,
 .view-switch,
 .ghost-btn,
 .mini-btn {
   background: var(--theme-control-surface);
 }
 
-.hero-panel,
 .week-stats-panel,
 .weekly-report-panel,
 .month-view-panel,
@@ -4426,7 +4311,6 @@ export default {
   box-shadow: var(--theme-shadow-sm);
 }
 
-.page-subtitle,
 .panel-tip,
 .stats-card small,
 .stats-empty,
@@ -4441,7 +4325,6 @@ export default {
   color: var(--theme-text-muted);
 }
 
-.hero-tag,
 .stats-chip,
 .summary-chip,
 .detail-type-chip {
@@ -4772,7 +4655,6 @@ export default {
     padding: 16px;
   }
 
-  .hero-panel,
   .week-stats-panel,
   .weekly-report-panel,
   .month-view-panel,
@@ -4804,9 +4686,6 @@ export default {
 }
 
 @media (max-width: 1100px) {
-  .page-title {
-    font-size: 32px;
-  }
 
   .calendar-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4836,16 +4715,11 @@ export default {
     padding: 14px;
   }
 
-  .hero-panel,
   .panel-head,
   .detail-panel-head,
   .month-view-head,
   .year-head {
     flex-direction: column;
-  }
-
-  .page-title {
-    font-size: 28px;
   }
 
   .calendar-grid,
@@ -4960,31 +4834,12 @@ export default {
     font-size: 10px;
   }
 
-  .hero-panel,
   .weekly-report-panel,
   .month-view-panel,
   .detail-panel {
     margin-bottom: 8px;
     padding: 10px;
     border-radius: 12px;
-  }
-
-  .hero-panel {
-    gap: 7px;
-  }
-
-  .page-subtitle {
-    display: none;
-  }
-
-  .hero-tags {
-    gap: 4px;
-  }
-
-  .hero-tag {
-    min-height: 20px;
-    padding: 0 7px;
-    font-size: 10px;
   }
 
   .panel-head,
@@ -5234,7 +5089,6 @@ export default {
     padding: 8px 8px max(24px, env(safe-area-inset-bottom, 0px));
   }
 
-  .hero-panel,
   .week-stats-panel,
   .weekly-report-panel,
   .month-view-panel,
@@ -5242,16 +5096,11 @@ export default {
     border-radius: 12px;
   }
 
-  .hero-panel,
   .week-stats-panel,
   .weekly-report-panel,
   .month-view-panel,
   .detail-panel {
     padding: 10px;
-  }
-
-  .hero-tags {
-    justify-content: flex-start;
   }
 
   .weekly-report-head {
@@ -5331,101 +5180,6 @@ export default {
     scroll-padding-top: 76px;
   }
 
-  .page-nav {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    order: 0;
-    display: grid;
-    grid-template-columns: var(--mobile-touch-target) minmax(0, 1fr) var(--mobile-touch-target);
-    align-items: center;
-    min-height: 58px;
-    margin-bottom: 10px !important;
-    padding: 6px;
-    border: 1px solid var(--mobile-border);
-    border-radius: var(--mobile-radius-card);
-    background: var(--mobile-chrome);
-    box-shadow: var(--mobile-shadow-soft);
-    backdrop-filter: blur(24px) saturate(165%);
-    -webkit-backdrop-filter: blur(24px) saturate(165%);
-  }
-
-  .work-log-page .back-home-btn,
-  .mobile-nav-add {
-    width: var(--mobile-touch-target);
-    min-width: var(--mobile-touch-target);
-    height: var(--mobile-touch-target);
-    min-height: var(--mobile-touch-target) !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 14px;
-    display: grid;
-    place-items: center;
-    color: var(--theme-text-soft) !important;
-    background: var(--theme-control-surface) !important;
-    box-shadow: inset 0 1px 0 var(--theme-highlight-soft) !important;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .work-log-page .back-home-btn > span:last-child {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-  }
-
-  .work-log-page .back-home-icon {
-    width: 30px !important;
-    height: 30px !important;
-    font-size: 18px !important;
-    background: transparent !important;
-  }
-
-  .mobile-nav-title-block {
-    display: grid;
-    justify-items: center;
-    min-width: 0;
-    gap: 1px;
-    padding-inline: 8px;
-  }
-
-  .mobile-nav-title {
-    margin: 0;
-    overflow: hidden;
-    color: var(--theme-text);
-    font-size: 17px;
-    font-weight: 720;
-    line-height: 1.2;
-    letter-spacing: -0.015em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .mobile-nav-status {
-    color: var(--theme-text-muted);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-
-  .mobile-nav-add {
-    font-size: 25px;
-    font-weight: 450;
-    color: #fff !important;
-    background: linear-gradient(180deg, var(--theme-accent), var(--theme-accent-strong)) !important;
-  }
-
-  .mobile-nav-add:disabled {
-    opacity: 0.5;
-  }
-
-  .hero-panel {
-    display: none !important;
-  }
-
   .top-bar {
     order: 2;
     display: grid;
@@ -5498,7 +5252,7 @@ export default {
 
   .actions {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px !important;
     width: 100%;
   }
@@ -5516,7 +5270,7 @@ export default {
   }
 
   .create-log-action {
-    display: none;
+    grid-column: span 2;
   }
 
   .year-list-action {
@@ -5928,7 +5682,6 @@ export default {
 }
 
 @media (max-width: 720px) and (prefers-reduced-transparency: reduce) {
-  .page-nav,
   .top-bar,
   .week-stats-panel,
   .weekly-report-panel,
@@ -5941,7 +5694,6 @@ export default {
 }
 
 @media (max-width: 720px) and (prefers-contrast: more) {
-  .page-nav,
   .top-bar,
   .week-stats-panel,
   .weekly-report-panel,
@@ -5972,7 +5724,6 @@ export default {
       max(12px, env(safe-area-inset-left, 0px));
   }
 
-  .hero-panel,
   .week-stats-panel,
   .weekly-report-panel,
   .month-view-panel,
@@ -6027,4 +5778,10 @@ export default {
 
 .work-item-person-day { width: 80px; min-width: 0; }
 @media (max-width: 768px) { .work-item-person-day { grid-column: 2; width: 100%; } }
+
+/* 为页面右上角的全局消息按钮留出空间。 */
+.app-page-header :deep(.theme-toggle) { margin-inline-end: 48px; }
+@media (max-width: 720px) {
+  .work-log-page { padding-block-start: max(12px, env(safe-area-inset-top)); }
+}
 </style>

@@ -294,17 +294,17 @@ afterEach(() => {
 })
 
 describe('WorkLog MacDialog integration', () => {
-  it('reports a failed dictionary sync in the mobile navigation state', async () => {
+  it('reports a failed dictionary sync in the shared page header', async () => {
     listDataDictionaryOptionsByUsage.mockRejectedValue(new Error('dictionary unavailable'))
     const wrapper = await mountWorkLog()
 
-    expect(wrapper.get('.mobile-nav-status').text()).toBe('字典未就绪')
+    expect(wrapper.get('.app-page-header').text()).toContain('字典未就绪')
   })
 
-  it('moves the current week range from the hero into the weekly statistics panel', async () => {
+  it('shows the current week range in weekly statistics and omits it from the header', async () => {
     const wrapper = await mountWorkLog()
 
-    expect(wrapper.find('.hero-tags').text()).not.toContain('当前周')
+    expect(wrapper.get('.app-page-header').text()).not.toContain('当前周')
     expect(wrapper.find('.week-stats-panel .calendar-range-badge').text()).toContain('当前周')
   })
 
