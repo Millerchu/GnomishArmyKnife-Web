@@ -8,7 +8,10 @@ export default defineConfig(({mode}) => {
     const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8080'
 
     return {
-        plugins: [vue()],
+        // Vitest 在 Windows 上应保留 public 资源的站点 URL，避免把它当作文件模块加载。
+        plugins: [vue(mode === 'test' ? {
+            template: {transformAssetUrls: {includeAbsolute: false}}
+        } : {})],
         resolve: {
             alias: {
                 '@': path.resolve(__dirname, './src')

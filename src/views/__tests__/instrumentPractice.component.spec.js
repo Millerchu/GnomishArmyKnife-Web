@@ -3,6 +3,7 @@
 import {flushPromises, mount} from '@vue/test-utils'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
+import {MAX_PERSISTED_TAKES_PER_INSTRUMENT} from '@/features/instrument-practice/audio/sessionRecorder.js'
 import InstrumentPractice from '../InstrumentPractice.vue'
 import {deleteInstrumentPracticeScore, listInstrumentPracticeScores, saveInstrumentPracticeScore} from '@/api/instrumentPractice.js'
 import {__instrumentPracticeMocks} from '@/features/instrument-practice/composables/index.js'
@@ -262,14 +263,14 @@ describe('随身乐器页面流程', () => {
     expect(__instrumentPracticeMocks.audio.stopAll).toHaveBeenCalled()
     expect(wrapper.get('h1').text()).toBe('乌克丽丽')
     expect(wrapper.get('.record-button').attributes('aria-label')).toBe('开始录制')
-    expect(wrapper.get('button[aria-label="打开已保存的练习录音列表"] small').text()).toBe('0/10')
+    expect(wrapper.get('button[aria-label="打开已保存的练习录音列表"] small').text()).toBe(`0/${MAX_PERSISTED_TAKES_PER_INSTRUMENT}`)
     wrapper.unmount()
   })
 
-  it('第 11 段录制前明确提示会覆盖当前乐器最旧记录', async () => {
+  it('当前乐器录音已满时，开始录制前提示将覆盖最旧记录', async () => {
     const wrapper = mountPage()
     await flushPromises()
-    __instrumentPracticeMocks.recorder.takes.value = Array.from({length: 10}, (_, index) => ({
+    __instrumentPracticeMocks.recorder.takes.value = Array.from({length: MAX_PERSISTED_TAKES_PER_INSTRUMENT}, (_, index) => ({
       id: index + 1,
       instrumentId: 'guzheng',
       tuningId: 'd-pentatonic',
