@@ -1,25 +1,18 @@
 <template>
-  <main class="travel-page">
-    <nav class="topbar">
-      <button @click="router.push('/home')">‹ 返回桌面</button><span>个人生活 / 出行档案</span>
-    </nav>
-    <header class="hero">
-      <div>
-        <span class="eyebrow">MY JOURNEYS</span>
-        <h1>行笺</h1>
-        <p>留住每一程。票据、回忆与费用，随时可查。</p>
-      </div>
-      <button class="primary" @click="openNew">＋ 新增记录</button>
-    </header>
+  <main class="travel-page standard-app-page">
+    <AppPageHeader title="行笺" @back="router.push('/home')" />
     <div class="toolbar">
       <div class="tabs">
-        <button v-for="(label, key) in tabs" :key="key" :class="{ active: tab === key }" @click="tab = key">
+        <button v-for="(label, key) in tabs" :key="key" :aria-pressed="tab === key" :class="{ active: tab === key }" @click="tab = key">
           {{ label }}
         </button>
       </div>
-      <button :disabled="exporting" @click="download">{{ exporting ? '导出中…' : '导出 CSV' }}</button>
+      <div class="record-actions">
+        <button type="button" class="primary" @click="openNew">＋ 新增记录</button>
+        <button :disabled="exporting" @click="download">{{ exporting ? '导出中…' : '导出 CSV' }}</button>
+      </div>
     </div>
-    <form class="filters" @submit.prevent="filter">
+    <form class="filters app-card" @submit.prevent="filter">
       <label
         >时间范围<input
           v-model="filters.year"
@@ -64,7 +57,7 @@
         >
           {{ record.departureDate?.slice(0, 7) }}
         </h2>
-        <article class="ticket">
+        <article class="ticket app-card">
           <div class="ticket-date">
             <strong>{{ record.departureDate?.slice(8) }}</strong
             ><span>{{ TRANSPORT_TYPES[record.transportType] }}</span>
@@ -120,7 +113,7 @@
       </div>
       <p class="muted">分组独立于上方筛选。删除分组会保留其中的行程。</p>
       <div class="group-grid">
-        <article v-for="g in groups" :key="g.id" class="group-card">
+        <article v-for="g in groups" :key="g.id" class="group-card app-card">
           <span class="eyebrow">JOURNEY</span>
           <h2>{{ g.name }}</h2>
           <p>{{ g.note || '暂无备注' }}</p>
@@ -391,6 +384,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../components/AppPageHeader.vue'
 import { computed, onMounted, reactive, ref, toRaw } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
@@ -681,7 +675,7 @@ onMounted(async () => {
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  max-width: 1280px;
+
   margin: auto;
   padding: 28px 36px 70px;
   color: var(--theme-text);
@@ -715,8 +709,6 @@ button:disabled {
 .danger {
   color: var(--theme-danger);
 }
-.topbar,
-.hero,
 .toolbar,
 .actions,
 .pagination,
@@ -725,13 +717,6 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-.topbar {
-  font-size: 12px;
-  color: var(--theme-text-muted);
-}
-.hero {
-  padding: 44px 0 30px;
 }
 .eyebrow {
   font-size: 11px;
@@ -750,12 +735,12 @@ h2 {
 p {
   line-height: 1.7;
 }
-.hero p,
 .muted {
   color: var(--theme-text-muted);
   font-size: 13px;
 }
 .toolbar {
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--theme-border);
   padding-bottom: 14px;
 }
@@ -776,7 +761,10 @@ p {
   display: flex;
   gap: 10px;
   align-items: end;
-  margin: 22px 0;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid var(--theme-border);
+  border-radius: 16px;
   flex-wrap: wrap;
 }
 label {
@@ -1030,20 +1018,8 @@ small {
   .travel-page {
     padding: 18px 16px 45px;
   }
-  .hero {
-    padding: 30px 0 22px;
-    align-items: start;
-  }
   h1 {
     font-size: 27px;
-  }
-  .hero .primary {
-    white-space: nowrap;
-    font-size: 12px;
-    margin-top: 20px;
-  }
-  .topbar span {
-    display: none;
   }
   .toolbar {
     gap: 4px;
@@ -1103,4 +1079,7 @@ small {
     grid-template-columns: 100px 1fr;
   }
 }
+
+.app-page-header :deep(.theme-toggle) { margin-inline-end: 48px; }
+.record-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>

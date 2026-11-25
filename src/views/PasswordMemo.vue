@@ -1,29 +1,9 @@
 <template>
-  <div class="password-memo-page">
+  <div class="password-memo-page standard-app-page">
     <div class="password-memo-shell">
-      <header class="memo-page-header">
-        <button type="button" class="memo-back-button" aria-label="返回桌面" @click="goBack">
-          <svg viewBox="0 0 20 20" aria-hidden="true">
-            <path d="m12.5 4.5-5 5.5 5 5.5" />
-          </svg>
-          <span>返回桌面</span>
-        </button>
+      <AppPageHeader title="密码备忘录" @back="goBack" />
 
-        <div class="memo-heading">
-          <span class="memo-heading-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M12 3 5.5 5.6v5.7c0 4.2 2.7 7.9 6.5 9.7 3.8-1.8 6.5-5.5 6.5-9.7V5.6L12 3Z" />
-              <path d="M9.5 11.5h5M10.5 11.5V10a1.5 1.5 0 0 1 3 0v1.5" />
-            </svg>
-          </span>
-          <div>
-            <h1 class="memo-page-title">密码备忘录</h1>
-            <p class="memo-page-subtitle">集中管理常用账号，敏感密码仅在身份验证后显示。</p>
-          </div>
-        </div>
-      </header>
-
-      <main class="memo-list-panel">
+      <main class="memo-list-panel app-card">
         <div class="memo-panel-heading">
           <div>
             <h2>账号列表</h2>
@@ -525,6 +505,7 @@
 </template>
 
 <script>
+import AppPageHeader from '../components/AppPageHeader.vue'
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
@@ -665,7 +646,7 @@ function toDateTimeInputValue(value) {
 
 export default {
   name: 'PasswordMemo',
-  components: {MacDialog},
+  components: {AppPageHeader, MacDialog},
   setup() {
     const router = useRouter()
 
@@ -1265,15 +1246,6 @@ export default {
   margin: 0 auto;
 }
 
-.memo-page-header {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  min-height: 50px;
-  margin-bottom: 16px;
-}
-
-.memo-back-button,
 .memo-button,
 .memo-row-button,
 .memo-page-actions button,
@@ -1282,66 +1254,6 @@ export default {
   font: inherit;
 }
 
-.memo-back-button {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 0 12px 0 9px;
-  border: 1px solid var(--theme-border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--theme-surface-strong) 82%, transparent);
-  box-shadow: inset 0 1px 0 var(--theme-highlight-soft);
-  color: var(--theme-text-soft);
-  font-size: 13px;
-  font-weight: 600;
-  backdrop-filter: blur(18px) saturate(130%);
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
-}
-
-.memo-back-button svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
-}
-
-.memo-back-button:hover {
-  border-color: color-mix(in srgb, var(--theme-accent) 40%, var(--theme-border));
-  background: var(--theme-surface-hover);
-  color: var(--theme-text);
-  transform: translateX(-2px);
-}
-
-.memo-heading {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 12px;
-}
-
-.memo-heading-mark {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, var(--theme-border));
-  border-radius: 13px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--theme-accent) 26%, transparent), transparent),
-    color-mix(in srgb, var(--theme-surface-strong) 84%, transparent);
-  color: var(--theme-link-hover);
-  box-shadow: inset 0 1px 0 var(--theme-highlight);
-  backdrop-filter: blur(18px) saturate(135%);
-}
-
-.memo-heading-mark svg,
 .memo-empty-icon svg {
   width: 24px;
   height: 24px;
@@ -1350,22 +1262,6 @@ export default {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.6;
-}
-
-.memo-page-title {
-  margin: 0;
-  color: var(--theme-text);
-  font-size: clamp(22px, 1.7vw, 28px);
-  font-weight: 720;
-  line-height: 1.1;
-  letter-spacing: -0.025em;
-}
-
-.memo-page-subtitle {
-  margin: 4px 0 0;
-  color: var(--theme-text-muted);
-  font-size: 13px;
-  line-height: 1.4;
 }
 
 .memo-list-panel {
@@ -2342,31 +2238,6 @@ export default {
     padding: 14px 12px 22px;
   }
 
-  .memo-page-header {
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .memo-back-button {
-    min-height: 34px;
-    padding-right: 9px;
-  }
-
-  .memo-heading-mark {
-    width: 38px;
-    height: 38px;
-    border-radius: 11px;
-  }
-
-  .memo-page-title {
-    font-size: 21px;
-  }
-
-  .memo-page-subtitle {
-    max-width: 420px;
-    font-size: 12px;
-  }
-
   .memo-list-panel {
     border-radius: 16px;
   }
@@ -2408,14 +2279,6 @@ export default {
 }
 
 @media (max-width: 540px) {
-  .memo-page-header {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .memo-back-button {
-    justify-self: start;
-  }
 
   .memo-panel-heading {
     align-items: flex-start;
@@ -2475,9 +2338,10 @@ export default {
     animation-duration: 1400ms;
   }
 
-  .memo-back-button,
   .memo-button {
     transition: none;
   }
 }
+
+.app-page-header :deep(.theme-toggle) { margin-inline-end: 48px; }
 </style>

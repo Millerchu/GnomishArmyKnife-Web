@@ -76,7 +76,7 @@ describe('行程页面', () => {
       .mockResolvedValueOnce(result(record))
     const wrapper = mount(TravelRecords, options)
     await flushPromises()
-    await wrapper.find('.hero .primary').trigger('click')
+    await wrapper.get('.record-actions .primary').trigger('click')
     const fields = wrapper.findAll('#travel-form input[required]')
     await fields[0].setValue('南京')
     await fields[1].setValue('上海')
