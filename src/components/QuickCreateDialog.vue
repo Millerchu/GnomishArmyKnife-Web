@@ -51,7 +51,10 @@
         </header>
         <RequestErrorMessage v-if="loadError" class="form-error" :message="loadError" :error="loadFailure" />
         <div class="field-grid">
-          <label v-for="field in visibleFields" :key="field.key" class="form-field" :class="[{'wide-field': ['textarea', 'work-items'].includes(field.type)}, `field-${field.key}`]">
+          <template v-for="field in visibleFields" :key="field.key">
+          <BillFundingAccount v-if="field.type === 'bill-funding-account'" class="form-field field-accountName"
+            v-model:bank-card-id="form.bankCardId" v-model:account-name="form.accountName" />
+          <label v-else class="form-field" :class="[{'wide-field': ['textarea', 'work-items'].includes(field.type)}, `field-${field.key}`]">
             <span>{{ field.label }}<b v-if="field.required && !(isWorkLogLeave && field.key === 'workItems')"> *</b></span>
             <textarea v-if="field.type === 'textarea'" v-model.trim="form[field.key]" :rows="field.rows || 3" :maxlength="field.maxlength" :placeholder="field.placeholder" @change="handleFieldChange(field)" />
             <select v-else-if="field.type === 'select'" v-model="form[field.key]" :required="field.required">
@@ -107,6 +110,7 @@
             </label>
             <input v-else v-model="form[field.key]" :type="field.inputType || field.type" :required="field.required" :min="field.min" :max="field.max" :step="field.step" :maxlength="field.maxlength" :placeholder="field.placeholder" @change="handleFieldChange(field)" />
           </label>
+          </template>
         </div>
         <RequestErrorMessage v-if="submitError" class="form-error" :message="submitError" :error="submitFailure" />
       </form>
@@ -133,6 +137,7 @@ import {createTodoTask} from '@/api/todoList'
 import {createFuelRecord} from '@/api/fuelStats'
 import {createWowCharacter} from '@/api/wowCharacter'
 import {createAnnualBudget, createPersonalBill} from '@/api/personalBills'
+import BillFundingAccount from '@/components/personal-bills/BillFundingAccount.vue'
 import {createKnowledgeEntry} from '@/api/knowledgeBase'
 import {createSoftwarePackage, createSoftwareVersion, listSoftwarePackages} from '@/api/softwareRepo'
 import {dentalCleaningPayload} from '@/utils/dentalCleaning'
@@ -381,7 +386,10 @@ function buildPayload(type) {
     payload.dueDate = nullable(payload.dueDate)
   }
   if (type.api === 'fuel') ['odometerKm', 'fuelVolume', 'totalAmount', 'discountedAmount', 'unitPrice'].forEach((key) => { payload[key] = numeric(payload[key]) })
-  if (type.api === 'bill') payload.amount = numeric(payload.amount)
+  if (type.api === 'bill') {
+    payload.amount = numeric(payload.amount)
+    payload.accountName = payload.accountName.trim()
+  }
   if (type.api === 'wow') {
     Object.assign(payload, {level: Number(form.level), itemLevel: Number(form.itemLevel), mythicBestLevel: Number(form.mythicBestLevel || 0), mythicRuns: [], weeklyVaults: [], keybindings: []})
   }

@@ -2,7 +2,7 @@
   <div class="bills-page standard-app-page">
     <AppPageHeader title="个人账单" @back="router.push('/home')" />
 
-    <section class="month-hero">
+    <section v-if="!showBankCards" class="month-hero">
       <div class="month-switcher">
         <button type="button" aria-label="上个月" @click="shiftMonth(-1)">‹</button>
         <label>
@@ -27,14 +27,17 @@
     </section>
 
     <div class="ledger-toolbar">
-      <nav class="view-tabs" aria-label="账单视图">
+      <nav v-if="!showBankCards" class="view-tabs" aria-label="账单视图">
         <button :class="{ active: activeView === 'detail' }" @click="activeView = 'detail'">明细</button>
         <button :class="{ active: activeView === 'stats' }" @click="activeView = 'stats'">统计</button>
       </nav>
-      <button class="soft-button" type="button" :disabled="loading" @click="loadBills">{{ loading ? '同步中' : '刷新' }}</button>
+      <button class="soft-button" type="button" :aria-expanded="showBankCards" @click="showBankCards = !showBankCards">
+        {{ showBankCards ? '← 返回账单' : '银行卡管理' }}
+      </button>
+      <button v-if="!showBankCards" class="soft-button" type="button" :disabled="loading" @click="loadBills">{{ loading ? '同步中' : '刷新' }}</button>
     </div>
 
-    <main class="workspace">
+    <main v-if="!showBankCards" class="workspace">
       <section class="ledger-panel app-card" :class="{ 'mobile-hidden': activeView !== 'detail' }">
         <p v-if="query.travelRecordId" class="field-help">仅显示当前行程关联账单；上方统计为该币种全月汇总。点击重置查看全部。</p>
         <div class="filter-bar">
@@ -52,8 +55,8 @@
             <header><div><strong>{{ formatDay(group.date) }}</strong><span>{{ formatWeekday(group.date) }}</span></div><p>支 {{ formatCurrency(group.expense) }} · 收 {{ formatCurrency(group.income) }}</p></header>
             <button v-for="item in group.items" :key="item.id" class="bill-row" type="button" @click="openEditBillDialog(item)">
               <span class="category-icon" :style="categoryStyle(item.categoryName)">{{ categoryIcon(item.categoryName) }}</span>
-              <span class="bill-copy"><b>{{ item.categoryName }}<small v-if="item.sourceType === 'TRAVEL_RECORD'"> · 行程{{ item.sourceEntry === 'REFUND' ? '退款' : '支出' }} ↗</small><small v-else-if="item.sourceType === 'FUEL_RECORD'"> · 油耗支出 ↗</small><small v-else-if="item.sourceType === 'HEALTH_VISIT'"> · 就诊支出 ↗</small><small v-else-if="item.amount < 0"> · 退款冲减</small></b><small>{{ item.merchantName || item.note || item.accountName || '未填写说明' }}</small></span>
-              <span class="bill-meta"><b :class="item.billType === 'EXPENSE' ? 'expense' : 'income'">{{ formatBillAmount(item) }}</b><small>{{ item.paymentMethod || item.accountName || '未选账户' }}</small></span>
+              <span class="bill-copy"><b>{{ item.categoryName }}<small v-if="item.sourceType === 'TRAVEL_RECORD'"> · 行程{{ item.sourceEntry === 'REFUND' ? '退款' : '支出' }} ↗</small><small v-else-if="item.sourceType === 'FUEL_RECORD'"> · 油耗支出 ↗</small><small v-else-if="item.sourceType === 'HEALTH_VISIT'"> · 就诊支出 ↗</small><small v-else-if="item.amount < 0"> · 退款冲减</small></b><small>{{ item.merchantName || item.note || '未填写说明' }}</small></span>
+              <span class="bill-meta"><b :class="item.billType === 'EXPENSE' ? 'expense' : 'income'">{{ formatBillAmount(item) }}</b><small>{{ [item.paymentMethod, item.accountName].filter(Boolean).join(' · ') || '未选账户' }}</small></span>
             </button>
           </section>
         </div>
@@ -109,11 +112,11 @@
           </div>
           <div v-else class="mini-empty">还没有预算，先给消费设一道温柔的边界。</div>
         </section>
-        <PersonalCreditPanel />
       </aside>
     </main>
+    <PersonalBankCardManager v-else />
 
-    <button class="quick-entry" type="button" @click="openCreateBillDialog"><span>＋</span><b>记一笔</b><small>快速记录收支</small></button>
+    <button v-if="!showBankCards" class="quick-entry" type="button" @click="openCreateBillDialog"><span>＋</span><b>记一笔</b><small>快速记录收支</small></button>
 
     <MacDialog v-model="showBillDialog" :form-state="{...billForm, amount: amountExpression}" :form-baseline-key="billBaselineKey" :title="billDialogMode === 'create' ? '快速记一笔' : '编辑账单'" width="860px" :close-disabled="submitting" panel-class="personal-bill-dialog" @cancel="closeBillDialog">
       <form id="personal-bill-dialog-form" class="entry-form" @submit.prevent="submitBillDialog(false)">
@@ -128,7 +131,13 @@
           <label v-if="billForm.billType === 'EXPENSE'">记账方式<select v-model="billForm.refund"><option :value="false">付款支出</option><option :value="true">退款冲减（减少支出）</option></select></label>
           <label>币种<select v-model="billForm.currency"><option v-for="code in currencyOptions" :key="code" :value="code">{{ code }}</option></select></label>
           <label><span>日期</span><input v-model="billForm.billDate" type="date" required /></label>
-          <label><span>资金账户</span><input v-model.trim="billForm.accountName" maxlength="32" placeholder="例如：招行信用卡尾号 1234 / 微信零钱" /></label>
+          <BillFundingAccount
+            :key="billBaselineKey"
+            v-model:bank-card-id="billForm.bankCardId"
+            v-model:account-name="billForm.accountName"
+            :original-card-id="editingBill?.bankCardId"
+            :original-account-name="editingBill?.accountName"
+          />
           <label><span>收付款渠道</span><select v-model="billForm.paymentMethod"><option value="">未填写</option><option v-for="item in paymentMethodOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
           <label><span>交易对方</span><input v-model.trim="billForm.merchantName" maxlength="48" placeholder="消费地点或收入来源" /></label>
           <label class="wide"><span>备注</span><input v-model.trim="billForm.note" maxlength="160" placeholder="补充这笔账的故事" /></label>
@@ -160,7 +169,8 @@ import AppPageHeader from '../components/AppPageHeader.vue'
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MacDialog from '@/components/MacDialog.vue'
-import PersonalCreditPanel from '@/components/personal-bills/PersonalCreditPanel.vue'
+import BillFundingAccount from '@/components/personal-bills/BillFundingAccount.vue'
+import PersonalBankCardManager from '@/components/personal-bills/PersonalBankCardManager.vue'
 import { confirmDialog } from '@/components/systemDialog'
 import { createAnnualBudget, createPersonalBill, deleteAnnualBudget, deletePersonalBill, getPersonalBillSummary, listAnnualBudgets, listPersonalBills, updateAnnualBudget, updatePersonalBill } from '@/api/personalBills'
 import { listDataDictionaryOptionsByUsage } from '@/api/dataDictionary'
@@ -173,6 +183,7 @@ const APP_CODE = 'APP_PERSONAL_BILLS'
 const MODULE_CODE = 'PERSONAL_BILLS'
 const keypadKeys = ['1','2','3','+','4','5','6','−','7','8','9','⌫','0','.','清空','完成']
 const activeView = ref('detail')
+const showBankCards = ref(false)
 const loading = ref(false)
 const submitting = ref(false)
 const budgetSubmitting = ref(false)
@@ -197,12 +208,12 @@ const summary = reactive({ currentMonthExpense: 0, currentMonthIncome: 0, curren
 const categoryDistribution = ref([])
 const currentYearBudgets = ref([])
 const budgetDetails = ref([])
-const billForm = reactive({ refund: false, currency: initialCurrency, billType: 'EXPENSE', categoryName: '', amount: 0, accountName: '', paymentMethod: '', merchantName: '', billDate: today(), note: '' })
+const billForm = reactive({ refund: false, currency: initialCurrency, billType: 'EXPENSE', categoryName: '', amount: 0, accountName: '', bankCardId: null, paymentMethod: '', merchantName: '', billDate: today(), note: '' })
 const budgetForm = reactive({ year: new Date().getFullYear(), categoryName: '', budgetName: '', annualLimit: 0, alertThreshold: 0.8, note: '' })
 
 const unwrap = response => response?.data?.data ?? response?.data ?? response
 const normalizeOptions = payload => (Array.isArray(payload) ? payload : []).map(item => ({ value: item.itemValue || item.value || item.itemCode, label: item.itemLabel || item.label || item.itemValue })).filter(item => item.value)
-const normalizeBill = item => ({ currency: item.currency || 'CNY', sourceType: item.sourceType, sourceId: item.sourceId, sourceEntry: item.sourceEntry, id: item.id, billType: item.billType || 'EXPENSE', categoryName: item.categoryName || '', amount: Number(item.amount || 0), accountName: item.accountName || '', paymentMethod: item.paymentMethod || '', merchantName: item.merchantName || '', billDate: item.billDate || '', note: item.note || '' })
+const normalizeBill = item => ({ currency: item.currency || 'CNY', sourceType: item.sourceType, sourceId: item.sourceId, sourceEntry: item.sourceEntry, id: item.id, billType: item.billType || 'EXPENSE', categoryName: item.categoryName || '', amount: Number(item.amount || 0), accountName: item.accountName || '', bankCardId: item.bankCardId == null ? null : String(item.bankCardId), paymentMethod: item.paymentMethod || '', merchantName: item.merchantName || '', billDate: item.billDate || '', note: item.note || '' })
 const selectedYear = computed(() => Number(query.month.slice(0, 4)))
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.pageSize)))
 const groupedBills = computed(() => {
@@ -257,7 +268,7 @@ function resetQuery() { query.travelRecordId = undefined; router.replace({ query
 function changePage(offset) { query.pageNo += offset; loadBills() }
 function shiftMonth(offset) { const [year, month] = query.month.split('-').map(Number); const next = new Date(year, month - 1 + offset, 1); query.month = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`; handleSearch() }
 const billBaselineKey = ref(0)
-function resetBillForm() { Object.assign(billForm, { refund: false, currency: query.currency, billType: 'EXPENSE', categoryName: billCategoryOptions.value[0]?.value || '', amount: 0, accountName: '', paymentMethod: '', merchantName: '', billDate: today(), note: '' }); amountExpression.value = '' }
+function resetBillForm() { Object.assign(billForm, { refund: false, currency: query.currency, billType: 'EXPENSE', categoryName: billCategoryOptions.value[0]?.value || '', amount: 0, accountName: '', bankCardId: null, paymentMethod: '', merchantName: '', billDate: today(), note: '' }); amountExpression.value = '' }
 function openCreateBillDialog() { billDialogMode.value = 'create'; editingBill.value = null; resetBillForm(); showBillDialog.value = true; nextTick(() => amountInput.value?.focus()) }
 function openEditBillDialog(item) {
   const sourceRoutes = { AI_SUBSCRIPTION: '/ai-subscriptions', TRAVEL_RECORD: '/travel-record', FUEL_RECORD: '/fuel-stats', HEALTH_VISIT: '/health' }
@@ -289,7 +300,7 @@ async function submitBillDialog(keepOpen) {
   if (!billForm.billDate) return window.alert('请选择日期')
   submitting.value = true
   try {
-    const payload = { ...billForm }
+    const payload = { ...billForm, accountName: billForm.accountName.trim() }
     if (billDialogMode.value === 'create') await createPersonalBill(payload); else await updatePersonalBill(editingBill.value.id, payload)
     await loadBills()
     if (keepOpen && billDialogMode.value === 'create') { resetBillForm(); billBaselineKey.value += 1; nextTick(() => amountInput.value?.focus()) } else showBillDialog.value = false
@@ -329,6 +340,6 @@ onMounted(async () => { try { await loadDictionaries(); resetBillForm(); await l
 @media(max-height:640px) and (orientation:landscape){.bills-page{padding:10px 14px 84px}.month-hero{margin:12px auto;padding:15px 18px;grid-template-columns:minmax(180px,.8fr) 2fr;gap:14px;border-radius:20px}.budget-meter{grid-column:1/-1}.hero-metrics strong{font-size:19px}.view-tabs{display:flex;margin-bottom:9px}.workspace{display:block}.mobile-hidden{display:none}.filter-bar{grid-template-columns:minmax(180px,1fr) 110px 120px auto}.insight-panel{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.quick-entry{right:16px;bottom:12px}.entry-body{grid-template-columns:1fr 260px}.category-picker{max-height:180px}.number-pad button{min-height:44px}.amount-display{min-height:68px;margin:8px 0;padding:10px 16px}.detail-fields{margin-top:9px}}
 @media(min-width:521px) and (max-width:900px){.detail-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-.ledger-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.ledger-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
 .app-page-header :deep(.theme-toggle) { margin-inline-end: 48px; }
 </style>

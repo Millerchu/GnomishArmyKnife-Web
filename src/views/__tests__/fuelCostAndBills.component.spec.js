@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   bills: {
     listPersonalBills: vi.fn(), getPersonalBillSummary: vi.fn(), listAnnualBudgets: vi.fn(),
     createAnnualBudget: vi.fn(), createPersonalBill: vi.fn(), deleteAnnualBudget: vi.fn(),
-    deletePersonalBill: vi.fn(), updateAnnualBudget: vi.fn(), updatePersonalBill: vi.fn(),
+    deletePersonalBill: vi.fn(), updateAnnualBudget: vi.fn(), updatePersonalBill: vi.fn(), listPersonalBankCards: vi.fn(),
   },
   dictionaries: vi.fn(),
 }))
@@ -34,7 +34,7 @@ const record = {
 }
 const options = { global: { stubs: {
   MacDialog: { props: ['modelValue'], template: '<div v-if="modelValue"><slot/><slot name="footer"/></div>' },
-  AttachmentManager: true, AttachmentGallery: true, PersonalCreditPanel: true,
+  AttachmentManager: true, AttachmentGallery: true,
 } } }
 
 beforeEach(() => {
@@ -53,6 +53,7 @@ beforeEach(() => {
   }], total: 1 }))
   mocks.bills.getPersonalBillSummary.mockResolvedValue(response({}))
   mocks.bills.listAnnualBudgets.mockResolvedValue(response([]))
+  mocks.bills.listPersonalBankCards.mockResolvedValue(response([]))
 })
 
 describe('周期费用和来源账单', () => {
@@ -102,6 +103,28 @@ describe('周期费用和来源账单', () => {
     expect(edit).toBeDefined()
     await edit.trigger('click')
     expect(wrapper.find('#fuel-record-dialog-form').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('编辑原账户已归档的账单时回显名称并保留卡片 ID', async () => {
+    const cardId = '9007199254740993'
+    mocks.bills.listPersonalBills.mockResolvedValue(response({ list: [{
+      id: '200', billType: 'EXPENSE', categoryName: '餐饮', amount: 12,
+      bankCardId: cardId, accountName: '旧卡名（尾号0001）', paymentMethod: '微信支付', billDate: '2026-11-26',
+    }], total: 1 }))
+    mocks.bills.updatePersonalBill.mockResolvedValue(response({}))
+    const wrapper = mount(PersonalBills, options)
+    await flushPromises()
+    await wrapper.get('.bill-row').trigger('click')
+    await flushPromises()
+
+    const picker = wrapper.get('.funding-account select')
+    expect(picker.element.value).toBe(cardId)
+    expect(picker.text()).toContain('旧卡名（尾号0001）（原账单账户）')
+    await wrapper.get('#personal-bill-dialog-form').trigger('submit')
+    expect(mocks.bills.updatePersonalBill).toHaveBeenCalledWith('200', expect.objectContaining({
+      bankCardId: cardId, accountName: '旧卡名（尾号0001）', paymentMethod: '微信支付'
+    }))
     wrapper.unmount()
   })
 

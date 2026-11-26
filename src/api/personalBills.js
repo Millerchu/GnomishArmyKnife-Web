@@ -43,3 +43,8 @@ export const getPersonalCreditSummary = () => request.get('/personal-bills/credi
 export const createPersonalCreditAccount = payload => request.post('/personal-bills/credit-accounts', payload)
 export const updatePersonalCreditAccount = (id, payload) => request.put(`/personal-bills/credit-accounts/${id}`, payload)
 export const deletePersonalCreditAccount = id => request.delete(`/personal-bills/credit-accounts/${id}`)
+
+export const listPersonalBankCards = params => request.get('/personal-bills/bank-cards', {params})
+export const createPersonalBankCard = payload => request.post('/personal-bills/bank-cards', payload)
+export const updatePersonalBankCard = (id, payload) => request.put(`/personal-bills/bank-cards/${id}`, payload)
+export const archivePersonalBankCard = (id, archived) => request.patch(`/personal-bills/bank-cards/${id}/archive`, null, {params: {archived}})
