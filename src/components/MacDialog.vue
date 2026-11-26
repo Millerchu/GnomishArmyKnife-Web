@@ -816,25 +816,6 @@ export default {
   padding: 20px;
   background: color-mix(in srgb, var(--theme-surface) 46%, transparent);
   scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: var(--theme-scrollbar) transparent;
-}
-
-.mac-dialog-body::-webkit-scrollbar {
-  width: 6px;
-}
-
-.mac-dialog-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.mac-dialog-body::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: var(--theme-scrollbar);
-}
-
-.mac-dialog-body::-webkit-scrollbar-thumb:hover {
-  background: var(--theme-scrollbar-hover);
 }
 
 .mac-dialog-actions {

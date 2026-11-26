@@ -153,7 +153,7 @@ h1{font-size:27px;letter-spacing:-.04em;margin:0}
 h2{font-size:26px;margin:0 0 12px}
 h3{font-size:15px;margin:0}
 h3 small{font-weight:400;color:var(--theme-text-muted)}
-.view-nav{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;scrollbar-width:thin}
+.view-nav{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto}
 .view-nav button{border:1px solid transparent;border-radius:12px;background:none;min-height:44px;padding:8px 12px;color:var(--theme-text-muted);font:inherit;white-space:nowrap;cursor:pointer}
 .view-nav button[aria-current]{color:var(--theme-link);border-color:var(--theme-border);background:var(--theme-surface-raised);font-weight:700}
 .workspace,.notice{background:var(--theme-surface);border:1px solid var(--theme-border);box-shadow:var(--theme-shadow-sm);backdrop-filter:blur(20px)}

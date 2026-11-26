@@ -2222,15 +2222,6 @@ export default {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.selector-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.selector-list::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-}
-
 @media (max-width: 1180px) {
   .migration-layout {
     grid-template-columns: 1fr;

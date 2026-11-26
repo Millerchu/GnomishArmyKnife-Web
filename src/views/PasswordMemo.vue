@@ -1518,8 +1518,6 @@ export default {
 
 .memo-table-wrap {
   overflow-x: auto;
-  scrollbar-color: var(--theme-scrollbar) transparent;
-  scrollbar-width: thin;
 }
 
 .memo-table {

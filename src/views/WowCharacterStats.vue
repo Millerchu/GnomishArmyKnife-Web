@@ -4825,7 +4825,6 @@ button:disabled {
     padding: 0 1px 5px;
     gap: 5px;
     overflow-x: auto;
-    scrollbar-width: thin;
   }
 
   .mobile-sort-btn {

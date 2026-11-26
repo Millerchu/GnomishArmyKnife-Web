@@ -109,20 +109,6 @@ export default {
 
 .mac-table-scroll {
   overflow: auto;
-  scrollbar-color: var(--theme-scrollbar) transparent;
-  scrollbar-width: thin;
-}
-
-.mac-table-scroll::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.mac-table-scroll::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: var(--theme-scrollbar);
-  background-clip: padding-box;
 }
 
 .mac-table {
