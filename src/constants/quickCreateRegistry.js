@@ -1,5 +1,6 @@
 import {DENTAL_CLEANING_FIELDS, newDentalCleaning} from '../utils/dentalCleaning.js'
 import {GROWTH_METRICS, newGrowthRecord} from '../utils/growthRecords.js'
+import {CORE_METRIC_FIELDS} from '../utils/healthMetrics.js'
 import {newTravelRecord, TRANSPORT_TYPES, TRAVEL_STATUSES, TRAVEL_PURPOSES} from '../utils/travelRecords.js'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -118,7 +119,11 @@ export const QUICK_CREATE_TYPES = [
   {
     typeCode: 'HEALTH_RECORD', featureCode: 'APP_HEALTH_RECORD', appName: '健康', label: '新增健康指标', api: 'healthRecord',
     defaults: () => ({measureDate: today(), heightCm: '', weightKg: '', bodyFatRate: '', systolicPressure: '', diastolicPressure: '', totalCholesterol: '', triglycerides: '', hdlCholesterol: '', ldlCholesterol: '', fastingGlucose: '', heartRate: '', uricAcid: '', alanineAminotransferase: '', aspartateAminotransferase: '', gammaGlutamylTransferase: '', note: ''}),
-    fields: [{key: 'measureDate', label: '测量日期', type: 'date', required: true}, ...['heightCm:身高(cm)', 'weightKg:体重(kg)', 'bodyFatRate:体脂率(%)', 'systolicPressure:收缩压', 'diastolicPressure:舒张压', 'totalCholesterol:总胆固醇', 'triglycerides:甘油三酯', 'hdlCholesterol:高密度脂蛋白', 'ldlCholesterol:低密度脂蛋白', 'fastingGlucose:空腹血糖', 'heartRate:心率', 'uricAcid:尿酸', 'alanineAminotransferase:谷丙转氨酶', 'aspartateAminotransferase:谷草转氨酶', 'gammaGlutamylTransferase:γ-谷氨酰转移酶'].map((item) => { const [key, label] = item.split(':'); return number(key, label, false, {min: 0, step: '0.01'}) }), area('note', '备注')]
+    fields: [
+      {key: 'measureDate', label: '测量日期', type: 'date', required: true},
+      ...CORE_METRIC_FIELDS.map((field) => number(field.key, field.label, false, {min: 0, step: field.step})),
+      area('note', '备注')
+    ]
   },
   {
     typeCode: 'HEALTH_VISIT', featureCode: 'APP_HEALTH_RECORD', appName: '健康', label: '新增医院就诊', api: 'healthVisit',

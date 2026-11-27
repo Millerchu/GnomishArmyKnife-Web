@@ -5,6 +5,10 @@ export function listHealthRecords(params) {
   return request.get('/health-records', {params})
 }
 
+export function getHealthRecord(recordId) {
+  return request.get(`/health-records/${recordId}`)
+}
+
 export function createHealthRecord(data) {
   return request.post('/health-records', data)
 }
@@ -39,6 +43,14 @@ export function updateHealthReport(id, data) {
 
 export function deleteHealthReport(id) {
   return request.delete(`/health-records/reports/${id}`)
+}
+
+export function getHealthReportDetails(reportId) {
+  return request.get(`/health-records/reports/${reportId}/details`)
+}
+
+export function saveHealthReportDetails(reportId, data) {
+  return request.put(`/health-records/reports/${reportId}/details`, data)
 }
 
 export function listHealthVisits(params) {

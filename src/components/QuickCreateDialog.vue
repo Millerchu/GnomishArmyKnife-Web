@@ -141,6 +141,7 @@ import BillFundingAccount from '@/components/personal-bills/BillFundingAccount.v
 import {createKnowledgeEntry} from '@/api/knowledgeBase'
 import {createSoftwarePackage, createSoftwareVersion, listSoftwarePackages} from '@/api/softwareRepo'
 import {dentalCleaningPayload} from '@/utils/dentalCleaning'
+import {buildCoreMetricPayload, validateCoreMetricForm} from '@/utils/healthMetrics'
 import {createDentalCleaning, createHealthRecord, createHealthReport, createHealthVisit} from '@/api/healthRecord'
 import {createGrowthChild, createGrowthMeasurement, createGrowthVaccination, createGrowthMilestone, listGrowthChildren} from '@/api/growthRecords'
 import {createTravelRecord} from '@/api/travelRecords'
@@ -399,10 +400,10 @@ function buildPayload(type) {
     payload.source = nullable(payload.source)
   }
   if (type.api === 'dentalCleaning') return dentalCleaningPayload(payload)
-  if (type.api === 'healthRecord') Object.keys(payload).filter((key) => !['measureDate', 'note'].includes(key)).forEach((key) => { payload[key] = numeric(payload[key]) })
+  if (type.api === 'healthRecord') return buildCoreMetricPayload(form)
   if (type.api === 'healthVisit' || type.api === 'healthReport') Object.keys(payload).forEach((key) => { if (key !== 'visitId') payload[key] = nullable(payload[key]) })
   if (type.api === 'healthVisit') payload.amount = numeric(payload.amount)
-  if (type.api === 'healthReport') payload.visitId = numeric(payload.visitId)
+  if (type.api === 'healthReport') payload.visitId = nullable(payload.visitId)
   return payload
 }
 
@@ -452,6 +453,10 @@ async function submit() {
   if (type.growthKind === 'measurement' && !hasGrowthMeasurement(form)) { submitError.value = '身高、体重、头围至少填写一项。'; return }
   if (type.api === 'travel') {
     submitError.value = validateTravelRecord(form)
+    if (submitError.value) return
+  }
+  if (type.api === 'healthRecord') {
+    submitError.value = validateCoreMetricForm(form)
     if (submitError.value) return
   }
   submitting.value = true

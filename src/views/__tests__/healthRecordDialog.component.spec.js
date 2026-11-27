@@ -9,7 +9,10 @@ import {
   createHealthRecord,
   createHealthReport,
   createHealthVisit,
+  getHealthRecord,
+  getHealthReportDetails,
   getHealthVisit,
+  saveHealthReportDetails,
   updateHealthVisit,
   getHealthSummary,
   getHealthTrends,
@@ -20,9 +23,10 @@ import {
 
 const mountedWrappers = []
 const route = vi.hoisted(() => ({query: {}}))
+const router = vi.hoisted(() => ({push: vi.fn(), replace: vi.fn()}))
 
 vi.mock('vue-router', () => ({
-  useRouter: () => ({push: vi.fn()}),
+  useRouter: () => router,
   useRoute: () => route
 }))
 
@@ -30,7 +34,10 @@ vi.mock('@/api/healthRecord', () => ({
   createHealthRecord: vi.fn(),
   createHealthReport: vi.fn(),
   createHealthVisit: vi.fn(),
+  getHealthRecord: vi.fn(),
+  getHealthReportDetails: vi.fn(),
   getHealthVisit: vi.fn(),
+  saveHealthReportDetails: vi.fn(),
   deleteHealthRecord: vi.fn(),
   deleteHealthReport: vi.fn(),
   deleteHealthVisit: vi.fn(),
@@ -78,7 +85,19 @@ beforeEach(() => {
   createHealthRecord.mockResolvedValue(buildApiResponse({id: 1}))
   createHealthVisit.mockResolvedValue(buildApiResponse({id: 2}))
   updateHealthVisit.mockResolvedValue(buildApiResponse({id: 2}))
-  createHealthReport.mockResolvedValue(buildApiResponse({id: 3}))
+  createHealthReport.mockResolvedValue(buildApiResponse({id: 3, reportTitle: '年度体检'}))
+  getHealthReportDetails.mockResolvedValue(buildApiResponse({
+    report: {id: '3', examDate: '2026-07-12', reportTitle: '年度体检', attachments: []},
+    revision: 0,
+    linkedRecordId: null,
+    items: []
+  }))
+  saveHealthReportDetails.mockResolvedValue(buildApiResponse({
+    report: {id: '3', examDate: '2026-07-12', reportTitle: '年度体检', attachments: []},
+    revision: 1,
+    linkedRecordId: null,
+    items: []
+  }))
 })
 
 afterEach(() => {
@@ -218,5 +237,64 @@ describe('HealthRecord MacDialog integration', () => {
 
     deferred.resolve(buildApiResponse({id: 1}))
     await submitPromise
+  })
+
+  it('趋势默认请求 limit=12，支持 14 个指标与 12/24/50 切换并忽略过期响应', async () => {
+    const firstSwitch = createDeferred()
+    const secondSwitch = createDeferred()
+    getHealthTrends
+      .mockResolvedValueOnce(buildApiResponse({metricKey: 'weightKg', points: [{recordId: '1', measureDate: '2026-05-01', value: 78.0}]}))
+      .mockReturnValueOnce(firstSwitch.promise)
+      .mockReturnValueOnce(secondSwitch.promise)
+
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(getHealthTrends).toHaveBeenCalledWith({metricKey: 'weightKg', limit: 12})
+    expect(wrapper.vm.metricOptions.map((item) => item.key)).toEqual(expect.arrayContaining([
+      'bmi', 'triglycerides', 'hdlCholesterol', 'ldlCholesterol', 'aspartateAminotransferase', 'gammaGlutamylTransferase'
+    ]))
+
+    const p1 = wrapper.vm.selectTrendMetric('triglycerides')
+    const p2 = wrapper.vm.selectTrendMetric('bmi')
+    secondSwitch.resolve(buildApiResponse({metricKey: 'bmi', points: [{recordId: '2', measureDate: '2026-05-10', value: 25.18}]}))
+    firstSwitch.resolve(buildApiResponse({metricKey: 'triglycerides', points: [{recordId: '9', measureDate: '2026-05-09', value: 1.88}]}))
+    await Promise.all([p1, p2])
+    await flushPromises()
+
+    expect(wrapper.vm.trendMetricKey).toBe('bmi')
+    expect(wrapper.vm.trendPoints).toEqual([{recordId: '2', measureDate: '2026-05-10', value: 25.18}])
+
+    getHealthTrends.mockResolvedValueOnce(buildApiResponse({metricKey: 'bmi', points: []}))
+    await wrapper.vm.selectTrendLimit(24)
+    expect(getHealthTrends).toHaveBeenLastCalledWith({metricKey: 'bmi', limit: 24})
+  })
+
+  it('核心指标整数项非整数输入时阻止提交并提示修正', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    wrapper.vm.openCreateRecordDialog()
+    wrapper.vm.recordForm.measureDate = '2026-05-10'
+    wrapper.vm.recordForm.systolicPressure = '120.5'
+    await wrapper.vm.submitRecordDialog()
+    expect(createHealthRecord).not.toHaveBeenCalled()
+    expect(alert).toHaveBeenCalledWith(expect.stringContaining('非负整数'))
+  })
+
+  it('通过 metricRecordId 和 reportId 查询参数直达详情并保留长 ID', async () => {
+    route.query = {metricRecordId: '900000000000000222'}
+    getHealthRecord.mockResolvedValue(buildApiResponse({
+      id: '900000000000000222',
+      measureDate: '2026-05-10',
+      heightCm: 176.0,
+      weightKg: 78.0,
+      bmi: 25.18,
+      sourceReportId: '900000000000000333'
+    }))
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(getHealthRecord).toHaveBeenCalledWith('900000000000000222')
+    expect(wrapper.vm.showRecordDialog).toBe(true)
+    expect(wrapper.vm.editingRecordBmi).toBe(25.18)
+    expect(wrapper.vm.editingRecordSourceReportId).toBe('900000000000000333')
   })
 })

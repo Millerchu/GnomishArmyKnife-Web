@@ -61,10 +61,31 @@
                 {{ item.label }}
               </button>
             </div>
+            <div class="trend-range-switch" role="group" aria-label="趋势条数范围">
+              <button
+                v-for="limitOption in trendLimitOptions"
+                :key="limitOption"
+                class="trend-chip range-chip"
+                :class="{ active: trendLimit === limitOption }"
+                type="button"
+                @click="selectTrendLimit(limitOption)"
+              >
+                最近 {{ limitOption }} 条
+              </button>
+            </div>
           </div>
 
-          <div v-if="trendPoints.length" class="trend-list">
-            <article v-for="item in trendPoints" :key="`${item.measureDate}-${item.value}`" class="trend-item">
+          <div v-if="trendLoading" class="empty-state compact">趋势数据加载中...</div>
+          <div v-else-if="trendError" class="empty-state compact trend-error-state">
+            <span>{{ trendError }}</span>
+            <button type="button" class="mini-btn" @click="loadTrend">重试</button>
+          </div>
+          <div v-else-if="trendPoints.length" class="trend-list">
+            <article
+              v-for="(item, idx) in trendPoints"
+              :key="item.recordId != null ? String(item.recordId) : `${item.measureDate}-${idx}`"
+              class="trend-item"
+            >
               <span>{{ item.measureDate }}</span>
               <strong>{{ latestMetricText(trendMetricKey, item.value) }}</strong>
             </article>
@@ -83,13 +104,22 @@
       </div>
 
       <div v-if="records.length" class="record-list">
-        <article v-for="item in records" :key="item.id" class="app-card record-card">
+        <article v-for="item in records" :key="String(item.id)" class="app-card record-card">
           <div class="record-head">
             <div>
               <strong>{{ item.measureDate }}</strong>
               <p>{{ buildRecordSummary(item) }}</p>
             </div>
             <div class="mobile-card-actions">
+              <span v-if="item.sourceReportId != null" class="visit-count-chip linked-chip">已关联报告</span>
+              <button
+                v-if="item.sourceReportId != null"
+                type="button"
+                class="mini-btn"
+                @click="openReportDetailsById(item.sourceReportId)"
+              >
+                查看来源报告
+              </button>
               <button class="mini-btn" @click="openEditRecordDialog(item)">编辑</button>
               <button class="mini-btn danger" @click="removeRecord(item)">删除</button>
             </div>
@@ -151,23 +181,57 @@
           </div>
         </div>
 
+        <div v-if="recentlyCreatedReport" class="created-report-banner">
+          <span>报告「{{ recentlyCreatedReport.reportTitle }}」已保存，可继续补录逐项检查结果。</span>
+          <div class="mobile-card-actions">
+            <button type="button" class="action-btn compact-action-btn" @click="openReportDetailsById(recentlyCreatedReport.id)">
+              录入检查结果
+            </button>
+            <button type="button" class="mini-btn" @click="recentlyCreatedReport = null">稍后再说</button>
+          </div>
+        </div>
+
         <div v-if="reports.length" class="report-list">
-          <article v-for="item in reports" :key="item.id" class="app-card report-card">
+          <article v-for="item in reports" :key="String(item.id)" class="app-card report-card">
             <div class="visit-card-head">
               <div>
                 <strong>{{ item.reportTitle }}</strong>
                 <p>{{ item.examDate }} · {{ item.hospitalName || '未填写机构' }}</p>
               </div>
-              <span class="visit-count-chip">{{ resolveVisitName(item.visitId) }}</span>
+              <div class="report-badges">
+                <span class="visit-count-chip">{{ resolveVisitName(item.visitId) }}</span>
+                <span v-if="item.linkedRecordId != null" class="visit-count-chip linked-chip">已关联指标</span>
+              </div>
             </div>
             <div class="visit-body">
               <p><span>摘要</span><strong>{{ item.summary || '-' }}</strong></p>
               <p><span>医生建议</span><strong>{{ item.doctorAdvice || '-' }}</strong></p>
-              <p><span>文件</span><strong>{{ item.reportFileName || '未上传文件' }}</strong></p>
+              <p>
+                <span>文件</span>
+                <strong v-if="item.attachments?.length">已上传 {{ item.attachments.length }} 个附件</strong>
+                <strong v-else-if="item.reportFileName || item.reportUrl">
+                  <a v-if="item.reportUrl" class="legacy-file-link" :href="item.reportUrl" target="_blank" rel="noopener">
+                    {{ item.reportFileName || '查看报告附件' }}
+                  </a>
+                  <template v-else>{{ item.reportFileName }}</template>
+                </strong>
+                <strong v-else>未上传文件</strong>
+              </p>
             </div>
             <AttachmentGallery v-if="item.attachments?.length" :attachments="item.attachments" />
             <div class="mobile-card-actions">
-              <span class="visit-count-chip">{{ item.attachments?.length || 0 }} 个附件</span>
+              <span class="visit-count-chip">
+                {{ hasReportAttachment(item) ? `${item.attachments?.length || 1} 个附件` : '0 个附件' }}
+              </span>
+              <button type="button" class="mini-btn" @click="openReportDetailsById(item.id)">检查结果</button>
+              <button
+                v-if="item.linkedRecordId != null"
+                type="button"
+                class="mini-btn"
+                @click="openMetricRecordById(item.linkedRecordId)"
+              >
+                查看关联指标
+              </button>
               <button class="mini-btn" @click="openEditReportDialog(item)">编辑</button>
               <button class="mini-btn danger" @click="removeReport(item)">删除</button>
             </div>
@@ -187,6 +251,17 @@
       @close="closeRecordDialog"
     >
         <form id="health-record-dialog-form" class="dialog-form dialog-density-grid dialog-grid-cols-4" @submit.prevent="submitRecordDialog">
+          <div v-if="recordDialogMode === 'edit' && (editingRecordBmi !== null || editingRecordSourceReportId)" class="record-meta-bar dialog-span-all">
+            <span>计算 BMI：<strong>{{ latestMetricText('bmi', editingRecordBmi) }}</strong></span>
+            <button
+              v-if="editingRecordSourceReportId"
+              type="button"
+              class="mini-btn"
+              @click="jumpFromRecordToReport(editingRecordSourceReportId)"
+            >
+              查看来源报告
+            </button>
+          </div>
           <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
               <span>记录日期</span>
@@ -208,63 +283,63 @@
               <input v-model="recordForm.bodyFatRate" class="input" type="number" min="0" step="0.1" />
             </label>
             <label class="form-field">
-              <span>收缩压</span>
+              <span>收缩压(mmHg)</span>
               <input v-model="recordForm.systolicPressure" class="input" type="number" min="0" step="1" />
             </label>
             <label class="form-field">
-              <span>舒张压</span>
+              <span>舒张压(mmHg)</span>
               <input v-model="recordForm.diastolicPressure" class="input" type="number" min="0" step="1" />
             </label>
           </div>
 
           <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
-              <span>总胆固醇</span>
+              <span>总胆固醇(mmol/L)</span>
               <input v-model="recordForm.totalCholesterol" class="input" type="number" min="0" step="0.01" />
             </label>
             <label class="form-field">
-              <span>甘油三酯</span>
+              <span>甘油三酯(mmol/L)</span>
               <input v-model="recordForm.triglycerides" class="input" type="number" min="0" step="0.01" />
             </label>
             <label class="form-field">
-              <span>高密度脂蛋白</span>
+              <span>高密度脂蛋白(mmol/L)</span>
               <input v-model="recordForm.hdlCholesterol" class="input" type="number" min="0" step="0.01" />
             </label>
           </div>
 
           <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
-              <span>低密度脂蛋白</span>
+              <span>低密度脂蛋白(mmol/L)</span>
               <input v-model="recordForm.ldlCholesterol" class="input" type="number" min="0" step="0.01" />
             </label>
             <label class="form-field">
-              <span>空腹血糖</span>
+              <span>空腹血糖(mmol/L)</span>
               <input v-model="recordForm.fastingGlucose" class="input" type="number" min="0" step="0.01" />
             </label>
             <label class="form-field">
-              <span>静息心率</span>
+              <span>静息心率(次/分)</span>
               <input v-model="recordForm.heartRate" class="input" type="number" min="0" step="1" />
             </label>
           </div>
 
           <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
-              <span>尿酸</span>
+              <span>尿酸(μmol/L)</span>
               <input v-model="recordForm.uricAcid" class="input" type="number" min="0" step="1" />
             </label>
             <label class="form-field">
-              <span>谷丙转氨酶</span>
+              <span>谷丙转氨酶(U/L)</span>
               <input v-model="recordForm.alanineAminotransferase" class="input" type="number" min="0" step="1" />
             </label>
             <label class="form-field">
-              <span>谷草转氨酶</span>
+              <span>谷草转氨酶(U/L)</span>
               <input v-model="recordForm.aspartateAminotransferase" class="input" type="number" min="0" step="1" />
             </label>
           </div>
 
           <div class="form-inline-grid dialog-grid-group">
             <label class="form-field">
-              <span>γ-GT</span>
+              <span>γ-谷氨酰转移酶(U/L)</span>
               <input v-model="recordForm.gammaGlutamylTransferase" class="input" type="number" min="0" step="1" />
             </label>
           </div>
@@ -423,6 +498,13 @@
           <button type="submit" form="health-report-dialog-form" class="action-btn" :disabled="submitting">{{ submitting ? '提交中...' : '保存报告' }}</button>
         </template>
     </MacDialog>
+
+    <HealthReportDetailsDialog
+      v-model="showReportDetailsDialog"
+      :report-id="activeDetailsReportId"
+      @saved="handleReportDetailsSaved"
+      @open-record="jumpFromReportToRecord"
+    />
   </div>
 </template>
 
@@ -431,14 +513,23 @@ import AppPageHeader from '@/components/AppPageHeader.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import DentalCleaningPanel from '@/components/DentalCleaningPanel.vue'
+import HealthReportDetailsDialog from '@/components/HealthReportDetailsDialog.vue'
 import MacDialog from '@/components/MacDialog.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import AttachmentManager from '@/components/AttachmentManager.vue'
 import AttachmentGallery from '@/components/AttachmentGallery.vue'
 import {
+  buildCoreMetricPayload,
+  hasMetricValue,
+  TREND_LIMIT_OPTIONS,
+  TREND_METRIC_OPTIONS,
+  validateCoreMetricForm
+} from '@/utils/healthMetrics'
+import {
   createHealthRecord,
   createHealthReport,
   createHealthVisit,
+  getHealthRecord,
   getHealthVisit,
   deleteHealthRecord,
   deleteHealthReport,
@@ -454,16 +545,7 @@ import {
   uploadHealthReportFile
 } from '@/api/healthRecord'
 
-const METRIC_OPTIONS = [
-  { key: 'weightKg', label: '体重', unit: 'kg', decimals: 1 },
-  { key: 'bodyFatRate', label: '体脂率', unit: '%', decimals: 1 },
-  { key: 'systolicPressure', label: '收缩压', unit: 'mmHg', decimals: 0 },
-  { key: 'diastolicPressure', label: '舒张压', unit: 'mmHg', decimals: 0 },
-  { key: 'totalCholesterol', label: '总胆固醇', unit: 'mmol/L', decimals: 2 },
-  { key: 'fastingGlucose', label: '空腹血糖', unit: 'mmol/L', decimals: 2 },
-  { key: 'uricAcid', label: '尿酸', unit: 'umol/L', decimals: 0 },
-  { key: 'alanineAminotransferase', label: '谷丙转氨酶', unit: 'U/L', decimals: 0 }
-]
+const METRIC_OPTIONS = TREND_METRIC_OPTIONS
 
 const VISIT_TYPE_OPTIONS = [
   { value: 'OUTPATIENT', label: '门诊' },
@@ -502,21 +584,13 @@ function normalizeId(value) {
   if (value === '' || value === null || value === undefined) {
     return null
   }
-  return Number(value)
-}
-
-function buildNumericPayload(rawForm, fieldConfigs) {
-  const payload = {}
-  fieldConfigs.forEach((item) => {
-    const value = rawForm[item]
-    payload[item] = value === '' || value === null || value === undefined ? null : Number(value)
-  })
-  return payload
+  const text = String(value).trim()
+  return text || null
 }
 
 export default {
   name: 'HealthRecord',
-  components: {AppPageHeader, MacDialog, AttachmentManager, AttachmentGallery, DentalCleaningPanel},
+  components: {AppPageHeader, MacDialog, AttachmentManager, AttachmentGallery, DentalCleaningPanel, HealthReportDetailsDialog},
   setup() {
     const router = useRouter()
     const route = useRoute()
@@ -527,7 +601,11 @@ export default {
     const reports = ref([])
     const visits = ref([])
     const trendMetricKey = ref(METRIC_OPTIONS[0].key)
+    const trendLimit = ref(12)
     const trendPoints = ref([])
+    const trendLoading = ref(false)
+    const trendError = ref('')
+    let trendRequestSeq = 0
     const summary = ref({
       latestMeasureDate: '',
       lastExamDate: '',
@@ -540,10 +618,15 @@ export default {
     const showRecordDialog = ref(false)
     const showVisitDialog = ref(false)
     const showReportDialog = ref(false)
+    const showReportDetailsDialog = ref(false)
+    const activeDetailsReportId = ref('')
+    const recentlyCreatedReport = ref(null)
     const recordDialogMode = ref('create')
     const visitDialogMode = ref('create')
     const reportDialogMode = ref('create')
     const editingRecordId = ref(null)
+    const editingRecordBmi = ref(null)
+    const editingRecordSourceReportId = ref(null)
     const editingVisitId = ref(null)
     const editingReportId = ref(null)
     const reportUploadInputRef = ref(null)
@@ -604,11 +687,12 @@ export default {
       const source = latestRecord.value || {}
       return [
         { key: 'weightKg', label: '体重', value: latestMetricText('weightKg', source.weightKg) },
+        { key: 'bmi', label: 'BMI', value: latestMetricText('bmi', source.bmi) },
         { key: 'bodyFatRate', label: '体脂率', value: latestMetricText('bodyFatRate', source.bodyFatRate) },
         {
           key: 'bloodPressure',
           label: '血压',
-          value: source.systolicPressure && source.diastolicPressure
+          value: hasMetricValue(source.systolicPressure) && hasMetricValue(source.diastolicPressure)
             ? `${source.systolicPressure}/${source.diastolicPressure} mmHg`
             : '暂无'
         },
@@ -619,6 +703,7 @@ export default {
     })
 
     const metricOptions = METRIC_OPTIONS
+    const trendLimitOptions = TREND_LIMIT_OPTIONS
     const visitTypeOptions = VISIT_TYPE_OPTIONS
 
     const loadSummary = async () => {
@@ -642,12 +727,31 @@ export default {
     }
 
     const loadTrend = async () => {
-      const res = await getHealthTrends({
-        metricKey: trendMetricKey.value,
-        limit: 8
-      })
-      const payload = unwrapData(res) || {}
-      trendPoints.value = payload.points || []
+      const seq = ++trendRequestSeq
+      trendLoading.value = true
+      trendError.value = ''
+      try {
+        const res = await getHealthTrends({
+          metricKey: trendMetricKey.value,
+          limit: trendLimit.value
+        })
+        if (seq !== trendRequestSeq) {
+          return
+        }
+        const payload = unwrapData(res) || {}
+        trendPoints.value = payload.points || []
+      } catch (error) {
+        if (seq !== trendRequestSeq) {
+          return
+        }
+        console.error(error)
+        trendPoints.value = []
+        trendError.value = error?.response?.data?.message || '趋势数据加载失败，请重试'
+      } finally {
+        if (seq === trendRequestSeq) {
+          trendLoading.value = false
+        }
+      }
     }
 
     const loadPage = async () => {
@@ -663,16 +767,20 @@ export default {
     }
 
     const selectTrendMetric = async (metricKey) => {
-      if (trendMetricKey.value === metricKey) {
+      if (trendMetricKey.value === metricKey && !trendError.value) {
         return
       }
       trendMetricKey.value = metricKey
-      try {
-        await loadTrend()
-      } catch (error) {
-        console.error(error)
-        alert('趋势数据加载失败')
+      trendPoints.value = []
+      await loadTrend()
+    }
+
+    const selectTrendLimit = async (limit) => {
+      if (trendLimit.value === limit && !trendError.value) {
+        return
       }
+      trendLimit.value = limit
+      await loadTrend()
     }
 
     const resetRecordForm = () => {
@@ -733,13 +841,17 @@ export default {
     const openCreateRecordDialog = () => {
       recordDialogMode.value = 'create'
       editingRecordId.value = null
+      editingRecordBmi.value = null
+      editingRecordSourceReportId.value = null
       resetRecordForm()
       showRecordDialog.value = true
     }
 
     const openEditRecordDialog = (item) => {
       recordDialogMode.value = 'edit'
-      editingRecordId.value = item.id
+      editingRecordId.value = item.id != null ? String(item.id) : null
+      editingRecordBmi.value = item.bmi ?? null
+      editingRecordSourceReportId.value = item.sourceReportId != null ? String(item.sourceReportId) : null
       Object.assign(recordForm, {
         measureDate: item.measureDate || '',
         heightCm: item.heightCm ?? '',
@@ -764,6 +876,8 @@ export default {
 
     const completeRecordDialog = () => {
       showRecordDialog.value = false
+      editingRecordBmi.value = null
+      editingRecordSourceReportId.value = null
       resetRecordForm()
     }
 
@@ -778,27 +892,20 @@ export default {
       if (submitting.value) {
         return
       }
-      const payload = {
-        measureDate: recordForm.measureDate,
-        ...buildNumericPayload(recordForm, [
-          'heightCm',
-          'weightKg',
-          'bodyFatRate',
-          'systolicPressure',
-          'diastolicPressure',
-          'totalCholesterol',
-          'triglycerides',
-          'hdlCholesterol',
-          'ldlCholesterol',
-          'fastingGlucose',
-          'heartRate',
-          'uricAcid',
-          'alanineAminotransferase',
-          'aspartateAminotransferase',
-          'gammaGlutamylTransferase'
-        ]),
-        note: recordForm.note || null
+      const hasAnyFieldInput = [
+        'heightCm', 'weightKg', 'bodyFatRate', 'systolicPressure', 'diastolicPressure',
+        'totalCholesterol', 'triglycerides', 'hdlCholesterol', 'ldlCholesterol',
+        'fastingGlucose', 'heartRate', 'uricAcid', 'alanineAminotransferase',
+        'aspartateAminotransferase', 'gammaGlutamylTransferase'
+      ].some((key) => hasMetricValue(recordForm[key]))
+      if (hasAnyFieldInput) {
+        const validationError = validateCoreMetricForm(recordForm)
+        if (validationError) {
+          alert(validationError)
+          return
+        }
       }
+      const payload = buildCoreMetricPayload(recordForm)
       submitting.value = true
       try {
         if (recordDialogMode.value === 'create') {
@@ -810,7 +917,7 @@ export default {
         await loadPage()
       } catch (error) {
         console.error(error)
-        alert('保存健康指标记录失败')
+        alert(error?.response?.data?.message || '保存健康指标记录失败')
       } finally {
         submitting.value = false
       }
@@ -828,7 +935,7 @@ export default {
         await loadPage()
       } catch (error) {
         console.error(error)
-        alert('删除健康指标记录失败')
+        alert(error?.response?.data?.message || '删除健康指标记录失败')
       }
     }
 
@@ -986,7 +1093,14 @@ export default {
       submitting.value = true
       try {
         if (reportDialogMode.value === 'create') {
-          await createHealthReport(payload)
+          const res = await createHealthReport(payload)
+          const created = unwrapData(res)
+          if (created?.id != null) {
+            recentlyCreatedReport.value = {
+              id: String(created.id),
+              reportTitle: created.reportTitle || payload.reportTitle
+            }
+          }
         } else {
           await updateHealthReport(editingReportId.value, payload)
         }
@@ -994,7 +1108,7 @@ export default {
         await loadPage()
       } catch (error) {
         console.error(error)
-        alert('保存健康报告失败')
+        alert(error?.response?.data?.message || '保存健康报告失败')
       } finally {
         submitting.value = false
       }
@@ -1082,20 +1196,78 @@ export default {
 
     const buildRecordSummary = (item) => {
       return [
-        item.weightKg ? `体重 ${latestMetricText('weightKg', item.weightKg)}` : null,
-        item.bodyFatRate ? `体脂率 ${latestMetricText('bodyFatRate', item.bodyFatRate)}` : null,
-        item.systolicPressure && item.diastolicPressure ? `血压 ${item.systolicPressure}/${item.diastolicPressure} mmHg` : null,
-        item.totalCholesterol ? `总胆固醇 ${latestMetricText('totalCholesterol', item.totalCholesterol)}` : null,
-        item.fastingGlucose ? `血糖 ${latestMetricText('fastingGlucose', item.fastingGlucose)}` : null
+        hasMetricValue(item.weightKg) ? `体重 ${latestMetricText('weightKg', item.weightKg)}` : null,
+        hasMetricValue(item.bmi) ? `BMI ${latestMetricText('bmi', item.bmi)}` : null,
+        hasMetricValue(item.bodyFatRate) ? `体脂率 ${latestMetricText('bodyFatRate', item.bodyFatRate)}` : null,
+        hasMetricValue(item.systolicPressure) && hasMetricValue(item.diastolicPressure)
+          ? `血压 ${item.systolicPressure}/${item.diastolicPressure} mmHg`
+          : null,
+        hasMetricValue(item.totalCholesterol) ? `总胆固醇 ${latestMetricText('totalCholesterol', item.totalCholesterol)}` : null,
+        hasMetricValue(item.fastingGlucose) ? `血糖 ${latestMetricText('fastingGlucose', item.fastingGlucose)}` : null
       ].filter(Boolean).join(' · ') || '本次记录未形成可展示摘要'
     }
+
+    const hasReportAttachment = (item) => Boolean(item?.attachments?.length || item?.reportFileName || item?.reportUrl)
 
     const resolveVisitName = (visitId) => {
       if (!visitId) {
         return '独立报告'
       }
-      const matched = visits.value.find((item) => item.id === visitId)
+      const matched = visits.value.find((item) => String(item.id) === String(visitId))
       return matched ? `${matched.visitDate} 就诊` : '关联就诊'
+    }
+
+    const openReportDetailsById = (reportId) => {
+      if (reportId === null || reportId === undefined || reportId === '') {
+        return
+      }
+      const idStr = String(reportId)
+      recentlyCreatedReport.value = null
+      activeDetailsReportId.value = idStr
+      showReportDetailsDialog.value = true
+      if (typeof router.replace === 'function' && String(route.query?.reportId || '') !== idStr) {
+        router.replace({ path: '/health', query: { reportId: idStr } })
+      }
+    }
+
+    let metricRecordRequestSeq = 0
+    const openMetricRecordById = async (recordId) => {
+      if (recordId === null || recordId === undefined || recordId === '') {
+        return
+      }
+      const idStr = String(recordId)
+      if (typeof router.replace === 'function' && String(route.query?.metricRecordId || '') !== idStr) {
+        router.replace({ path: '/health', query: { metricRecordId: idStr } })
+      }
+      const seq = ++metricRecordRequestSeq
+      try {
+        const res = await getHealthRecord(idStr)
+        if (seq !== metricRecordRequestSeq) {
+          return
+        }
+        const record = unwrapData(res)
+        if (record) {
+          openEditRecordDialog(record)
+        }
+      } catch (error) {
+        if (seq === metricRecordRequestSeq) {
+          alert(error?.response?.data?.message || '打开核心指标记录失败')
+        }
+      }
+    }
+
+    const jumpFromReportToRecord = (recordId) => {
+      showReportDetailsDialog.value = false
+      openMetricRecordById(recordId)
+    }
+
+    const jumpFromRecordToReport = (reportId) => {
+      showRecordDialog.value = false
+      openReportDetailsById(reportId)
+    }
+
+    const handleReportDetailsSaved = async () => {
+      await Promise.all([loadReports(), loadRecords()])
     }
 
     const openFile = (url) => {
@@ -1115,11 +1287,34 @@ export default {
       let active = true
       onCleanup(() => { active = false })
       try {
-        const response = await getHealthVisit(recordId)
+        const response = await getHealthVisit(String(recordId))
         if (active) openEditVisitDialog(unwrapData(response))
       } catch (error) {
         if (active) alert(error?.response?.data?.message || '打开就诊记录失败')
       }
+    }, {immediate: true})
+
+    // 按 ID 直达核心指标记录。
+    watch(() => route.query.metricRecordId, async (metricRecordId, previousId, onCleanup) => {
+      if (!metricRecordId) return
+      let active = true
+      onCleanup(() => { active = false })
+      try {
+        const response = await getHealthRecord(String(metricRecordId))
+        if (active) {
+          const record = unwrapData(response)
+          if (record) openEditRecordDialog(record)
+        }
+      } catch (error) {
+        if (active) alert(error?.response?.data?.message || '打开核心指标记录失败')
+      }
+    }, {immediate: true})
+
+    // 按 ID 直达体检报告明细。
+    watch(() => route.query.reportId, (reportId) => {
+      if (!reportId) return
+      activeDetailsReportId.value = String(reportId)
+      showReportDetailsDialog.value = true
     }, {immediate: true})
 
     onMounted(() => {
@@ -1137,22 +1332,33 @@ export default {
       latestRecord,
       metricCards,
       metricOptions,
+      trendLimitOptions,
       visitTypeOptions,
       trendMetricKey,
+      trendLimit,
       trendPoints,
+      trendLoading,
+      trendError,
       showRecordDialog,
       showVisitDialog,
       showReportDialog,
+      showReportDetailsDialog,
+      activeDetailsReportId,
+      recentlyCreatedReport,
       recordDialogMode,
       visitDialogMode,
       reportDialogMode,
+      editingRecordBmi,
+      editingRecordSourceReportId,
       recordForm,
       visitForm,
       reportForm,
       reportUploadInputRef,
       visitUploadInputRef,
       goBack,
+      loadTrend,
       selectTrendMetric,
+      selectTrendLimit,
       openCreateRecordDialog,
       openEditRecordDialog,
       closeRecordDialog,
@@ -1168,6 +1374,11 @@ export default {
       closeReportDialog,
       submitReportDialog,
       removeReport,
+      openReportDetailsById,
+      openMetricRecordById,
+      jumpFromReportToRecord,
+      jumpFromRecordToReport,
+      handleReportDetailsSaved,
       openReportUploadPicker,
       openVisitUploadPicker,
       handleReportFileSelected,
@@ -1176,6 +1387,7 @@ export default {
       clearVisitFile,
       latestMetricText,
       buildRecordSummary,
+      hasReportAttachment,
       resolveVisitName,
       openFile
     }
@@ -1380,6 +1592,51 @@ export default {
 .trend-chip.active {
   background: linear-gradient(135deg, #1996ff, #27d5a4);
   color: #fff;
+}
+
+.trend-range-switch,
+.report-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.trend-error-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fca5a5;
+}
+
+.linked-chip {
+  background: rgba(39, 213, 164, 0.2);
+  color: #7bf0cc;
+}
+
+.created-report-banner,
+.record-meta-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  font-size: 13px;
+}
+
+.compact-action-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.legacy-file-link {
+  color: #7dd3fc;
+  text-decoration: underline;
 }
 
 .trend-list {
