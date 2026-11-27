@@ -191,11 +191,11 @@ export function useSessionRecorder({
         return take
     }
 
-    function replayTake(takeId) {
+    function replayTake(takeId, loadedTake) {
         if (isRecording.value) {
             stopRecording()
         }
-        const take = recorder.takes.find(candidate => candidate.id === takeId)
+        const take = loadedTake || recorder.takes.find(candidate => candidate.id === takeId)
         if (!take) {
             return false
         }

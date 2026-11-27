@@ -61,10 +61,10 @@ function buildBoardPayload() {
   }
 }
 
-async function mountBoard(attachToBody = false) {
+async function mountBoard(attachToBody = false, roleCode = 'ADMIN') {
   const wrapper = mount(RequirementBoard, {
     ...(attachToBody ? {attachTo: document.body} : {}),
-    props: {currentUser: {id: '1', roleCode: 'USER'}},
+    props: {currentUser: {id: '1', roleCode}},
     global: {
       stubs: {
         MacDialog: {
@@ -95,6 +95,15 @@ afterEach(() => {
 })
 
 describe('RequirementBoard', () => {
+  it('keeps progress actions unavailable to ordinary users', async () => {
+    const wrapper = await mountBoard(false, 'USER')
+    await wrapper.get('.board-trigger').trigger('click')
+
+    expect(wrapper.find('.notice-card-actions').exists()).toBe(false)
+    expect(updateRequirementItemProgress).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('plans feedback directly from the card without opening details', async () => {
     const updated = {...buildBoardPayload().list[0], status: 'PLANNED', version: 2}
     updateRequirementItemProgress.mockResolvedValue(buildResponse(updated))

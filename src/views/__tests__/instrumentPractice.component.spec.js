@@ -5,7 +5,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import {MAX_PERSISTED_TAKES_PER_INSTRUMENT} from '@/features/instrument-practice/audio/sessionRecorder.js'
 import InstrumentPractice from '../InstrumentPractice.vue'
-import {deleteInstrumentPracticeScore, listInstrumentPracticeScores, saveInstrumentPracticeScore} from '@/api/instrumentPractice.js'
+import {deleteInstrumentPracticeScore, getInstrumentPracticeTake, listInstrumentPracticeScores, saveInstrumentPracticeScore} from '@/api/instrumentPractice.js'
 import {__instrumentPracticeMocks} from '@/features/instrument-practice/composables/index.js'
 
 const routerPush = vi.fn()
@@ -20,6 +20,7 @@ vi.mock('@/components/systemDialog.js', () => ({
 }))
 
 vi.mock('@/api/instrumentPractice.js', () => ({
+  getInstrumentPracticeTake: vi.fn(),
   listInstrumentPracticeTakes: vi.fn(async () => ({data: {data: []}})),
   createInstrumentPracticeTake: vi.fn(async (take) => ({
     data: {
@@ -398,6 +399,26 @@ describe('随身乐器页面流程', () => {
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(__instrumentPracticeMocks.recorder.replayTake).toHaveBeenCalledWith(203)
     expect(wrapper.get('[data-test="guzheng-surface"]').attributes('tuning-id')).toBe('g-pentatonic')
+    wrapper.unmount()
+  })
+
+  it('元数据录音只在回放时读取演奏事件', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const take = {id: '204', instrumentId: 'guzheng', tuningId: 'd-pentatonic',
+      bpm: 80, meter: '4/4', durationMs: 1000, eventCount: 1, createdAt: 3}
+    const events = [{at: 0, type: 'note', instrumentId: 'guzheng', stringId: 'string-1', midi: 43}]
+    getInstrumentPracticeTake.mockResolvedValueOnce({data: {data: {...take, events}}})
+    __instrumentPracticeMocks.recorder.takes.value = [take]
+    await wrapper.get('button[aria-label="打开已保存的练习录音列表"]').trigger('click')
+    expect(wrapper.get('.take-card').text()).toContain('1 个动作')
+    expect(getInstrumentPracticeTake).not.toHaveBeenCalled()
+
+    await wrapper.get('button[aria-label="回放片段"]').trigger('click')
+    await flushPromises()
+
+    expect(getInstrumentPracticeTake).toHaveBeenCalledWith('204')
+    expect(__instrumentPracticeMocks.recorder.replayTake).toHaveBeenCalledWith('204', expect.objectContaining({events}))
     wrapper.unmount()
   })
 

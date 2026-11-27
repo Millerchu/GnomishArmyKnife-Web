@@ -50,7 +50,7 @@ function mountComponent(component, props) {
 }
 
 async function openRequirement() {
-  const wrapper = mountComponent(RequirementBoard, {currentUser: {id: '1'}})
+  const wrapper = mountComponent(RequirementBoard, {currentUser: {id: '1', roleCode: 'ADMIN'}})
   await flushPromises()
   await wrapper.vm.openDetailDialog(requirement)
   await flushPromises()
@@ -76,7 +76,7 @@ describe('业务弹窗未保存保护', () => {
   it('closes an asynchronously loaded requirement without asking', async () => {
     let finishLoading
     getRequirementItemDetail.mockReturnValue(new Promise((resolve) => { finishLoading = resolve }))
-    const wrapper = mountComponent(RequirementBoard, {currentUser: {id: '1'}})
+    const wrapper = mountComponent(RequirementBoard, {currentUser: {id: '1', roleCode: 'ADMIN'}})
     await flushPromises()
     const opening = wrapper.vm.openDetailDialog(requirement)
     await nextTick()

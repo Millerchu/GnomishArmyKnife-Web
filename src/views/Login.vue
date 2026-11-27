@@ -44,9 +44,9 @@
       </section>
 
       <section class="glass-box" :aria-busy="loading || initLoading">
-        <h2 class="title">登录</h2>
+        <h2 class="title">{{ forcePasswordChange ? "修改密码" : "登录" }}</h2>
 
-        <form class="form" @submit.prevent="handleLogin">
+        <form v-if="!forcePasswordChange" class="form" @submit.prevent="handleLogin">
           <div class="credential-group">
             <label class="sr-only" for="login-username">用户名</label>
             <input
@@ -114,17 +114,30 @@
               class="captcha-box"
               type="button"
               :disabled="loading || initLoading"
-              :aria-label="captchaText ? `验证码 ${captchaText}，点击刷新` : '验证码加载中'"
-              :title="captchaText ? '点击刷新验证码' : '验证码加载中'"
+              :aria-label="'刷新验证码'"
+              :title="captchaImage ? '点击刷新验证码' : '验证码加载中'"
               @click="refreshCaptcha"
             >
-              {{ captchaText || '加载中...' }}
+              <img v-if="captchaImage" class="captcha-image" :src="captchaImage" alt="图形验证码" />
+              <span v-else>刷新验证码</span>
             </button>
           </div>
 
           <button class="btn" type="submit" :disabled="loading || initLoading">
             {{ loading ? '登录中...' : '登录' }}
           </button>
+        </form>
+
+        <form v-else class="form" @submit.prevent="handleRequiredPasswordChange">
+          <p class="tip">请修改当前密码后重新登录。</p>
+          <input v-model="form.password" class="input" type="password" aria-label="当前密码"
+                 placeholder="当前密码" autocomplete="current-password" :disabled="loading" />
+          <input v-model="form.newPassword" class="input" type="password" aria-label="新密码"
+                 placeholder="新密码" autocomplete="new-password" :disabled="loading" />
+          <input v-model="form.confirmPassword" class="input" type="password" aria-label="确认新密码"
+                 placeholder="确认新密码" autocomplete="new-password" :disabled="loading" />
+          <button class="btn" type="submit" :disabled="loading || initLoading">保存新密码</button>
+          <button class="ticker-switch" type="button" :disabled="loading" @click="cancelPasswordChange">返回登录</button>
         </form>
 
         <p
@@ -137,7 +150,7 @@
           {{ errorMessage }}
         </p>
 
-        <p class="tip">
+        <p v-if="!forcePasswordChange" class="tip">
           没有账号？
           <router-link to="/register">去注册</router-link>
         </p>
@@ -150,12 +163,14 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  changePasswordApi,
   getCaptchaApi,
+  logoutApi,
   getPasswordPublicKeyApi,
   loginApi
 } from '@/api/auth'
 import { getPublicKnowledgeHighlights } from '@/api/knowledgeBase'
-import { writeAuthState } from '@/utils/authStorage'
+import { clearAuthState, readAuthState, writeAuthState } from '@/utils/authStorage'
 import { buildKnowledgeTickerItems, getNextTickerIndex } from '@/utils/loginKnowledgeTicker'
 import { encryptPasswordByPublicKey } from '@/utils/rsaEncrypt'
 
@@ -176,13 +191,17 @@ export default {
     const form = reactive({
       username: '',
       password: '',
-      captcha: ''
+      captcha: '',
+      newPassword: '',
+      confirmPassword: ''
     })
 
+    const auth = readAuthState()
+    const forcePasswordChange = ref(Boolean(auth.token && auth.user?.forceChangePassword))
     const loading = ref(false)
     const initLoading = ref(false)
     const showPassword = ref(false)
-    const captchaText = ref('')
+    const captchaImage = ref('')
     const publicKey = ref('')
     const errorMessage = ref('')
     const knowledgeTickerItems = ref([])
@@ -221,7 +240,7 @@ export default {
     const refreshCaptcha = async () => {
       const res = await getCaptchaApi()
       const payload = unwrapData(res) || {}
-      captchaText.value = payload.captcha || ''
+      captchaImage.value = payload.image || ''
     }
 
     const loadPublicKey = async () => {
@@ -352,12 +371,59 @@ export default {
         const { token, user } = unwrapData(res) || {}
         writeAuthState(localStorage, { token, user })
 
-        router.push('/home')
+        if (user?.forceChangePassword) {
+          forcePasswordChange.value = true
+          form.password = ''
+          form.captcha = ''
+        } else {
+          router.push('/home')
+        }
       } catch (error) {
         console.error(error)
         errorMessage.value = getLoginErrorMessage(error)
         form.captcha = ''
-        await refreshCaptcha()
+        await refreshCaptcha().catch(() => { captchaImage.value = '' })
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const returnToLogin = async () => {
+      clearAuthState()
+      forcePasswordChange.value = false
+      form.password = ''
+      form.newPassword = ''
+      form.confirmPassword = ''
+      await initLoginDependencies()
+    }
+
+    const cancelPasswordChange = async () => {
+      loading.value = true
+      try {
+        await logoutApi()
+      } finally {
+        loading.value = false
+        await returnToLogin()
+      }
+    }
+
+    const handleRequiredPasswordChange = async () => {
+      if (loading.value) return
+      errorMessage.value = ''
+      if (!form.password || form.newPassword.length < 6 || form.newPassword !== form.confirmPassword) {
+        errorMessage.value = '请输入当前密码和至少 6 位的新密码，并确认新密码一致'
+        return
+      }
+      loading.value = true
+      try {
+        if (!publicKey.value) await loadPublicKey()
+        await changePasswordApi({
+          oldEncryptedPassword: encryptPasswordByPublicKey(form.password, publicKey.value),
+          newEncryptedPassword: encryptPasswordByPublicKey(form.newPassword, publicKey.value)
+        })
+        await returnToLogin()
+      } catch (error) {
+        errorMessage.value = error?.response?.data?.message || '密码修改失败，请稍后重试'
       } finally {
         loading.value = false
       }
@@ -376,13 +442,16 @@ export default {
       loading,
       initLoading,
       showPassword,
-      captchaText,
+      captchaImage,
       errorMessage,
       knowledgeTickerItems,
       tickerIndex,
       activeTicker,
       refreshCaptcha,
       handleLogin,
+      handleRequiredPasswordChange,
+      cancelPasswordChange,
+      forcePasswordChange,
       showNextTicker
     }
   }
@@ -643,6 +712,13 @@ export default {
   font-weight: 700;
   letter-spacing: 2px;
   cursor: pointer;
+}
+
+.captcha-image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .captcha-box:disabled,

@@ -7,6 +7,10 @@ export function listInstrumentPracticeTakes() {
   return request.get('/instrument-practice/takes')
 }
 
+export function getInstrumentPracticeTake(takeId) {
+  return request.get(`/instrument-practice/takes/${takeId}`)
+}
+
 /**
  * 保存一段事件式练习录音。达到每乐器三十段上限时，后端会返回被覆盖的最旧片段标识。
  */

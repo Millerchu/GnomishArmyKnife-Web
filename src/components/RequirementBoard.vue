@@ -145,7 +145,7 @@
           <time :datetime="item.updatedAt">{{ formatDateTime(item.updatedAt) }}</time>
         </span>
         </button>
-        <div class="notice-card-actions" :aria-label="`${item.title}的状态操作`">
+        <div v-if="isCurrentUserAdmin" class="notice-card-actions" :aria-label="`${item.title}的状态操作`">
           <button
             v-for="action in quickActions(item.status)"
             :key="action.value"
@@ -160,7 +160,7 @@
             <summary :aria-label="`${item.title}的其他状态`">其他状态</summary>
             <div class="notice-other-status-options">
               <button
-                v-for="option in boardStatusOptions"
+                v-for="option in statusChoices(item.status)"
                 :key="option.value"
                 type="button"
                 :data-other-status="option.value"
@@ -315,7 +315,7 @@
           <AttachmentGallery :attachments="detailRequirement.attachments" />
         </section>
 
-        <section v-if="!detailEditing" class="notice-progress" aria-labelledby="requirement-progress-title">
+        <section v-if="!detailEditing && isCurrentUserAdmin" class="notice-progress" aria-labelledby="requirement-progress-title">
           <div>
             <h3 id="requirement-progress-title">更新进度</h3>
             <p>每次状态变化都会保留在时间线中。</p>
@@ -324,7 +324,7 @@
             <label>
               <span>状态</span>
               <select v-model="progressForm.status">
-                <option v-for="option in boardStatusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                <option v-for="option in statusChoices(detailRequirement.status)" :key="option.value" :value="option.value">{{ option.label }}</option>
               </select>
             </label>
             <label>
@@ -360,7 +360,7 @@
             {{ detailSubmitting ? '保存中...' : '保存修改' }}
           </button>
           <button
-            v-else
+            v-else-if="isCurrentUserAdmin"
             type="submit"
             class="notice-primary-button"
             form="requirement-progress-form"
@@ -609,9 +609,16 @@ export default {
     }
 
     const quickActions = (status) => QUICK_STATUS_ACTIONS[status] || []
+    const canDecline = (status) => ['PENDING_REVIEW', 'PLANNED', 'IN_PROGRESS'].includes(status)
+    const canUpdateStatus = (current, target) => isCurrentUserAdmin.value && (
+      quickActions(current).some(action => action.value === target) || (target === 'DECLINED' && canDecline(current))
+    )
+    const statusChoices = (status) => BOARD_STATUS_OPTIONS.filter(option => (
+      option.value === status || canUpdateStatus(status, option.value)
+    ))
 
     const submitQuickProgress = async (item, status, event) => {
-      if (quickSubmittingId.value !== null || boardLoading.value || status === item.status) return
+      if (quickSubmittingId.value !== null || boardLoading.value || !canUpdateStatus(item.status, status)) return
       cancelPanelHide()
       quickSubmittingId.value = item.id
       const menu = event?.currentTarget?.closest('details')
@@ -770,7 +777,7 @@ export default {
     }
 
     const submitProgressUpdate = async () => {
-      if (!detailRequirement.value || progressForm.status === detailRequirement.value.status) {
+      if (!detailRequirement.value || !canUpdateStatus(detailRequirement.value.status, progressForm.status)) {
         return
       }
       detailSubmitting.value = true
@@ -854,7 +861,8 @@ export default {
       submitQuickProgress,
       handleStatusMenuToggle,
       statusOptions: STATUS_OPTIONS,
-      boardStatusOptions: BOARD_STATUS_OPTIONS,
+      statusChoices,
+      isCurrentUserAdmin,
       priorityOptions: PRIORITY_OPTIONS,
       typeOptions: TYPE_OPTIONS,
       query,

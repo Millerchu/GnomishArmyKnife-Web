@@ -339,13 +339,14 @@
           <div class="take-copy">
             <strong>{{ instrumentLabel(take.instrumentId) }}</strong>
             <span>{{ tuningLabel(take) }} · {{ take.bpm }} BPM · {{ take.meter }}</span>
-            <small>{{ formatDuration(take.durationMs) }} · {{ take.events.length }} 个动作</small>
+            <small>{{ formatDuration(take.durationMs) }} · {{ take.eventCount ?? take.events?.length ?? 0 }} 个动作</small>
             <small>完成于 {{ formatTakeCompletedAt(take.createdAt) }}</small>
           </div>
           <button
             class="take-play"
             type="button"
             :aria-label="recorder.activePlaybackId.value === take.id ? '停止回放' : '回放片段'"
+            :disabled="loadingPlaybackTakeId !== null"
             @click="toggleTakePlayback(take)"
           >
             <svg v-if="recorder.activePlaybackId.value !== take.id" viewBox="0 0 24 24" aria-hidden="true">
@@ -498,6 +499,7 @@ import {confirmDialog} from '@/components/systemDialog.js'
 import {
   createInstrumentPracticeTake,
   deleteInstrumentPracticeTake,
+  getInstrumentPracticeTake,
   listInstrumentPracticeTakes
 } from '@/api/instrumentPractice.js'
 import FrettedInstrumentSurface from '@/features/instrument-practice/components/FrettedInstrumentSurface.vue'
@@ -549,6 +551,7 @@ const showNumberedNotes = ref(false)
 const reducedMotion = ref(false)
 const compactLandscape = ref(false)
 const landscapeChromeHidden = ref(false)
+const loadingPlaybackTakeId = ref(null)
 const exportingTakeId = ref(null)
 const savingTake = ref(false)
 const tuningIds = reactive({
@@ -854,14 +857,14 @@ async function finishRecording({announce = true} = {}) {
     if (!savedTake) {
       throw new Error('练习片段保存结果无效')
     }
-    const overwrittenTakeId = result.overwrittenTakeId
+    const overwritten = new Set((result.overwrittenTakeIds || [result.overwrittenTakeId]).filter(Boolean).map(String))
     const nextTakes = recorder.takes.value.filter((item) => (
-      `${item.id}` !== `${take.id}` && `${item.id}` !== `${overwrittenTakeId}`
+      String(item.id) !== String(take.id) && !overwritten.has(String(item.id))
     ))
     recorder.replaceTakes([...nextTakes, savedTake])
     if (announce) {
-      showNotice(overwrittenTakeId
-        ? '已保存，并覆盖最旧的一段练习'
+      showNotice(overwritten.size
+        ? '已保存，并移除最旧的练习片段'
         : (savedTake.events.length ? '练习片段已保存至 NAS' : '空白练习片段已保存至 NAS'))
     }
     return savedTake
@@ -905,7 +908,8 @@ async function exportTakeAudio(take) {
   exportingTakeId.value = take.id
   showNotice('正在生成音频文件…')
   try {
-    const audioBlob = await renderTakeToWav(take)
+    const fullTake = await loadTakeEvents(take)
+    const audioBlob = await renderTakeToWav(fullTake)
     const result = await saveAudioBlobToDevice(audioBlob, buildTakeAudioFileName(take))
     if (result === 'cancelled') {
       showNotice('已取消导出音频')
@@ -924,8 +928,19 @@ async function toggleTakePlayback(take) {
     recorder.stopPlayback()
     return
   }
-  takesDialogVisible.value = false
+  if (loadingPlaybackTakeId.value !== null) return
   const unlockPromise = audio.unlock()
+  let fullTake
+  loadingPlaybackTakeId.value = take.id
+  try {
+    fullTake = await loadTakeEvents(take)
+  } catch (error) {
+    showNotice(extractErrorMessage(error, '无法加载练习片段，请重试'))
+    return
+  } finally {
+    loadingPlaybackTakeId.value = null
+  }
+  takesDialogVisible.value = false
   if (take.instrumentId !== currentInstrumentId.value) {
     const switched = await selectInstrument(take.instrumentId, {announce: false})
     if (!switched) {
@@ -944,7 +959,8 @@ async function toggleTakePlayback(take) {
     return
   }
   syncVolumes()
-  if (recorder.replayTake(take.id)) {
+  const replayed = fullTake === take ? recorder.replayTake(take.id) : recorder.replayTake(take.id, fullTake)
+  if (replayed) {
     showNotice(`${instrumentLabel(take.instrumentId)}录音回放中`)
   }
 }
@@ -999,9 +1015,19 @@ function normalizeTake(take) {
     bpm: Number(take.bpm),
     meter: take.meter,
     durationMs: Number(take.durationMs),
-    events: Array.isArray(take.events) ? take.events : [],
+    eventCount: Number(take.eventCount ?? take.events?.length ?? 0),
+    events: Array.isArray(take.events) ? take.events : null,
     createdAt: Number(take.createdAt) || Date.now()
   }
+}
+
+async function loadTakeEvents(take) {
+  if (Array.isArray(take.events)) return take
+  const loaded = normalizeTake(unwrapData(await getInstrumentPracticeTake(take.id)))
+  if (!loaded || !Array.isArray(loaded.events)) {
+    throw new Error('练习片段事件加载失败')
+  }
+  return loaded
 }
 
 async function loadPersistedTakes() {

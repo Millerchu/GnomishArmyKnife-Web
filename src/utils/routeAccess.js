@@ -14,6 +14,10 @@ export function resolveNavigationTarget(path = '', authState = {}) {
   const normalizedPath = `${path || ''}`.trim() || '/'
   const authenticated = hasAuthenticatedSession(authState)
 
+  if (authenticated && authState.user.forceChangePassword) {
+    return normalizedPath === DEFAULT_GUEST_PATH ? null : DEFAULT_GUEST_PATH
+  }
+
   if (isPublicRoute(normalizedPath)) {
     return authenticated && normalizedPath === DEFAULT_GUEST_PATH
       ? DEFAULT_AUTHENTICATED_PATH

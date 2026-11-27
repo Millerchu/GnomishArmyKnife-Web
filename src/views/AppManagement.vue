@@ -318,7 +318,7 @@
                 ref="iconFileInput"
                 class="file-input"
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp,image/gif"
                 @change="handleIconFileChange"
               />
               <span>{{ uploadLoading ? '上传中...' : '选择本地图标文件' }}</span>

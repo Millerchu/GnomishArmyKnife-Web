@@ -17,6 +17,10 @@ export function registerApi(data) {
   return request.post('/auth/register', data)
 }
 
+export function logoutApi() {
+  return request.post('/auth/logout')
+}
+
 export function changePasswordApi(data) {
   return request.post('/auth/change-password', data)
 }

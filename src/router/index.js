@@ -38,10 +38,11 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-    // 系统日志在页面内显示明确的权限状态；其他管理员页面维持原有跳转。
-    if (to.meta.requiresAdmin && !to.meta.showAdminDenied && readAuthState().user?.roleCode?.toUpperCase() !== 'ADMIN') return '/home'
-  const redirectPath = resolveNavigationTarget(to.path, readAuthState())
-    return redirectPath && redirectPath !== to.path ? redirectPath : true
+    const auth = readAuthState()
+    const redirectPath = resolveNavigationTarget(to.path, auth)
+    if (redirectPath && redirectPath !== to.path) return redirectPath
+    if (to.meta.requiresAdmin && !to.meta.showAdminDenied && auth.user?.roleCode?.toUpperCase() !== 'ADMIN') return '/home'
+    return true
 })
 
 export default router

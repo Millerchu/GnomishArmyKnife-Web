@@ -467,9 +467,6 @@ export default function useHomeShell() {
 
     dialogLoading.value = true
     try {
-      const currentUser = normalizeCurrentUser(user.value || {})
-      const username = currentUser.username || profileForm.username
-
       const keyRes = await getPasswordPublicKeyApi()
       const publicKey = (unwrapData(keyRes) || {}).publicKey || ''
       if (!publicKey) {
@@ -478,12 +475,7 @@ export default function useHomeShell() {
       const oldEncryptedPassword = encryptPasswordByPublicKey(passwordForm.oldPassword, publicKey)
       const newEncryptedPassword = encryptPasswordByPublicKey(passwordForm.newPassword, publicKey)
 
-      if (!username) {
-        throw new Error('当前用户名缺失，无法修改密码')
-      }
-
       await changePasswordApi({
-        username,
         oldEncryptedPassword,
         newEncryptedPassword
       })
