@@ -78,18 +78,16 @@
           <div v-if="trendLoading" class="empty-state compact">趋势数据加载中...</div>
           <div v-else-if="trendError" class="empty-state compact trend-error-state">
             <span>{{ trendError }}</span>
-            <button type="button" class="mini-btn" @click="loadTrend">重试</button>
+            <button type="button" class="mini-btn accent" @click="loadTrend">重试</button>
           </div>
-          <div v-else-if="trendPoints.length" class="trend-list">
-            <article
-              v-for="(item, idx) in trendPoints"
-              :key="item.recordId != null ? String(item.recordId) : `${item.measureDate}-${idx}`"
-              class="trend-item"
-            >
-              <span>{{ item.measureDate }}</span>
-              <strong>{{ latestMetricText(trendMetricKey, item.value) }}</strong>
-            </article>
-          </div>
+          <HealthTrendChart
+            v-else-if="trendPoints.length"
+            :metric-key="trendMetricKey"
+            :metric-label="activeTrendMetric.label"
+            :unit="activeTrendMetric.unit"
+            :decimals="activeTrendMetric.decimals"
+            :points="trendPoints"
+          />
           <div v-else class="empty-state compact">当前指标还没有足够的趋势数据</div>
         </div>
       </template>
@@ -104,9 +102,9 @@
       </div>
 
       <div v-if="records.length" class="record-list">
-        <article v-for="item in records" :key="String(item.id)" class="app-card record-card">
+        <article v-for="item in visibleRecords" :key="String(item.id)" class="app-card record-card">
           <div class="record-head">
-            <div>
+            <div class="record-info">
               <strong>{{ item.measureDate }}</strong>
               <p>{{ buildRecordSummary(item) }}</p>
             </div>
@@ -115,16 +113,26 @@
               <button
                 v-if="item.sourceReportId != null"
                 type="button"
-                class="mini-btn"
+                class="mini-btn accent"
                 @click="openReportDetailsById(item.sourceReportId)"
               >
                 查看来源报告
               </button>
-              <button class="mini-btn" @click="openEditRecordDialog(item)">编辑</button>
-              <button class="mini-btn danger" @click="removeRecord(item)">删除</button>
+              <button type="button" class="mini-btn" @click="openEditRecordDialog(item)">编辑</button>
+              <button type="button" class="mini-btn danger" @click="removeRecord(item)">删除</button>
             </div>
           </div>
         </article>
+        <div v-if="records.length > DEFAULT_VISIBLE_COUNT" class="list-expand-row">
+          <button
+            type="button"
+            class="expand-toggle-btn"
+            data-testid="toggle-records-expand"
+            @click="showAllRecords = !showAllRecords"
+          >
+            {{ showAllRecords ? `收起（仅显示最近 ${DEFAULT_VISIBLE_COUNT} 条）` : `展开更多（还有 ${records.length - DEFAULT_VISIBLE_COUNT} 条）` }}
+          </button>
+        </div>
       </div>
       <div v-else class="empty-state">暂无健康指标记录</div>
     </section>
@@ -192,7 +200,7 @@
         </div>
 
         <div v-if="reports.length" class="report-list">
-          <article v-for="item in reports" :key="String(item.id)" class="app-card report-card">
+          <article v-for="item in visibleReports" :key="String(item.id)" class="app-card report-card">
             <div class="visit-card-head">
               <div>
                 <strong>{{ item.reportTitle }}</strong>
@@ -223,19 +231,29 @@
               <span class="visit-count-chip">
                 {{ hasReportAttachment(item) ? `${item.attachments?.length || 1} 个附件` : '0 个附件' }}
               </span>
-              <button type="button" class="mini-btn" @click="openReportDetailsById(item.id)">检查结果</button>
+              <button type="button" class="mini-btn accent" @click="openReportDetailsById(item.id)">检查结果</button>
               <button
                 v-if="item.linkedRecordId != null"
                 type="button"
-                class="mini-btn"
+                class="mini-btn accent"
                 @click="openMetricRecordById(item.linkedRecordId)"
               >
                 查看关联指标
               </button>
-              <button class="mini-btn" @click="openEditReportDialog(item)">编辑</button>
-              <button class="mini-btn danger" @click="removeReport(item)">删除</button>
+              <button type="button" class="mini-btn" @click="openEditReportDialog(item)">编辑</button>
+              <button type="button" class="mini-btn danger" @click="removeReport(item)">删除</button>
             </div>
           </article>
+          <div v-if="reports.length > DEFAULT_VISIBLE_COUNT" class="list-expand-row">
+            <button
+              type="button"
+              class="expand-toggle-btn"
+              data-testid="toggle-reports-expand"
+              @click="showAllReports = !showAllReports"
+            >
+              {{ showAllReports ? `收起（仅显示最近 ${DEFAULT_VISIBLE_COUNT} 份）` : `展开更多（还有 ${reports.length - DEFAULT_VISIBLE_COUNT} 份）` }}
+            </button>
+          </div>
         </div>
         <div v-else class="empty-state">暂无报告单记录</div>
       </section>
@@ -514,6 +532,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import DentalCleaningPanel from '@/components/DentalCleaningPanel.vue'
 import HealthReportDetailsDialog from '@/components/HealthReportDetailsDialog.vue'
+import HealthTrendChart from '@/components/HealthTrendChart.vue'
 import MacDialog from '@/components/MacDialog.vue'
 import {confirmDialog} from '@/components/systemDialog'
 import AttachmentManager from '@/components/AttachmentManager.vue'
@@ -546,6 +565,7 @@ import {
 } from '@/api/healthRecord'
 
 const METRIC_OPTIONS = TREND_METRIC_OPTIONS
+const DEFAULT_VISIBLE_COUNT = 5
 
 const VISIT_TYPE_OPTIONS = [
   { value: 'OUTPATIENT', label: '门诊' },
@@ -590,7 +610,7 @@ function normalizeId(value) {
 
 export default {
   name: 'HealthRecord',
-  components: {AppPageHeader, MacDialog, AttachmentManager, AttachmentGallery, DentalCleaningPanel, HealthReportDetailsDialog},
+  components: {AppPageHeader, MacDialog, AttachmentManager, AttachmentGallery, DentalCleaningPanel, HealthReportDetailsDialog, HealthTrendChart},
   setup() {
     const router = useRouter()
     const route = useRoute()
@@ -600,6 +620,8 @@ export default {
     const records = ref([])
     const reports = ref([])
     const visits = ref([])
+    const showAllRecords = ref(false)
+    const showAllReports = ref(false)
     const trendMetricKey = ref(METRIC_OPTIONS[0].key)
     const trendLimit = ref(12)
     const trendPoints = ref([])
@@ -682,6 +704,9 @@ export default {
     })
 
     const latestRecord = computed(() => records.value[0] || null)
+    const visibleRecords = computed(() => showAllRecords.value ? records.value : records.value.slice(0, DEFAULT_VISIBLE_COUNT))
+    const visibleReports = computed(() => showAllReports.value ? reports.value : reports.value.slice(0, DEFAULT_VISIBLE_COUNT))
+    const activeTrendMetric = computed(() => METRIC_OPTIONS.find((item) => item.key === trendMetricKey.value) || METRIC_OPTIONS[0])
 
     const metricCards = computed(() => {
       const source = latestRecord.value || {}
@@ -1322,6 +1347,7 @@ export default {
     })
 
     return {
+      DEFAULT_VISIBLE_COUNT,
       loading,
       formatNumber,
       submitting,
@@ -1329,6 +1355,11 @@ export default {
       records,
       reports,
       visits,
+      showAllRecords,
+      showAllReports,
+      visibleRecords,
+      visibleReports,
+      activeTrendMetric,
       latestRecord,
       metricCards,
       metricOptions,
@@ -1459,21 +1490,19 @@ export default {
 .hero-tags,
 .toolbar-left,
 .trend-switch,
-.mobile-card-actions,
 .upload-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  align-items: center;
 }
 
-.hero-tag,
-.visit-count-chip,
-.trend-chip,
-.mini-btn,
-.ghost-btn,
-.action-btn {
-  border-radius: 999px;
-  border: none;
+.mobile-card-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .hero-tag,
@@ -1481,10 +1510,17 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 14px;
-  background: rgba(56, 189, 248, 0.16);
-  color: #bfe8ff;
-  font-size: 13px;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  background: rgba(56, 189, 248, 0.12);
+  color: #bae6fd;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .summary-grid,
@@ -1545,6 +1581,26 @@ export default {
   gap: 16px;
 }
 
+.record-head,
+.visit-card-head {
+  align-items: center;
+}
+
+.record-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.record-info p {
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.trend-head {
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
 .panel-head {
   align-items: flex-start;
   margin-bottom: 14px;
@@ -1583,23 +1639,59 @@ export default {
 }
 
 .trend-chip {
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.08);
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.06);
   color: #c7d6e5;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
   cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.trend-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(125, 211, 252, 0.36);
+  color: #f8fbff;
 }
 
 .trend-chip.active {
+  border-color: transparent;
   background: linear-gradient(135deg, #1996ff, #27d5a4);
   color: #fff;
+  box-shadow: 0 4px 12px rgba(25, 150, 255, 0.28);
 }
 
-.trend-range-switch,
+.trend-range-switch {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.range-chip {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 12px;
+}
+
 .report-badges {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .trend-error-state {
@@ -1610,8 +1702,42 @@ export default {
 }
 
 .linked-chip {
-  background: rgba(39, 213, 164, 0.2);
+  border-color: rgba(39, 213, 164, 0.34);
+  background: rgba(39, 213, 164, 0.14);
   color: #7bf0cc;
+}
+
+.linked-chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #34d399;
+}
+
+.list-expand-row {
+  display: flex;
+  justify-content: center;
+  padding-top: 2px;
+}
+
+.expand-toggle-btn {
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.expand-toggle-btn:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.38);
+  color: #f0f9ff;
 }
 
 .created-report-banner,
@@ -1745,31 +1871,91 @@ export default {
 }
 
 .ghost-btn,
-.action-btn,
-.mini-btn {
-  padding: 9px 14px;
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.14s ease, box-shadow 0.16s ease;
 }
 
 .ghost-btn {
-  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.07);
   color: #dbe8f5;
+}
+
+.ghost-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(148, 163, 184, 0.38);
 }
 
 .action-btn {
   background: linear-gradient(135deg, #1996ff, #27d5a4);
   color: #fff;
+  box-shadow: 0 4px 12px rgba(25, 150, 255, 0.26);
+}
+
+.action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(25, 150, 255, 0.34);
 }
 
 .mini-btn {
-  padding: 7px 12px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #dbe8f5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+  color: #e2edf8;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.14s ease;
+}
+
+.mini-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(148, 163, 184, 0.42);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.mini-btn.accent {
+  border-color: rgba(56, 189, 248, 0.32);
+  background: rgba(56, 189, 248, 0.13);
+  color: #bae6fd;
+}
+
+.mini-btn.accent:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.24);
+  border-color: rgba(125, 211, 252, 0.56);
+  color: #f0f9ff;
 }
 
 .mini-btn.danger {
-  background: #fee2e2;
-  color: #b42318;
+  border-color: rgba(248, 113, 113, 0.32);
+  background: rgba(239, 68, 68, 0.13);
+  color: #fca5a5;
+}
+
+.mini-btn.danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.24);
+  border-color: rgba(248, 113, 113, 0.56);
+  color: #fee2e2;
 }
 
 button:disabled {
@@ -1798,8 +1984,10 @@ button:disabled {
   .hero-panel,
   .panel-head,
   .visit-card-head,
-  .record-head {
+  .record-head,
+  .trend-head {
     flex-direction: column;
+    align-items: flex-start;
   }
 
   .summary-grid,
