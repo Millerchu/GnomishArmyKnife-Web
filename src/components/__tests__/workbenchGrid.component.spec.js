@@ -230,14 +230,13 @@ it('存储失败保留草稿和提示，可重试完成；保存失败不影响�
   expect(wrapper.find('.wb-organize').exists()).toBe(false)
   expect(JSON.parse(localStorage.getItem(cacheKey)).cards.find(card => card.id === 'health').hidden).toBe(true)
 })
-it('坞折叠/顺序即时保存且取消不回滚；完成取坞最新值进入 payload', async () => {
+it('坞顺序即时保存且取消不回滚；完成取坞最新值进入 payload', async () => {
   const wrapper = panel(); await toggleEdit(wrapper)
-  await wrapper.get('.wb-dock-head button').trigger('click')
+  localStorage.setItem('gak_workbench_dock_collapsed_v1:9223372036854775807', 'true')
   localStorage.setItem('home_tool_custom_order:9223372036854775807', '["work-log","old-ungranted"]')
-  expect(localStorage.getItem('gak_workbench_dock_collapsed_v1:9223372036854775807')).toBe('true')
+  window.dispatchEvent(new CustomEvent('gak:workbench-preference-changed', {detail: {userId: '9223372036854775807', key: 'home_tool_custom_order'}}))
   expect(wrapper.text()).not.toContain('有未保存更改')
   await button(wrapper, '取消').trigger('click')
-  expect(wrapper.get('.wb-dock-head button').attributes('aria-expanded')).toBe('false')
   await toggleEdit(wrapper); await toggleEdit(wrapper)
   expect(JSON.parse(localStorage.getItem(cacheKey)).dock).toEqual({collapsed: true, order: ['work-log', 'old-ungranted']})
 })

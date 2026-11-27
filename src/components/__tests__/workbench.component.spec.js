@@ -157,18 +157,49 @@ it('沿用 home_tool_custom_order，拖拽保存原键并保留当前不可见�
   expect(JSON.parse(localStorage.getItem('home_tool_custom_order:1'))).toEqual(['todo-list', 'health-record', 'old-ungranted'])
   expect(JSON.parse(localStorage.getItem('home_tool_custom_order'))).toEqual(['health-record', 'todo-list', 'old-ungranted'])
 })
-it('坞折叠持久化，移动禁拖拽', async () => {
-  const props = {tools: [{key: 'a', name: '应用', iconType: 'TEXT'}], source: 'backend', isMobileViewport: true}
-  const wrapper = render(AppDock, props)
-  expect(wrapper.get('.tool-item').attributes('draggable')).toBe('false')
-  await wrapper.get('.wb-dock-head button').trigger('click')
-  expect(wrapper.find('.tool-item').exists()).toBe(false)
-  const restored = render(AppDock, props)
-  expect(restored.get('.wb-dock-head button').attributes('aria-expanded')).toBe('false')
-  await restored.get('.wb-dock-head button').trigger('click')
-  expect(restored.find('.tool-item').exists()).toBe(true)
-  await restored.get('.tool-item').trigger('dragstart'); await restored.get('.tool-item').trigger('drop')
-  expect(restored.emitted('order')).toBeUndefined()
+it('应用坞默认只展示一行，可通过按钮展示全部，移动禁拖拽', async () => {
+  const makeTools = count => Array.from({length: count}, (_, i) => ({key: `app-${i}`, name: `应用${i + 1}`, iconType: 'TEXT'}))
+  const originalMatchMedia = window.matchMedia
+  let mediumMatches = false
+  window.matchMedia = vi.fn(query => ({
+    matches: query === '(min-width: 721px) and (max-width: 1180px)' ? mediumMatches : false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
+  }))
+  try {
+    // 桌面默认 12 个一行，超出时显示「展示全部」按钮
+    const desktop = render(AppDock, {tools: makeTools(15), source: 'backend', isMobileViewport: false})
+    expect(desktop.findAll('.tool-item')).toHaveLength(12)
+    expect(desktop.get('.wb-dock-toggle').text()).toContain('展示全部')
+    expect(desktop.get('.wb-dock-toggle').attributes('aria-expanded')).toBe('false')
+    await desktop.get('.wb-dock-toggle').trigger('click')
+    expect(desktop.findAll('.tool-item')).toHaveLength(15)
+    expect(desktop.get('.wb-dock-toggle').text()).toContain('收起')
+    expect(desktop.get('.wb-dock-toggle').attributes('aria-expanded')).toBe('true')
+    await desktop.get('.wb-dock-toggle').trigger('click')
+    expect(desktop.findAll('.tool-item')).toHaveLength(12)
+    // 未超出一行时不显示展开按钮
+    const shortDesktop = render(AppDock, {tools: makeTools(5), source: 'backend', isMobileViewport: false})
+    expect(shortDesktop.findAll('.tool-item')).toHaveLength(5)
+    expect(shortDesktop.find('.wb-dock-toggle').exists()).toBe(false)
+    // 中屏 6 个一行
+    mediumMatches = true
+    const medium = render(AppDock, {tools: makeTools(8), source: 'backend', isMobileViewport: false})
+    expect(medium.findAll('.tool-item')).toHaveLength(6)
+    await medium.get('.wb-dock-toggle').trigger('click')
+    expect(medium.findAll('.tool-item')).toHaveLength(8)
+    // 移动端 4 个一行且禁用拖拽
+    mediumMatches = false
+    const mobile = render(AppDock, {tools: makeTools(6), source: 'backend', isMobileViewport: true})
+    expect(mobile.findAll('.tool-item')).toHaveLength(4)
+    expect(mobile.get('.tool-item').attributes('draggable')).toBe('false')
+    await mobile.get('.wb-dock-toggle').trigger('click')
+    expect(mobile.findAll('.tool-item')).toHaveLength(6)
+    await mobile.get('.tool-item').trigger('dragstart'); await mobile.get('.tool-item').trigger('drop')
+    expect(mobile.emitted('order')).toBeUndefined()
+  } finally {
+    window.matchMedia = originalMatchMedia
+  }
 })
 it('同账号权限和资料事件保留真实快速新增草稿及卡片实例，后台失败保留旧授权', async () => {
   const Provider = defineComponent({
@@ -246,20 +277,16 @@ it('三个偏好迁移到用户键，切换账号后重读各自布局、坞折�
     expect(localStorage.getItem(key)).toBe(value)
   })
   expect(wrapper.find('[data-card=health]').exists()).toBe(false)
-  expect(wrapper.get('.wb-dock-head button').attributes('aria-expanded')).toBe('false')
   localStorage.setItem(`${WORKBENCH_LAYOUT_KEY}:2`, JSON.stringify({hidden: ['todo']}))
   localStorage.setItem(`${dockKey}:2`, 'false')
   localStorage.setItem(`${orderKey}:2`, JSON.stringify(['todo-list', 'health-record']))
   writeAuthState(localStorage, {token: 'test-token', user: {id: '2'}}); await flushPromises()
   expect(wrapper.find('[data-card=todo]').exists()).toBe(false)
   expect(wrapper.find('[data-card=health]').exists()).toBe(true)
-  expect(wrapper.get('.wb-dock-head button').attributes('aria-expanded')).toBe('true')
   expect(wrapper.findAll('.tool-name').map(item => item.text())).toEqual(['待办列表', '健康'])
   writeAuthState(localStorage, {token: 'test-token', user: {id: '1'}}); await flushPromises()
   expect(wrapper.find('[data-card=todo]').exists()).toBe(true)
   expect(wrapper.find('[data-card=health]').exists()).toBe(false)
-  expect(wrapper.get('.wb-dock-head button').attributes('aria-expanded')).toBe('false')
-  await wrapper.get('.wb-dock-head button').trigger('click')
   expect(wrapper.findAll('.tool-name').map(item => item.text())).toEqual(['健康', '待办列表'])
   Object.entries(legacy).forEach(([key, value]) => expect(localStorage.getItem(key)).toBe(value))
 })
@@ -271,16 +298,12 @@ it('仅 token 变化也重读当前账号的三个偏好，无 id 写回旧键',
   localStorage.setItem('home_tool_custom_order:1', JSON.stringify(['health-record', 'todo-list']))
   writeAuthState(localStorage, {token: 'refreshed-token', user: {id: '1'}}); await flushPromises()
   expect(wrapper.find('[data-card=todo]').exists()).toBe(false)
-  expect(wrapper.get('.wb-dock-head button').attributes('aria-expanded')).toBe('false')
-  await wrapper.get('.wb-dock-head button').trigger('click')
   expect(wrapper.findAll('.tool-name').map(item => item.text())).toEqual(['健康', '待办列表'])
   writeAuthState(localStorage, {token: 'legacy-user', user: {username: 'no-id'}}); await flushPromises()
   wrapper.vm.setOrder(['todo-list'])
   await wrapper.get('[aria-pressed]').trigger('click')
   await wrapper.get('[aria-label="删除健康组件"]').trigger('click')
-  await wrapper.get('.wb-dock-head button').trigger('click')
   expect(JSON.parse(localStorage.getItem('home_tool_custom_order'))).toEqual(['todo-list'])
   await wrapper.get('[aria-pressed]').trigger('click'); await flushPromises()
   expect(JSON.parse(localStorage.getItem(WORKBENCH_GRID_KEY)).cards.filter(card => card.hidden).map(card => card.id)).toEqual(['health'])
-  expect(localStorage.getItem('gak_workbench_dock_collapsed_v1')).toBe('true')
 })

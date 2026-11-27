@@ -707,6 +707,11 @@
   font-size: 12px;
 }
 
+.wb-dock-toggle {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .wb-source {
   font-size: 11px;
   color: var(--theme-text-muted);

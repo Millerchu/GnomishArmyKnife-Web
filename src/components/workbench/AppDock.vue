@@ -1,9 +1,15 @@
 <template>
   <section class="wb-glass wb-dock" aria-label="全部应用">
-    <header class="wb-dock-head"><h2>全部应用</h2><span class="wb-status" :class="source === 'admin-fallback' ? 'is-warning' : 'is-success'">已授权 {{ tools.length }} 个应用</span><span class="wb-source" :class="{'is-warning': source === 'admin-fallback'}">{{ source === 'admin-fallback' ? '管理员兜底' : '后端授权' }}</span><span class="wb-dock-hint">拖拽图标可调整顺序 · Ctrl/⌘ K 搜索</span><button type="button" :aria-expanded="!collapsed" @click="toggle">{{ collapsed ? '展开 ▾' : '收起 ▴' }}</button></header>
-    <div v-if="!collapsed" class="grid">
+    <header class="wb-dock-head">
+      <h2>全部应用</h2>
+      <span class="wb-status" :class="source === 'admin-fallback' ? 'is-warning' : 'is-success'">已授权 {{ tools.length }} 个应用</span>
+      <span class="wb-source" :class="{'is-warning': source === 'admin-fallback'}">{{ source === 'admin-fallback' ? '管理员兜底' : '后端授权' }}</span>
+      <span class="wb-dock-hint">拖拽图标可调整顺序 · Ctrl/⌘ K 搜索</span>
+      <button v-if="hasMore" type="button" class="wb-dock-toggle" :aria-expanded="expanded" @click="toggle">{{ expanded ? '收起 ▴' : '展示全部 ▾' }}</button>
+    </header>
+    <div class="grid">
           <button
-            v-for="tool in tools"
+            v-for="tool in visibleTools"
             :key="tool.key"
             class="tool-item"
             :class="{
@@ -48,20 +54,52 @@
   </section>
 </template>
 <script setup>
-import {ref} from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import AppIconImage from '@/components/AppIconImage.vue'
 import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 import {getPresetIconSvg} from '@/constants/appIconLibrary'
 import {usesImageIcon} from '@/utils/workbenchApps'
-import {useWorkbenchPreference} from '@/composables/useWorkbenchPreference'
+const MEDIUM_VIEWPORT_QUERY = '(min-width: 721px) and (max-width: 1180px)'
 const props = defineProps({tools: {type: Array, default: () => []}, source: String, isMobileViewport: Boolean})
 const emit = defineEmits(['order', 'notice'])
 const router = useRouter()
-const storageKey = 'gak_workbench_dock_collapsed_v1'
-const {value: collapsed, save: saveCollapsed} = useWorkbenchPreference(storageKey, raw => raw === 'true', String)
+const expanded = ref(false)
+function readMediumViewport() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia(MEDIUM_VIEWPORT_QUERY).matches
+}
+const isMediumViewport = ref(readMediumViewport())
+let mediumMediaQuery = null
+function syncViewportColumns() {
+  isMediumViewport.value = readMediumViewport()
+}
+function resetExpanded() {
+  expanded.value = false
+}
+onMounted(() => {
+  syncViewportColumns()
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    mediumMediaQuery = window.matchMedia(MEDIUM_VIEWPORT_QUERY)
+    mediumMediaQuery.addEventListener?.('change', syncViewportColumns)
+  }
+  window.addEventListener('resize', syncViewportColumns)
+  window.addEventListener('gak:auth-changed', resetExpanded)
+})
+onBeforeUnmount(() => {
+  mediumMediaQuery?.removeEventListener?.('change', syncViewportColumns)
+  window.removeEventListener('resize', syncViewportColumns)
+  window.removeEventListener('gak:auth-changed', resetExpanded)
+})
+const columnsPerRow = computed(() => {
+  if (props.isMobileViewport) return 4
+  if (isMediumViewport.value) return 6
+  return 12
+})
+const hasMore = computed(() => props.tools.length > columnsPerRow.value)
+const visibleTools = computed(() => (expanded.value || !hasMore.value ? props.tools : props.tools.slice(0, columnsPerRow.value)))
 function toggle() {
-  saveCollapsed(!collapsed.value)
+  expanded.value = !expanded.value
 }
 const draggingToolKey = ref('')
 const dragOverToolKey = ref('')
