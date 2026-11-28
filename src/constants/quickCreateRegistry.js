@@ -1,6 +1,6 @@
 import {DENTAL_CLEANING_FIELDS, newDentalCleaning} from '../utils/dentalCleaning.js'
 import {GROWTH_METRICS, newGrowthRecord} from '../utils/growthRecords.js'
-import {CORE_METRIC_FIELDS} from '../utils/healthMetrics.js'
+import {CORE_METRIC_FIELDS, createEmptyCoreMetricForm} from '../utils/healthMetrics.js'
 import {newTravelRecord, TRANSPORT_TYPES, TRAVEL_STATUSES, TRAVEL_PURPOSES} from '../utils/travelRecords.js'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -118,10 +118,10 @@ export const QUICK_CREATE_TYPES = [
   },
   {
     typeCode: 'HEALTH_RECORD', featureCode: 'APP_HEALTH_RECORD', appName: '健康', label: '新增健康指标', api: 'healthRecord',
-    defaults: () => ({measureDate: today(), heightCm: '', weightKg: '', bodyFatRate: '', systolicPressure: '', diastolicPressure: '', totalCholesterol: '', triglycerides: '', hdlCholesterol: '', ldlCholesterol: '', fastingGlucose: '', heartRate: '', uricAcid: '', alanineAminotransferase: '', aspartateAminotransferase: '', gammaGlutamylTransferase: '', note: ''}),
+    defaults: () => createEmptyCoreMetricForm(today()),
     fields: [
       {key: 'measureDate', label: '测量日期', type: 'date', required: true},
-      ...CORE_METRIC_FIELDS.map((field) => number(field.key, field.label, false, {min: 0, step: field.step})),
+      ...CORE_METRIC_FIELDS.map((field) => number(field.key, field.label, false, {min: 0, max: field.max, step: field.step})),
       area('note', '备注')
     ]
   },

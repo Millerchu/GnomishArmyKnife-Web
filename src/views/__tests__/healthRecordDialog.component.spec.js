@@ -177,6 +177,7 @@ describe('就诊金额记录', () => {
     ]}))
     const wrapper = mountPage()
     await flushPromises()
+    await wrapper.find('[data-testid="tab-visits"]').trigger('click')
     const rows = wrapper.findAll('.visit-amount')
     expect(rows.map(row => row.text())).toEqual(['实际自付：未记录金额', '实际自付：¥0.00', '实际自付：¥128.50'])
   })
@@ -298,11 +299,14 @@ describe('HealthRecord MacDialog integration', () => {
     expect(wrapper.vm.editingRecordSourceReportId).toBe('900000000000000333')
   })
 
-  it('指标历史和报告单默认展示最近 5 条，点击更多可展开和收起，趋势以 SVG 图表展示', async () => {
+  it('指标历史和报告单默认展示最近 5 条，点击更多可展开和收起，血压双曲线与健康标准线正确渲染', async () => {
     const mockRecords = Array.from({length: 7}, (_, i) => ({
       id: String(100 + i),
       measureDate: `2026-05-0${7 - i}`,
-      weightKg: 75 + i * 0.5
+      heightCm: 176.0,
+      weightKg: 75 + i * 0.5,
+      systolicPressure: 119,
+      diastolicPressure: 81
     }))
     const mockReports = Array.from({length: 6}, (_, i) => ({
       id: String(200 + i),
@@ -312,30 +316,50 @@ describe('HealthRecord MacDialog integration', () => {
     }))
     listHealthRecords.mockResolvedValueOnce(buildApiResponse({list: mockRecords}))
     listHealthReports.mockResolvedValueOnce(buildApiResponse({list: mockReports}))
-    getHealthTrends.mockResolvedValueOnce(buildApiResponse({
-      metricKey: 'weightKg',
-      points: [
-        {recordId: '1', measureDate: '2025-05-01', value: 74.0},
-        {recordId: '2', measureDate: '2026-05-01', value: 77.5}
-      ]
-    }))
+    getHealthTrends
+      .mockResolvedValueOnce(buildApiResponse({
+        metricKey: 'weightKg',
+        points: [
+          {recordId: '1', measureDate: '2025-05-01', value: 74.0},
+          {recordId: '2', measureDate: '2026-05-01', value: 77.5}
+        ]
+      }))
+      .mockResolvedValueOnce(buildApiResponse({
+        metricKey: 'bloodPressure',
+        points: [
+          {recordId: '1', measureDate: '2025-05-01', value: 122, secondaryValue: 82},
+          {recordId: '2', measureDate: '2026-05-01', value: 119, secondaryValue: 81}
+        ]
+      }))
 
     const wrapper = mountPage()
     await flushPromises()
     await nextTick()
 
+    expect(wrapper.text()).toContain('身高')
+    expect(wrapper.text()).toContain('176.0 cm')
+    expect(wrapper.text()).toContain('体质指数(BMI)')
     expect(wrapper.find('svg.trend-svg').exists()).toBe(true)
-    expect(wrapper.findAll('.trend-point-group')).toHaveLength(2)
 
-    expect(wrapper.findAll('.record-card')).toHaveLength(5)
+    // 切换血压双曲线并校验高低压折线与标准线
+    await wrapper.vm.selectTrendMetric('bloodPressure')
+    await flushPromises()
+    await nextTick()
+    expect(wrapper.find('polyline.dual-primary').exists()).toBe(true)
+    expect(wrapper.find('polyline.dual-secondary').exists()).toBe(true)
+    expect(wrapper.findAll('.ref-line')).toHaveLength(2)
+
+    // 报告默认展示 5 份，点击展开全部 6 份
     expect(wrapper.findAll('.report-card')).toHaveLength(5)
+    await wrapper.find('[data-testid="toggle-reports-expand"]').trigger('click')
+    expect(wrapper.findAll('.report-card')).toHaveLength(6)
 
+    // 切换指标历史 Tab：默认展示 5 条，点击展开全部 7 条再收起
+    await wrapper.find('[data-testid="tab-records"]').trigger('click')
+    expect(wrapper.findAll('.record-card')).toHaveLength(5)
     await wrapper.find('[data-testid="toggle-records-expand"]').trigger('click')
     expect(wrapper.findAll('.record-card')).toHaveLength(7)
     await wrapper.find('[data-testid="toggle-records-expand"]').trigger('click')
     expect(wrapper.findAll('.record-card')).toHaveLength(5)
-
-    await wrapper.find('[data-testid="toggle-reports-expand"]').trigger('click')
-    expect(wrapper.findAll('.report-card')).toHaveLength(6)
   })
 })
