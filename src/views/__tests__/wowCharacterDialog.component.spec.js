@@ -286,4 +286,15 @@ describe('WowCharacterStats MacDialog integration', () => {
     expect(getWowCharacterOverview).toHaveBeenCalledTimes(1)
     expect(globalThis.alert).toHaveBeenCalledWith('已重置 2 个满级角色的低保数据')
   })
+
+  it('隐藏赛季情报和职业攻略 banner 且不请求赛季资讯接口', async () => {
+    const wrapper = mount(WowCharacterStats, {global: {stubs: {transition: true}}})
+    mountedWrappers.push(wrapper)
+    await flushPromises()
+
+    expect(wrapper.find('.season-intelligence-hub').exists()).toBe(false)
+    expect(wrapper.find('.season-briefing').exists()).toBe(false)
+    expect(wrapper.find('.spotlight-panel').exists()).toBe(true)
+    expect(getWowSeasonInfo).not.toHaveBeenCalled()
+  })
 })

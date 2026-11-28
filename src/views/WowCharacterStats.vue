@@ -6,7 +6,7 @@
       <span>最高评分 {{ formatDecimal(overview.highestMythicScore) }}</span>
     </AppPageHeader>
 
-    <section class="season-intelligence-hub">
+    <section v-if="showSeasonIntelligenceHub" class="season-intelligence-hub">
       <nav class="season-intelligence-tabs" aria-label="赛季资讯导航">
         <button type="button" :class="{active: seasonTab === 'briefing'}" @click="seasonTab = 'briefing'">
           <span>01</span><div><b>赛季情报</b><small>SEASON BRIEFING</small></div>
@@ -1056,6 +1056,7 @@ const SPEC_NAME_FIELD_CODE = 'specName'
 const MYTHIC_DUNGEON_FIELD_CODE = 'mythicDungeonName'
 const PROFESSION_PRIMARY_FIELD_CODE = 'professionPrimary'
 const DEFAULT_FACTION_VALUE = 'ALLIANCE'
+const SHOW_SEASON_INTELLIGENCE_HUB = false
 const RAID_THRESHOLDS = [2, 4, 6]
 const MYTHIC_THRESHOLDS = [1, 4, 8]
 const WORLD_THRESHOLDS = [2, 4, 8]
@@ -2549,7 +2550,10 @@ export default {
     onMounted(async () => {
       await loadDictionaryOptions()
       resetForm()
-      await Promise.all([loadSeasonInfo(), loadPageData()])
+      await Promise.all([
+        SHOW_SEASON_INTELLIGENCE_HUB ? loadSeasonInfo() : Promise.resolve(),
+        loadPageData()
+      ])
     })
 
     return {
@@ -2572,6 +2576,7 @@ export default {
       overviewFilter,
       overviewLoading,
       changeOverviewScope,
+      showSeasonIntelligenceHub: SHOW_SEASON_INTELLIGENCE_HUB,
       seasonInfo,
       seasonTab,
       showDialog,
